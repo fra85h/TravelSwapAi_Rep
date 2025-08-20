@@ -1,44 +1,31 @@
-import "dotenv/config"
 import express from "express";
 import cors from "cors";
-import { scoreWithAI } from "./services/ai.js";
+import { matchesRouter } from "./routes/match.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Health check
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true });
-});
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// Endpoint di matching
-app.post("/api/match", async (req, res) => {
-  const { user, listings } = req.body;
-  try {
-    const scored = await scoreWithAI(user, listings);
-    res.json(scored || []);
-  } catch (err) {
-    console.error("Errore matching:", err);
-    res.status(500).json({ error: "AI scoring failed" });
-  }
-});
+app.use("/api", matchesRouter);
 
-// --- Funzione che cerca una porta libera ---
-function startServer(port) {
-  const server = app.listen(port, "0.0.0.0", () => {
-    console.log(`✅ API listening on http://0.0.0.0:${port}`);
-  });
-
-  server.on("error", (err) => {
-    if (err.code === "EADDRINUSE") {
-      console.warn(`⚠️ Porta ${port} occupata, provo con ${port + 1}...`);
-      startServer(port + 1);
-    } else {
-      console.error("❌ Errore server:", err);
+// porta libera automatica
+const tryListen = async (start = 8080, attempts = 5) => {
+  for (let p = start; p < start + attempts; p++) {
+    try {
+      await new Promise((resolve, reject) => {
+        const srv = app.listen(p, "0.0.0.0", () => resolve(srv));
+        srv.on("error", reject);
+      }).then(srv => {
+        console.log(`✅ API listening on http://0.0.0.0:${srv.address().port}`);
+      });
+      return;
+    } catch {
+      console.warn(`⚠️ Porta ${p} occupata, provo con ${p + 1}...`);
     }
-  });
-}
+  }
+  console.error("❌ Nessuna porta libera");
+};
 
-// Avvio su 8080 con fallback
-startServer(process.env.PORT ? parseInt(process.env.PORT, 10) : 8080);
+tryListen();

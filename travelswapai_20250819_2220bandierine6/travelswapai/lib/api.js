@@ -16,7 +16,25 @@ const headersJson = {
   apikey: ANON_KEY,
   Authorization: `Bearer ${ANON_KEY}`,
 };
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE || "http://127.0.0.1:8080/api";
 
+export async function listMatches() {
+  const url = `${API_BASE}/matches?userId=u1&mock=1`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+export async function recomputeMatches() {
+  const url = `${API_BASE}/matches/recompute`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: "u1" }),
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
 // Generic GET (returns JSON array or object)
 export async function restGet(path, { query = "", headers = {} } = {}) {
   const res = await fetch(REST(path, query), {

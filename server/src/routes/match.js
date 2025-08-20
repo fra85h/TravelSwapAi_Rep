@@ -1,62 +1,100 @@
-import { Router } from 'express';
-import { scoreListings } from '../services/ai.js';
+import { Router } from "express";
+import { scoreWithAI } from "../services/ai.js";
+import { scoreHeuristic } from "../services/heuristic.js";
 
-const router = Router();
+export const matchesRouter = Router();
 
-/**
- * POST /api/match
- * Body:
- * {
- *   "user": {
- *     "id": "u123",
- *     "prefs": {
- *        "types": ["hotel","train"],
- *        "location": "Milano",
- *        "maxPrice": 200
- *     },
- *     "bio": "Viaggio spesso nel weekend, amo centri città..."
- *   },
- *   "listings": [
- *      { "id":"l1", "title":"Frecciarossa Milano → Roma", "type":"train", "location":"Milano → Roma", "price":79, "description":"..." },
- *      { "id":"l2", "title":"B&B Duomo", "type":"hotel", "location":"Milano, Duomo", "price":140, "description":"..." }
- *   ]
- * }
- */
-router.post('/', async (req, res, next) => {
+/** Mock listings con UUID validi – sostituisci con il DB quando vuoi */
+const SAMPLE_LISTINGS = [
+  {
+    id: "11111111-1111-1111-1111-111111111111",
+    title: "Frecciarossa Milano → Roma",
+    type: "train",
+    location: "Milano → Roma",
+    price: 79,
+    description: "Posto a sedere, mattina",
+  },
+  {
+    id: "22222222-2222-2222-2222-222222222222",
+    title: "B&B Duomo",
+    type: "hotel",
+    location: "Milano, Duomo",
+    price: 160,
+    description: "Doppia con colazione",
+  },
+  {
+    id: "33333333-3333-3333-3333-333333333333",
+    title: "Regionale Verona → Venezia",
+    type: "train",
+    location: "Verona → Venezia",
+    price: 12,
+    description: "Treno regionale",
+  },
+];
+
+// ---- helpers condivisi ----
+function buildUser(userId) {
+  return {
+    id: userId || "demo-user",
+    bio: "Viaggi nel weekend, centri città, budget medio.",
+    prefs: { types: ["hotel", "train"], location: "Milano", maxPrice: 150 },
+  };
+}
+
+async function loadListings(/* { fromDb, userId } */) {
+  // TODO: carica dal DB reale; per ora mock
+  return SAMPLE_LISTINGS;
+}
+
+async function computeMatches(user, listings) {
+  // 1) prova AI
+  const ai = await scoreWithAI(user, listings);
+  const scores = ai ?? scoreHeuristic(user, listings);
+
+  // 2) merge dettagli+score
+  const byId = new Map(listings.map((l) => [l.id, l]));
+  const out = scores
+    .map((s) => {
+      const base = byId.get(s.id);
+      if (!base) return null;
+      return {
+        id: base.id,
+        title: base.title,
+        location: base.location,
+        type: base.type,
+        score: Math.round(Number(s.score) || 0),
+        bidirectional: Boolean(s.bidirectional),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score);
+
+  return out;
+}
+
+// ---- GET /api/matches ----
+matchesRouter.get("/matches", async (req, res) => {
   try {
-    const { user, listings } = req.body || {};
-    if (!user || !Array.isArray(listings)) {
-      return res.status(400).json({ error: { message: 'Missing user or listings' } });
-    }
-
-    const results = await scoreListings(user, listings);
-
-    // Output schema atteso dalla tua UI
-    // aggiungo anche un campo "bidirectional" finto (puoi calcolarlo server-side se hai dati reciproci)
-    const payload = results.map(r => ({
-      id: r.id,
-      title: r.title,
-      location: r.location,
-      type: r.type,
-      score: Math.round(r.score),
-      bidirectional: r.bidirectional ?? (r.score >= 80)
-    }));
-
-    res.json({ matches: payload });
-  } catch (err) {
-    next(err);
+    const { userId } = req.query;
+    const user = buildUser(userId);
+    const listings = await loadListings();
+    const result = await computeMatches(user, listings);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message || e) });
   }
 });
 
-/**
- * POST /api/match/recompute
- * (opzionale) endpoint per forzare un ricalcolo lato server
- * puoi usare job queue, ecc. Qui mock.
- */
-router.post('/recompute', async (_req, res) => {
-  // fai partire un job async... qui mock:
-  await new Promise(r => setTimeout(r, 250));
-  res.json({ ok: true });
+// ---- POST /api/matches/recompute ----
+matchesRouter.post("/matches/recompute", async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    const user = buildUser(userId);
+    const listings = await loadListings();
+    const result = await computeMatches(user, listings);
+    // In futuro potresti accodare un job e rispondere 202. Oggi rispondiamo 200 con i dati.
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message || e) });
+  }
 });
-
-export default router;
