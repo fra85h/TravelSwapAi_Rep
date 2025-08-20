@@ -1,5 +1,6 @@
 // server/src/models/listings.js
 import { supabase } from "../db.js";
+
 import { isUUID } from "../util/uuid.js";
 
 /**

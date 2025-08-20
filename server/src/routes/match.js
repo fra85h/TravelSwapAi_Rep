@@ -61,7 +61,7 @@ matchesRouter.get("/", async (req, res) => {
  * 4) ritorna items ordinati per score
  */
 matchesRouter.post("/recompute", async (req, res) => {
-  try {
+  try {   
     const userId = String(req.body?.userId || "");
     if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
 

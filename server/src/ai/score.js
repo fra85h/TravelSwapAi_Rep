@@ -1,6 +1,7 @@
 // server/src/ai/score.js
 import OpenAI from "openai";
 
+
 const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 export async function scoreWithAI(user, listings) {
