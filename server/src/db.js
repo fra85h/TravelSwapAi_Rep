@@ -52,3 +52,65 @@ export async function getLatestMatches(userId) {
   if (error) throw error;
   return data;
 }
+export async function listActiveListingsOfUser(userId, { limit = 200 } = {}) {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('id, user_id, title, description, type, location, price, status, created_at')
+    .eq('status', 'active').eq('user_id', userId)
+    .order('created_at', { ascending: false }).limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function insertUserSnapshot(userId, items) {
+  const { error } = await supabase
+    .from('match_snapshots')
+    .insert({ user_id: userId, generated_at: new Date().toISOString(), items });
+  if (error) throw error;
+}
+
+export async function getLatestUserSnapshot(userId) {
+  const { data, error } = await supabase
+    .from('match_snapshots')
+    .select('id, user_id, generated_at, items')
+    .eq('user_id', userId)
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data; // { id, user_id, generated_at, items }
+}
+
+export async function listMatchesForFrom(fromId, { limit = 100 } = {}) {
+  const { data: rows, error } = await supabase
+    .from('matches')
+    .select('to_listing_id, score, updated_at')
+    .eq('from_listing_id', fromId)
+    .order('score', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  const items = rows || [];
+  if (!items.length) return [];
+
+  const toIds = Array.from(new Set(items.map(r => r.to_listing_id)));
+  const { data: toListings, error: e2 } = await supabase
+    .from('listings')
+    .select('id, title, type, location, price, status, created_at')
+    .in('id', toIds);
+  if (e2) throw e2;
+  const byId = new Map((toListings || []).map(l => [l.id, l]));
+
+  return items.map(r => {
+    const l = byId.get(r.to_listing_id);
+    if (!l) return null;
+    return {
+      fromListingId: fromId,
+      toId: l.id,
+      title: l.title,
+      type: l.type,
+      location: l.location,
+      price: l.price,
+      score: r.score
+    };
+  }).filter(Boolean);
+}

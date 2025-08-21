@@ -1,109 +1,101 @@
 // server/src/routes/matches.js
 import { Router } from "express";
 import { isUUID } from "../util/uuid.js";
-import { getUserProfile, listActiveListings } from "../models/listings.js";
-import { upsertMatches, listMatchesForUser } from "../models/matches.js";
-import { scoreWithAI, heuristicScore } from "../ai/score.js";
-
+import { recomputeMatches, listMatches } from "../models/matches.js";
+import { getListingPublic } from "../models/listings.js";
+import { recomputeUserSnapshot, getUserSnapshot } from '../models/matches.js';
 export const matchesRouter = Router();
 
 /**
- * GET /api/matches?userId=<uuid>
- * Ritorna i match (letti dalla tabella matches) + dati listing basilari per render lato app.
+ * POST /api/matches/recompute
+ * Body: { userId: "<uuid>" }
+ * Rigenera i match per l'utente e salva lo snapshot.
  */
-matchesRouter.get("/", async (req, res) => {
+matchesRouter.post("/recompute", async (req, res) => {
   try {
-    const userId = String(req.query.userId || "");
+    const userId = String(req.body?.userId || "");
     if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
 
-    // leggi i match calcolati
-    const rows = await listMatchesForUser(userId, { minScore: 0 });
-
-    if (rows.length === 0) {
-      return res.json({ items: [] });
-    }
-
-    // join manuale sui listings per info di rendering
-    const listingIds = rows.map(r => r.listing_id);
-
-    const listings = await listActiveListings({ ownerId: null, limit: 500 });
-    const byId = new Map(listings.map(l => [l.id, l]));
-
-    const items = rows
-      .map(r => {
-        const l = byId.get(r.listing_id);
-        if (!l) return null;
-        return {
-          id: l.id,
-          title: l.title,
-          location: l.location,
-          type: l.type,
-          price: l.price,
-          score: r.score,
-          bidirectional: r.bidirectional,
-        };
-      })
-      .filter(Boolean);
-
-    res.json({ items });
+    const snapshot = await recomputeMatches(userId);
+    return res.status(201).json(snapshot);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: String(e?.message || e) });
   }
 });
 
 /**
- * POST /api/matches/recompute
- * body: { userId: "<uuid>" }
- * 1) carica profilo utente + listings attivi
- * 2) scoratura AI (o fallback)
- * 3) upsert su matches
- * 4) ritorna items ordinati per score
+ * GET /api/matches?userId=<uuid>
+ * Ritorna lo snapshot più recente con i dettagli dei listing (pubblici, senza PNR).
  */
-matchesRouter.post("/recompute", async (req, res) => {
-  try {   
-    const userId = String(req.body?.userId || "");
+matchesRouter.get("/", async (req, res) => {
+  try {
+    const userId = String(req.query?.userId || "");
     if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
 
-    const user = await getUserProfile(userId);                   // { id, full_name, prefs }
-    const listings = await listActiveListings({ ownerId: userId, limit: 300 }); // esclude i miei
+    // Snapshot items: [{ listingId, score, bidirectional }]
+    const items = await listMatches(userId);
 
-    // NIENTE mock-id (p1, p2...), qui solo UUID veri
-    const cleanListings = listings.filter(l => isUUID(l.id));
-
-    // 1) prova AI
-    let scored = await scoreWithAI(user, cleanListings);
-
-    // 2) fallback
-    if (!Array.isArray(scored) || scored.length === 0) {
-      scored = heuristicScore(user, cleanListings);
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.json({ items: [], count: 0 });
     }
 
-    // 3) persisti
-    await upsertMatches(userId, scored);
-
-    // 4) risposta arricchita (join per titolo ecc.)
-    const byId = new Map(cleanListings.map(l => [l.id, l]));
-    const items = scored
-      .map(r => {
-        const l = byId.get(r.id);
-        if (!l) return null;
-        return {
+    // Arricchisci con i dettagli del listing (pubblici)
+    const enriched = [];
+    for (const it of items) {
+      if (!isUUID(it.listingId)) continue;
+      try {
+        const l = await getListingPublic(it.listingId);
+        if (!l) continue;
+        enriched.push({
           id: l.id,
           title: l.title,
-          location: l.location,
           type: l.type,
+          location: l.location,
           price: l.price,
-          score: r.score,
-          bidirectional: !!r.bidirectional,
-        };
-      })
-      .filter(Boolean)
-      .sort((a,b) => b.score - a.score);
+          score: it.score,
+          bidirectional: !!it.bidirectional,
+        });
+      } catch {
+        // ignora listing non trovati o errori transitori
+      }
+    }
 
-    res.json({ items, count: items.length });
+    // Ordina per score desc (deterministico su id a parità)
+    enriched.sort(
+      (a, b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id))
+    );
+
+    return res.json({ items: enriched, count: enriched.length });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+matchesRouter.post('/snapshot/recompute', async (req, res) => {
+  try {
+    const userId = String(req.body?.userId || '');
+    const topPerListing = req.body?.topPerListing ?? 3;
+    const maxTotal = req.body?.maxTotal ?? 50;
+    if (!isUUID(userId)) return res.status(400).json({ error: 'Invalid userId' });
+
+    const out = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
+    res.status(201).json(out);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
+matchesRouter.get('/snapshot', async (req, res) => {
+  try {
+    const userId = String(req.query?.userId || '');
+    if (!isUUID(userId)) return res.status(400).json({ error: 'Invalid userId' });
+
+    const out = await getUserSnapshot(userId);
+    res.json(out);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e?.message || e) });
   }
 });

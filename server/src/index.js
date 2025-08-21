@@ -3,8 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 
-import { listingsRouter } from './routes/listings.js';   // assicurati che esista
-import { matchesRouter } from './routes/matches.js';     // contiene GET / e POST /recompute
+import { listingsRouter } from './routes/listing.js';   // assicurati che esista
+import { matchesRouter } from './routes/match.js';     // contiene GET / e POST /recompute
 
 const app = express();
 app.use(cors());

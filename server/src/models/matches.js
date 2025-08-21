@@ -7,6 +7,7 @@ import {
   insertMatchesSnapshot,
   getLatestMatches,
 } from '../db.js';
+import { listActiveListingsOfUser, listMatchesForFrom, insertUserSnapshot, getLatestUserSnapshot } from '../db.js';
 
 /**
  * Rigenera i match per userId e salva uno snapshot in tabella `matches`.
@@ -67,4 +68,39 @@ export async function listMatches(userId) {
   if (!isUUID(userId)) throw new Error('Invalid userId');
   const snap = await getLatestMatches(userId);
   return snap?.items || [];
+}
+export async function recomputeUserSnapshot(userId, { topPerListing = 3, maxTotal = 50 } = {}) {
+  if (!isUUID(userId)) throw new Error('Invalid userId');
+
+  const myListings = await listActiveListingsOfUser(userId, { limit: 200 });
+
+  let aggregated = [];
+  for (const from of myListings) {
+    const top = await listMatchesForFrom(from.id, { limit: topPerListing });
+    aggregated = aggregated.concat(top);
+  }
+
+  // dedup opzionale per toId
+  const seen = new Set();
+  const dedup = [];
+  for (const it of aggregated) {
+    const k = it.toId;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    dedup.push(it);
+  }
+
+  dedup.sort((a, b) => (b.score - a.score) || String(a.toId).localeCompare(String(b.toId)));
+  const items = dedup.slice(0, maxTotal);
+
+  await insertUserSnapshot(userId, items);
+  return { userId, generatedAt: new Date().toISOString(), count: items.length };
+}
+
+export async function getUserSnapshot(userId) {
+  if (!isUUID(userId)) throw new Error('Invalid userId');
+  const snap = await getLatestUserSnapshot(userId);
+  return snap
+    ? { items: snap.items || [], count: (snap.items || []).length, generatedAt: snap.generated_at }
+    : { items: [], count: 0, generatedAt: null };
 }
