@@ -1,35 +1,70 @@
-// server/src/models/matches.js
-import { supabase } from "../db.js";
+// server/src/matches.js
+import { fetchActiveListingsForMatching, insertMatchesSnapshot, getLatestMatches } from '../db.js';
+import { scoreWithAI } from '../services/ai.js';
 
-import { isUUID } from "../util/uuid.js";
+export async function recomputeMatches(userId, { userProfile = null } = {}) {
+  // 1) prendi i listing attivi
+  const listings = await fetchActiveListingsForMatching();
+  if (!listings.length) {
+    // salva snapshot vuoto, così il client non resta appeso
+    await insertMatchesSnapshot(userId, []);
+    return { userId, generatedAt: new Date().toISOString(), matches: [] };
+  }
 
-export async function upsertMatches(userId, rows) {
-  if (!isUUID(userId)) throw new Error("Invalid userId");
-  const payload = (rows || [])
-    .filter(r => isUUID(r.id))
-    .map(r => ({
-      user_id: userId,
-      listing_id: r.id,
-      score: Math.max(0, Math.min(100, Number(r.score) || 0)),
-      bidirectional: !!r.bidirectional,
-      updated_at: new Date().toISOString(),
-    }));
+  // 2) profilo utente (puoi arricchirlo da DB: preferenze, storico, budget…)
+  const user = userProfile || {
+    id: userId,
+    bio: 'Preferenze non specificate',
+    prefs: { types: ['hotel','train'], maxPrice: 200 }
+  };
 
-  if (payload.length === 0) return;
+  // 3) chiedi ad OpenAI uno score
+  const scored = await scoreWithAI(user, listings);
 
-  const { error } = await supabase.from("matches").upsert(payload, { onConflict: "user_id,listing_id" });
-  if (error) throw error;
+  // 4) fallback: se AI down, usa regole semplici
+  const safeScores = (scored && scored.length)
+    ? scored
+    : listings.map(l => ({
+        id: l.id,
+        score: Math.max(60, 100 - Math.abs((l.price || 120) - 120)), // giocattolo: più vicino a 120 = punteggio alto
+        bidirectional: false,
+        reason: 'fallback'
+      }));
+
+  // 5) join con metadati per comodità client
+  const metaById = new Map(listings.map(l => [l.id, l]));
+  const items = safeScores
+    .map(s => {
+      const m = metaById.get(s.id);
+      return {
+        listing_id: s.id,
+        score: Math.round(s.score),
+        bidirectional: !!s.bidirectional,
+        reason: s.reason || null,
+        type: m?.type || null,
+        title: m?.title || null,
+        location: m?.location || null,
+        price: m?.price ?? null,
+      };
+    })
+    .sort((a,b) => b.score - a.score);
+
+  // 6) salva snapshot
+  const snapshot = await insertMatchesSnapshot(userId, items);
+
+  return {
+    userId,
+    generatedAt: snapshot.generated_at,
+    matches: snapshot.items,
+  };
 }
 
-export async function listMatchesForUser(userId, { minScore = 0 } = {}) {
-  if (!isUUID(userId)) throw new Error("Invalid userId");
-  const { data, error } = await supabase
-    .from("matches")
-    .select("listing_id, score, bidirectional")
-    .eq("user_id", userId)
-    .gte("score", minScore)
-    .order("score", { ascending: false })
-    .limit(200);
-  if (error) throw error;
-  return data || [];
+export async function listMatches(userId) {
+  const latest = await getLatestMatches(userId);
+  if (!latest) return { userId, generatedAt: null, matches: [] };
+  return {
+    userId: latest.user_id,
+    generatedAt: latest.generated_at,
+    matches: latest.items || [],
+  };
 }

@@ -1,32 +1,57 @@
-import express from "express";
-import cors from "cors";
-import { matchesRouter } from "./routes/match.js";
-import "dotenv/config";
+// server/src/index.js
+import express from 'express';
+import cors from 'cors';
+import { recomputeMatches, listMatches } from './models/matches.js';
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
+// health
+app.get('/api/health', (_, res) => res.json({ ok: true }));
 
-
-app.use("/api", matchesRouter);
-
-// porta libera automatica
-const tryListen = async (start = 8080, attempts = 5) => {
-  for (let p = start; p < start + attempts; p++) {
-    try {
-      await new Promise((resolve, reject) => {
-        const srv = app.listen(p, "0.0.0.0", () => resolve(srv));
-        srv.on("error", reject);
-      }).then(srv => {
-        console.log(`✅ API listening on http://0.0.0.0:${srv.address().port}`);
-      });
-      return;
-    } catch {
-      console.warn(`⚠️ Porta ${p} occupata, provo con ${p + 1}...`);
-    }
+// recompute
+app.post('/api/matches/recompute', async (req, res) => {
+  try {
+    const { userId } = req.body || {};
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+    const result = await recomputeMatches(userId);
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e.message || e) });
   }
-  console.error("❌ Nessuna porta libera");
-};
+});
 
-tryListen();
+// list latest
+app.get('/api/matches', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ error: 'userId required' });
+    const result = await listMatches(userId);
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+const BASE = parseInt(process.env.PORT || '8080', 10);
+function choosePort(port, tries = 5) {
+  return new Promise((resolve) => {
+    const srv = app.listen(port, '0.0.0.0', () => {
+      console.log(`✅ API listening on http://0.0.0.0:${port}`);
+      resolve(port);
+    });
+    srv.on('error', () => {
+      if (tries > 0) {
+        console.warn(`⚠️ Porta ${port} occupata, provo con ${port+1}...`);
+        resolve(choosePort(port+1, tries-1));
+      } else {
+        console.error('❌ Nessuna porta libera.');
+        process.exit(1);
+      }
+    });
+  });
+}
+choosePort(BASE);

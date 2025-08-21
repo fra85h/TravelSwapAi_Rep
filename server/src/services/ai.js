@@ -1,51 +1,45 @@
-import OpenAI from "openai";
+// server/src/ai.js
+import OpenAI from 'openai';
 
 const client = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
-/**
- * Chiede al modello uno scoring 0–100 per ciascun listing.
- * Se non c’è API key o il modello fallisce → ritorna null (così usiamo fallback).
- */
 export async function scoreWithAI(user, listings) {
   if (!client) return null;
 
-  const system = `Sei un motore di matching. Valuta da 0 a 100 la compatibilità
-tra l'utente e ciascun listing. Considera: preferenze, storico, location,
-budget/prezzo, categorie e coerenza temporale. Indica anche se la compatibilità
-è "bidirezionale" (true/false) in base alla probabilità che l'altro lato sia interessato.
-Rispondi SOLO JSON valido con questa forma:
+  const prompt = `
+Sei un motore di matching. Per ogni listing valuta compatibilità con l'utente da 0 a 100 e se il match sembra bidirezionale.
+Rispondi SOLO con JSON array, senza testo extra:
 [
-  {"id":"<ID listing>","score":<0-100>,"bidirectional":true|false},
+  { "id": "<listing-uuid>", "score": 0-100, "bidirectional": true/false, "reason": "string" }
   ...
-]`;
+]
+Utente: ${JSON.stringify(user)}
+Listings: ${JSON.stringify(listings.map(l => ({
+    id: l.id,
+    title: l.title,
+    type: l.type,
+    location: l.location,
+    price: l.price,
+    description: l.description
+})))}
+  `.trim();
 
-  const userMsg = {
-    role: "user",
-    content:
-      "Utente: " + JSON.stringify(user) + "\n" +
-      "Listings: " + JSON.stringify(listings.map(l => ({
-        id: l.id, title: l.title, location: l.location, type: l.type, price: l.price ?? null, description: l.description ?? null
-      }))),
-  };
+  const resp = await client.responses.create({
+    model: 'gpt-4.1-mini',
+    temperature: 0.2,
+    input: prompt,
+  });
 
+  const text = resp.output_text || '';
   try {
-    // modello economico, temperature bassa per stabilità
-    const resp = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.1,
-      messages: [{ role: "system", content: system }, userMsg],
-    });
-
-    const text = resp.choices?.[0]?.message?.content?.trim() || "";
-    try {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed)) return parsed;
-      return null;
-    } catch {
-      return null;
-    }
+    const parsed = JSON.parse(text);
+    // filtra risultati con id presenti
+    const ids = new Set(listings.map(l => l.id));
+    return Array.isArray(parsed)
+      ? parsed.filter(x => x && ids.has(x.id))
+      : null;
   } catch {
     return null;
   }
