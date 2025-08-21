@@ -6,6 +6,7 @@ import {
   fetchActiveListingsForMatching,
   insertMatchesSnapshot,
   getLatestMatches,
+  supabase
 } from '../db.js';
 import { listActiveListingsOfUser, listMatchesForFrom, insertUserSnapshot, getLatestUserSnapshot } from '../db.js';
 
@@ -96,6 +97,53 @@ export async function recomputeUserSnapshot(userId, { topPerListing = 3, maxTota
   await insertUserSnapshot(userId, items);
   return { userId, generatedAt: new Date().toISOString(), count: items.length };
 }
+export async function recomputeUserSnapshotSQL(
+  userId,
+  { topPerListing = 3, maxTotal = 50, dedupByToId = true } = {}
+) {
+  if (!isUUID(userId)) throw new Error('Invalid userId');
+
+  const { data, error } = await supabase
+    .rpc('fn_user_top_matches', { p_user_id: userId, p_top_per_listing: topPerListing });
+  if (error) throw error;
+
+  let rows = data || [];
+
+  let items = rows.map(r => ({
+    fromListingId: r.from_listing_id,
+    toId: r.to_listing_id,
+    score: r.score,
+    bidirectional: r.score >= 80,
+    title: r.title,
+    type: r.type,
+    location: r.location,
+    price: r.price,
+    explanation: r.explanation || null,                  // 👈 nuovo
+    model: r.model || null,                              // 👈 nuovo
+    updatedAt: r.updated_at || new Date().toISOString()  // 👈 nuovo
+  }));
+
+  if (dedupByToId) {
+    const best = new Map();
+    for (const it of items) {
+      const prev = best.get(it.toId);
+      if (!prev) { best.set(it.toId, it); continue; }
+      const pick =
+        (it.score > prev.score) ||
+        (it.score === prev.score && it.explanation && !prev.explanation)
+          ? it : prev;
+      best.set(it.toId, pick);
+    }
+    items = Array.from(best.values());
+  }
+
+  items.sort((a, b) => (b.score - a.score) || String(a.toId).localeCompare(String(b.toId)));
+  items = items.slice(0, maxTotal);
+
+  await insertUserSnapshot(userId, items);
+  return { userId, generatedAt: new Date().toISOString(), count: items.length };
+}
+
 
 export async function getUserSnapshot(userId) {
   if (!isUUID(userId)) throw new Error('Invalid userId');

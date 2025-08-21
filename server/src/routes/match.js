@@ -3,7 +3,7 @@ import { Router } from "express";
 import { isUUID } from "../util/uuid.js";
 import { recomputeMatches, listMatches } from "../models/matches.js";
 import { getListingPublic } from "../models/listings.js";
-import { recomputeUserSnapshot, getUserSnapshot } from '../models/matches.js';
+import { recomputeUserSnapshot, getUserSnapshot ,recomputeUserSnapshotSQL } from '../models/matches.js';
 export const matchesRouter = Router();
 
 /**
@@ -72,30 +72,38 @@ matchesRouter.get("/", async (req, res) => {
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });
-matchesRouter.post('/snapshot/recompute', async (req, res) => {
+matchesRouter.post("/snapshot/recompute", async (req, res) => {
   try {
-    const userId = String(req.body?.userId || '');
+    const userId = String(req.body?.userId || "");
     const topPerListing = req.body?.topPerListing ?? 3;
     const maxTotal = req.body?.maxTotal ?? 50;
-    if (!isUUID(userId)) return res.status(400).json({ error: 'Invalid userId' });
 
-    const out = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
-    res.status(201).json(out);
+    if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
+    if (!Number.isFinite(Number(topPerListing)) || topPerListing <= 0)
+      return res.status(400).json({ error: "Invalid topPerListing" });
+    if (!Number.isFinite(Number(maxTotal)) || maxTotal <= 0)
+      return res.status(400).json({ error: "Invalid maxTotal" });
+
+    // Scegli una delle due strategie:
+    // const out = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });      // JS
+    const out = await recomputeUserSnapshotSQL(userId, { topPerListing, maxTotal });    // SQL (consigliata)
+
+    return res.status(201).json(out);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: String(e?.message || e) });
   }
 });
 
-matchesRouter.get('/snapshot', async (req, res) => {
+matchesRouter.get("/snapshot", async (req, res) => {
   try {
-    const userId = String(req.query?.userId || '');
-    if (!isUUID(userId)) return res.status(400).json({ error: 'Invalid userId' });
+    const userId = String(req.query?.userId || "");
+    if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
 
     const out = await getUserSnapshot(userId);
-    res.json(out);
+    return res.json(out);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: String(e?.message || e) });
   }
 });
