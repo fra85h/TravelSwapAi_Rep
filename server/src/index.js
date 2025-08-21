@@ -1,41 +1,23 @@
 // server/src/index.js
 import express from 'express';
 import cors from 'cors';
-import { recomputeMatches, listMatches } from './models/matches.js';
 import 'dotenv/config';
+
+import { listingsRouter } from './routes/listings.js';   // assicurati che esista
+import { matchesRouter } from './routes/matches.js';     // contiene GET / e POST /recompute
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// health
+// Health first
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
-// recompute
-app.post('/api/matches/recompute', async (req, res) => {
-  try {
-    const { userId } = req.body || {};
-    if (!userId) return res.status(400).json({ error: 'userId required' });
-    const result = await recomputeMatches(userId);
-    res.json(result);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: String(e.message || e) });
-  }
-});
+// Routers
+app.use('/api/listings', listingsRouter);
+app.use('/api/matches', matchesRouter);
 
-// list latest
-app.get('/api/matches', async (req, res) => {
-  try {
-    const userId = req.query.userId;
-    if (!userId) return res.status(400).json({ error: 'userId required' });
-    const result = await listMatches(userId);
-    res.json(result);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: String(e.message || e) });
-  }
-});
-
+// Porta con fallback
 const BASE = parseInt(process.env.PORT || '8080', 10);
 function choosePort(port, tries = 5) {
   return new Promise((resolve) => {
@@ -55,3 +37,5 @@ function choosePort(port, tries = 5) {
   });
 }
 choosePort(BASE);
+
+export default app;
