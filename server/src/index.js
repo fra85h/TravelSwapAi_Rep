@@ -1,11 +1,9 @@
 // server/src/index.js
 import express from 'express';
 import cors from 'cors';
-import 'dotenv/config';
-
 import { listingsRouter } from './routes/listing.js';   // assicurati che esista
 import { matchesRouter } from './routes/match.js';     // contiene GET / e POST /recompute
-
+import 'dotenv/config';
 const app = express();
 app.use(cors());
 app.use(express.json());
