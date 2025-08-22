@@ -1,5 +1,5 @@
 // server/src/ai/score.js
-import OpenAI from "openai";
+import OpenAI from "openai/index.mjs";
 
 const client = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })

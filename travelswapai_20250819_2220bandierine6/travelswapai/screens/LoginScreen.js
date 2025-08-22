@@ -13,7 +13,7 @@ import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../lib/i18n";
- import LanguageSwitcher from "../screens/LanguageSwitcher"; // 🇮🇹🇬🇧🇪🇸
+ import LanguageSwitcher from "./LanguageSwitcher"; // 🇮🇹🇬🇧🇪🇸
 // Necessario per chiudere la webview OAuth su Expo
 WebBrowser.maybeCompleteAuthSession();
 
@@ -49,13 +49,11 @@ export default function LoginScreen({ navigation }) {
       : AuthSession.makeRedirectUri({ scheme: "travelswapai", path: "auth-callback" });
 
   // iOS/Android: naviga subito quando Supabase emette la sessione dopo OAuth
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigation.replace("MainTabs");
-    });
-    return () => sub.subscription?.unsubscribe?.();
-  }, [navigation]);
-
+useEffect(() => {
+  // Non navighiamo da qui: ci pensa RootNavigator quando cambia session
+  const { data: sub } = supabase.auth.onAuthStateChange(() => {});
+  return () => sub.subscription?.unsubscribe?.();
+}, []);
   async function handleLogin() {
     if (!email || !password) {
       Alert.alert(t("error", "Errore"), t("auth.fillEmailPwd", "Inserisci email e password"));
@@ -63,9 +61,8 @@ export default function LoginScreen({ navigation }) {
     }
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      navigation.replace("MainTabs");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+if (error) throw error;
     } catch (e) {
       Alert.alert(t("auth.loginFailed", "Login fallito"), e?.message ?? String(e));
     } finally {

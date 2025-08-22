@@ -20,7 +20,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { listMyListings, updateListing, deleteMyListing } from "../lib/db";
 import { useI18n } from "../lib/i18n";
-import LanguageSwitcher from "../screens/LanguageSwitcher"; // 🇮🇹🇬🇧🇺🇸 bandierine condivise
+import LanguageSwitcher from "./LanguageSwitcher"; // 🇮🇹🇬🇧🇺🇸 bandierine condivise
 import { useAuth } from "../lib/auth";
 
 function StatItem({ label, icon, value, active, onPress }) {

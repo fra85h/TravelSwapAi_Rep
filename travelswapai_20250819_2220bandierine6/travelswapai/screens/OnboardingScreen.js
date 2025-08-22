@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useI18n } from "../lib/i18n";
-import LanguageSwitcher from "../screens/LanguageSwitcher"; // lasciato invariato come nel tuo import
+import LanguageSwitcher from "./LanguageSwitcher"; // lasciato invariato come nel tuo import
 
 // Persist onboarding flag quickly (no await)
 const markSeen = () => AsyncStorage.setItem("hasSeenOnboarding", "1").catch(() => {});
