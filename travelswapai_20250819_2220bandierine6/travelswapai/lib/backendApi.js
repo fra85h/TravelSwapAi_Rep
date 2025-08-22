@@ -1,39 +1,65 @@
-// travelswapai/lib/backendApi.js
-const envBase = process.env.EXPO_PUBLIC_API_BASE;
-function guessBase() {
-  if (typeof navigator !== "undefined" && /iPhone|iPad|Mac/.test(navigator.userAgent || "")) return "http://localhost:8080";
-  return "http://10.0.2.2:8080";
-}
-export const BASE = envBase || guessBase();
+// lib/backendApi.js
+const BASE = (process.env.EXPO_PUBLIC_API_BASE || "").replace(/\/+$/, "");
 
-/* Snapshot “Per te” */
+function ensureBase() {
+  if (!BASE) {
+    throw new Error("EXPO_PUBLIC_API_BASE non impostata");
+  }
+}
+
+async function fetchJson(path, opts = {}) {
+  ensureBase();
+  const url = `${BASE}${path}`;
+  const res = await fetch(url, {
+    ...opts,
+    headers: {
+      "Content-Type": "application/json",
+      ...(opts.headers || {}),
+    },
+  });
+
+  // Se non 2xx -> leggi testo e lancia
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const msg = text && text.trim().startsWith("<")
+      ? `HTTP ${res.status} — HTML ricevuto (probabile reverse-proxy/redirect)`
+      : `HTTP ${res.status}: ${text || res.statusText}`;
+    throw new Error(msg);
+  }
+
+  // Prova JSON, blocca se ricevi HTML
+  const text = await res.text();
+  if (text.trim().startsWith("<")) {
+    throw new Error("Risposta HTML inattesa (probabile proxy o URL BASE errato)");
+  }
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(`JSON Parse error: ${e?.message || e}`);
+  }
+}
+
+// -------- API snapshot utente --------
 export async function getUserSnapshot(userId) {
-  const res = await fetch(`${BASE}/api/matches/snapshot?userId=${encodeURIComponent(userId)}`);
-  if (!res.ok) throw new Error(`snapshot GET failed: ${res.status}`);
-  return res.json();
-}
-export async function recomputeUserSnapshot(userId, opts = {}) {
-  const res = await fetch(`${BASE}/api/matches/snapshot/recompute`, {
-    method: "POST",
-    headers: { "Content-Type":"application/json" },
-    body: JSON.stringify({ userId, topPerListing: opts.topPerListing ?? 3, maxTotal: opts.maxTotal ?? 50 }),
-  });
-  if (!res.ok) { const t = await res.text().catch(()=> ""); throw new Error(`snapshot RECOMPUTE failed: ${res.status} ${t}`); }
-  return res.json();
+  if (!userId) throw new Error("userId mancante");
+  return fetchJson(`/api/matches/snapshot?userId=${encodeURIComponent(userId)}`);
 }
 
-/* Pairwise per annuncio */
-export async function getListingMatches(fromListingId, limit = 100) {
-  const res = await fetch(`${BASE}/api/matches?fromListingId=${encodeURIComponent(fromListingId)}&limit=${limit}`);
-  if (!res.ok) throw new Error(`pairwise GET failed: ${res.status}`);
-  return res.json();
-}
-export async function recomputeForListing(fromListingId) {
-  const res = await fetch(`${BASE}/api/matches/recompute`, {
+export async function recomputeUserSnapshot(userId, { topPerListing = 3, maxTotal = 50 } = {}) {
+  if (!userId) throw new Error("userId mancante");
+  return fetchJson(`/api/matches/snapshot/recompute`, {
     method: "POST",
-    headers: { "Content-Type":"application/json" },
-    body: JSON.stringify({ fromListingId }),
+    body: JSON.stringify({ userId, topPerListing, maxTotal }),
   });
-  if (!res.ok) { const t = await res.text().catch(()=> ""); throw new Error(`pairwise RECOMPUTE failed: ${res.status} ${t}`); }
-  return res.json();
+}
+
+// (facoltativo) health per debug rapido
+export async function apiHealth() {
+  return fetchJson(`/api/health`);
+}
+
+// debug: stampa BASE una volta
+if (__DEV__) {
+  // eslint-disable-next-line no-console
+  console.log("[backendApi] BASE =", BASE || "(vuota!)");
 }

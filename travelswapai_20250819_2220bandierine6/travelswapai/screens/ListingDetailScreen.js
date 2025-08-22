@@ -60,7 +60,7 @@ export default function ListingDetailScreen() {
         <View style={{ marginTop:16, alignItems:"center" }}>
           <ActivityIndicator /><Text style={{ marginTop:8, color:"#6B7280" }}>Caricamento match…</Text>
         </View>
-      ) : matches.items.length === 0 ? (
+      ) : !matches?.items.length||matches.items.length === 0 ? (
         <Text style={{ marginTop:12, color:"#6B7280" }}>Nessun match</Text>
       ) : (
         <View style={{ marginTop:12, gap:8 }}>
