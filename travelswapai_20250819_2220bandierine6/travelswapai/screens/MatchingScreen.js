@@ -247,52 +247,62 @@ const coerceSnapshot = (snap) => {
 
 
      const normalize = useCallback((items, generatedAt) => {
-         const list = asArray(items);
-         const arr = list.map((raw) => {
+  const list = Array.isArray(items) ? items : (items == null ? [] : [items]);
 
-      // fallback multipli per compatibilità snake_case
-      const id =
-        raw.toId ?? raw.to_id ??
-        raw.listingId ?? raw.listing_id ??
-        raw.id;
+  const arr = list.map((raw) => {
+    // id / listingId
+    const id =
+      raw.toId ?? raw.to_id ??
+      raw.listingId ?? raw.listing_id ??
+      raw.id;
 
-      const title = raw.title ?? raw.name ?? "—";
-      const location = raw.location ?? raw.city ?? raw.destination ?? "—";
-      const type = raw.type ?? raw.listing_type ?? raw.category ?? "—";
-      const price = raw.price ?? raw.price_eur ?? raw.amount ?? null;
-      const score =
-        Number(raw.score ?? raw.score_pct ?? raw.score_percent ?? 0) || 0;
+    const listingId =
+      raw.listingId ?? raw.listing_id ?? raw.toId ?? raw.to_id ?? id;
 
-      // normalizza bidirectional (bool/0-1/"t"/"f"/"true"/"false")
+    // campi base
+    const title     = raw.title ?? raw.name ?? "—";
+    const location  = raw.location ?? raw.city ?? raw.destination ?? "—";
+    const type      = raw.type ?? raw.listing_type ?? raw.category ?? "—";
+    const priceRaw  = raw.price ?? raw.price_eur ?? raw.amount ?? null;
+    const price     = priceRaw == null ? null : Number(priceRaw);
+
+    // score (supporta stringhe/alias)
+    const score = Number(raw.score ?? raw.score_pct ?? raw.score_percent ?? 0) || 0;
+
+    // bidirectional normalizzato (bool, 0/1, "t"/"f", "true"/"false", "1")
+    const bidirectional = (() => {
       const b = raw.bidirectional ?? raw.is_bidirectional ?? raw.match_type;
-      const bidirectional =
-        typeof b === "string"
-          ? (b === "t" || b === "true" || b === "bidirectional")
-          : !!b;
+      if (typeof b === "string") {
+        const s = b.toLowerCase();
+        return s === "true" || s === "t" || s === "1" || s === "bidirectional";
+      }
+      if (typeof b === "number") return b === 1;
+      return !!b;
+    })();
 
-      const explanation = raw.explanation ?? raw.reason ?? null;
-      const model = raw.model ?? raw.algo ?? null;
-      const updatedAt = raw.updatedAt ?? raw.updated_at ?? generatedAt ?? null;
+    const explanation = raw.explanation ?? raw.reason ?? null;
+    const model       = raw.model ?? raw.algo ?? null;
+    const updatedAt   = raw.updatedAt ?? raw.updated_at ?? generatedAt ?? null;
 
-      const listingId = raw.listingId ?? raw.listing_id ?? raw.toId ?? raw.to_id ?? id;
+    return {
+      id,
+      listingId,
+      title,
+      location,
+      type,
+      price,
+      score,
+      bidirectional,
+      explanation,
+      model,
+      updatedAt,
+    };
+  });
 
-      return {
-        id,
-        listingId,
-        title,
-        location,
-        type,
-        price: price == null ? null : Number(price),
-        score,
-        bidirectional,
-        explanation,
-        model,
-        updatedAt,
-      };
-    });
-    arr.sort((a, b) => b.score - a.score);
-    return arr;
-  }, []);
+  arr.sort((a, b) => b.score - a.score);
+  return arr;
+}, []);
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -383,7 +393,7 @@ const coerceSnapshot = (snap) => {
     }
   };
 
-  const perfect = useMemo(() => rows.filter((m) => m.bidirectional === true), [rows]);
+  const perfect = useMemo(() => rows.filter((m) => m.bidirectional === true && m.score >= 80), [rows]);
   const compatible = useMemo(() => rows.filter((m) => !m.bidirectional), [rows]);
 
   const toggleExpand = useCallback((id) => {
