@@ -20,7 +20,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { createIconSetFromFontello, Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
@@ -31,6 +31,33 @@ import { getCurrentUser } from "../lib/db";
 import { getUserSnapshot, recomputeUserSnapshot } from "../lib/backendApi";
 
 /* ---------- UI di supporto ---------- */
+function EmptyState({ onRecompute, isLoading, hasError }) {
+  return (
+    <View style={{ alignItems: "center", padding: 24 }}>
+      <Ionicons
+        name={hasError ? "cloud-offline-outline" : "bulb-outline"}
+        size={28}
+        color="#111827"
+      />
+      <Text style={{ marginTop: 10, fontWeight: "800" }}>
+        {hasError ? "Backend non raggiungibile" : "Nessun match calcolato"}
+      </Text>
+      {!hasError && (
+        <TouchableOpacity
+          onPress={onRecompute}
+          disabled={isLoading}
+          style={{ marginTop: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: "#111827", borderRadius: 999 }}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={{ color: "#fff", fontWeight: "800" }}>Ricalcola AI</Text>
+          )}
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
 
 function SkeletonRow() {
   return (
@@ -185,7 +212,27 @@ export default function MatchingScreen() {
   const prevScoresRef = useRef(new Map());
   const [newIds, setNewIds] = useState(new Set());
   const userRef = useRef(null);
+const asArray = (x) => Array.isArray(x) ? x : (x == null ? [] : [x]);
 
+const coerceSnapshot = (snap) => {
+  if (Array.isArray(snap)) {
+    return { items: snap, generatedAt: null };
+  }
+  if (snap && Array.isArray(snap.items)) {
+    return { items: snap.items, generatedAt: snap.generatedAt ?? snap.generated_at ?? null };
+  }
+  if (snap && Array.isArray(snap.rows)) {
+    return { items: snap.rows, generatedAt: snap.generatedAt ?? snap.generated_at ?? null };
+  }
+  if (snap && Array.isArray(snap.data)) {
+    return { items: snap.data, generatedAt: snap.generatedAt ?? snap.generated_at ?? null };
+  }
+  if (snap && typeof snap === "object") {
+    // fallback estremo: prendi i valori dell’oggetto
+    return { items: Object.values(snap), generatedAt: snap.generatedAt ?? snap.generated_at ?? null };
+  }
+  return { items: [], generatedAt: null };
+};
   useLayoutEffect(() => {
     navigation.setOptions({ title: t("matching.title", "AI Matching") });
   }, [navigation, t, lang]);
@@ -198,20 +245,51 @@ export default function MatchingScreen() {
     typeof val === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
 
-  const normalize = useCallback((items, generatedAt) => {
-    const arr = (items || []).map((it) => ({
-      id: it.toId || it.id,
-      listingId: it.toId || it.id,
-      title: it.title || "—",
-      location: it.location || "—",
-      type: it.type || "—",
-      price: it.price ?? null,
-      score: Number(it.score) || 0,
-      bidirectional: !!it.bidirectional,
-      explanation: it.explanation || null,
-      model: it.model || null,
-      updatedAt: it.updatedAt || generatedAt || null,
-    }));
+
+     const normalize = useCallback((items, generatedAt) => {
+         const list = asArray(items);
+         const arr = list.map((raw) => {
+
+      // fallback multipli per compatibilità snake_case
+      const id =
+        raw.toId ?? raw.to_id ??
+        raw.listingId ?? raw.listing_id ??
+        raw.id;
+
+      const title = raw.title ?? raw.name ?? "—";
+      const location = raw.location ?? raw.city ?? raw.destination ?? "—";
+      const type = raw.type ?? raw.listing_type ?? raw.category ?? "—";
+      const price = raw.price ?? raw.price_eur ?? raw.amount ?? null;
+      const score =
+        Number(raw.score ?? raw.score_pct ?? raw.score_percent ?? 0) || 0;
+
+      // normalizza bidirectional (bool/0-1/"t"/"f"/"true"/"false")
+      const b = raw.bidirectional ?? raw.is_bidirectional ?? raw.match_type;
+      const bidirectional =
+        typeof b === "string"
+          ? (b === "t" || b === "true" || b === "bidirectional")
+          : !!b;
+
+      const explanation = raw.explanation ?? raw.reason ?? null;
+      const model = raw.model ?? raw.algo ?? null;
+      const updatedAt = raw.updatedAt ?? raw.updated_at ?? generatedAt ?? null;
+
+      const listingId = raw.listingId ?? raw.listing_id ?? raw.toId ?? raw.to_id ?? id;
+
+      return {
+        id,
+        listingId,
+        title,
+        location,
+        type,
+        price: price == null ? null : Number(price),
+        score,
+        bidirectional,
+        explanation,
+        model,
+        updatedAt,
+      };
+    });
     arr.sort((a, b) => b.score - a.score);
     return arr;
   }, []);
@@ -224,13 +302,23 @@ export default function MatchingScreen() {
       userRef.current = u;
       if (!u?.id) throw new Error("missing user");
 
-      const snap = await getUserSnapshot(u.id); // { items, generatedAt }
-      const n = normalize(snap?.items || [], snap?.generatedAt);
+ const snap = await getUserSnapshot(u.id);
+ const { items, generatedAt } = coerceSnapshot(snap);
+ // debug utile per capire che forma arriva
+ console.log("[MatchingScreen] snapshot shape keys:", snap && typeof snap === "object" ? Object.keys(snap) : typeof snap);
+ console.log("[MatchingScreen] items length:", Array.isArray(items) ? items.length : "not-array");
+ const n = normalize(items, generatedAt);
       setRows(n);
 
       const base = new Map();
       for (const m of n) base.set(m.id, m.score);
       prevScoresRef.current = base;
+      // piccolo aiuto per debug rapido
+      console.log("[MatchingScreen] snapshot items:", items?.length ?? 0);
+      if (Platform.OS === "android") {
+        ToastAndroid.show(`🔎 ${n.length} match caricati`, ToastAndroid.SHORT);
+      }
+
     } catch (e) {
       console.error("[MatchingScreen] load error:", e);
       setLoadError(e?.message || String(e));
@@ -265,8 +353,9 @@ export default function MatchingScreen() {
 
       await recomputeUserSnapshot(u.id, { topPerListing: 3, maxTotal: 50 });
       const snap = await getUserSnapshot(u.id);
-
-      const n = normalize(snap?.items || [], snap?.generatedAt);
+      const items = Array.isArray(snap) ? snap : (snap?.items || []);
+      const generatedAt = Array.isArray(snap) ? null : (snap?.generatedAt ?? snap?.generated_at ?? null);
+      const n = normalize(items, generatedAt);
       setRows(n);
 
       const latest = new Map(n.map((m) => [m.id, m.score]));
@@ -321,13 +410,18 @@ export default function MatchingScreen() {
           keyExtractor={(it, idx) => String(it.id ?? idx)}
           renderItem={({ item }) => {
             const targetId = item.listingId || item.id;
-            const safeNavigate = () => {
+           const safeNavigate = () => {
+             if (!targetId) return; // niente tap se manca del tutto
               if (isUUID(targetId)) {
-                navigation.navigate("OfferDetail", { listingId: targetId, type: item.type || "hotel" });
+                navigation.navigate("OfferDetail", {
+                  listingId: targetId,
+                  type: item.type || "hotel",
+                });
               } else {
-                Alert.alert("Anteprima non disponibile", "ID non valido.");
+                // Non alzare un alert: semplicemente ignora il tap (rimane visualizzabile la riga)
+                console.log("[MatchingScreen] listingId non-UUID, tap ignorato:", targetId);
               }
-            };
+             };
             return (
               <MatchRow
                 item={item}
@@ -342,9 +436,11 @@ export default function MatchingScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           scrollEnabled={false}
           ListEmptyComponent={
-            <Text style={{ color: "#6B7280", paddingHorizontal: 4 }}>
-              {loadError ? "Backend offline o non raggiungibile." : "Nessun risultato."}
-            </Text>
+           <EmptyState
+              onRecompute={onRecompute}
+              isLoading={recomputing || loading}
+              hasError={!!loadError}
+            />
           }
           extraData={`${expandedKey}|${newIds.size}`}
         />
