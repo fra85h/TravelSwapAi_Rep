@@ -14,6 +14,30 @@ import { listActiveListings } from './listings.js';
 /**
  * Rigenera i match per userId e salva uno snapshot in tabella `matches`.
  */
+// Normalizza gli item dello snapshot per un confronto deterministico
+function normalizeSnapshotItems(items) {
+  // Adatta le chiavi ai tuoi item snapshot: usa gli identificativi reali
+  // Esempi comuni nel tuo progetto: toId / to_listing_id / listingId
+  return (items || [])
+    .map((it) => ({
+      to: it.toId ?? it.to_listing_id ?? it.listingId ?? it.id,
+      // arrotonda se vuoi evitare falsi positivi per rumore decimale
+      score: typeof it.score === "number" ? Math.round(it.score * 1000) / 1000 : Number(it.score || 0),
+    }))
+    .filter((x) => x.to) // scarta item senza id
+    .sort((a, b) => {
+      if (a.to < b.to) return -1;
+      if (a.to > b.to) return 1;
+      return b.score - a.score;
+    });
+}
+
+function snapshotsAreEqual(aItems, bItems) {
+  const A = normalizeSnapshotItems(aItems);
+  const B = normalizeSnapshotItems(bItems);
+  return JSON.stringify(A) === JSON.stringify(B);
+}
+
  export async function recomputeMatches(userId) {
    if (!isUUID(userId)) throw new Error('Invalid userId');
 
@@ -57,17 +81,43 @@ if (fromIds.length) {
 }
 
   const rows = [];
-
+const DETERMINISTIC = process.env.MATCH_AI_DETERMINISTIC !== "false"; // default true
+const TEMP = Number(process.env.MATCH_AI_TEMP ?? (DETERMINISTIC ? 0 : 0.3));
+const TOP_P = 1;
+function hash32(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < String(str).length; i++) {
+    h ^= String(str).charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function getSeed(userId, mode = process.env.MATCH_AI_SEED_MODE ?? (DETERMINISTIC ? "user" : "none")) {
+  if (mode === "user")  return hash32(userId);
+  if (mode === "daily") return (hash32(userId) ^ Number(new Date().toISOString().slice(0,10).replace(/-/g,""))) >>> 0;
+  return undefined; // nessun seed
+}
+const useCands = candidates
+  .slice()
+  .sort((a,b) => String(a.id).localeCompare(String(b.id)));
+  
   // 5) per OGNI tua listing, calcola punteggi contro i candidati e crea righe pairwise
   for (const f of fromListings) {
     // passa al modello anche un minimo di contesto della listing sorgente
     const contextUser = { ...user, fromListing: f };
     console.log("qui LANCIO AI per user ");
      console.log(user);
-    const ai = await scoreWithAI(contextUser, candidates);
+    //const ai = await scoreWithAI(contextUser, candidates);
+    const ai = await scoreWithAI(
+  { ...user, fromListing: f },
+  useCands,
+  { temperature: TEMP, top_p: TOP_P, seed: getSeed(userId) } // se supportato
+);
     console.log("qui FINISCE AI");
-    const scored = Array.isArray(ai) && ai.length ? ai : heuristicScore(contextUser, candidates);
-
+    //const scored = Array.isArray(ai) && ai.length ? ai : heuristicScore(contextUser, candidates);
+const scored = (Array.isArray(ai) ? ai : [])
+  .map(s => ({ ...s, score: Math.round(Number(s.score || 0) * 1000) / 1000 }))
+  .sort((a,b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
     for (const s of scored) {
       if (!s?.id) continue; // serve l'id della listing candidata
       rows.push({
@@ -128,6 +178,7 @@ export async function listMatches(userId) {
   const snap = await getLatestMatches(userId);
   return snap?.items || [];
 }
+/*
 export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTotal = 50 } = {}) {
   if (!isUUID(userid)) throw new Error('Invalid userId');
 console.log("qui lancio listActiveListingsOfUser con user ");
@@ -157,6 +208,77 @@ console.log("qui costruisco let aggregated");
 
   await insertUserSnapshot(userid, items);
   return { userid, generatedAt: new Date().toISOString(), count: items.length };
+}*/
+//nuova versione che non scrive se lo snpashot è identico all'ultimo
+export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTotal = 50 } = {}) {
+  if (!isUUID(userid)) throw new Error('Invalid userId');
+
+  console.log("qui lancio listActiveListingsOfUser con user ", userid);
+  const myListings = await listActiveListingsOfUser(userid, { limit: 200 });
+
+  console.log("qui costruisco let aggregated");
+  let aggregated = [];
+  for (const from of myListings) {
+    console.log("qui lancio  listMatchesForFrom");
+    const top = await listMatchesForFrom(from.id, { limit: topPerListing });
+    console.log("qui ho terminato  listMatchesForFrom");
+    aggregated = aggregated.concat(top);
+  }
+
+  // dedup per toId (come già facevi)
+  const seen = new Set();
+  const dedup = [];
+  for (const it of aggregated) {
+    const k = it.toId;
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    dedup.push(it);
+  }
+
+  // ordina e taglia
+  dedup.sort((a, b) => (b.score - a.score) || String(a.toId).localeCompare(String(b.toId)));
+  const items = dedup.slice(0, maxTotal);
+
+  const now = new Date().toISOString();
+
+  // 1) prendi l’ultimo snapshot dell’utente (ordinato per generated_at DESC)
+  const { data: last, error: lastErr } = await supabase
+    .from('match_snapshots')
+    .select('id, user_id, items, generated_at')
+    .eq('user_id', userid)
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastErr) throw lastErr;
+
+  // 2) se identico: aggiorna SOLO la data (generated_at) e NON inserire righe nuove
+  if (last && snapshotsAreEqual(items, last.items)) {
+    const { error: updErr } = await supabase
+      .from('match_snapshots')
+      .update({ generated_at: now })
+      .eq('id', last.id);
+
+    if (updErr) throw updErr;
+
+    return { userid, generatedAt: now, count: items.length, reused: true };
+  }
+
+  // 3) se diverso: inserisci nuova riga
+  const { data: inserted, error: insErr } = await supabase
+    .from('match_snapshots')
+    .insert([{ user_id: userid, items, generated_at: now }])
+    .select('id, generated_at')
+    .single();
+
+  if (insErr) throw insErr;
+
+  return {
+    userid,
+    generatedAt: inserted?.generated_at ?? now,
+    count: items.length,
+    reused: false,
+  };
 }
 export async function recomputeUserSnapshotSQL(
   userId,
