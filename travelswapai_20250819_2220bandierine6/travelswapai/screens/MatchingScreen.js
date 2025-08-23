@@ -226,7 +226,7 @@ export default function MatchingScreen() {
     await new Promise((r) => setTimeout(r, 300));
     setStatus("running");
  console.log("lancio recomputeaiand snapshot");
-    const { snapshot } = await recomputeAIAndSnapshot(u.id, {
+    const { snapshot } = await recomputeAIAndSnapshot( {
       topPerListing: 3,
       maxTotal: 50,
     });

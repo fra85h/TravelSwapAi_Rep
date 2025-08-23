@@ -1,5 +1,7 @@
+import { supabase } from "./supabase";
 // lib/backendApi.js
 const BASE = (process.env.EXPO_PUBLIC_API_BASE || "").replace(/\/+$/, "");
+
 
 function ensureBase() {
   if (!BASE) {
@@ -7,7 +9,7 @@ function ensureBase() {
   }
 }
 
-async function fetchJson(path, opts = {}) {
+/*async function fetchJson(path, opts = {}) {
   ensureBase();
   const url = `${BASE}${path}`;
   const res = await fetch(url, {
@@ -37,8 +39,27 @@ async function fetchJson(path, opts = {}) {
   } catch (e) {
     throw new Error(`JSON Parse error: ${e?.message || e}`);
   }
-}
+}*/
+const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || "").replace(/\/$/, "");
 
+export async function fetchJson(path, opts = {}) {
+  const url = /^https?:\/\//.test(path) ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+
+  // Prendi il token della sessione corrente
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...(opts.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  const res = await fetch(url, { ...opts, headers });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  return text ? JSON.parse(text) : null;
+}
 // -------- API snapshot utente --------
 export async function getUserSnapshot(userId) {
   if (!userId) throw new Error("userId mancante");
@@ -64,7 +85,17 @@ if (__DEV__) {
   console.log("[backendApi] BASE =", BASE || "(vuota!)");
 }
 // Orchestrazione AI → Snapshot
-export async function recomputeAIAndSnapshot(
+export async function recomputeAIAndSnapshot({ topPerListing = 3, maxTotal = 50 } = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  return fetchJson(`/api/matches/ai/recompute`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify({ topPerListing, maxTotal }), // <-- niente userId
+  });
+}
+/*export async function recomputeAIAndSnapshot(
   userId,
   { topPerListing = 3, maxTotal = 50 } = {}
 ) {
@@ -74,4 +105,4 @@ export async function recomputeAIAndSnapshot(
     method: "POST",
     body: JSON.stringify({ userId, topPerListing, maxTotal }),
   });
-}
+}*/

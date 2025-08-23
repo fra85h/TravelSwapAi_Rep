@@ -46,6 +46,7 @@ console.log("qui inizio getuserprofile");
     .from('profiles')
     .select('id, full_name') // niente alias qui
     .eq('id', userId)
+    .maybeSingle();  // al massimo una riga
 
   if (error) throw error;
   if (!data) return { id: userId }; // fallback minimale

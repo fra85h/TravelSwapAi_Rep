@@ -10,6 +10,7 @@ import {
   // recomputeMatchesForListing,
   // listMatchesForListing,
 } from "../models/matches.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 export const matchesRouter = express.Router();
 
@@ -56,10 +57,10 @@ matchesRouter.post("/snapshot/recompute", async (req, res) => {
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });
-matchesRouter.post("/ai/recompute", async (req, res) => {
+matchesRouter.post("/ai/recompute", requireAuth,async (req, res) => {
   try {
      console.log("qui sono dentro routsmatches ai/recompute");
-    const userId = String(req.body?.userId || "");
+    const userId =req.user.id;   // String(req.body?.userId || "");
       console.log("qui ho costruito userId");
     const topPerListing = req.body?.topPerListing ?? 3;
           console.log("qui ho costruito userItopPerListingd");
@@ -70,19 +71,23 @@ matchesRouter.post("/ai/recompute", async (req, res) => {
 
     // 1) calcolo AI
     const ai = await recomputeMatches(userId); // { userId, generatedAt, items }
-console.log("QUi ho fatto la recompute match");
+console.log("QUi ho fatto la recompute match con user " );
+console.log(userId);
     // 2) aggiorna snapshot utente
     const _ = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
-console.log("QUi ho fatto lo snapshot");
+console.log("QUi ho fatto lo snapshot per user ");
+console.log(userId);
     // 3) prendi lo snapshot aggiornato e restituiscilo
     const snap = await getUserSnapshot(userId); // { items, count, generatedAt }
-     console.log("QUi leggo snapshot");
+     console.log("QUi leggo snapshot per user  ");
+     console.log(userId);
     return res.status(201).json({
       ai: { count: ai.items?.length ?? 0, generatedAt: ai.generatedAt },
       snapshot: snap,
     });
   } catch (e) {
     console.error(e);
+         console.log("errore sulla recomputesnapshot "||e);
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });

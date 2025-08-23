@@ -20,26 +20,29 @@ import { listActiveListings } from './listings.js';
 
   const now = new Date().toISOString();
 
+
   // 1) profilo utente (per il prompt AI)
   const user = await getUserProfile(userId);
-
+//console.log(userid);
+console.log("user ricavato con getuserprofile");
+console.log(user);
   // 2) le TUE listing attive (sorgenti del match)
   const fromListings =
-    (await listActiveListings({ ownerId: userId, limit: 200 })) || [];
+    (await listActiveListingsOfUser(user.id, { limit: 200 })) || [];
 
   if (!fromListings.length) {
     // nessuna sorgente → niente da calcolare (e pulizia eventuale dei vecchi from di questo utente)
     // Se vuoi, elimina anche le vecchie righe per sicurezza:
     // await db`DELETE FROM matches WHERE from_listing_id = ANY(${db.array([])})`;
-    return { userId, generatedAt: now, items: [] };
+    return { user, generatedAt: now, items: [] };
   }
 
   // 3) candidati = listing attive di ALTRI utenti
   // se hai una fetchActiveListingsForMatching() che esclude già il proprietario, usala pure
   const allActive = (await listActiveListings({ limit: 500 })) || [];
-  const candidates = allActive.filter((l) => l.user_id !== userId);
+  const candidates = allActive.filter((l) => l.user_id !== user.id);
   if (!candidates.length) {
-    return { userId, generatedAt: now, items: [] };
+    return { user, generatedAt: now, items: [] };
   }
 console.log("qui cancello i match precedenti");
   // 4) cancella i match precedenti per le tue sorgenti
@@ -59,7 +62,8 @@ if (fromIds.length) {
   for (const f of fromListings) {
     // passa al modello anche un minimo di contesto della listing sorgente
     const contextUser = { ...user, fromListing: f };
-    console.log("qui LANCIO AI");
+    console.log("qui LANCIO AI per user ");
+     console.log(user);
     const ai = await scoreWithAI(contextUser, candidates);
     console.log("qui FINISCE AI");
     const scored = Array.isArray(ai) && ai.length ? ai : heuristicScore(contextUser, candidates);
@@ -87,7 +91,7 @@ if (rows.length) {
   for (let i = 0; i < rows.length; i += CHUNK) {
     // normalizza: aggiungi user_id e usa created_at al posto di generated_at
     const slice = rows.slice(i, i + CHUNK).map(({ generated_at, bidirectional, model, explanation, ...r }) => ({
-      user_id: ownerByFromId.get(r.from_listing_id) ?? userId, // ⬅️ OBBLIGATORIO
+      user_id: ownerByFromId.get(r.from_listing_id) ?? user.id, // ⬅️ OBBLIGATORIO
       from_listing_id: r.from_listing_id,
       to_listing_id: r.to_listing_id,
       score: r.score,
@@ -108,10 +112,12 @@ if (rows.length) {
       throw new Error(`Supabase insert failed [${status}]: ${error.message}`);
     }
   }
+  
 }
 
-  return { userId, generatedAt: now, items: rows };
+  return { user, generatedAt: now, items: rows };
  }
+
 
 
 /**
@@ -122,10 +128,11 @@ export async function listMatches(userId) {
   const snap = await getLatestMatches(userId);
   return snap?.items || [];
 }
-export async function recomputeUserSnapshot(userId, { topPerListing = 3, maxTotal = 50 } = {}) {
-  if (!isUUID(userId)) throw new Error('Invalid userId');
-
-  const myListings = await listActiveListingsOfUser(userId, { limit: 200 });
+export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTotal = 50 } = {}) {
+  if (!isUUID(userid)) throw new Error('Invalid userId');
+console.log("qui lancio listActiveListingsOfUser con user ");
+console.log(userid);
+  const myListings = await listActiveListingsOfUser(userid, { limit: 200 });
 console.log("qui costruisco let aggregated");
   let aggregated = [];
   for (const from of myListings) {
@@ -148,8 +155,8 @@ console.log("qui costruisco let aggregated");
   dedup.sort((a, b) => (b.score - a.score) || String(a.toId).localeCompare(String(b.toId)));
   const items = dedup.slice(0, maxTotal);
 
-  await insertUserSnapshot(userId, items);
-  return { userId, generatedAt: new Date().toISOString(), count: items.length };
+  await insertUserSnapshot(userid, items);
+  return { userid, generatedAt: new Date().toISOString(), count: items.length };
 }
 export async function recomputeUserSnapshotSQL(
   userId,
@@ -199,9 +206,9 @@ export async function recomputeUserSnapshotSQL(
 }
 
 
-export async function getUserSnapshot(userId) {
-  if (!isUUID(userId)) throw new Error('Invalid userId');
-  const snap = await getLatestUserSnapshot(userId);
+export async function getUserSnapshot(userid) {
+  if (!isUUID(userid)) throw new Error('Invalid userId');
+  const snap = await getLatestUserSnapshot(userid);
   return snap
     ? { items: snap.items || [], count: (snap.items || []).length, generatedAt: snap.generated_at }
     : { items: [], count: 0, generatedAt: null };
