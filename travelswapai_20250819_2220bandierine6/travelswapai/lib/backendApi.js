@@ -63,3 +63,14 @@ if (__DEV__) {
   // eslint-disable-next-line no-console
   console.log("[backendApi] BASE =", BASE || "(vuota!)");
 }
+// Orchestrazione AI → Snapshot
+export async function recomputeAIAndSnapshot(
+  userId,
+  { topPerListing = 3, maxTotal = 50 } = {}
+) {
+  if (!userId) throw new Error("userId mancante");
+  return fetchJson(`/api/matches/ai/recompute`, {
+    method: "POST",
+    body: JSON.stringify({ userId, topPerListing, maxTotal }),
+  });
+}

@@ -5,6 +5,7 @@ import {
   recomputeUserSnapshotSQL,
   recomputeUserSnapshot,
   getUserSnapshot,
+  recomputeMatches,              // ⬅️ AGGIUNTO
   // se già le usi per pairwise:
   // recomputeMatchesForListing,
   // listMatchesForListing,
@@ -50,6 +51,30 @@ matchesRouter.post("/snapshot/recompute", async (req, res) => {
     const out = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
 
     return res.status(201).json(out);
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+matchesRouter.post("/ai/recompute", async (req, res) => {
+  try {
+    const userId = String(req.body?.userId || "");
+    const topPerListing = req.body?.topPerListing ?? 3;
+    const maxTotal = req.body?.maxTotal ?? 50;
+    if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
+
+    // 1) calcolo AI
+    const ai = await recomputeMatches(userId); // { userId, generatedAt, items }
+
+    // 2) aggiorna snapshot utente
+    const _ = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
+
+    // 3) prendi lo snapshot aggiornato e restituiscilo
+    const snap = await getUserSnapshot(userId); // { items, count, generatedAt }
+    return res.status(201).json({
+      ai: { count: ai.items?.length ?? 0, generatedAt: ai.generatedAt },
+      snapshot: snap,
+    });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: String(e?.message || e) });

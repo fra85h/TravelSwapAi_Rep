@@ -25,6 +25,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
 import { useI18n } from "../lib/i18n";
+import { recomputeAIAndSnapshot } from "../lib/backendApi";
 
 // Backend reale
 import { getCurrentUser } from "../lib/db";
@@ -126,7 +127,7 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt })
   const { t } = useI18n();
   const badgeStyle =
     item.score >= 80 ? styles.badgeGreen : item.score >= 70 ? styles.badgeLime : styles.badgeYellow;
-
+  
   const fallbackExpl = [
     item.bidirectional ? "Match reciproco (💫)" : null,
     `Affinità ${Math.round(Number(item.score) || 0)}/100`,
@@ -138,7 +139,7 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt })
   const explText = item.explanation || fallbackExpl;
   const model = item.model || (item.explanation ? "AI" : "heuristic");
   const upd = item.updatedAt || generatedAt || null;
-
+  
   return (
     <View style={styles.row}>
       <View style={[styles.avatar, { backgroundColor: "#E5E7EB" }]} />
@@ -212,6 +213,35 @@ export default function MatchingScreen() {
   const prevScoresRef = useRef(new Map());
   const [newIds, setNewIds] = useState(new Set());
   const userRef = useRef(null);
+
+   const onPressRicalcolaAI = async () => {
+   const u = userRef.current || (await getCurrentUser());
+  if (!u?.id || recomputing) return;
+  try {
+    console.log("ciao1");
+     setRecomputing(true);
+    setStatus("queued");
+    toast(t("matching.toasts.queued", "Ricalcolo AI in coda…"));
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await new Promise((r) => setTimeout(r, 300));
+    setStatus("running");
+
+    const { snapshot } = await recomputeAIAndSnapshot(u.id, {
+      topPerListing: 3,
+      maxTotal: 50,
+    });
+    // aggiorna la lista mostrata nel tab
+    setItems(snapshot?.items ?? []);
+     setStatus("done");
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  } catch (e) { console.log("ciao2");
+    Alert.alert(t("common.error", "Errore"), e?.message || String(e));
+  } finally {
+     setRecomputing(false); console.log("ciao3");
+  }
+};
+ 
+  
 const asArray = (x) => Array.isArray(x) ? x : (x == null ? [] : [x]);
 
 const coerceSnapshot = (snap) => {
@@ -506,7 +536,9 @@ const coerceSnapshot = (snap) => {
 
       {/* FAB rotondo ⚡ */}
       <TouchableOpacity
-        onPress={onRecompute}
+        onPress={onPressRicalcolaAI} //{onRecompute}-->cosa faceva questa?
+        //onPress={onRecompute}
+        
         activeOpacity={0.92}
         accessibilityRole="button"
         accessibilityLabel="Ricalcola AI"
