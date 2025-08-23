@@ -5,8 +5,16 @@ import { listingsRouter } from './routes/listing.js';   // assicurati che esista
 import { matchesRouter } from './routes/match.js';     // contiene GET / e POST /recompute
 import 'dotenv/config';
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: "1mb" }));     // <— OBBLIGATORIO
+app.use(express.urlencoded({ extended: true }));
+
+
+//app.listen(process.env.PORT || 8080, "0.0.0.0", () => {
+  //console.log("API on", process.env.PORT || 8080);
+//});
+
+
 
 // Health first
 app.get('/api/health', (_, res) => res.json({ ok: true }));

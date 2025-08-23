@@ -69,6 +69,7 @@ export async function recomputeAIAndSnapshot(
   { topPerListing = 3, maxTotal = 50 } = {}
 ) {
   if (!userId) throw new Error("userId mancante");
+  console.log("qui sono dentro la function recomputeaiandsnapshot");
   return fetchJson(`/api/matches/ai/recompute`, {
     method: "POST",
     body: JSON.stringify({ userId, topPerListing, maxTotal }),

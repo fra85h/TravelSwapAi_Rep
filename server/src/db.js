@@ -39,7 +39,23 @@ export async function insertMatchesSnapshot(userId, items) {
   if (error) throw error;
   return data;
 }
+export async function getUserProfile(userId) {
+  if (!userId) throw new Error('Missing userId');
+console.log("qui inizio getuserprofile");
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name') // niente alias qui
+    .eq('id', userId)
 
+  if (error) throw error;
+  if (!data) return { id: userId }; // fallback minimale
+console.log("qui ho finito con getuserprofile");
+  return {
+    id: data.id,
+    name: data.full_name ?? null  // alias via mapping JS
+
+  };
+}
 export async function getLatestMatches(userId) {
   if (!supabase) return null;
   const { data, error } = await supabase

@@ -27,7 +27,7 @@ export async function getUserProfile(userId) {
  */
 export async function listActiveListings({ ownerId = null, limit = 100 } = {}) {
   if (!supabase) throw new Error("Supabase client not configured");
-
+console.log("qui sono dentro listactivelistings");
   let q = supabase
     .from("listings")
     .select(
@@ -47,6 +47,7 @@ export async function listActiveListings({ ownerId = null, limit = 100 } = {}) {
   if (error) throw error;
 
   // safety: solo record con id valido
+  console.log("qui ho finito con listactivelistings");
   return (data || []).filter((r) => isUUID(r.id));
 }
 

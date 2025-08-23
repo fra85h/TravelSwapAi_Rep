@@ -218,14 +218,14 @@ export default function MatchingScreen() {
    const u = userRef.current || (await getCurrentUser());
   if (!u?.id || recomputing) return;
   try {
-    console.log("ciao1");
+    console.log("inizio ricalcolo ai");
      setRecomputing(true);
     setStatus("queued");
     toast(t("matching.toasts.queued", "Ricalcolo AI in coda…"));
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await new Promise((r) => setTimeout(r, 300));
     setStatus("running");
-
+ console.log("lancio recomputeaiand snapshot");
     const { snapshot } = await recomputeAIAndSnapshot(u.id, {
       topPerListing: 3,
       maxTotal: 50,
@@ -233,8 +233,9 @@ export default function MatchingScreen() {
     // aggiorna la lista mostrata nel tab
     setItems(snapshot?.items ?? []);
      setStatus("done");
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  } catch (e) { console.log("ciao2");
+    console.log("fine funzione recomputeaiandsnapshot");
+     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  } catch (e) { console.log("qui eccezione su ");
     Alert.alert(t("common.error", "Errore"), e?.message || String(e));
   } finally {
      setRecomputing(false); console.log("ciao3");

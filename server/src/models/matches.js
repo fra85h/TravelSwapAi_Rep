@@ -1,66 +1,118 @@
 // server/src/models/matches.js
 import { isUUID } from '../util/uuid.js';
-import { getUserProfile, listActiveListings } from './listings.js';
+
 import { scoreWithAI, heuristicScore } from '../ai/score.js';
 import {
   fetchActiveListingsForMatching,
   insertMatchesSnapshot,
   getLatestMatches,
+  getUserProfile,
   supabase
 } from '../db.js';
 import { listActiveListingsOfUser, listMatchesForFrom, insertUserSnapshot, getLatestUserSnapshot } from '../db.js';
-
+import { listActiveListings } from './listings.js';
 /**
  * Rigenera i match per userId e salva uno snapshot in tabella `matches`.
  */
-export async function recomputeMatches(userId) {
-  if (!isUUID(userId)) throw new Error('Invalid userId');
+ export async function recomputeMatches(userId) {
+   if (!isUUID(userId)) throw new Error('Invalid userId');
 
-  // 1) Profilo utente
+
+  const now = new Date().toISOString();
+
+  // 1) profilo utente (per il prompt AI)
   const user = await getUserProfile(userId);
 
-  // 2) Listings attivi per matching (escludi quelli dell'utente)
-  // Se esiste fetchActiveListingsForMatching(), usa quella; altrimenti fallback su listActiveListings()
-  const listings =
-    (typeof fetchActiveListingsForMatching === 'function'
-      ? await fetchActiveListingsForMatching()
-      : await listActiveListings({ ownerId: userId, limit: 200 })) || [];
+  // 2) le TUE listing attive (sorgenti del match)
+  const fromListings =
+    (await listActiveListings({ ownerId: userId, limit: 200 })) || [];
 
-  if (!listings.length) {
-    const snapshot = { userId, generatedAt: new Date().toISOString(), items: [] };
-    await insertMatchesSnapshot(userId, snapshot.items);
-    return snapshot;
+  if (!fromListings.length) {
+    // nessuna sorgente → niente da calcolare (e pulizia eventuale dei vecchi from di questo utente)
+    // Se vuoi, elimina anche le vecchie righe per sicurezza:
+    // await db`DELETE FROM matches WHERE from_listing_id = ANY(${db.array([])})`;
+    return { userId, generatedAt: now, items: [] };
   }
 
-  // 3) Scoring: prova AI, altrimenti euristica
-  const ai = await scoreWithAI(user, listings);
-  const scored = Array.isArray(ai) && ai.length ? ai : heuristicScore(user, listings);
+  // 3) candidati = listing attive di ALTRI utenti
+  // se hai una fetchActiveListingsForMatching() che esclude già il proprietario, usala pure
+  const allActive = (await listActiveListings({ limit: 500 })) || [];
+  const candidates = allActive.filter((l) => l.user_id !== userId);
+  if (!candidates.length) {
+    return { userId, generatedAt: now, items: [] };
+  }
+console.log("qui cancello i match precedenti");
+  // 4) cancella i match precedenti per le tue sorgenti
+  const fromIds = fromListings.map((l) => l.id);
+if (fromIds.length) {
+  const { error } = await supabase
+    .from('matches')
+    .delete()
+    .in('from_listing_id', fromIds);   // DELETE WHERE from_listing_id IN (...)
 
-  // 4) Normalizza + ordina
-  const byId = new Map(scored.map((x) => [x.id, x]));
-  const items = listings
-    .map((l) => {
-      const s = byId.get(l.id);
-      if (!s) return null;
-      return {
-        listingId: l.id,
+  if (error) throw error; // richiede SERVICE_ROLE_KEY lato server se RLS attiva
+}
+
+  const rows = [];
+
+  // 5) per OGNI tua listing, calcola punteggi contro i candidati e crea righe pairwise
+  for (const f of fromListings) {
+    // passa al modello anche un minimo di contesto della listing sorgente
+    const contextUser = { ...user, fromListing: f };
+    console.log("qui LANCIO AI");
+    const ai = await scoreWithAI(contextUser, candidates);
+    console.log("qui FINISCE AI");
+    const scored = Array.isArray(ai) && ai.length ? ai : heuristicScore(contextUser, candidates);
+
+    for (const s of scored) {
+      if (!s?.id) continue; // serve l'id della listing candidata
+      rows.push({
+        from_listing_id: f.id,     // ⬅️ MAI NULL
+        to_listing_id: s.id,
         score: Number(s.score) || 0,
         bidirectional: !!s.bidirectional,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => b.score - a.score);
+        model: s.model || 'gpt-4.1-mini',
+        explanation: s.explanation || null,
+        generated_at: now,
+      });
+    }
+  }
 
-  // 5) Salva snapshot
-  await insertMatchesSnapshot(userId, items);
+if (rows.length) {
+  const CHUNK = Number(process.env.MATCH_INSERT_CHUNK || 100);
 
-  // 6) Ritorna payload
-  return {
-    userId,
-    generatedAt: new Date().toISOString(),
-    items,
-  };
+  // mappa rapida per sicurezza (se vuoi recuperare l'owner dalla listing)
+  const ownerByFromId = new Map(fromListings.map(l => [l.id, l.user_id || userId]));
+
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    // normalizza: aggiungi user_id e usa created_at al posto di generated_at
+    const slice = rows.slice(i, i + CHUNK).map(({ generated_at, bidirectional, model, explanation, ...r }) => ({
+      user_id: ownerByFromId.get(r.from_listing_id) ?? userId, // ⬅️ OBBLIGATORIO
+      from_listing_id: r.from_listing_id,
+      to_listing_id: r.to_listing_id,
+      score: r.score,
+      created_at: generated_at ?? new Date().toISOString(),    // se vuoi forzare il timestamp
+    }));
+
+    // Se hai un vincolo unico, usa onConflict adeguato:
+    const { error, status } = await supabase
+      .from('matches')
+      .upsert(slice, {
+        onConflict: 'from_listing_id,to_listing_id', // oppure 'user_id,from_listing_id,to_listing_id' se il tuo UNIQUE è così
+        returning: 'minimal',
+      });
+      // In alternativa, se NON hai alcun UNIQUE: .insert(slice, { returning: 'minimal' })
+
+    if (error) {
+      console.error('[matches insert] failed', { status, error });
+      throw new Error(`Supabase insert failed [${status}]: ${error.message}`);
+    }
+  }
 }
+
+  return { userId, generatedAt: now, items: rows };
+ }
+
 
 /**
  * Ritorna l’ultimo snapshot matches salvato per l’utente.
@@ -74,10 +126,12 @@ export async function recomputeUserSnapshot(userId, { topPerListing = 3, maxTota
   if (!isUUID(userId)) throw new Error('Invalid userId');
 
   const myListings = await listActiveListingsOfUser(userId, { limit: 200 });
-
+console.log("qui costruisco let aggregated");
   let aggregated = [];
   for (const from of myListings) {
+    console.log("qui lancio  listMatchesForFrom");
     const top = await listMatchesForFrom(from.id, { limit: topPerListing });
+     console.log("qui ho terminato  listMatchesForFrom");
     aggregated = aggregated.concat(top);
   }
 
