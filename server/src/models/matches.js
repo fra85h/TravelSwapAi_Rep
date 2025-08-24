@@ -65,6 +65,7 @@ console.log(user);
   // se hai una fetchActiveListingsForMatching() che esclude già il proprietario, usala pure
   const allActive = (await listActiveListings({ limit: 500 })) || [];
   const candidates = allActive.filter((l) => l.user_id !== user.id);
+
   if (!candidates.length) {
     return { user, generatedAt: now, items: [] };
   }
@@ -100,7 +101,8 @@ function getSeed(userId, mode = process.env.MATCH_AI_SEED_MODE ?? (DETERMINISTIC
 const useCands = candidates
   .slice()
   .sort((a,b) => String(a.id).localeCompare(String(b.id)));
-  
+    console.log("fromListings:", fromListings.length);
+console.log("candidates:", useCands.length);
   // 5) per OGNI tua listing, calcola punteggi contro i candidati e crea righe pairwise
   for (const f of fromListings) {
     // passa al modello anche un minimo di contesto della listing sorgente
@@ -114,12 +116,16 @@ const useCands = candidates
   useCands,
   { temperature: TEMP, top_p: TOP_P, seed: getSeed(userId) } // se supportato
 );
+  console.log("ai:", Array.isArray(ai) ? ai.length : ai); // per questa 'from' specifica
+
     console.log("qui FINISCE AI");
        
     //const scored = Array.isArray(ai) && ai.length ? ai : heuristicScore(contextUser, candidates);
 const scored = (Array.isArray(ai) ? ai : [])
   .map(s => ({ ...s, score: Math.round(Number(s.score || 0) * 1000) / 1000 }))
   .sort((a,b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
+    console.log("scored:", scored.length);
+
     for (const s of scored) { 
            console.log(s.model);
       if (!s?.id) continue; // serve l'id della listing candidata

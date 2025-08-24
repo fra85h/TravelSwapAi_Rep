@@ -9,7 +9,7 @@ const client = process.env.OPENAI_API_KEY
   : null;
 
 // Override via env
-const MODEL = process.env.MATCH_AI_MODEL || "gpt-4.1-mini";
+const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0); // default: deterministico
 const TOP_P = Number(process.env.MATCH_AI_TOP_P ?? 1);
 const MAX_LISTINGS_PER_CALL = Number(process.env.MATCH_AI_BATCH ?? 40);
@@ -18,6 +18,18 @@ const MAX_LISTINGS_PER_CALL = Number(process.env.MATCH_AI_BATCH ?? 40);
 // Utility
 // -----------------------------------------------------------------------------
 const MAX_DESC_CHARS = 300; // riduce token cost
+function stableStringify(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(v => stableStringify(v)).join(",")}]`;
+  const keys = Object.keys(value).sort(); // <-- ordine chiavi
+  const body = keys.map(k => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",");
+  return `{${body}}`;
+}
+
+function normText(s) {
+  if (!s) return "";
+  return String(s).replace(/\s+/g, " ").trim(); // spazi stabili
+}
 
 function truncate(str, n) {
   if (!str) return "";
@@ -25,7 +37,7 @@ function truncate(str, n) {
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
-function buildPrompt(user, listingsBatch) {
+/*function buildPrompt(user, listingsBatch) {
   // Minimizza il prompt, solo i campi che servono
   const slimUser = {
     id: user?.id,
@@ -56,7 +68,37 @@ Regole:
 
 Utente: ${JSON.stringify(slimUser)}
 Listings: ${JSON.stringify(slimListings)}`;
+}*/
+function buildPrompt(user, listingsBatch) {
+  const slimUser = { id: user?.id, prefs: user?.prefs ?? {} };
+  const slimListings = listingsBatch.map((l) => ({
+    id: l.id,
+    title: truncate(normText(l.title), 120),
+    type: l.type,
+    location: truncate(normText(l.location), 80),
+    price: l.price,
+    description: truncate(normText(l.description), MAX_DESC_CHARS),
+  }));
+
+  return `Sei un motore di matching. Assegna a ciascun listing un punteggio di compatibilità 0-100 con l'utente.
+Rispondi SOLO con un oggetto JSON nel formato esatto:
+{
+  "scores": [
+    { "id": "<uuid>", "score": <int 0-100>, "bidirectional": <true|false> },
+    ...
+  ]
 }
+
+Regole:
+- In "scores" DEVE esserci un elemento per OGNI listing in input.
+- "score" intero 0..100 (nessun decimale).
+- "bidirectional" true se probabile reciprocità, altrimenti false.
+- Nessun campo extra oltre a quelli indicati.
+
+Utente: ${stableStringify(slimUser)}
+Listings: ${stableStringify(slimListings)}`;
+}
+
 
 // Valida e normalizza output AI (senza "model": lo aggiungiamo noi)
 function validateAndNormalize(aiArray, knownIds) {
@@ -66,15 +108,13 @@ function validateAndNormalize(aiArray, knownIds) {
   for (const x of aiArray) {
     if (!x || !ids.has(x.id)) continue;
     let s = Number.isFinite(Number(x.score)) ? Math.round(Number(x.score)) : 0;
+    // quantizzazione a passi di 5
+    s = Math.round(s / 5) * 5; // 0,5,10,...100
     if (s < 0) s = 0;
     if (s > 100) s = 100;
-    out.push({
-      id: x.id,
-      score: s,
-      bidirectional: !!x.bidirectional,
-    });
+    out.push({ id: x.id, score: s, bidirectional: !!x.bidirectional });
   }
-  // dedup + sort deterministico (score DESC, id ASC)
+  // dedup e sort stabile
   const seen = new Set();
   const dedup = [];
   for (const r of out) {
@@ -82,11 +122,10 @@ function validateAndNormalize(aiArray, knownIds) {
     seen.add(r.id);
     dedup.push(r);
   }
-  dedup.sort(
-    (a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id))
-  );
+  dedup.sort((a, b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
   return dedup;
 }
+
 
 // -----------------------------------------------------------------------------
 // Responses API wrapper con text.format (schema) + fallback "json"
@@ -94,118 +133,99 @@ function validateAndNormalize(aiArray, knownIds) {
 // -----------------------------------------------------------------------------
 // Responses API wrapper con text.format (schema) + fallback "json" + fallback plain
 // -----------------------------------------------------------------------------
+// ✅ Usa json_schema (root: array) – niente "json"
+// Usa un modello che supporta bene structured outputs.
+// Se puoi: MATCH_AI_MODEL=gpt-4o-mini
 async function callOpenAIJSON({
   prompt,
-  timeoutMs = 12000,
-  retries = 1,
+  timeoutMs = 15000,
   model = MODEL,
   temperature = TEMPERATURE,
   top_p = TOP_P,
 }) {
   if (!client) return null;
 
-  const timeout = new Promise((resolve) =>
-    setTimeout(() => resolve({ output_text: "" }), timeoutMs)
-  );
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort("timeout"), timeoutMs);
 
-  // 1) Structured Outputs (schema rigoroso)
-  const reqSchema = {
-    model,
-    input: prompt,
-    temperature,
-    top_p,
-    text: {
-      format: {
-        type: "json_schema",
-        json_schema: {
-          name: "scores",
+  try {
+    const resp = await client.responses.create({
+      model,
+      input: prompt,
+      temperature,
+      top_p,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "scores_payload",   // <-- richiesto a livello di format
           strict: true,
           schema: {
-            type: "array",
-            items: {
-              type: "object",
-              required: ["id", "score", "bidirectional"],
-              properties: {
-                id:            { type: "string" },
-                score:         { type: "integer", minimum: 0, maximum: 100 },
-                bidirectional: { type: "boolean" },
-              },
-            },
-          },
-        },
-      },
-    },
-  };
-
-  // 2) Fallback “voglio JSON” (⚠️ nota: qui serve un OGGETTO, non una stringa)
-  const reqJson = {
-    model,
-    input: prompt,
-    temperature,
-    top_p,
-    text: { format: { type: "json" } },   // <-- FIX qui
-  };
-
-  // 3) Fallback plain (niente text.format) + parser “estrai [ … ]”
-  const reqPlain = {
-    model,
-    input: prompt,
-    temperature,
-    top_p,
-  };
-
-  async function create(req) {
-    return client.responses.create(req);
-  }
-
-  let resp;
-  // tenta schema
-  try {
-    resp = await Promise.race([create(reqSchema), timeout]);
-  } catch {
-    // tenta json
-    try {
-      resp = await Promise.race([create(reqJson), timeout]);
-    } catch {
-      // tenta plain
-      resp = await Promise.race([create(reqPlain), timeout]);
-    }
-  }
-
-  let text = resp?.output_text || "";
-
-  // retry soft se non pare un array JSON
-  for (let i = 0; i < retries && text.trim()[0] !== "["; i++) {
-    try {
-      resp = await Promise.race([create(reqSchema), timeout]);
-    } catch {
-      try {
-        resp = await Promise.race([create(reqJson), timeout]);
-      } catch {
-        resp = await Promise.race([create(reqPlain), timeout]);
+            type: "object",
+            additionalProperties: false,
+            required: ["scores"],
+            properties: {
+              scores: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["id", "score", "bidirectional"],
+                  properties: {
+                    id:            { type: "string" },
+                    score:         { type: "integer", minimum: 0, maximum: 100 },
+                    bidirectional: { type: "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
-    }
-    text = resp?.output_text || "";
-  }
+    }, { signal: ctrl.signal });
 
-  // parsing robusto
-  let parsed = null;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
+    // estrai testo in modo robusto
+    let text = "";
+    if (typeof resp?.output_text === "string") {
+      text = resp.output_text;
+    } else if (Array.isArray(resp?.output)) {
+      const c = resp.output[0]?.content?.[0];
+      if (c?.type === "output_text") text = c.text || "";
+      if (c?.type === "message")     text = c.content?.[0]?.text || "";
+    }
+    if (!text.trim()) return null;
+
+    // parse → estrai l’array dentro "scores"
+    let parsed;
+    try { parsed = JSON.parse(text); } catch { parsed = null; }
+    if (Array.isArray(parsed)) return parsed;            // tollera vecchio formato (solo per retrocompat)
+    if (parsed && Array.isArray(parsed.scores)) return parsed.scores;
+
+    // ultima spiaggia: estrai il primo array
     const m = text.match(/\[[\s\S]*\]/);
     if (m) {
-      try { parsed = JSON.parse(m[0]); } catch {}
+      try {
+        const arr = JSON.parse(m[0]);
+        return Array.isArray(arr) ? arr : null;
+      } catch {}
     }
+    return null;
+  } catch (e) {
+    console.error("[AI] OpenAI error:", e?.status, e?.message || String(e));
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
-  return parsed;
 }
+
+
+
+
 
 
 // -----------------------------------------------------------------------------
 // AI score (pubblico)
 // -----------------------------------------------------------------------------
-export async function scoreWithAI(user, listings) {
+/*export async function scoreWithAI(user, listings) {
   if (!client || !Array.isArray(listings) || listings.length === 0) return null;
 
   // Ordine canonico per stabilità
@@ -258,6 +278,44 @@ export async function scoreWithAI(user, listings) {
   completed.sort(
     (a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id))
   );
+  return completed;
+}
+*/
+export async function scoreWithAI(user, listings) {
+  if (!client || !Array.isArray(listings) || listings.length === 0) return null;
+
+  const sorted = listings.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  const allIds = sorted.map(l => l.id);
+
+  const batches = [];
+  for (let i = 0; i < sorted.length; i += MAX_LISTINGS_PER_CALL) {
+    batches.push(sorted.slice(i, i + MAX_LISTINGS_PER_CALL));
+  }
+
+  const results = [];
+  for (const batch of batches) {
+    const prompt = buildPrompt(user, batch);
+    const raw = await callOpenAIJSON({
+      prompt,
+      timeoutMs: 15000,
+      model: MODEL,
+      temperature: TEMPERATURE,
+      top_p: TOP_P,
+    });
+    const validated = validateAndNormalize(raw, batch.map(l => l.id));
+    if (validated && validated.length) {
+      results.push(...validated.map(r => ({ ...r, model: MODEL })));
+    } else {
+      // se lo schema fallisce per il batch, interrompi e vai a heuristic (deterministico)
+      return null;
+    }
+  }
+
+  // completa buchi
+  const byId = new Map(results.map(r => [r.id, r]));
+  const completed = allIds.map(id => byId.get(id) || { id, score: 0, bidirectional: false, model: MODEL });
+
+  completed.sort((a, b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
   return completed;
 }
 
