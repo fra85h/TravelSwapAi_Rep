@@ -66,6 +66,18 @@ const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || "").replace(/\/$/, "");
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
   return text ? JSON.parse(text) : null;
 }*/
+// helper: rileva se siamo su *.app.github.dev
+const isTunnelHost = (u) => {
+  try { return /app\.github\.dev$/i.test(new URL(u).host); } catch { return false; }
+};
+
+// warm-up del tunnel (GET /api/health + piccola pausa)
+async function warmUpTunnel(base) {
+  const b = (base || API_BASE || "").replace(/\/+$/, "");
+  if (!isTunnelHost(b)) return;
+  try { await fetch(`${b}/api/health`, { method: "GET" }); } catch {}
+  await new Promise(r => setTimeout(r, 200));
+}
 export async function fetchJson(path, opts = {}) {
   // Costruisci URL evitando doppio slash
   const base = (typeof API_BASE === "string" ? API_BASE : "").replace(/\/+$/, "");
@@ -91,10 +103,16 @@ export async function fetchJson(path, opts = {}) {
   console.log("[fetchJson] ->", url, opts?.method || "GET");
 
   const res = await fetch(url, { ...opts, headers });
-
+   console.log("gia cosumato???");
+ console.log(res.bodyUsed);
   // Leggi corpo una sola volta
-  const text = await res.text().catch(() => "");
+  console.log("status", res.status, "ct", res.headers.get("content-type"), "len", res.headers.get("content-length"));
 
+//  const text = await res.json().catch(() => "");
+  const text = await res.text();   
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { /* JSON invalido */ }
+console.log(text);
   if (!res.ok) {
     const snippet = text ? ` — ${text.slice(0, 200)}` : "";
     throw new Error(`HTTP ${res.status} ${res.statusText}${snippet}`);

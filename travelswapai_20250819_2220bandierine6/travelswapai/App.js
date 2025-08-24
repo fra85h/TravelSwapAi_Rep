@@ -1,6 +1,7 @@
 // 👉 Carica i polyfill PRIMA di tutto (belt & suspenders su Snack)
 import './lib/polyfills';
 //import RedirectTester from "./screens/redirecttester";
+import { fetchJson } from "./lib/backendApi"; // adatta il path
 
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
@@ -115,6 +116,7 @@ function RootNavigator() {
 }
 
 export default function App() {
+
   return (
     <AuthProvider>
       <I18nProvider>

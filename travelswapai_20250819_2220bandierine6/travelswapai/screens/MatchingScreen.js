@@ -215,6 +215,7 @@ export default function MatchingScreen() {
   const userRef = useRef(null);
 
    const onPressRicalcolaAI = async () => {
+
    const u = userRef.current ;
     console.log(u.id);
   if (!u?.id || recomputing) return;

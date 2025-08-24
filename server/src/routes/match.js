@@ -60,7 +60,7 @@ matchesRouter.post("/snapshot/recompute", async (req, res) => {
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });
-matchesRouter.post("/ai/recompute", requireAuth,async (req, res) => {
+matchesRouter.post("/ai/recompute",async (req, res) => {
   try {
 
         console.log("POST /ai/recompute CT=", req.headers["content-type"]);
@@ -91,7 +91,7 @@ console.log(userId);
     const snap = await getUserSnapshot(userId); // { items, count, generatedAt }
      console.log("QUi leggo snapshot per user  ");
      console.log(userId);
-    return res.status(201).json({
+    return res.status(200).json({
       ai: { count: ai.items?.length ?? 0, generatedAt: ai.generatedAt },
       snapshot: snap,
     });
