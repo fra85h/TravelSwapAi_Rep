@@ -105,6 +105,7 @@ const useCands = candidates
   for (const f of fromListings) {
     // passa al modello anche un minimo di contesto della listing sorgente
     const contextUser = { ...user, fromListing: f };
+
     console.log("qui LANCIO AI per user ");
      console.log(user);
     //const ai = await scoreWithAI(contextUser, candidates);
@@ -114,11 +115,13 @@ const useCands = candidates
   { temperature: TEMP, top_p: TOP_P, seed: getSeed(userId) } // se supportato
 );
     console.log("qui FINISCE AI");
+       
     //const scored = Array.isArray(ai) && ai.length ? ai : heuristicScore(contextUser, candidates);
 const scored = (Array.isArray(ai) ? ai : [])
   .map(s => ({ ...s, score: Math.round(Number(s.score || 0) * 1000) / 1000 }))
   .sort((a,b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
-    for (const s of scored) {
+    for (const s of scored) { 
+           console.log(s.model);
       if (!s?.id) continue; // serve l'id della listing candidata
       rows.push({
         from_listing_id: f.id,     // ⬅️ MAI NULL
@@ -145,6 +148,7 @@ if (rows.length) {
       from_listing_id: r.from_listing_id,
       to_listing_id: r.to_listing_id,
       score: r.score,
+      model,
       created_at: generated_at ?? new Date().toISOString(),    // se vuoi forzare il timestamp
     }));
 
