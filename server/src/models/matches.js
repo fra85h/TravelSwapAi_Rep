@@ -81,7 +81,7 @@ if (fromIds.length) {
   if (error) throw error; // richiede SERVICE_ROLE_KEY lato server se RLS attiva
 }
 
-  const rows = [];
+//  const rows = [];
 const DETERMINISTIC = process.env.MATCH_AI_DETERMINISTIC !== "false"; // default true
 const TEMP = Number(process.env.MATCH_AI_TEMP ?? (DETERMINISTIC ? 0 : 0.3));
 const TOP_P = 1;
@@ -104,13 +104,12 @@ const useCands = candidates
     console.log("fromListings:", fromListings.length);
 console.log("candidates:", useCands.length);
   // 5) per OGNI tua listing, calcola punteggi contro i candidati e crea righe pairwise
-  for (const f of fromListings) {
+/*  for (const f of fromListings) {
     // passa al modello anche un minimo di contesto della listing sorgente
     const contextUser = { ...user, fromListing: f };
 
     console.log("qui LANCIO AI per user ");
      console.log(user);
-    //const ai = await scoreWithAI(contextUser, candidates);
     const ai = await scoreWithAI(
   { ...user, fromListing: f },
   useCands,
@@ -140,7 +139,60 @@ const scored = (Array.isArray(ai) ? ai : [])
       });
     }
   }
+    */  // sostituito il 20250804_2043 per un codice che parallelizza x4
+async function runPool(tasks, limit = 4) {
+  const results = [];
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, async () => {
+    while (true) {
+      const idx = i++;
+      if (idx >= tasks.length) break;
+      try {
+        const out = await tasks[idx]();
+        if (Array.isArray(out) && out.length) results.push(...out);
+      } catch (e) {
+        console.error("[AI task] errore:", e?.message || e);
+      }
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
+// prepara le task (una per ogni from-listing)
+const tasks = fromListings.map((f) => async () => {
+  const contextUser = { ...user, fromListing: f };
+  const ai = await scoreWithAI(contextUser, useCands);
+  console.log(`[from ${f.id}] ai:`, Array.isArray(ai) ? ai.length : ai);
+
+  const base = (Array.isArray(ai) && ai.length)
+    ? ai
+    : []; // se vuoi *solo* AI, niente fallback qui
+
+  const scored = base
+    .map(s => ({ ...s, score: Math.round(Number(s.score || 0) * 1000) / 1000 }))
+    .sort((a,b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
+
+  console.log(`[from ${f.id}] scored:`, scored.length);
+
+  // mappa in rows per questa sorgente
+  const nowLocal = now;
+  return scored
+    .filter(s => s?.id)
+    .map(s => ({
+      from_listing_id: f.id,
+      to_listing_id: s.id,
+      score: Number(s.score) || 0,
+      bidirectional: !!s.bidirectional,
+      model: s.model || MODEL || 'gpt-4o-mini',
+      explanation: s.explanation || null,
+      generated_at: nowLocal,
+    }));
+});
+
+// esegui con concorrenza limitata (configurabile via env)
+const CONCURRENCY = Number(process.env.MATCH_AI_CONCURRENCY || 4);
+const rows = await runPool(tasks, CONCURRENCY);
 if (rows.length) {
   const CHUNK = Number(process.env.MATCH_INSERT_CHUNK || 100);
 
