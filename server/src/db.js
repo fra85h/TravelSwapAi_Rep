@@ -101,7 +101,7 @@ export async function getLatestUserSnapshot(userId) {
 export async function listMatchesForFrom(fromId, { limit = 100 } = {}) {
   const { data: rows, error } = await supabase
     .from('matches')
-    .select('to_listing_id, score, updated_at')
+    .select('to_listing_id, score, model,updated_at')
     .eq('from_listing_id', fromId)
     .order('score', { ascending: false })
     .limit(limit);

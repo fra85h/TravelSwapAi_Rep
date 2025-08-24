@@ -50,7 +50,7 @@ Rispondi SOLO con un array JSON, senza testo extra, nel formato esatto:
 
 Regole:
 - Restituisci un oggetto per OGNI listing ricevuto.
-- "score" è intero tra 0 e 100.
+- "score" è intero tra 0 e 100. 
 - "bidirectional" true se è probabile l'interesse reciproco; altrimenti false.
 - Non aggiungere campi extra.
 

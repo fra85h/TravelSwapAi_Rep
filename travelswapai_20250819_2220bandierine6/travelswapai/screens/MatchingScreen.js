@@ -137,7 +137,7 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt })
   ].filter(Boolean).join(" · ");
 
   const explText = item.explanation || fallbackExpl;
-  const model = item.model || (item.explanation ? "AI" : "heuristic");
+  const model = item.model ?? null;
   const upd = item.updatedAt || generatedAt || null;
   
   return (
@@ -215,7 +215,8 @@ export default function MatchingScreen() {
   const userRef = useRef(null);
 
    const onPressRicalcolaAI = async () => {
-   const u = userRef.current || (await getCurrentUser());
+   const u = userRef.current ;
+    console.log(u.id);
   if (!u?.id || recomputing) return;
   try {
     console.log("inizio ricalcolo ai");
@@ -225,13 +226,24 @@ export default function MatchingScreen() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await new Promise((r) => setTimeout(r, 300));
     setStatus("running");
- console.log("lancio recomputeaiand snapshot");
-    const { snapshot } = await recomputeAIAndSnapshot( {
+ console.log("lancio RecomputeAiandSnapshot");
+   // const u = userRef.current || (await getCurrentUser());
+ console.log(u.id);
+//const u =  (await getCurrentUser());
+// console.log("udi post lancio recompute",u.id);
+   // console.log("[FAB] calling recomputeAIAndSnapshot with userId:", u.id);
+
+
+
+    const { snapshot } = await recomputeAIAndSnapshot(u.id, {
       topPerListing: 3,
       maxTotal: 50,
     });
+    console.log("[FAB] recomputeAIAndSnapshot OK:", res); // <— se arrivi qui, tutto ok
     // aggiorna la lista mostrata nel tab
-    setItems(snapshot?.items ?? []);
+    //setItems(snapshot?.items ?? []);
+    const { items, generatedAt } = coerceSnapshot(snapshot);
+     setRows(normalize(items, generatedAt));
      setStatus("done");
     console.log("fine funzione recomputeaiandsnapshot");
      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

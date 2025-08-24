@@ -25,7 +25,9 @@ matchesRouter.get("/snapshot/ping", (req, res) => {
  */
 matchesRouter.get("/snapshot", async (req, res) => {
   try {
+        console.log("GET /snapshot query=", req.query);           // 👈 debug
     const userId = String(req.query?.userId || "");
+        console.log("GET /snapshot userId=", userId);             // 👈 debug
     if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
     const out = await getUserSnapshot(userId);
     return res.json(out);
@@ -40,6 +42,7 @@ matchesRouter.get("/snapshot", async (req, res) => {
  * Body: { userId, topPerListing?, maxTotal? }
  * Risponde: { userId, generatedAt, count }
  */
+
 matchesRouter.post("/snapshot/recompute", async (req, res) => {
   try {
     const userId = String(req.body?.userId || "");
@@ -59,15 +62,22 @@ matchesRouter.post("/snapshot/recompute", async (req, res) => {
 });
 matchesRouter.post("/ai/recompute", requireAuth,async (req, res) => {
   try {
-     console.log("qui sono dentro routsmatches ai/recompute");
+
+        console.log("POST /ai/recompute CT=", req.headers["content-type"]);
+    console.log("POST /ai/recompute BODY=", req.body);
+        const { userId, topPerListing = 3, maxTotal = 50 } = req.body || {};
+    if (!userId || !isUUID(userId)) {
+      return res.status(400).json({ ok: false, error: "missing/invalid userId" });
+    }
+    /* console.log("qui sono dentro routsmatches ai/recompute");
     const userId =req.user.id;   // String(req.body?.userId || "");
       console.log("qui ho costruito userId");
     const topPerListing = req.body?.topPerListing ?? 3;
           console.log("qui ho costruito userItopPerListingd");
     const maxTotal = req.body?.maxTotal ?? 50;
               console.log("qui ho costruito maxTotal");
-    console.log("ciao6");
-    if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
+    console.log("ciao6");*/
+    //if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
 
     // 1) calcolo AI
     const ai = await recomputeMatches(userId); // { userId, generatedAt, items }

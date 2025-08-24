@@ -7,7 +7,7 @@ import 'dotenv/config';
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "1mb" }));     // <— OBBLIGATORIO
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: false }));
 
 
 //app.listen(process.env.PORT || 8080, "0.0.0.0", () => {

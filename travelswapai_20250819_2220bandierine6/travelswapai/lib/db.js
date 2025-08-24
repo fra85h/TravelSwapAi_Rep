@@ -3,9 +3,15 @@ import { supabase } from "./supabase";
 
 /** Utente corrente (o null) */
 export async function getCurrentUser() {
-  const { data, error } = await supabase.auth.getUser();
+  // 1) assicura la sessione (e refresh se scaduta)
+  const { data: { session }, error: sErr } = await supabase.auth.getSession();
+  if (sErr) throw sErr;
+  if (!session) return null;
+
+  // 2) prendi l'utente
+  const { data: { user }, error } = await supabase.auth.getUser();
   if (error) throw error;
-  return data?.user ?? null;
+  return user ?? null;
 }
 
 /** Normalizza date "YYYY-MM-DD" → oppure null */
