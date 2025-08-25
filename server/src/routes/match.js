@@ -2,7 +2,6 @@ import express from "express";
 import { isUUID } from "../util/uuid.js";
 import {
   // usa la versione che hai implementato: SQL o JS
-  recomputeUserSnapshotSQL,
   recomputeUserSnapshot,
   getUserSnapshot,
   recomputeMatches,              // ⬅️ AGGIUNTO

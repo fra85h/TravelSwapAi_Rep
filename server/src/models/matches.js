@@ -1,11 +1,11 @@
 // server/src/models/matches.js
 import { isUUID } from '../util/uuid.js';
 
-import { scoreWithAI, heuristicScore } from '../ai/score.js';
+import { scoreWithAI } from '../ai/score.js';
 import {
-  fetchActiveListingsForMatching,
-  insertMatchesSnapshot,
-  getLatestMatches,
+  //fetchActiveListingsForMatching,
+  //insertMatchesSnapshot,
+  //getLatestMatches,
   getUserProfile,
   supabase
 } from '../db.js';
@@ -235,11 +235,11 @@ if (rows.length) {
 /**
  * Ritorna l’ultimo snapshot matches salvato per l’utente.
  */
-export async function listMatches(userId) {
+/*export async function listMatches(userId) {
   if (!isUUID(userId)) throw new Error('Invalid userId');
   const snap = await getLatestMatches(userId);
   return snap?.items || [];
-}
+}+/
 /*
 export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTotal = 50 } = {}) {
   if (!isUUID(userid)) throw new Error('Invalid userId');

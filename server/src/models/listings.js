@@ -9,7 +9,7 @@ const SECRETS_TABLE = "listing_secrets"; // oppure "private.listing_secrets"
  * Ritorna il profilo utente (preferenze ecc.)
  * Tabella: profiles(id uuid PK, full_name, prefs jsonb, ...)
  */
-export async function getUserProfile(userId) {
+/*export async function getUserProfile(userId) {
   if (!isUUID(userId)) throw new Error("Invalid userId");
   if (!supabase) throw new Error("Supabase client not configured");
   const { data, error } = await supabase
@@ -20,7 +20,7 @@ export async function getUserProfile(userId) {
   if (error) throw error;
   return data || { id: userId, prefs: {} };
 }
-
+*/
 /**
  * Lista i listing attivi per il matching o per la lista pubblica.
  * Esclude quelli dell'owner se passato.
