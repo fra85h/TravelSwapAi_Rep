@@ -104,7 +104,7 @@ function LegendCard({ t }) {
   );
 }
 
-function StatusBanner({ state, t }) {
+/*function StatusBanner({ state, t }) {
   if (state === "idle") return null;
   const map = {
     queued: { text: t("matching.status.queued", "Ricalcolo AI in coda…"), bg: "#FFF7ED", border: "#FED7AA", color: "#9A3412", icon: "time-outline" },
@@ -113,6 +113,68 @@ function StatusBanner({ state, t }) {
     error:  { text: t("matching.status.error", "Backend offline o non raggiungibile"), bg:"#FEF2F2", border:"#FECACA", color:"#991B1B", icon:"alert-circle-outline" },
   };
   const s = map[state] || map.queued;
+  return (
+    <View style={[styles.banner, { backgroundColor: s.bg, borderColor: s.border }]}>
+      <Ionicons name={s.icon} size={16} color={s.color} />
+      <Text style={[styles.bannerText, { color: s.color }]}>{s.text}</Text>
+    </View>
+  );
+}
+*/ // funzion rimpiazzata 20250825
+function StatusBanner({
+  state, t,
+  perfectCount = 0,
+  compatibleCount = 0,
+  showPerfectOnly = false,
+  sortByNewness = false,
+  onShowPerfectOnly = () => {},
+  onSortByNewness = () => {},
+}) {
+  if (state === "idle") return null;
+
+  const base = {
+    queued: { text: t("matching.status.queued", "Ricalcolo AI in coda…"), bg:"#FFF7ED", border:"#FED7AA", color:"#9A3412", icon:"time-outline" },
+    running:{ text: t("matching.status.running","Ricalcolo AI in corso…"), bg:"#EEF2FF", border:"#C7D2FE", color:"#1E3A8A", icon:"sparkles-outline" },
+    error:  { text: t("matching.status.error", "Backend offline o non raggiungibile"), bg:"#FEF2F2", border:"#FECACA", color:"#991B1B", icon:"alert-circle-outline" },
+  };
+
+  // modalità “done”: messaggio con conteggi + CTA
+  if (state === "done") {
+    return (
+      <View style={[styles.banner, { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }]}>
+        <Ionicons name="checkmark-circle-outline" size={16} color="#065F46" />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.bannerText, { color: "#065F46" }]}>
+            {`✅ ${perfectCount} perfetti, ${compatibleCount} compatibili. `}
+            {t("matching.status.tip", "Suggerimento: invia una proposta ai perfetti.")}
+          </Text>
+
+          {/* CTA inline */}
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+            <TouchableOpacity
+              onPress={onShowPerfectOnly}
+              style={{ paddingHorizontal:10, paddingVertical:6, borderRadius:999, borderWidth:1, borderColor:"#A7F3D0", backgroundColor:"#D1FAE5" }}
+            >
+              <Text style={{ fontWeight:"700", color:"#065F46" }}>
+                {showPerfectOnly ? t("matching.cta.showAll","Vedi tutti") : t("matching.cta.perfectOnly","Vedi solo perfetti")}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={onSortByNewness}
+              style={{ paddingHorizontal:10, paddingVertical:6, borderRadius:999, borderWidth:1, borderColor:"#A7F3D0", backgroundColor:"#D1FAE5" }}
+            >
+              <Text style={{ fontWeight:"700", color:"#065F46" }}>
+                {sortByNewness ? t("matching.cta.sortScore","Ordina per punteggio") : t("matching.cta.sortNew","Ordina per novità")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const s = base[state] || base.queued;
   return (
     <View style={[styles.banner, { backgroundColor: s.bg, borderColor: s.border }]}>
       <Ionicons name={s.icon} size={16} color={s.color} />
@@ -198,7 +260,8 @@ export default function MatchingScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight(); // calcolato qui (mai nei renderItem)
   const { t, lang } = useI18n();
-
+const [showPerfectOnly, setShowPerfectOnly] = useState(false);
+const [sortByNewness, setSortByNewness] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [recomputing, setRecomputing] = useState(false);
@@ -213,10 +276,28 @@ export default function MatchingScreen() {
   const prevScoresRef = useRef(new Map());
   const [newIds, setNewIds] = useState(new Set());
   const userRef = useRef(null);
-
+ const sortRows = useCallback((arr) => {
+  const list = Array.isArray(arr) ? [...arr] : [];
+  if (sortByNewness) {
+    // priorità: nuovi > updatedAt recente > score
+    return list.sort((a, b) => {
+      const aNew = newIds.has(a.id) ? 1 : 0;
+      const bNew = newIds.has(b.id) ? 1 : 0;
+      if (aNew !== bNew) return bNew - aNew;
+      const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      if (at !== bt) return bt - at;
+      return (b.score - a.score);
+    });
+  }
+  // default: per punteggio
+  return list.sort((a, b) => (b.score - a.score));
+}, [sortByNewness, newIds]);
    const onPressRicalcolaAI = async () => {
 
    const u = userRef.current ;
+  
+
     console.log(u.id);
   if (!u?.id || recomputing) return;
   try {
@@ -240,7 +321,7 @@ export default function MatchingScreen() {
       topPerListing: 3,
       maxTotal: 50,
     });
-    console.log("[FAB] recomputeAIAndSnapshot OK:", res); // <— se arrivi qui, tutto ok
+    console.log("[FAB] recomputeAIAndSnapshot OK:"); // <— se arrivi qui, tutto ok
     // aggiorna la lista mostrata nel tab
     //setItems(snapshot?.items ?? []);
     const { items, generatedAt } = coerceSnapshot(snapshot);
@@ -437,9 +518,16 @@ const coerceSnapshot = (snap) => {
     }
   };
 
-  const perfect = useMemo(() => rows.filter((m) => m.bidirectional === true && m.score >= 80), [rows]);
-  const compatible = useMemo(() => rows.filter((m) => !m.bidirectional), [rows]);
-
+  //const perfect = useMemo(() => rows.filter((m) => m.bidirectional === true && m.score >= 80), [rows]);
+  //const compatible = useMemo(() => rows.filter((m) => !m.bidirectional), [rows]);
+const perfect = useMemo(
+  () => sortRows(rows.filter((m) => m.bidirectional === true && m.score >= 80)),
+  [rows, sortRows]
+);
+const compatible = useMemo(
+  () => sortRows(rows.filter((m) => !m.bidirectional)),
+  [rows, sortRows]
+);
   const toggleExpand = useCallback((id) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -504,7 +592,16 @@ const coerceSnapshot = (snap) => {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <StatusBanner state={status} t={t} />
+    <StatusBanner
+  state={status}
+  t={t}
+  perfectCount={perfect.length}
+  compatibleCount={compatible.length}
+  showPerfectOnly={showPerfectOnly}
+  sortByNewness={sortByNewness}
+  onShowPerfectOnly={() => setShowPerfectOnly(v => !v)}
+  onSortByNewness={() => setSortByNewness(v => !v)}
+   />
 
       <FlatList
         data={[{ key: "content" }]}
@@ -527,26 +624,31 @@ const coerceSnapshot = (snap) => {
             {showLegend && <LegendCard t={t} />}
 
             <View style={{ height: 12 }} />
-            <Section
-              title={t("matching.sections.perfectTitle", "Match perfetti")}
-              icon="🍀"
-              subtitle={t("matching.sections.perfectSubtitle","Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.")}
-              items={perfect}
-              generatedAt={rows?.[0]?.updatedAt || null}
-            />
+           <Section
+  title={t("matching.sections.perfectTitle", "Match perfetti")}
+  icon="🍀"
+  subtitle={t("matching.sections.perfectSubtitle","Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.")}
+  items={perfect}
+  generatedAt={rows?.[0]?.updatedAt || null}
+     />
 
-            <View style={{ height: 12 }} />
-            <Section
-              title={t("matching.sections.compatibleTitle", "Match compatibili")}
-              icon="🤝"
-              subtitle={t("matching.sections.compatibleSubtitle","I numeri (60/70/80) sono la percentuale stimata di compatibilità: 60=base, 70=buona, 80+=eccellente.")}
-              items={compatible}
-              generatedAt={rows?.[0]?.updatedAt || null}
-            />
-          </View>
-        )}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      />
+{!showPerfectOnly && (
+  <>
+    <View style={{ height: 12 }} />
+    <Section
+      title={t("matching.sections.compatibleTitle", "Match compatibili")}
+      icon="🤝"
+      subtitle={t("matching.sections.compatibleSubtitle","I numeri (60/70/80) sono la percentuale stimata di compatibilità: 60=base, 70=buona, 80+=eccellente.")}
+      items={compatible}
+      generatedAt={rows?.[0]?.updatedAt || null}
+    />
+  </>
+)}
+        
+</View>                 
+)}                     
+refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+/>                    
 
       {/* FAB rotondo ⚡ */}
       <TouchableOpacity
