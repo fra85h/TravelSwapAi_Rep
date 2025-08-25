@@ -294,47 +294,39 @@ const [sortByNewness, setSortByNewness] = useState(false);
   return list.sort((a, b) => (b.score - a.score));
 }, [sortByNewness, newIds]);
    const onPressRicalcolaAI = async () => {
-
-   const u = userRef.current ;
-  
-
-    console.log(u.id);
+  const u = userRef.current;
   if (!u?.id || recomputing) return;
+
   try {
-    console.log("inizio ricalcolo ai");
-     setRecomputing(true);
+    setRecomputing(true);
     setStatus("queued");
     toast(t("matching.toasts.queued", "Ricalcolo AI in coda…"));
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await new Promise((r) => setTimeout(r, 300));
     setStatus("running");
- console.log("lancio RecomputeAiandSnapshot");
-   // const u = userRef.current || (await getCurrentUser());
- console.log(u.id);
-//const u =  (await getCurrentUser());
-// console.log("udi post lancio recompute",u.id);
-   // console.log("[FAB] calling recomputeAIAndSnapshot with userId:", u.id);
 
-
-
+    // chiamata backend (usa la tua firma corretta)
     const { snapshot } = await recomputeAIAndSnapshot(u.id, {
       topPerListing: 3,
       maxTotal: 50,
     });
-    console.log("[FAB] recomputeAIAndSnapshot OK:"); // <— se arrivi qui, tutto ok
-    // aggiorna la lista mostrata nel tab
-    //setItems(snapshot?.items ?? []);
+
+    console.log("[FAB] recomputeAIAndSnapshot OK:", snapshot); // ✅
+
     const { items, generatedAt } = coerceSnapshot(snapshot);
-     setRows(normalize(items, generatedAt));
-     setStatus("done");
-    console.log("fine funzione recomputeaiandsnapshot");
-     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  } catch (e) { console.log("qui eccezione su ");
+    setRows(normalize(items, generatedAt));
+    setStatus("done"); // ✅ ora il banner "smart" appare
+
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  } catch (e) {
+    console.error("[FAB] recompute error:", e);
+    setStatus("error");
     Alert.alert(t("common.error", "Errore"), e?.message || String(e));
   } finally {
-     setRecomputing(false); console.log("ciao3");
+    setRecomputing(false);
   }
 };
+
  
   
 const asArray = (x) => Array.isArray(x) ? x : (x == null ? [] : [x]);
