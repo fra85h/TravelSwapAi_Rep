@@ -273,7 +273,7 @@ export default function ProfileScreen() {
               style={[styles.editBtn, { marginTop: 8, backgroundColor: "#111827", borderColor: "#111827" }]}
               onPress={handleLogout}
             >
-         //     <Text style={[styles.editBtnText, { color: "#fff" }]}>{t("profile.logout", "Esci")}</Text>
+              <Text style={[styles.editBtnText, { color: "#fff" }]}>{t("profile.logout", "Esci")}</Text>
             </TouchableOpacity>
           </View>
         </View>

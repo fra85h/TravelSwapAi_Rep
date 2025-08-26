@@ -207,6 +207,7 @@ if (rows.length) {
       to_listing_id: r.to_listing_id,
       score: r.score,
       model,
+      explanation,   
       created_at: generated_at ?? new Date().toISOString(),    // se vuoi forzare il timestamp
     }));
 

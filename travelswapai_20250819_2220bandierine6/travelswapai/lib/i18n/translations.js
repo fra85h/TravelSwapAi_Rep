@@ -28,17 +28,17 @@ export const translations = {
 
     // --- Tab bar / Sezioni ---
     tabs: {
-      home: "Home",
-      offers: "Offerte",
+      home: "All",
+      offers: "Le mie offerte",
       create: "Crea",
       messages: "Messaggi",
-      profile: "Profilo",
+      profile: "Il mio profilo",
     },
 
     // --- Titoli usati in MainTabs ---
     listingsTitle: "Annunci",
     offers: "Offerte",
-    aiMatching: "AI Matching",
+    aiMatching: "My AI Matches",
     home: "Home",
     profile: "Profilo",
     receivedOffers: "Offerte ricevute",
@@ -285,7 +285,7 @@ export const translations = {
 
     matching: {
   title: "AI Matching",
-aiMatching: "AI Matching",
+aiMatching: "My AI Matches",
     new: "Nuovo",
     noResults: "Nessun risultato.",
     legendTitle: "Cosa significano 60 / 70 / 80?",
@@ -435,11 +435,11 @@ aiMatching: "AI Matching",
     },
 
     tabs: {
-      home: "Home",
-      offers: "Offers",
+      home: "All",
+      offers: "My Offers",
       create: "Create",
       messages: "Messages",
-      profile: "Profile",
+      profile: "My Profile",
     },
 listings: {
   filters: {
@@ -451,7 +451,7 @@ listings: {
 },
     listingsTitle: "Listings",
     offers: "Offers",
-    aiMatching: "AI Matching",
+    aiMatching: "My AI Matches",
     home: "Home",
     profile: "Profile",
     receivedOffers: "Received offers",
@@ -831,8 +831,8 @@ listings: {
     },
 
     tabs: {
-      home: "Inicio",
-      offers: "Ofertas",
+      home: "Todas",
+      offers: "Mis ofertas",
       create: "Crear",
       messages: "Mensajes",
       profile: "Perfil",

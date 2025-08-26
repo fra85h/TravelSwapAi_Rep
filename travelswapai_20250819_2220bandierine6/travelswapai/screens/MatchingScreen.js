@@ -185,7 +185,7 @@ function StatusBanner({
 
 /* ---------- Riga Match ---------- */
 
-function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt }) {
+function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, onProposeBuy, onProposeSwap }) {
   const { t } = useI18n();
   const badgeStyle =
     item.score >= 80 ? styles.badgeGreen : item.score >= 70 ? styles.badgeLime : styles.badgeYellow;
@@ -225,6 +225,28 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt })
               {model ? <Text style={styles.explSmall}>model: {model}</Text> : <View />}
               {upd ? <Text style={styles.explSmall}>upd: {new Date(upd).toLocaleDateString()}</Text> : null}
             </View>
+        {/* CTA: proponi acquisto / scambio */}
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+          <TouchableOpacity
+            onPress={() => onProposeBuy?.(item)}
+            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: "#111827" }}
+          >
+            <Text style={{ color:"#fff", fontWeight:"800" }}>
+              {t("matching.cta.buy", "Proponi acquisto")}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onProposeSwap?.(item)}
+            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: "#111827" }}
+          >
+            <Text style={{ color:"#fff", fontWeight:"800" }}>
+              {t("matching.cta.swap", "Proponi scambio")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+
+
           </View>
         ) : null}
       </View>
@@ -564,6 +586,8 @@ const compatible = useMemo(
                 onToggleInfo={() => toggleExpand(item.id)}
                 onPress={safeNavigate}
                 generatedAt={generatedAt}
+                onProposeBuy={(it) => handleProposeBuy(it)}
+                onProposeSwap={(it) => handleProposeSwap(it)}
               />
             );
           }}
@@ -581,7 +605,20 @@ const compatible = useMemo(
       )}
     </View>
   );
+ const handleProposeBuy = useCallback((it) => {
+   const targetId = it.listingId || it.id;
+   if (!targetId) return;
+   // Adatta alla tua rotta/sheet esistente:
+   // Esempio 1: navigazione a una screen di proposta
+   navigation.navigate("Proposal", { mode: "buy", listingId: targetId });
+   // Esempio 2 (se hai già uno sheet): openNegotiationSheet({ type: "buy", toListingId: targetId })
+ }, [navigation]);
 
+ const handleProposeSwap = useCallback((it) => {
+   const targetId = it.listingId || it.id;
+   if (!targetId) return;
+   navigation.navigate("Proposal", { mode: "swap", listingId: targetId });
+ }, [navigation]);
   return (
     <SafeAreaView style={{ flex: 1 }}>
     <StatusBanner

@@ -37,38 +37,6 @@ function truncate(str, n) {
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
-/*function buildPrompt(user, listingsBatch) {
-  // Minimizza il prompt, solo i campi che servono
-  const slimUser = {
-    id: user?.id,
-    prefs: user?.prefs ?? {},
-  };
-  const slimListings = listingsBatch.map((l) => ({
-    id: l.id,
-    title: truncate(l.title, 120),
-    type: l.type,
-    location: truncate(l.location, 80),
-    price: l.price,
-    description: truncate(l.description, MAX_DESC_CHARS),
-  }));
-
-  // Istruzioni chiare + richiesta SOLO JSON
-  return `Sei un motore di matching. Assegna a ciascun listing un punteggio di compatibilità 0-100 con l'utente.
-Rispondi SOLO con un array JSON, senza testo extra, nel formato esatto:
-[
-  { "id": "<uuid>", "score": <int 0-100>, "bidirectional": <true|false> },
-  ...
-]
-
-Regole:
-- Restituisci un oggetto per OGNI listing ricevuto.
-- "score" è intero tra 0 e 100. 
-- "bidirectional" true se è probabile l'interesse reciproco; altrimenti false.
-- Non aggiungere campi extra.
-
-Utente: ${JSON.stringify(slimUser)}
-Listings: ${JSON.stringify(slimListings)}`;
-}*/
 function buildPrompt(user, listingsBatch) {
   const slimUser = { id: user?.id, prefs: user?.prefs ?? {} };
   const slimListings = listingsBatch.map((l) => ({
@@ -84,7 +52,8 @@ function buildPrompt(user, listingsBatch) {
 Rispondi SOLO con un oggetto JSON nel formato esatto:
 {
   "scores": [
-    { "id": "<uuid>", "score": <int 0-100>, "bidirectional": <true|false> },
+   { "id": "<uuid>", "score": <int 0-100>, "bidirectional": <true|false>, "explanation": "<max 140 char>" },
+
     ...
   ]
 }
@@ -93,6 +62,8 @@ Regole:
 - In "scores" DEVE esserci un elemento per OGNI listing in input.
 - "score" intero 0..100 (nessun decimale).
 - "bidirectional" true se probabile reciprocità, altrimenti false.
+- "explanation" è una frase breve (max 140 caratteri) sul perché del match.
+
 - Nessun campo extra oltre a quelli indicati.
 
 Utente: ${stableStringify(slimUser)}
@@ -101,20 +72,30 @@ Listings: ${stableStringify(slimListings)}`;
 
 
 // Valida e normalizza output AI (senza "model": lo aggiungiamo noi)
-function validateAndNormalize(aiArray, knownIds) {
-  if (!Array.isArray(aiArray)) return null;
+function validateAndNormalize(aiArrayOrNull, knownIds) {
+  const aiArray = Array.isArray(aiArrayOrNull) ? aiArrayOrNull : null;
+  if (!aiArray) return null;
+
   const ids = new Set(knownIds);
   const out = [];
   for (const x of aiArray) {
     if (!x || !ids.has(x.id)) continue;
     let s = Number.isFinite(Number(x.score)) ? Math.round(Number(x.score)) : 0;
-    // quantizzazione a passi di 5
-    s = Math.round(s / 5) * 5; // 0,5,10,...100
     if (s < 0) s = 0;
     if (s > 100) s = 100;
-    out.push({ id: x.id, score: s, bidirectional: !!x.bidirectional });
+    const explanation = typeof x.explanation === "string"
+      ? x.explanation.replace(/\s+/g, " ").trim().slice(0, 200)
+      : "";
+
+    out.push({
+      id: x.id,
+      score: s,
+      bidirectional: !!x.bidirectional,
+      explanation
+    });
   }
-  // dedup e sort stabile
+
+  // dedup + sort deterministico
   const seen = new Set();
   const dedup = [];
   for (const r of out) {
@@ -125,6 +106,7 @@ function validateAndNormalize(aiArray, knownIds) {
   dedup.sort((a, b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
   return dedup;
 }
+
 
 
 // -----------------------------------------------------------------------------
@@ -169,11 +151,13 @@ async function callOpenAIJSON({
                 items: {
                   type: "object",
                   additionalProperties: false,
-                  required: ["id", "score", "bidirectional"],
+                required: ["id", "score", "bidirectional", "explanation"],
                   properties: {
                     id:            { type: "string" },
                     score:         { type: "integer", minimum: 0, maximum: 100 },
-                    bidirectional: { type: "boolean" }
+                    bidirectional: { type: "boolean" },
+                    explanation:   { type: "string", maxLength: 160 }
+
                   }
                 }
               }
@@ -218,69 +202,6 @@ async function callOpenAIJSON({
 }
 
 
-
-
-
-
-// -----------------------------------------------------------------------------
-// AI score (pubblico)
-// -----------------------------------------------------------------------------
-/*export async function scoreWithAI(user, listings) {
-  if (!client || !Array.isArray(listings) || listings.length === 0) return null;
-
-  // Ordine canonico per stabilità
-  const sorted = listings
-    .slice()
-    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
-
-  const allIds = sorted.map((l) => l.id);
-
-  // Batch
-  const batches = [];
-  for (let i = 0; i < sorted.length; i += MAX_LISTINGS_PER_CALL) {
-    batches.push(sorted.slice(i, i + MAX_LISTINGS_PER_CALL));
-  }
-
-  const results = [];
-  for (const batch of batches) {
-    const prompt = buildPrompt(user, batch);
-    const raw = await callOpenAIJSON({
-      prompt,
-      timeoutMs: 12000,
-      retries: 1,
-      model: MODEL,
-      temperature: TEMPERATURE,
-      top_p: TOP_P,
-    });
-    const validated = validateAndNormalize(
-      raw,
-      batch.map((l) => l.id)
-    );
-    if (validated && validated.length) {
-      // 🔖 aggiungiamo qui il campo "model"
-      results.push(...validated.map((r) => ({ ...r, model: MODEL })));
-    }
-  }
-
-  if (!results.length) {
-    console.warn("[scoreWithAI] empty result from AI, falling back to heuristic");
-    return null;
-  }
-
-  // Colma eventuali buchi: tutti gli ID presenti con un record
-  const byId = new Map(results.map((r) => [r.id, r]));
-  const completed = allIds.map((id) => {
-    const r = byId.get(id);
-    return r || { id, score: 0, bidirectional: false, model: MODEL };
-  });
-
-  // Ordina finale (deterministico)
-  completed.sort(
-    (a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id))
-  );
-  return completed;
-}
-*/
 export async function scoreWithAI(user, listings) {
   if (!client || !Array.isArray(listings) || listings.length === 0) return null;
 
