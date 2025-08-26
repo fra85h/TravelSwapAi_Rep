@@ -1,5 +1,12 @@
-// screens/OfferDetailScreen.js (RPC version)
-import React, { useRef, useEffect, useState, useCallback, useLayoutEffect } from "react";
+// screens/OfferDetailScreen.js (con CTA “Proponi scambio / acquisto”)
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useLayoutEffect,
+  useMemo, // 👈 necessario per visibleOffers
+} from "react";
 import { View, Text, ActivityIndicator, ScrollView, StyleSheet, Alert, TouchableOpacity } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { getListingById, listOffersForListing, getCurrentUser } from "../lib/db";
@@ -11,7 +18,14 @@ export default function OfferDetailScreen() {
   const { t, locale } = useI18n();
   const navigation = useNavigation();
 
-  const { listingId, id, offerId } = route.params ?? {};
+  // Supporto a proposta specifica, mantenendo la compatibilità con i param esistenti
+  const {
+    listingId,
+    id,
+    offerId,
+    proposalId,              // ID della proposta selezionata (freccina)
+    showOnlyThisProposal,    // flag per mostrare solo quella proposta
+  } = route.params ?? {};
   const effectiveId = listingId ?? id ?? offerId;
 
   const [me, setMe] = useState(null);
@@ -26,6 +40,14 @@ export default function OfferDetailScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({ title: t("offerDetail.title", "Dettaglio offerta") });
   }, [navigation, t, locale]);
+
+  // Tutti i hook devono essere chiamati prima di qualsiasi return condizionale
+  const visibleOffers = useMemo(() => {
+    if (showOnlyThisProposal && proposalId) {
+      return (offers || []).filter((o) => String(o?.id) === String(proposalId));
+    }
+    return offers || [];
+  }, [offers, showOnlyThisProposal, proposalId]);
 
   if (!effectiveId) {
     return (
@@ -50,12 +72,14 @@ export default function OfferDetailScreen() {
       if (reqSeq.current !== reqId) return;
 
       const isOwnerNow = u?.id && l?.user_id === u.id;
-      const onlyReceived = rows?.filter(o =>
-        (o?.to_listing?.id && o.to_listing.id === l.id) ||
-        (o?.to_listing_id && o.to_listing_id === l.id)
-      ) ?? [];
+      const onlyReceived =
+        rows?.filter(
+          (o) =>
+            (o?.to_listing?.id && o.to_listing.id === l.id) ||
+            (o?.to_listing_id && o.to_listing_id === l.id)
+        ) ?? [];
 
-      setOffers(isOwnerNow ? onlyReceived : (rows || []));
+      setOffers(isOwnerNow ? onlyReceived : rows || []);
       setData({});
     } catch (e) {
       if (reqSeq.current !== reqId) return;
@@ -67,7 +91,9 @@ export default function OfferDetailScreen() {
 
   useEffect(() => {
     load();
-    return () => { reqSeq.current++; }; // invalida eventuali risposte in volo
+    return () => {
+      reqSeq.current++;
+    };
   }, [load]);
 
   const isOwner = me?.id && listing?.user_id === me.id;
@@ -99,7 +125,11 @@ export default function OfferDetailScreen() {
   };
 
   if (loading) {
-    return <View style={s.center}><ActivityIndicator /></View>;
+    return (
+      <View style={s.center}>
+        <ActivityIndicator />
+      </View>
+    );
   }
 
   if (error) {
@@ -124,12 +154,51 @@ export default function OfferDetailScreen() {
             {listing.type} • {listing.location || listing.route_from || "-"}
           </Text>
           <Text style={[s.badge, { marginTop: 8 }]}>{listing.status}</Text>
+
+          {/* CTA: visibili solo se NON sono il proprietario */}
+          {!isOwner && (
+            <View style={s.ctaRow}>
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate("OfferFlow", {
+                    mode: "swap",
+                    toListingId: effectiveId,
+                    listingId: effectiveId,
+                  })
+                }
+                style={[s.btn, { backgroundColor: "#111827" }]}
+                accessibilityRole="button"
+                accessibilityLabel={t("detail.actions.proposeSwap", "Proponi scambio")}
+              >
+                <Text style={[s.btnTxt, { color: "#fff" }]}>
+                  {t("detail.actions.proposeSwap", "Proponi scambio")}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate("OfferFlow", {
+                    mode: "buy",
+                    toListingId: effectiveId,
+                    listingId: effectiveId,
+                  })
+                }
+                style={[s.btn, { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" }]}
+                accessibilityRole="button"
+                accessibilityLabel={t("detail.actions.proposeBuy", "Proponi acquisto")}
+              >
+                <Text style={[s.btnTxt, { color: "#111827" }]}>
+                  {t("detail.actions.proposeBuy", "Proponi acquisto")}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
       <View style={{ height: 12 }} />
 
-      {offers.map((o) => {
+      {visibleOffers.map((o) => {
         const isBuy = o.type === "buy";
         const pending = o.status === "pending";
         return (
@@ -184,9 +253,13 @@ export default function OfferDetailScreen() {
         );
       })}
 
-      {offers.length === 0 && (
+      {visibleOffers.length === 0 && (
         <View style={{ alignItems: "center", paddingVertical: 24 }}>
-          <Text style={{ color: "#6B7280" }}>{t("offers.none", "Nessuna proposta")}</Text>
+          <Text style={{ color: "#6B7280" }}>
+            {showOnlyThisProposal && proposalId
+              ? t("offers.noneOne", "Nessuna proposta trovata per l’ID selezionato")
+              : t("offers.none", "Nessuna proposta")}
+          </Text>
         </View>
       )}
     </ScrollView>
@@ -200,20 +273,28 @@ const s = StyleSheet.create({
   box: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12 },
   boxTitle: { fontWeight: "800" },
   boxMeta: { color: "#6B7280", marginTop: 4 },
+  badge: { color: "#374151", fontWeight: "700" },
+
+  /* CTA sotto il box annuncio */
+  ctaRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+
   card: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12, marginBottom: 10, backgroundColor: "#fff" },
   cardTitle: { fontWeight: "800" },
   cardSub: { color: "#6B7280", marginTop: 4 },
   cardMeta: { color: "#111827", marginTop: 4, fontWeight: "600" },
+
   row: { flexDirection: "row", gap: 10, alignItems: "center", marginTop: 10 },
+
+  /* Bottoni */
   btn: { backgroundColor: "#111827", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, alignItems: "center" },
   btnTxt: { color: "#fff", fontWeight: "800" },
   btnSm: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, alignItems: "center" },
+  btnDisabled: { opacity: 0.6 },
   accept: { backgroundColor: "#DCFCE7" },
   acceptTxt: { color: "#166534", fontWeight: "800" },
   decline: { backgroundColor: "#FEE2E2" },
   declineTxt: { color: "#991B1B", fontWeight: "800" },
-  btnDisabled: { opacity: 0.6 },
-  badge: { color: "#374151", fontWeight: "700" },
+
   badgeWrap: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: "#F3F4F6", borderRadius: 999 },
   badgeTxt: { fontWeight: "700", color: "#374151" },
 });

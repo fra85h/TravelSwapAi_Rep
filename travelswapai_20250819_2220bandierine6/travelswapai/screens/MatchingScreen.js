@@ -20,7 +20,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { createIconSetFromFontello, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
@@ -104,23 +104,7 @@ function LegendCard({ t }) {
   );
 }
 
-/*function StatusBanner({ state, t }) {
-  if (state === "idle") return null;
-  const map = {
-    queued: { text: t("matching.status.queued", "Ricalcolo AI in coda…"), bg: "#FFF7ED", border: "#FED7AA", color: "#9A3412", icon: "time-outline" },
-    running:{ text: t("matching.status.running","Ricalcolo AI in corso…"), bg:"#EEF2FF", border:"#C7D2FE", color:"#1E3A8A", icon:"sparkles-outline" },
-    done:   { text: t("matching.status.done",  "Ricalcolo completato ✓"), bg:"#ECFDF5", border:"#A7F3D0", color:"#065F46", icon:"checkmark-circle-outline" },
-    error:  { text: t("matching.status.error", "Backend offline o non raggiungibile"), bg:"#FEF2F2", border:"#FECACA", color:"#991B1B", icon:"alert-circle-outline" },
-  };
-  const s = map[state] || map.queued;
-  return (
-    <View style={[styles.banner, { backgroundColor: s.bg, borderColor: s.border }]}>
-      <Ionicons name={s.icon} size={16} color={s.color} />
-      <Text style={[styles.bannerText, { color: s.color }]}>{s.text}</Text>
-    </View>
-  );
-}
-*/ // funzion rimpiazzata 20250825
+
 function StatusBanner({
   state, t,
   perfectCount = 0,
@@ -185,7 +169,7 @@ function StatusBanner({
 
 /* ---------- Riga Match ---------- */
 
-function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, onProposeBuy, onProposeSwap }) {
+function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, onPressChevron ,onProposeBuy, onProposeSwap }) {
   const { t } = useI18n();
   const badgeStyle =
     item.score >= 80 ? styles.badgeGreen : item.score >= 70 ? styles.badgeLime : styles.badgeYellow;
@@ -222,29 +206,9 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
           <View style={styles.explBox}>
             <Text style={styles.explText} numberOfLines={4}>{explText}</Text>
             <View style={styles.explFooter}>
-              {model ? <Text style={styles.explSmall}>model: {model}</Text> : <View />}
+          {/*     {model ? <Text style={styles.explSmall}>model: {model}</Text> : <View />}*/}
               {upd ? <Text style={styles.explSmall}>upd: {new Date(upd).toLocaleDateString()}</Text> : null}
             </View>
-        {/* CTA: proponi acquisto / scambio */}
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-          <TouchableOpacity
-            onPress={() => onProposeBuy?.(item)}
-            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: "#111827" }}
-          >
-            <Text style={{ color:"#fff", fontWeight:"800" }}>
-              {t("matching.cta.buy", "Proponi acquisto")}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => onProposeSwap?.(item)}
-            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: "#111827" }}
-          >
-            <Text style={{ color:"#fff", fontWeight:"800" }}>
-              {t("matching.cta.swap", "Proponi scambio")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
 
 
           </View>
@@ -267,7 +231,7 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
           <Text style={styles.infoChipTxt}>{expanded ? t("matching.hide","Nascondi") : t("matching.info","Info")}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onPress} style={{ paddingTop: 6 }}>
+        <TouchableOpacity onPress={onPressChevron} style={{ paddingTop: 6 }}>
           <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
         </TouchableOpacity>
       </View>
@@ -298,6 +262,24 @@ const [sortByNewness, setSortByNewness] = useState(false);
   const prevScoresRef = useRef(new Map());
   const [newIds, setNewIds] = useState(new Set());
   const userRef = useRef(null);
+  // dentro MatchingScreen, subito dopo const navigation = useNavigation();
+const onOpenDetails = useCallback((it) => {
+  if (!it) return;
+
+  // prendo ciò che serve all’altro screen
+  const listingId  = it.listingId || it.id || null;
+  const proposalId = it.id || null;
+  const type       = it.type || "hotel";
+
+  // Passo sia gli ID che l’oggetto completo come fallback
+  navigation.navigate("OfferDetail", {
+    listingId,
+    proposalId,
+    type,
+    proposal: it,           // <— oggetto completo per evitare “non trovato”
+  });
+}, [navigation]);
+
  const sortRows = useCallback((arr) => {
   const list = Array.isArray(arr) ? [...arr] : [];
   if (sortByNewness) {
@@ -586,6 +568,15 @@ const compatible = useMemo(
                 onToggleInfo={() => toggleExpand(item.id)}
                 onPress={safeNavigate}
                 generatedAt={generatedAt}
+                onPressChevron={() =>
+   navigation.navigate("OfferDetail", {
+     proposalId: item.id,        // id della proposta/match selezionata
+     showOnlyThisProposal: true, // flag esplicito
+     // (opzionale) tieni anche questi, se lo screen li usa per header ecc.
+     listingId: item.listingId || item.id || null,
+     type: item.type || "hotel",
+   })
+    }
                 onProposeBuy={(it) => handleProposeBuy(it)}
                 onProposeSwap={(it) => handleProposeSwap(it)}
               />
@@ -681,9 +672,7 @@ refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
 
       {/* FAB rotondo ⚡ */}
       <TouchableOpacity
-        onPress={onPressRicalcolaAI} //{onRecompute}-->cosa faceva questa?
-        //onPress={onRecompute}
-        
+        onPress={onPressRicalcolaAI} //{onRecompute}-->cosa faceva questa?        
         activeOpacity={0.92}
         accessibilityRole="button"
         accessibilityLabel="Ricalcola AI"
