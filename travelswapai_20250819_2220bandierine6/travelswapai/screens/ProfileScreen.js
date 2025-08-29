@@ -105,7 +105,7 @@ export default function ProfileScreen() {
     try { await loadMine(); } finally { setRefreshing(false); }
   };
 
-  const onEdit = (item) => navigation.navigate("CreateListing", { draftFromId: item.id });
+  const onEdit = (item) => navigation.navigate("CreateListing",{ mode: "edit", listingId: item.id });
 
   const toggleStatus = async (item) => {
     try {

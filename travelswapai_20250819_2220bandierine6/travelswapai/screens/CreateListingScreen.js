@@ -263,20 +263,21 @@ const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null
 // se arrivo con listing o listingId, considero comunque "edit"
 const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
 
-  useLayoutEffect(() => {
-    try {
-      navigation.setOptions?.({
-        headerShown: true,
-headerTitle: mode === "edit"
-  ? t("editListing.title", "Modifica annuncio")
-  : t("createListing.title", "Nuovo annuncio"),        headerLeft: () => (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 12 }}>
-            <Text style={{ color: "#111827", fontWeight: "700" }}>{t("common.back", "Indietro")}</Text>
-          </TouchableOpacity>
-        ),
-      });
-    } catch {}
-  }, [navigation, t, mode]);
+useLayoutEffect(() => {
+  try {
+    navigation.setOptions?.({
+      headerShown: true,
+      headerTitle: route?.params?.mode === "edit"
+        ? t("editListing.title", "Modifica annuncio")
+        : t("createListing.title", "Nuovo annuncio"),
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 12 }}>
+          <Text style={{ color: "#111827", fontWeight: "700" }}>{t("common.back", "Indietro")}</Text>
+        </TouchableOpacity>
+      ),
+    });
+  } catch {}
+}, [navigation, t, route?.params?.mode]);
 
   const [step, setStep] = useState(1);
   const [loadingAI, setLoadingAI] = useState(false);
@@ -311,49 +312,59 @@ headerTitle: mode === "edit"
   const [errors, setErrors] = useState({});
 
   // ---------- EDIT MODE: prefill ----------
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const data =
-          passedListing ||
-          (listingId && typeof getListingById === "function" ? await getListingById(listingId) : null);
-        if (cancelled || !data) return;
-
-        const mapped = mapListingToForm(data);
-        setForm((prev) => {
-          const next = { ...prev, ...mapped };
-          initialJsonRef.current = JSON.stringify(next);
-          return next;
-        });
-      } catch {}
-    }
-    if (mode === "edit") {
-      load();
-    } else {
-      // CREATE: load draft
-      (async () => {
-        try {
-          const raw = await AsyncStorage.getItem(DRAFT_KEY);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === "object") {
-              setForm((prev) => {
-                const next = { ...prev, ...parsed };
-                initialJsonRef.current = JSON.stringify(next);
-                return next;
-              });
-              return;
-            }
-          }
-        } catch {}
-        if (initialJsonRef.current === null) {
-          initialJsonRef.current = JSON.stringify(form);
+useEffect(() => {
+  let cancelled = false;
+  (async () => {
+    try {
+     if (mode === "edit" && route?.params?.listingId && typeof getListingById === "function") {
+       const l = await getListingById(route.params.listingId);
+       if (!cancelled && l) {
+         setForm((prev) => ({
+           ...prev,
+           type: l.type || prev.type,
+           cercoVendo: l.cerco_vendo || l.cercoVendo || prev.cercoVendo,
+           title: l.title ?? prev.title,
+           location: l.location ?? prev.location,
+           description: l.description ?? prev.description,
+           price: l.price != null ? String(l.price) : prev.price,
+           imageUrl: l.image_url || prev.imageUrl,
+           checkIn: l.check_in || "",
+           checkOut: l.check_out || "",
+           departAt: l.depart_at || "",
+           arriveAt: l.arrive_at || "",
+         }));
+       }
+      return; // in edit non caricare bozze
+     }
+      // --- CREAZIONE: eventuale bozza ---
+      if (route?.params?.draftFromId && typeof getListingById === "function") {
+        const l = await getListingById(route.params.draftFromId);
+        if (!cancelled && l) {
+          setForm((prev) => ({
+            ...prev,
+            title: l.title || prev.title,
+            location: l.location || prev.location,
+            description: l.description || prev.description,
+            price: l.price != null ? String(l.price) : prev.price,
+            imageUrl: l.image_url || prev.imageUrl,
+            checkIn: l.check_in || "",
+            checkOut: l.check_out || "",
+            departAt: l.depart_at || "",
+            arriveAt: l.arrive_at || "",
+          }));
         }
-      })();
-    }
-    return () => { cancelled = true; };
-  }, [mode, listingId]);
+      } else {
+        // carica bozza locale solo in create
+        const raw = await AsyncStorage.getItem(DRAFT_KEY);
+        if (raw && mode !== "edit") {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") setForm((p) => ({ ...p, ...parsed }));
+        }
+      }
+    } catch {}
+  })();
+  return () => { cancelled = true; };
+}, [mode, route?.params?.listingId]);
 
   const isDirty = useMemo(() => {
     if (initialJsonRef.current == null) return false;
@@ -394,8 +405,8 @@ headerTitle: mode === "edit"
   };
 
   const stepTitles = useMemo(() => ({
-    1: t("createListing.step1", "Dati principali"),
-    2: t("createListing.step2", "Dettagli & pubblicazione"),
+   1: t("createListing.step1", "Dati principali"), 
+   2: mode === "edit" ? t("editListing.step2","Riepilogo & salva") : t("createListing.step2","Dettagli & pubblicazione"),
   }), [t, mode]);
 
   const goNext = () => setStep((s) => Math.min(2, s + 1));
@@ -479,66 +490,97 @@ headerTitle: mode === "edit"
   const validate = () => { const e = computeErrors(); setErrors(e); return Object.keys(e).length === 0; };
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
-  const onPublishOrSave = async () => {
-    if (!validate()) { setStep(1); return; }
-    try {
-      setPublishing(true);
-      onSubmitStart();
-      const priceNum = Number(String(form.price).replace(",", "."));
-      const basePayload = {
-        type: form.type,
-        title: form.title.trim(),
-        location: form.location.trim(),
-        description: form.description.trim() || null,
-        price: Number.isFinite(priceNum) ? priceNum : null,
-        image_url: form.imageUrl?.trim() || null,
-        cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
-        status: "active",
-      };
-      const payload = form.type === "hotel"
-        ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
-        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
+ const onPublishOrSave = async () => {
+  if (!validate()) { setStep(1); return; }
+  try {
+    setPublishing(true);
+    onSubmitStart();
 
-      if (mode === "edit") {
-        await updateListing(listingId, payload);
-        Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
-      } else {
-        await insertListing(payload);
-        await AsyncStorage.removeItem(DRAFT_KEY);
-        Alert.alert(t("createListing.publishedTitle", "Pubblicato 🎉"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
+    // 1) ID robusto (numerico o stringa, a seconda del tuo backend)
+   const idForUpdate =
+  (listingId != null) ? String(listingId) :
+  (passedListing?.id != null ? String(passedListing.id) : null);
+
+if (mode === "edit" && !idForUpdate) {
+  Alert.alert(t("common.error", "Errore"), t("editListing.saveError", "ID annuncio mancante."));
+  return;
+}
+
+    const priceNum = Number(String(form.price).replace(",", "."));
+
+    // 2) NIENTE 'status' nel payload di update
+    const basePayload = {
+      type: form.type,
+      title: form.title.trim(),
+      location: form.location.trim(),
+      description: form.description.trim() || null,
+      price: Number.isFinite(priceNum) ? priceNum : null,
+      image_url: form.imageUrl?.trim() || null,
+      cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
+      // status lo aggiungiamo SOLO in create
+      ...(mode !== "edit" ? { status: "active" } : {})
+    };
+
+    const payload = form.type === "hotel"
+      ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
+      : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
+
+    console.log("[CreateListing] mode:", mode, "idForUpdate:", idForUpdate, "payload:", payload);
+
+    if (mode === "edit") {
+      // 3) Assicurati che updateListing accetti (id, data)
+      // Se la tua implementazione è diversa, adatta qui:
+      const res = await updateListing(idForUpdate, payload);
+      // opzionale: se la tua lib ritorna { error }, loggalo
+      if (res?.error) {
+        console.log("[CreateListing] updateListing error:", res.error);
+        throw res.error;
       }
+      Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
+    } else {
+      const res = await insertListing(payload);
+      if (res?.error) {
+        console.log("[CreateListing] insertListing error:", res.error);
+        throw res.error;
+      }
+      await AsyncStorage.removeItem(DRAFT_KEY);
+      Alert.alert(t("createListing.publishedTitle", "Pubblicato 🎉"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
+    }
 
-      initialJsonRef.current = JSON.stringify(form);
-      onDirtyChange(false);
-      navigation.goBack();
-    } catch (e) {
-      Alert.alert(t("common.error", "Errore"), mode === "edit"
+    initialJsonRef.current = JSON.stringify(form);
+    onDirtyChange(false);
+    navigation.goBack();
+  } catch (e) {
+    console.log("[CreateListing] onPublishOrSave EXCEPTION:", e);
+    Alert.alert(
+      t("common.error", "Errore"),
+      mode === "edit"
         ? t("editListing.saveError", "Impossibile salvare le modifiche.")
         : t("createListing.publishError", "Impossibile pubblicare l’annuncio.")
-      );
-    } finally {
-      setPublishing(false);
-      onSubmitEnd();
-    }
-  };
+    );
+  } finally {
+    setPublishing(false);
+    onSubmitEnd();
+  }
+};
+/* ---------- DRAFT ---------- */
+const onSaveDraft = async () => {
+  if (mode === "edit") { // niente bozza in modalità edit
+    Alert.alert("Bozza non disponibile", "Salva direttamente le modifiche.");
+    return;
+  }
+  try {
+    setSaving(true);
+    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+    await new Promise((r) => setTimeout(r, 350));
+    Alert.alert("Bozza salvata", "Puoi riprenderla in qualsiasi momento.");
+  } catch {
+    Alert.alert("Errore", "Non sono riuscito a salvare la bozza.");
+  } finally {
+    setSaving(false);
+  }
+};
 
-  /* ---------- DRAFT ---------- */
-  const onSaveDraft = async () => {
-    if (mode === "edit") { // nessuna bozza in modalità edit
-      Alert.alert(t("editListing.noDraftTitle", "Bozza non disponibile"), t("editListing.noDraftMsg", "Salva direttamente le modifiche."));
-      return;
-    }
-    try {
-      setSaving(true);
-      await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(form));
-      await new Promise((r) => setTimeout(r, 350));
-      Alert.alert(t("createListing.draftSavedTitle", "Bozza salvata"), t("createListing.draftSavedMsg", "Puoi riprenderla in qualsiasi momento."));
-    } catch {
-      Alert.alert(t("common.error", "Errore"), t("createListing.draftSaveError", "Non sono riuscito a salvare la bozza."));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   /* ---------- AI IMPORT ---------- */
   const openImport = () => setImportSheet(true);
@@ -872,7 +914,7 @@ headerTitle: mode === "edit"
             </TouchableOpacity>
           ) : (
             <TouchableOpacity onPress={onSaveDraft} disabled={saving || mode === "edit"} style={[styles.footerBtn, styles.footerGhost, (saving || mode === "edit") && { opacity: 0.6 }]}>
-              {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: "#111827" }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft", "Salva bozza")}</Text>}
+           {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: "#111827" }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft","Salva bozza")}</Text>}
             </TouchableOpacity>
           )}
 

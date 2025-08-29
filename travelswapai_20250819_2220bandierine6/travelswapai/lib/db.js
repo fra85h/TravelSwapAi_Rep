@@ -1,5 +1,6 @@
 // lib/db.js
 import { supabase } from "./supabase";
+const API_URL = "http://0.0.0.0:8080"; // oppure l’URL del tuo server
 
 /** Utente corrente (o null) */
 export async function getCurrentUser() {
@@ -21,7 +22,11 @@ function normDate(v) {
   // Postgres accetta "YYYY-MM-DD" come date
   return s;
 }
+const g = globalThis;
+g._mem = g._mem || { listings: {} }; // cache in memoria sicura
 
+// normalizza sempre la chiave ID a stringa
+const key = (id) => String(id);
 /** Inserisci un annuncio (assegna user_id automaticamente) */
 export async function insertListing(payload) {
   const me = await getCurrentUser();
@@ -59,11 +64,21 @@ export async function insertListing(payload) {
   if (error) throw error;
   return data;
 }
-export async function updateListing(id, payload) {
-  const existing = _mem.get(String(id));
-  if (!existing) throw new Error("Listing non trovato: " + id);
-  const updated = { ...existing, ...payload, updated_at: new Date().toISOString() };
-  _mem.set(String(id), updated);
+export async function updateListing(id, patch) {
+  // Rimuoviamo status dal patch in edit, per coerenza
+  const { status, ...safePatch } = patch || {};
+
+  const { data: updated, error } = await supabase
+    .from("listings")
+    .update(safePatch)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("updateListing error:", error);
+    return { error };
+  }
   return updated;
 }
 /** Aggiorna un annuncio */
@@ -78,7 +93,7 @@ function sanitizeListingPatch(patch) {
   return out;
 }
 export function __debug_all() {
-  return Array.from(_mem.values());
+  return Array.from(g._mem.values());
 }
 
 
