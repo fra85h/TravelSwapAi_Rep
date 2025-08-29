@@ -13,6 +13,7 @@ const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0); // default: deterministico
 const TOP_P = Number(process.env.MATCH_AI_TOP_P ?? 1);
 const MAX_LISTINGS_PER_CALL = Number(process.env.MATCH_AI_BATCH ?? 40);
+const MATCH_AI_TIMEOUT_MS = Number(process.env.MATCH_AI_TIMEOUT_MS ?? 45000); // default 45s
 
 
 // -----------------------------------------------------------------------------
@@ -37,35 +38,49 @@ function truncate(str, n) {
   const s = String(str);
   return s.length > n ? s.slice(0, n) + "…" : s;
 }
+function toISOorNull(v) {
+  if (!v) return null;
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+}
 
 function buildPrompt(user, listingsBatch) {
-  const slimUser = { id: user?.id, prefs: user?.prefs ?? {} };
+  // prova a leggere da più posti; non forzare default sbagliati
+  const userMode = user?.cerco_vendo ?? user?.prefs?.cerco_vendo ?? null;
+
+  const slimUser = { id: user?.id, prefs: user?.prefs ?? {}, cerco_vendo: userMode };
+
   const slimListings = listingsBatch.map((l) => ({
     id: l.id,
     title: truncate(normText(l.title), 120),
     type: l.type,
+    cerco_vendo: l.cerco_vendo ?? null,
+    route_from: l.route_from ?? null,
+    route_to: l.route_to ?? null,
+    depart_at: toISOorNull(l.depart_at ?? l.departAt),
+    arrive_at: toISOorNull(l.arrive_at ?? l.arriveAt),
     location: truncate(normText(l.location), 80),
     price: l.price,
     description: truncate(normText(l.description), MAX_DESC_CHARS),
   }));
 
-  return `Sei un motore di matching. Regole: se una coppia CERCO/VENDO ha score ≥ 80 => "perfetto"; se CERCO-CERCO o VENDO-VENDO, serve score ≥ 90; altrimenti "compatibile".. Assegna a ciascun listing un punteggio di compatibilità 0-100 con l'utente.
-Rispondi SOLO con un oggetto JSON nel formato esatto:
+  return `Sei un motore di matching.
+Compito: per ciascun listing calcola "score" (0–100) e imposta "bidirectional" quando c'è reciprocità forte con l'UTENTE.
+
+Rispondi SOLO con:
 {
   "scores": [
-   { "id": "<uuid>", "score": <int 0-100>, "bidirectional": <true|false>, "explanation": "<max 140 char>" },
-
-    ...
+    { "id": "<uuid>", "score": <int 0-100>, "bidirectional": <true|false>, "explanation": "<max 140 char>" }
   ]
 }
 
-Regole:
-- In "scores" DEVE esserci un elemento per OGNI listing in input.
-- "score" intero 0..100 (nessun decimale).
-- "bidirectional" true se probabile reciprocità, altrimenti false.
-- "explanation" è una frase breve (max 140 caratteri) sul perché del match.
-
-- Nessun campo extra oltre a quelli indicati.
+Regole vincolanti:
+- Un elemento in "scores" per OGNI listing (nessuna omissione).
+- "score" intero 0..100.
+- "bidirectional" = true SOLO se (user.cerco_vendo e listing.cerco_vendo sono complementari) E (route_from→route_to e data/ora coincidono o sono nello stesso giorno). Altrimenti false.
+- Se user.cerco_vendo è null o listing.cerco_vendo è null ⇒ bidirectional=false.
+- Considera route_from/route_to e le date: stessa direzione e stesso giorno aumentano molto lo score; disallineamenti lo riducono.
+- Linee guida score: 60=base, 70=buona, 80+=eccellente.
 
 Utente: ${stableStringify(slimUser)}
 Listings: ${stableStringify(slimListings)}`;
@@ -121,85 +136,111 @@ function validateAndNormalize(aiArrayOrNull, knownIds) {
 // Se puoi: MATCH_AI_MODEL=gpt-4o-mini
 async function callOpenAIJSON({
   prompt,
-  timeoutMs = 15000,
+  timeoutMs = MATCH_AI_TIMEOUT_MS,
   model = MODEL,
   temperature = TEMPERATURE,
   top_p = TOP_P,
 }) {
   if (!client) return null;
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort("timeout"), timeoutMs);
+  // piccolo helper per capire se vale la pena ritentare
+  const shouldRetry = (e, status) => {
+    if (!e) return false;
+    const msg = String(e?.message || e || "");
+    if (/abort|timeout/i.test(msg)) return true;   // AbortError / timeout
+    if (status && Number(status) >= 500) return true; // 5xx
+    return false;
+  };
 
-  try {
-    const resp = await client.responses.create({
-      model,
-      input: prompt,
-      temperature,
-      top_p,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "scores_payload",   // <-- richiesto a livello di format
-          strict: true,
-          schema: {
-            type: "object",
-            additionalProperties: false,
-            required: ["scores"],
-            properties: {
-              scores: {
-                type: "array",
-                items: {
-                  type: "object",
-                  additionalProperties: false,
-                required: ["id", "score", "bidirectional", "explanation"],
-                  properties: {
-                    id:            { type: "string" },
-                    score:         { type: "integer", minimum: 0, maximum: 100 },
-                    bidirectional: { type: "boolean" },
-                    explanation:   { type: "string", maxLength: 160 }
+  let attempt = 0;
+  const maxAttempts = 2; // 1 try + 1 retry soft
 
-                  }
-                }
-              }
-            }
-          }
-        }
+  while (attempt < maxAttempts) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort("timeout"), timeoutMs);
+
+    try {
+      const resp = await client.responses.create({
+        model,
+        input: prompt,
+        temperature,
+        top_p,
+        text: {
+          format: {
+            type: "json_schema",
+            name: "scores_payload",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["scores"],
+              properties: {
+                scores: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["id", "score", "bidirectional", "explanation"],
+                    properties: {
+                      id:            { type: "string" },
+                      score:         { type: "integer", minimum: 0, maximum: 100 },
+                      bidirectional: { type: "boolean" },
+                      explanation:   { type: "string", maxLength: 160 },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }, { signal: ctrl.signal });
+
+      clearTimeout(timer);
+
+      // estrai testo in modo robusto
+      let text = "";
+      if (typeof resp?.output_text === "string") {
+        text = resp.output_text;
+      } else if (Array.isArray(resp?.output)) {
+        const c = resp.output[0]?.content?.[0];
+        if (c?.type === "output_text") text = c.text || "";
+        if (c?.type === "message")     text = c.content?.[0]?.text || "";
       }
-    }, { signal: ctrl.signal });
+      if (!text.trim()) return null;
 
-    // estrai testo in modo robusto
-    let text = "";
-    if (typeof resp?.output_text === "string") {
-      text = resp.output_text;
-    } else if (Array.isArray(resp?.output)) {
-      const c = resp.output[0]?.content?.[0];
-      if (c?.type === "output_text") text = c.text || "";
-      if (c?.type === "message")     text = c.content?.[0]?.text || "";
+      // parse → estrai l’array dentro "scores"
+      let parsed;
+      try { parsed = JSON.parse(text); } catch { parsed = null; }
+      if (Array.isArray(parsed)) return parsed; // retrocompat array puro
+      if (parsed && Array.isArray(parsed.scores)) return parsed.scores;
+
+      // ultima spiaggia: estrai il primo array
+      const m = text.match(/\[[\s\S]*\]/);
+      if (m) {
+        try {
+          const arr = JSON.parse(m[0]);
+          return Array.isArray(arr) ? arr : null;
+        } catch {}
+      }
+      return null;
+    } catch (e) {
+      clearTimeout(timer);
+      const status = e?.status;
+      const msg = String(e?.message || e || "");
+      const aborted = /abort|timeout/i.test(msg);
+      console.error("[AI] OpenAI error:", status, msg, aborted ? "(aborted)" : "");
+
+      if (attempt + 1 < maxAttempts && shouldRetry(e, status)) {
+        // backoff molto leggero per evitare picchi (non cambia l'API)
+        await new Promise(r => setTimeout(r, 500));
+        attempt++;
+        continue;
+      }
+      return null;
     }
-    if (!text.trim()) return null;
-
-    // parse → estrai l’array dentro "scores"
-    let parsed;
-    try { parsed = JSON.parse(text); } catch { parsed = null; }
-    if (Array.isArray(parsed)) return parsed;            // tollera vecchio formato (solo per retrocompat)
-    if (parsed && Array.isArray(parsed.scores)) return parsed.scores;
-
-    // ultima spiaggia: estrai il primo array
-    const m = text.match(/\[[\s\S]*\]/);
-    if (m) {
-      try {
-        const arr = JSON.parse(m[0]);
-        return Array.isArray(arr) ? arr : null;
-      } catch {}
-    }
-    return null;
-  } catch (e) {
-    console.error("[AI] OpenAI error:", e?.status, e?.message || String(e));
-    return null;
-  } finally {
-    clearTimeout(timer);
   }
+
+  return null;
 }
 
 

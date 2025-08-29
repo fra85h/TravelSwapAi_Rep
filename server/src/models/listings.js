@@ -34,7 +34,7 @@ console.log("qui sono dentro listactivelistings");
     .from("listings")
     .select(
       // ⚠️ Non includere PNR: sta su tabella separata
-      "id, user_id, title, description, type, location, price, status, created_at"
+      "id, user_id, title, description, type, location, price, status, created_at,cerco_vendo,route_from,route_to,depart_at,arrive_at"
     )
     .eq("status", "active")
     .order("created_at", { ascending: false })

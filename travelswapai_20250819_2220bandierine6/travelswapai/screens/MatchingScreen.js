@@ -74,7 +74,7 @@ function SkeletonRow() {
   );
 }
 
-function LegendCard({ t }) {
+/*function LegendCard({ t }) {
   return (
     <View style={styles.legendCard}>
       <Text style={styles.legendTitle}>{t("matching.legend.title", "Cosa significano 60 / 70 / 80?")}</Text>
@@ -102,8 +102,54 @@ function LegendCard({ t }) {
       </Text>
     </View>
   );
-}
+}*/
 
+function LegendCard({ t }) {
+  return (
+    <View style={styles.legendCard}>
+      <Text style={styles.legendTitle}>
+        {t("matching.legend.title", "Come leggere i punteggi")}
+      </Text>
+
+      {/* Fasce punteggio */}
+      <View style={styles.legendRow}>
+        <View style={[styles.legendDot, { backgroundColor: "#FEF9C3", borderColor: "#FDE68A" }]} />
+        <Text style={styles.legendText}>
+          {t("matching.legend.base", "60–69 = compatibilità di base")}
+        </Text>
+      </View>
+
+      <View style={styles.legendRow}>
+        <View style={[styles.legendDot, { backgroundColor: "#ECFCCB", borderColor: "#BEF264" }]} />
+        <Text style={styles.legendText}>
+          {t("matching.legend.good", "70–79 = buona compatibilità")}
+        </Text>
+      </View>
+
+      <View style={styles.legendRow}>
+        <View style={[styles.legendDot, { backgroundColor: "#DCFCE7", borderColor: "#86EFAC" }]} />
+        <Text style={styles.legendText}>
+          {t("matching.legend.verygood", "80–89 = affinità alta (perfetto solo se bidirezionale)")}
+        </Text>
+      </View>
+
+      <View style={styles.legendRow}>
+        <View style={[styles.legendDot, { backgroundColor: "#EAF7FF", borderColor: "#BAE6FD" }]} />
+        <Text style={styles.legendText}>
+          {t("matching.legend.excellent", "90–100 = affinità eccellente (perfetto anche se non bidirezionale)")}
+        </Text>
+      </View>
+
+      {/* Regola sintetica */}
+      <Text style={[styles.legendText, { marginTop: 8 }]}>
+        {t(
+          "matching.legend.rule",
+          "Un match è PERFETTO se: (bidirezionale && punteggio ≥ 80) oppure (!bidirezionale && punteggio ≥ 90). Altrimenti è COMPATIBILE."
+        )}
+      </Text>
+    </View>
+  );
+}
 
 function StatusBanner({
   state, t,
@@ -516,12 +562,18 @@ const coerceSnapshot = (snap) => {
 
   //const perfect = useMemo(() => rows.filter((m) => m.bidirectional === true && m.score >= 80), [rows]);
   //const compatible = useMemo(() => rows.filter((m) => !m.bidirectional), [rows]);
+
+const isPerfect = (m) =>
+  (m.bidirectional === true && m.score >= 80) ||
+  (m.bidirectional === false && m.score >= 90);
+
 const perfect = useMemo(
-  () => sortRows(rows.filter((m) => m.bidirectional === true && m.score >= 80)),
+  () => sortRows(rows.filter(isPerfect)),
   [rows, sortRows]
 );
+
 const compatible = useMemo(
-  () => sortRows(rows.filter((m) => !m.bidirectional)),
+  () => sortRows(rows.filter((m) => !isPerfect(m))),
   [rows, sortRows]
 );
   const toggleExpand = useCallback((id) => {
@@ -647,7 +699,11 @@ const compatible = useMemo(
            <Section
   title={t("matching.sections.perfectTitle", "Match perfetti")}
   icon="🍀"
-  subtitle={t("matching.sections.perfectSubtitle","Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.")}
+  //subtitle={t("matching.sections.perfectSubtitle","Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.")}
+   subtitle={t(
+   "matching.sections.perfectSubtitle",
+   "Perfetto se (bidirezionale e ≥80) oppure (non bidirezionale ma ≥90)."
+)}
   items={perfect}
   generatedAt={rows?.[0]?.updatedAt || null}
      />

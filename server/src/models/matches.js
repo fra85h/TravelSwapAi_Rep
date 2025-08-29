@@ -201,7 +201,7 @@ if (rows.length) {
 
   for (let i = 0; i < rows.length; i += CHUNK) {
     // normalizza: aggiungi user_id e usa created_at al posto di generated_at
-    const slice = rows.slice(i, i + CHUNK).map(({ generated_at, bidirectional, model, explanation, ...r }) => ({
+    const slice = rows.slice(i, i + CHUNK).map(({ generated_at, bidirectional, model, explanation,...r }) => ({
       user_id: ownerByFromId.get(r.from_listing_id) ?? user.id, // ⬅️ OBBLIGATORIO
       from_listing_id: r.from_listing_id,
       to_listing_id: r.to_listing_id,
