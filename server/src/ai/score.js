@@ -14,6 +14,7 @@ const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0); // default: determin
 const TOP_P = Number(process.env.MATCH_AI_TOP_P ?? 1);
 const MAX_LISTINGS_PER_CALL = Number(process.env.MATCH_AI_BATCH ?? 40);
 
+
 // -----------------------------------------------------------------------------
 // Utility
 // -----------------------------------------------------------------------------
@@ -48,7 +49,7 @@ function buildPrompt(user, listingsBatch) {
     description: truncate(normText(l.description), MAX_DESC_CHARS),
   }));
 
-  return `Sei un motore di matching. Assegna a ciascun listing un punteggio di compatibilità 0-100 con l'utente.
+  return `Sei un motore di matching. Regole: se una coppia CERCO/VENDO ha score ≥ 80 => "perfetto"; se CERCO-CERCO o VENDO-VENDO, serve score ≥ 90; altrimenti "compatibile".. Assegna a ciascun listing un punteggio di compatibilità 0-100 con l'utente.
 Rispondi SOLO con un oggetto JSON nel formato esatto:
 {
   "scores": [

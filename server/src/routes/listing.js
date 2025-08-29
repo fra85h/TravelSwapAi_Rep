@@ -35,3 +35,15 @@ listingsRouter.patch('/:id', requireAuth, async (req, res) => {
   const updated = await updateListing(req.user.id, id, req.body);
   res.json(updated); // niente PNR
 });
+
+
+listingsRouter.post('/:id/cancel', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isUUID(id)) return res.status(400).json({ error: 'Invalid id' });
+    const updated = await updateListing(req.user.id, id, { status: 'expired' });
+    res.json(updated);
+  } catch (e) {
+    res.status(400).json({ error: e?.message || String(e) });
+  }
+});

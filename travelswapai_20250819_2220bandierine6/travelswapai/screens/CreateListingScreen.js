@@ -21,6 +21,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useI18n } from "../lib/i18n";
+// ✅ Replace deprecated expo-barcode-scanner with expo-camera
+import { CameraView, useCameraPermissions } from "expo-camera";
 
 const DRAFT_KEY = "@tsai:create_listing_draft";
 
@@ -85,20 +87,20 @@ const MONTHS_IT = {
 // dd/mm/yyyy oppure dd-mm-yyyy oppure yyyy-mm-dd
 const DATE_ANY_RE = /\b(?:(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})|(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2}))\b/;
 // “10 Settembre 2025”
-const DATE_TEXT_RE = new RegExp(String.raw`\b(\d{1,2})\s([A-Za-zÀ-ÿ]{3,})\s(\d{4})\b`, "i");
+const DATE_TEXT_RE = new RegExp(String.raw`\\b(\\d{1,2})\\s([A-Za-zÀ-ÿ]{3,})\\s(\\d{4})\\b`, "i");
 // hh:mm (24h)
-const TIME_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
+const TIME_RE = /\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b/;
 // Flight number es. FR1234
-const FLIGHT_NO_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
+const FLIGHT_NO_RE = /\\b([A-Z]{2})\\s?(\\d{2,4})\\b/;
 // IATA pair es. MXP-FCO
-const IATA_PAIR_RE = /\b([A-Z]{3})\s*(?:-|–|—|>|→|to|verso)\s*([A-Z]{3})\b/;
+const IATA_PAIR_RE = /\\b([A-Z]{3})\\s*(?:-|–|—|>|→|to|verso)\\s*([A-Z]{3})\\b/;
 // Treno keywords
-const TRAIN_KEYWORDS_RE = /\b(Trenitalia|Frecciarossa|FR\s?\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\b/i;
+const TRAIN_KEYWORDS_RE = /\\b(Trenitalia|Frecciarossa|FR\\s?\\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\\b/i;
 // Rotte
-const ROUTE_TEXT_RE = /\b(?:da|from)\s([A-Za-zÀ-ÿ .'\-]+)\s(?:a|to)\s([A-Za-zÀ-ÿ .'\-]+)\b/i;
-const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\-]{3,})\s*(?:-|–|—|>|→)\s*([A-Za-zÀ-ÿ .'\-]{3,})/;
+const ROUTE_TEXT_RE = /\\b(?:da|from)\\s([A-Za-zÀ-ÿ .'\\-]+)\\s(?:a|to)\\s([A-Za-zÀ-ÿ .'\\-]+)\\b/i;
+const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\\-]{3,})\\s*(?:-|–|—|>|→)\\s*([A-Za-zÀ-ÿ .'\\-]{3,})/;
 // PNR
-const PNR_RE = /\b(?:PNR|booking\s*reference|codice\s*(?:prenotazione|biglietto)|record\s*locator)\s*[:=]?\s*([A-Z0-9]{5,8})\b/i;
+const PNR_RE = /\\b(?:PNR|booking\\s*reference|codice\\s*(?:prenotazione|biglietto)|record\\s*locator)\\s*[:=]?\\s*([A-Z0-9]{5,8})\\b/i;
 
 function parseAnyDate(text) {
   if (!text) return null;
@@ -155,7 +157,7 @@ function normalizeTitleFromRoute(from, to, carrierHint) {
   return null;
 }
 function smartParseTicket(text) {
-  const src = String(text || "").replace(/\s/g, " ").trim();
+  const src = String(text || "").replace(/\\s/g, " ").trim();
 
   const out = { status: "active" };
   const pnr = (src.match(PNR_RE) || [])[1];
@@ -163,7 +165,7 @@ function smartParseTicket(text) {
 
   const hasTrain = TRAIN_KEYWORDS_RE.test(src);
   const flMatch = src.match(FLIGHT_NO_RE);
-  const mentionsRyanair = /Ryanair|FR\s?\d{1,4}\b/i.test(src);
+  const mentionsRyanair = /Ryanair|FR\\s?\\d{1,4}\\b/i.test(src);
 
   let routeFrom = null;
   let routeTo = null;
@@ -215,7 +217,7 @@ function smartParseTicket(text) {
     timeArrive = `${pad2(plus.getHours())}:${pad2(plus.getMinutes())}`;
   }
 
-  const isHotelish = /\b(hotel|albergo|check[-\s]?in|check[-\s]?out|notti|night)\b/i.test(src);
+  const isHotelish = /\\b(hotel|albergo|check[-\\s]?in|check[-\\s]?out|notti|night)\\b/i.test(src);
   const twoPlainDatesOnly = (dateMatches.length >= 2 || dateTextMatch) && times.length === 0;
   const isRyanair = mentionsRyanair || (flMatch && flMatch[1] === "FR");
 
@@ -252,7 +254,7 @@ function smartParseTicket(text) {
   out.location =
     routeFrom && routeTo ? `${routeFrom} → ${routeTo}` : isRyanair ? "Volo Ryanair" : "Treno";
 
-  const pm = src.match(/(?:€|\beur\b|\beuro\b)\s*([0-9](?:[\,\.][0-9]{1,2})?)/i);
+  const pm = src.match(/(?:€|\\beur\\b|\\beuro\\b)\\s*([0-9](?:[\\,\\.][0-9]{1,2})?)/i);
   if (pm) out.price = String(pm[1]).replace(",", ".");
 
   if (isRyanair) out.imageUrl = "https://picsum.photos/seed/ryanair/1200/800";
@@ -567,20 +569,14 @@ export default function CreateListingScreen({
   const [pnrInput, setPnrInput] = useState("");
   const [importBusy, setImportBusy] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
-  const [qrSupported, setQrSupported] = useState(false);
-  const BarcodeScanner = useMemo(() => {
-    try {
-      const mod = require("expo-barcode-scanner");
-      setQrSupported(true);
-      return mod;
-    } catch {
-      setQrSupported(false);
-      return null;
-    }
-  }, []);
+
+  // ✅ expo-camera permissions hook
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const qrSupported = true; // layout invariato; con expo-camera è supportato in Expo Go
 
   const [form, setForm] = useState({
     type: "hotel",
+    cercoVendo: "VENDO",
     title: "",
     location: "",
     // HOTEL
@@ -818,6 +814,7 @@ export default function CreateListingScreen({
         description: form.description.trim() || null,
         price: Number.isFinite(priceNum) ? priceNum : null,
         image_url: form.imageUrl?.trim() || null,
+        cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
         status: "active",
       };
 
@@ -882,15 +879,13 @@ export default function CreateListingScreen({
   };
 
   const requestQrPermissionAndOpen = async () => {
-    if (!qrSupported || !BarcodeScanner) {
-      Alert.alert(t("createListing.scannerUnavailableTitle", "Scanner non disponibile"), t("createListing.scannerUnavailableMsg", "Il modulo fotocamera non è presente. Usa l’inserimento PNR."));
-      return;
-    }
     try {
-      const { status } = await BarcodeScanner.BarCodeScanner.requestPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(t("createListing.cameraDeniedTitle", "Permesso negato"), t("createListing.cameraDeniedMsg", "Per usare lo scanner, consenti l’accesso alla fotocamera."));
-        return;
+      if (!cameraPermission || cameraPermission.granted !== true) {
+        const { granted } = await requestCameraPermission();
+        if (!granted) {
+          Alert.alert(t("createListing.cameraDeniedTitle", "Permesso negato"), t("createListing.cameraDeniedMsg", "Per usare lo scanner, consenti l’accesso alla fotocamera."));
+          return;
+        }
       }
       setQrVisible(true);
     } catch {
@@ -935,6 +930,7 @@ export default function CreateListingScreen({
     } else {
       update({
         type: "hotel",
+        cercoVendo: "VENDO",
         title: data.title ?? "",
         location: data.location ?? "",
         checkIn: data.checkIn ?? "",
@@ -978,6 +974,19 @@ export default function CreateListingScreen({
           return (
             <TouchableOpacity key={tt.key} onPress={() => onChangeType(tt.key)} style={[styles.segBtn, active && styles.segBtnActive]}>
               <Text style={[styles.segText, active && styles.segTextActive]}>{t(tt.labelKey, tt.key === "hotel" ? "Hotel" : "Treno")}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* CERCO/VENDO */}
+      <Text style={styles.label}>{t("createListing.cercoVendoLabel", "Tipo annuncio")}</Text>
+      <View style={styles.segment}>
+        {["CERCO","VENDO"].map((cv) => {
+          const active = form.cercoVendo === cv;
+          return (
+            <TouchableOpacity key={cv} onPress={() => update({ cercoVendo: cv })} style={[styles.segBtn, active && styles.segBtnActive]}>
+              <Text style={[styles.segText, active && styles.segTextActive]}>{cv === "CERCO" ? t("createListing.cerco","Cerco") : t("createListing.vendo","Vendo")}</Text>
             </TouchableOpacity>
           );
         })}
@@ -1229,19 +1238,22 @@ export default function CreateListingScreen({
         </View>
       </Modal>
 
-      {/* -------- Scanner QR -------- */}
+      {/* -------- Scanner QR (expo-camera) -------- */}
       <Modal visible={qrVisible} animationType="fade" transparent onRequestClose={() => setQrVisible(false)}>
         <View style={styles.qrOverlay}>
           <View style={styles.qrFrame}>
             <Text style={styles.qrTitle}>{t("createListing.qrPromptTitle", "Inquadra il QR del biglietto")}</Text>
             <View style={styles.qrCameraWrap}>
-              {qrSupported && BarcodeScanner ? (
-                <BarcodeScanner.BarCodeScanner onBarCodeScanned={importBusy ? undefined : onQrScanned} style={{ flex: 1 }} />
-              ) : (
-                <View style={[styles.previewPlaceholder, { flex: 1 }]}>
-                  <Text style={styles.previewText}>{t("createListing.scannerUnavailable", "Scanner non disponibile")}</Text>
-                </View>
-              )}
+              {/* CameraView con barcode scanner */}
+              <CameraView
+                style={{ flex: 1 }}
+                facing="back"
+                barcodeScannerSettings={{
+                  // supporta QR e formati comuni
+                  barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39", "pdf417", "upc_a", "upc_e"],
+                }}
+                onBarcodeScanned={importBusy ? undefined : onQrScanned}
+              />
             </View>
 
             <View style={{ flexDirection: "row", gap: 10 }}>

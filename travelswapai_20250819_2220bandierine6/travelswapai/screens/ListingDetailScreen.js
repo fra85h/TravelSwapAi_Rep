@@ -4,7 +4,7 @@ import { useRoute } from "@react-navigation/native";
 import { getListingMatches, recomputeForListing } from "../lib/backendApi";
 import MatchCard from "../components/MatchCard";
 // importa come leggi i dettagli del listing (usa la tua funzione esistente)
-import { getListingById } from "../lib/offers"; // adegua se diverso
+import { getListingById } from "../lib/db.js"; // adegua se diverso
 
 export default function ListingDetailScreen() {
   const route = useRoute();

@@ -5,6 +5,8 @@ import { isUUID } from "../util/uuid.js";
 // Se hai uno schema privato in Supabase, puoi usare "private.listing_secrets"
 const SECRETS_TABLE = "listing_secrets"; // oppure "private.listing_secrets"
 
+function normCV(v){ return String(v||'VENDO').toUpperCase()==='CERCO' ? 'CERCO':'VENDO'; }
+
 /**
  * Ritorna il profilo utente (preferenze ecc.)
  * Tabella: profiles(id uuid PK, full_name, prefs jsonb, ...)
@@ -62,6 +64,8 @@ export async function createListing(userId, payload) {
   const { pnr, ...pub } = payload || {};
   const insertPayload = {
     ...pub,
+    cerco_vendo: normCV(pub.cerco_vendo),
+    published_at: new Date().toISOString(),
     user_id: userId,
     status: pub.status || "active",
   };

@@ -110,6 +110,9 @@ export const translations = {
       step2: "Dettagli & pubblicazione",
 
       type: "Tipo",
+      cercoVendoLabel: "Tipo annuncio",
+      cerco: "Cerco",
+      vendo: "Vendo",
       titleLabel: "Titolo *",
       titlePlaceholderHotel: "Es. Camera doppia vicino Duomo",
       titlePlaceholderTrain: "Es. Milano → Roma (FR 9520)",
@@ -905,6 +908,9 @@ listings: {
       step2: "Detalles y publicación",
 
       type: "Tipo",
+      cercoVendoLabel: "Tipo annuncio",
+      cerco: "Cerco",
+      vendo: "Vendo",
       titleLabel: "Título *",
       titlePlaceholderHotel: "Ej. Habitación doble cerca del Duomo",
       titlePlaceholderTrain: "Ej. Milán → Roma (FR 9520)",

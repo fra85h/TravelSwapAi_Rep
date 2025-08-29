@@ -34,6 +34,9 @@ export async function insertListing(payload) {
     description: payload.description ?? null,
     location: payload.location ?? null,
 
+    // CERCO/VENDO flag
+    cerco_vendo: (payload.cerco_vendo === "CERCO" ? "CERCO" : "VENDO"),
+
     // hotel
     check_in: payload.type === "hotel" ? normDate(payload.check_in) : null,
     check_out: payload.type === "hotel" ? normDate(payload.check_out) : null,
@@ -85,7 +88,7 @@ export async function updateListing(id, patch) {
 
 /** Cancella un mio annuncio */
 export async function deleteMyListing(id) {
-  const { error } = await supabase.from("listings").delete().eq("id", id);
+  const { error } = await supabase.from("listings").update({ status: "expired" }).eq("id", id);
   if (error) throw error;
 }
 export async function getMyProfile() {
