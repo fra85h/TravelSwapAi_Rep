@@ -65,21 +65,22 @@ export async function insertListing(payload) {
   return data;
 }
 export async function updateListing(id, patch) {
-  // Rimuoviamo status dal patch in edit, per coerenza
-  const { status, ...safePatch } = patch || {};
-
-  const { data: updated, error } = await supabase
-    .from("listings")
-    .update(safePatch)
-    .eq("id", id)
-    .select()
-    .single();
+  const { data, error } = await supabase
+    .from('listings')
+    .update(patch)
+    .eq('id', id)
+    .select('*')       // <-- fa fare "return=representation"
+    .maybeSingle();    // <-- non lancia se 0 righe
 
   if (error) {
-    console.error("updateListing error:", error);
+    console.error('updateListing error:', error);
     return { error };
   }
-  return updated;
+  if (!data) {
+    // 0 righe toccate: id sbagliato o RLS
+    return { error: { message: 'No rows updated (check ID or RLS policy)' } };
+  }
+  return data;
 }
 /** Aggiorna un annuncio */
 function sanitizeListingPatch(patch) {
