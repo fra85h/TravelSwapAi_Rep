@@ -59,7 +59,13 @@ export async function insertListing(payload) {
   if (error) throw error;
   return data;
 }
-
+export async function updateListing(id, payload) {
+  const existing = _mem.get(String(id));
+  if (!existing) throw new Error("Listing non trovato: " + id);
+  const updated = { ...existing, ...payload, updated_at: new Date().toISOString() };
+  _mem.set(String(id), updated);
+  return updated;
+}
 /** Aggiorna un annuncio */
 function sanitizeListingPatch(patch) {
   const out = {};
@@ -71,20 +77,11 @@ function sanitizeListingPatch(patch) {
   }
   return out;
 }
-
-export async function updateListing(id, patch) {
-  const safe = sanitizeListingPatch(patch);
-
-  const { data, error } = await supabase
-    .from("listings")
-    .update(safe)           // ⟵ NON più "clean"
-    .eq("id", id)
-    .select("*")            // seleziona colonne, poi single()
-    .single();
-
-  if (error) throw error;
-  return data;
+export function __debug_all() {
+  return Array.from(_mem.values());
 }
+
+
 
 /** Cancella un mio annuncio */
 export async function deleteMyListing(id) {
