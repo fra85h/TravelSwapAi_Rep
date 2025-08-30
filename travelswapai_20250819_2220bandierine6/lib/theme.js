@@ -6,8 +6,8 @@ export const theme = {
     border: "#E5E7EB",
     text: "#0F172A",
     textMuted: "#6B7280",
-    primary: "#111827",
-    primaryMuted: "#1F2937",
+   primary: "#4F46E5",      // Indigo 600
+   primaryMuted: "#6366F1", // Indigo 500/400 per hover/pressed
     success: "#16A34A",
     danger: "#DC2626",
     warning: "#F59E0B",
