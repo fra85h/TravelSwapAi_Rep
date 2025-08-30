@@ -7,6 +7,7 @@ import React, {
   useState,
   useLayoutEffect,
 } from "react";
+import { theme } from "../lib/theme";
 import {
   View,
   Text,
@@ -860,7 +861,7 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: "#111827",
+    backgroundColor:  theme.colors.primary,
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({

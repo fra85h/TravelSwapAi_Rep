@@ -10,8 +10,10 @@ import {
   Dimensions
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Button from "../components/ui/Button";
 import { theme } from "../lib/theme";
 import Button from "../components/ui/Button";
+import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher"; // lasciato invariato come nel tuo import
 

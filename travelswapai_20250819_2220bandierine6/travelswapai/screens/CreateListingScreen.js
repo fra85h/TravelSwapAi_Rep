@@ -1027,7 +1027,7 @@ function mapListingToForm(l) {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "#E5E7EB" },
+  card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#111827" },
   actionsCol: { flexDirection: "column", gap: 8, alignSelf: "stretch", marginBottom: 8 },
@@ -1040,7 +1040,7 @@ const styles = StyleSheet.create({
   note: { fontSize: 12, lineHeight: 16, color: "#6B7280", marginTop: 6 },
   multiline: { minHeight: 96 },
   segment: { flexDirection: "row", gap: 8 },
-  segBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
+  segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
   segBtnActive: { backgroundColor: "#111827", borderColor: "#111827" },
   segText: { color: "#111827", fontWeight: "800" },
   segTextActive: { color: "#fff" },
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
   aiBtnAlt: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E5E7EB" },
   aiBtnText: { color: "#fff", fontWeight: "800" },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#fff", padding: 12, flexDirection: "row", gap: 10 },
-  footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 14, borderRadius: 12 },
+  footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
   footerPrimary: { backgroundColor: "#111827" },
   footerGhost: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
   footerText: { fontWeight: "800" },
