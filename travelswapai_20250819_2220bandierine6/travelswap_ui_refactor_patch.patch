@@ -1,0 +1,297 @@
+diff --git a/travelswapai/lib/theme.js b/travelswapai/lib/theme.js
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/travelswapai/lib/theme.js
+@@ -0,0 +1,49 @@
++// lib/theme.js
++export const theme = {
++  colors: {
++    background: "#F8FAFC",
++    surface: "#FFFFFF",
++    surfaceMuted: "#F3F4F6",
++    border: "#E5E7EB",
++    text: "#0F172A",
++    textMuted: "#6B7280",
++    primary: "#111827",
++    primaryMuted: "#1F2937",
++    success: "#16A34A",
++    danger: "#DC2626",
++    warning: "#F59E0B",
++    info: "#2563EB",
++  },
++  radius: { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 },
++  spacing: { xs: 6, sm: 10, md: 14, lg: 18, xl: 24, xxl: 32 },
++  shadow: {
++    sm: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
++    md: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 6 },
++  },
++  typography: {
++    title: { fontSize: 22, fontWeight: "800" },
++    subtitle: { fontSize: 16, fontWeight: "600", color: "#6B7280" },
++    body: { fontSize: 16, color: "#0F172A" },
++    small: { fontSize: 12, color: "#6B7280" },
++  }
++};
++export default theme;
+diff --git a/travelswapai/components/ui/Button.js b/travelswapai/components/ui/Button.js
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/travelswapai/components/ui/Button.js
+@@ -0,0 +1,73 @@
++// components/ui/Button.js
++import React from "react";
++import { Pressable, Text, ActivityIndicator, View } from "react-native";
++import * as Haptics from "expo-haptics";
++import { theme } from "../../lib/theme";
++
++export default function Button({
++  title,
++  onPress,
++  variant = "primary",
++  loading = false,
++  disabled = false,
++  style,
++  textStyle,
++  leftIcon,
++  rightIcon,
++  compact = false,
++}) {
++  const base = {
++    paddingVertical: compact ? 10 : 14,
++    paddingHorizontal: compact ? 12 : 16,
++    borderRadius: theme.radius.lg,
++    alignItems: "center",
++    justifyContent: "center",
++    flexDirection: "row",
++    gap: 8,
++  };
++  const variants = {
++    primary: { backgroundColor: theme.colors.primary },
++    secondary: { backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border },
++    outline: { backgroundColor: "transparent", borderWidth: 1, borderColor: theme.colors.primary },
++    subtle: { backgroundColor: "transparent" },
++  };
++  const textVar = {
++    primary: { color: "#fff", fontWeight: "800" },
++    secondary: { color: theme.colors.text, fontWeight: "800" },
++    outline: { color: theme.colors.primary, fontWeight: "800" },
++    subtle: { color: theme.colors.text, fontWeight: "700" },
++  };
++  const handle = () => {
++    if (disabled || loading) return;
++    try { Haptics.selectionAsync(); } catch {}
++    onPress && onPress();
++  };
++  return (
++    <Pressable onPress={handle} style={[base, variants[variant], theme.shadow.sm, disabled && { opacity: 0.6 }, style]}>
++      <View style={{ flexDirection:"row", alignItems:"center", gap:8 }}>
++        {leftIcon || null}
++        {loading ? <ActivityIndicator color={variant==="primary" ? "#fff" : theme.colors.text} /> : <Text style={[textVar[variant], textStyle]}>{title}</Text>}
++        {rightIcon || null}
++      </View>
++    </Pressable>
++  );
++}
+diff --git a/travelswapai/components/ui/Input.js b/travelswapai/components/ui/Input.js
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/travelswapai/components/ui/Input.js
+@@ -0,0 +1,40 @@
++// components/ui/Input.js
++import React, { useState } from "react";
++import { View, TextInput, Text } from "react-native";
++import { theme } from "../../lib/theme";
++
++export default function Input({ label, error, style, inputStyle, ...props }) {
++  const [focused, setFocused] = useState(false);
++  return (
++    <View style={{ marginBottom: theme.spacing.md }}>
++      {label ? <Text style={{ fontWeight:"700", color: theme.colors.text, marginBottom:8 }}>{label}</Text> : null}
++      <View style={[{ borderWidth:1, borderColor: focused ? theme.colors.text : theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, paddingHorizontal:12, paddingVertical:10 }, theme.shadow.sm, style]}>
++        <TextInput {...props} style={[{ color: theme.colors.text, fontSize:16 }, inputStyle]} onFocus={()=>setFocused(true)} onBlur={()=>setFocused(false)} placeholderTextColor={theme.colors.textMuted} />
++      </View>
++      {error ? <Text style={{ color: theme.colors.danger, marginTop:6 }}>{error}</Text> : null}
++    </View>
++  );
++}
+diff --git a/travelswapai/App.js b/travelswapai/App.js
+index 1234567..89abcde 100644
+--- a/travelswapai/App.js
++++ b/travelswapai/App.js
+@@ -1,8 +1,11 @@
+-import { NavigationContainer } from '@react-navigation/native';
++import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+ import { createNativeStackNavigator } from '@react-navigation/native-stack';
+-import { View, ActivityIndicator } from 'react-native';
++import { View, ActivityIndicator } from 'react-native';
++import { theme } from './lib/theme';
++import { StatusBar } from 'expo-status-bar';
+@@
+ import { AuthProvider, useAuth } from './lib/auth';
++import { I18nProvider, useI18n } from './lib/i18n';
++
++const navTheme = {
++  ...DefaultTheme,
++  colors: {
++    ...DefaultTheme.colors,
++    background: theme.colors.background,
++    card: theme.colors.surface,
++    text: theme.colors.text,
++    border: theme.colors.border,
++    primary: theme.colors.primary,
++  }
++};
+@@
+-  return (
+-    <AuthProvider>
+-      <I18nProvider>
+-        <NavigationContainer>
+-          <RootNavigator />
+-        </NavigationContainer>
+-      </I18nProvider>
+-    </AuthProvider>
+-  );
++  return (
++    <AuthProvider>
++      <I18nProvider>
++        <NavigationContainer theme={navTheme}>
++          <StatusBar style="dark" />
++          <RootNavigator />
++        </NavigationContainer>
++      </I18nProvider>
++    </AuthProvider>
++  );
+diff --git a/travelswapai/screens/MainTabs.js b/travelswapai/screens/MainTabs.js
+index 1234567..fedcba9 100644
+--- a/travelswapai/screens/MainTabs.js
++++ b/travelswapai/screens/MainTabs.js
+@@
+-import { View } from "react-native";
++import { View } from "react-native";
++import { theme } from "../lib/theme";
+@@
+-const TAB_BAR_HEIGHT = 64;
++const TAB_BAR_HEIGHT = 68;
+@@
+-      <Tab.Navigator
+-        screenOptions={{
+-          headerShown: true,
+-          tabBarStyle: { height: TAB_BAR_HEIGHT },
+-          tabBarLabelStyle: { fontSize: 12, fontWeight: "700" },
+-        }}
+-      >
++      <Tab.Navigator
++        screenOptions={{
++          headerShown: true,
++          headerShadowVisible: false,
++          headerTitleStyle: { fontWeight: "800", color: theme.colors.text },
++          tabBarShowLabel: true,
++          tabBarLabelStyle: { fontSize: 12, fontWeight: "700" },
++          tabBarActiveTintColor: theme.colors.text,
++          tabBarInactiveTintColor: theme.colors.textMuted,
++          tabBarHideOnKeyboard: true,
++          tabBarStyle: [{
++            position: "absolute",
++            left: 16, right: 16, bottom: 12,
++            height: TAB_BAR_HEIGHT,
++            backgroundColor: theme.colors.surface,
++            borderRadius: 24,
++            borderTopWidth: 0,
++            ...theme.shadow.md,
++          }],
++          tabBarItemStyle: { paddingVertical: 6 },
++          tabBarIconStyle: { marginTop: 4 },
++        }}
++      >
+diff --git a/travelswapai/screens/LoginScreen.js b/travelswapai/screens/LoginScreen.js
+index 1357246..2468135 100644
+--- a/travelswapai/screens/LoginScreen.js
++++ b/travelswapai/screens/LoginScreen.js
+@@
+-import { View, TextInput, TouchableOpacity, Text, ActivityIndicator } from "react-native";
++import { View, Text, KeyboardAvoidingView, Platform } from "react-native";
+ import { supabase } from "../lib/supabase";
+ import { useAuth } from "../lib/auth";
++import Button from "../components/ui/Button";
++import Input from "../components/ui/Input";
++import { theme } from "../lib/theme";
+@@
+-  return (
+-    <View style={{ flex:1, padding:16, gap:12 }}>
+-      <Text style={{ fontSize:22, fontWeight:"800" }}>Accedi</Text>
+-      {err ? <Text style={{ color:"#B91C1C" }}>{err}</Text> : null}
+-      <TextInput placeholder="Email" autoCapitalize="none" value={email} onChangeText={setEmail}
+-                 style={{ borderWidth:1, borderColor:"#e5e7eb", padding:12, borderRadius:8 }} />
+-      <TextInput placeholder="Password" secureTextEntry value={password} onChangeText={setPassword}
+-                 style={{ borderWidth:1, borderColor:"#e5e7eb", padding:12, borderRadius:8 }} />
+-      <TouchableOpacity onPress={onLogin} disabled={loading}
+-                        style={{ backgroundColor:"#111827", padding:14, borderRadius:10, alignItems:"center" }}>
+-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color:"#fff", fontWeight:"700" }}>Entra</Text>}
+-      </TouchableOpacity>
+-    </View>
+-  );
++  return (
++    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1, backgroundColor: theme.colors.background }}>
++      <View style={{ flex:1, padding: 20, justifyContent: "center" }}>
++        <View style={[{ backgroundColor: theme.colors.surface, borderRadius: theme.radius.xl, padding: 20, borderWidth: 1, borderColor: theme.colors.border }, theme.shadow.md]}>
++          <Text style={{ fontSize: 24, fontWeight: "800", color: theme.colors.text, marginBottom: 12 }}>Accedi</Text>
++          {err ? <Text style={{ color: theme.colors.danger, marginBottom: 8 }}>{err}</Text> : null}
++          <Input placeholder="Email" autoCapitalize="none" value={email} onChangeText={setEmail} />
++          <Input placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
++          <Button title="Entra" onPress={onLogin} loading={loading} />
++        </View>
++      </View>
++    </KeyboardAvoidingView>
++  );
+diff --git a/travelswapai/screens/OnboardingScreen.js b/travelswapai/screens/OnboardingScreen.js
+index abcdef0..0fedcba 100644
+--- a/travelswapai/screens/OnboardingScreen.js
++++ b/travelswapai/screens/OnboardingScreen.js
+@@
+-import { LinearGradient } from "expo-linear-gradient";
++import { LinearGradient } from "expo-linear-gradient";
++import Button from "../components/ui/Button";
++import { theme } from "../lib/theme";
+@@
+-const styles = StyleSheet.create({
+-  root: { flex: 1, backgroundColor: "#fff" },
+-  /* altri stili esistenti ... */
+-});
++const styles = StyleSheet.create({
++  root: { flex: 1, backgroundColor: theme.colors.background },
++  gradient: { flex: 1 },
++  langWrap: { position: "absolute", top: 12, right: 16, zIndex: 10 },
++  page: { flex:1, alignItems:"center", justifyContent:"center", paddingHorizontal:24, paddingTop:24, paddingBottom:18 },
++  card: { backgroundColor: theme.colors.surface, borderRadius: 24, padding: 24, width:"100%", borderWidth:1, borderColor: theme.colors.border },
++  title: { fontSize: 24, fontWeight: "800", textAlign: "center", color: theme.colors.text },
++  text: { fontSize: 16, color: theme.colors.textMuted, textAlign: "center", marginTop: 8 },
++  dotsRow: { flexDirection:"row", justifyContent:"center", alignItems:"center", marginTop:18, gap:8 },
++  dot: { height: 8, width: 8, borderRadius: 999, backgroundColor: "#111" },
++  actions: { flexDirection:"row", justifyContent:"space-between", gap:12, marginTop:16 },
++  logoBase: (size) => ({ width: size, height: size }),
++});
+diff --git a/travelswapai/screens/CreateListingScreen.js b/travelswapai/screens/CreateListingScreen.js
+index a1b2c3d..d3c2b1a 100644
+--- a/travelswapai/screens/CreateListingScreen.js
++++ b/travelswapai/screens/CreateListingScreen.js
+@@
+-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
++import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
++import Input from "../components/ui/Input";
++import Button from "../components/ui/Button";
++import { theme } from "../lib/theme";
+@@
+-const styles = StyleSheet.create({
+-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "#E5E7EB" },
++const styles = StyleSheet.create({
++  card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB",
++          shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+@@
+-  segBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
++  segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
+@@
+-  footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 14, borderRadius: 12 },
++  footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
