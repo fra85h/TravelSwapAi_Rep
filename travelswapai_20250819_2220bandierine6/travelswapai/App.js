@@ -1,114 +1,71 @@
-// 👉 Carica i polyfill PRIMA di tutto (belt & suspenders su Snack)
 import './lib/polyfills';
-//import RedirectTester from "./screens/redirecttester";
-import { fetchJson } from "./lib/backendApi"; // adatta il path
+import { fetchJson } from "./lib/backendApi";
 
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
+import { theme } from './lib/theme';
+import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import OfferFlow from './screens/OfferFlow';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
 import MainTabs from './screens/MainTabs';
-import OfferDetailScreen from './screens/OfferDetailScreen';
-import CreateListingScreenWrapper from './screens/CreateListingScreenWrapper';
-import MatchingScreen from './screens/MatchingScreen';
-import ListingDetailScreen from './screens/ListingDetailScreen';
+import CreateListingScreen from './screens/CreateListingScreen';
+import ProfileScreen from './screens/ProfileScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 
 import { AuthProvider, useAuth } from './lib/auth';
-// 👇 aggiunta
 import { I18nProvider, useI18n } from './lib/i18n';
 
 const Stack = createNativeStackNavigator();
 
+const navTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: theme.colors.background,
+    card: theme.colors.surface,
+    text: theme.colors.text,
+    border: theme.colors.border,
+    primary: theme.colors.primary,
+  }
+};
+
 function RootNavigator() {
   const { session, loading } = useAuth();
-  const { t } = useI18n();
 
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const v = await AsyncStorage.getItem('hasSeenOnboarding');
-        if (mounted) setHasSeenOnboarding(v === '1');
-      } catch (e) {
-        if (mounted) setHasSeenOnboarding(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  if (loading || hasSeenOnboarding === null) {
+  if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator />
       </View>
     );
   }
 
   return (
     <Stack.Navigator
-      initialRouteName={
-        session ? 'MainTabs' : hasSeenOnboarding ? 'Login' : 'Onboarding'
-      }
-      screenOptions={{ headerShown: true }}>
+      screenOptions={{
+        headerShown: true,
+        headerShadowVisible: false,
+        headerTitleStyle: { fontWeight: "800" },
+        contentStyle: { backgroundColor: theme.colors.background },
+      }}
+    >
       {session ? (
         <>
-          <Stack.Screen
-            name="MainTabs"
-            component={MainTabs}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="OfferDetail"
-            component={OfferDetailScreen}
-            options={{ title: t('stack.offerDetail') }}
-          />
-          <Stack.Screen
-            name="CreateListing"
-            component={CreateListingScreenWrapper}
-            options={{ title: t('createListing.title') }}
-          />
-          <Stack.Screen
-            name="OfferFlow"
-            component={OfferFlow}
-            options={{ title: t('stack.offerFlow') }}
-          />
-          <Stack.Screen
-            name="Matching"
-            component={MatchingScreen}
-            options={{ title: t('stack.matching') }}
-          />
-          <Stack.Screen
-            name="ListingDetail"
-            component={ListingDetailScreen}
-            options={{ title: t('stack.listingDetail') }}
-          />
-          <Stack.Screen
-            name="EditProfile"
-            component={EditProfileScreen}
-            options={{ title: t('stack.editProfile') }}
-          />
-          {/* <Stack.Screen name="RedirectTester" component={RedirectTester} /> */}
+          <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="CreateListing" component={CreateListingScreen} options={{ title: "Nuovo annuncio" }} />
+          <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profilo" }} />
+          <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Modifica profilo" }} />
+          <Stack.Screen name="OfferFlow" component={OfferFlow} options={{ title: "Offerta" }} />
         </>
       ) : (
         <>
-          <Stack.Screen
-            name="Onboarding"
-            component={OnboardingScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ title: t('auth.loginTitle') }}
-          />
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Login" component={LoginScreen} options={{ title: "Accedi" }} />
         </>
       )}
     </Stack.Navigator>
@@ -116,11 +73,11 @@ function RootNavigator() {
 }
 
 export default function App() {
-
   return (
     <AuthProvider>
       <I18nProvider>
-        <NavigationContainer>
+        <NavigationContainer theme={navTheme}>
+          <StatusBar style="dark" />
           <RootNavigator />
         </NavigationContainer>
       </I18nProvider>

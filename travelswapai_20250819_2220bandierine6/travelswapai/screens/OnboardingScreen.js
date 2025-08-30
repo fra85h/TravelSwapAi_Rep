@@ -10,6 +10,8 @@ import {
   Dimensions
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { theme } from "../lib/theme";
+import Button from "../components/ui/Button";
 import { useI18n } from "../lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher"; // lasciato invariato come nel tuo import
 
@@ -201,21 +203,15 @@ const handlePrimary = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  // overlay in alto a destra per le bandierine
-  langWrap: {
-    position: "absolute",
-    top: 12,
-    right: 16,
-    zIndex: 10,
-  },
+  root: { flex: 1, backgroundColor: theme.colors.background },
+  gradient: { flex: 1 },
+  langWrap: { position: "absolute", top: 12, right: 16, zIndex: 10 },
+  page: { flex:1, alignItems:"center", justifyContent:"center", paddingHorizontal:24, paddingTop:24, paddingBottom:18 },
+  card: { backgroundColor: theme.colors.surface, borderRadius: 24, padding: 24, width:"100%", borderWidth:1, borderColor: theme.colors.border },
+  title: { fontSize: 24, fontWeight: "800", textAlign: "center", color: theme.colors.text },
+  text: { fontSize: 16, color: theme.colors.textMuted, textAlign: "center", marginTop: 8 },
+  dotsRow: { flexDirection:"row", justifyContent:"center", alignItems:"center", marginTop:18, gap:8 },
+  dot: { height: 8, width: 8, borderRadius: 999, backgroundColor: "#111" },
+  actions: { flexDirection:"row", justifyContent:"space-between", gap:12, marginTop:16 },
   logoBase: (size) => ({ width: size, height: size }),
-  title: { fontSize: 24, fontWeight: "700", textAlign: "center", marginTop: 6 },
-  text: { fontSize: 16, color: "#555", textAlign: "center", marginTop: 6, paddingHorizontal: 6 },
-  dotsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 14 },
-  dot: { height: 8, borderRadius: 4, backgroundColor: "#111", marginHorizontal: 4 },
-  actions: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 24, marginTop: 16, marginBottom: 24 },
-  btn: { backgroundColor: "#111", paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, minWidth: 120, alignItems: "center" },
-  btnGhost: { backgroundColor: "#eee" },
-  btnText: { color: "#fff", fontWeight: "700" }
 });
