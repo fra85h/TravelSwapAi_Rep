@@ -22,6 +22,7 @@ import { listMyListings, updateListing, deleteMyListing } from "../lib/db";
 import { useI18n } from "../lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher"; // 🇮🇹🇬🇧🇺🇸 bandierine condivise
 import { useAuth } from "../lib/auth";
+import { theme } from "../lib/theme";
 
 function StatItem({ label, icon, value, active, onPress }) {
   return (

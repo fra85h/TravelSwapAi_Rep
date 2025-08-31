@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Platform, StyleSheet } from "react-native";
 import { useI18n } from "../lib/i18n";
+import { theme } from "../lib/theme";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const toISODate = (d) => {

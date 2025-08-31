@@ -1,217 +1,155 @@
+// screens/OnboardingScreen.js
 import React, { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CommonActions } from '@react-navigation/native';
+import { useNavigation, CommonActions } from "@react-navigation/native";
 import {
   View,
   Text,
   StyleSheet,
-  Animated,
   TouchableOpacity,
-  Dimensions
+  Dimensions,
+  ScrollView,
+  Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { theme } from "../lib/theme";
-import Button from "../components/ui/Button";
 import { useI18n } from "../lib/i18n";
-import LanguageSwitcher from "./LanguageSwitcher"; // lasciato invariato come nel tuo import
+import LanguageSwitcher from "./LanguageSwitcher";
+import Coin3D from "../components/Coin3D"; // SVG coin, bg trasparente
 
-// Persist onboarding flag quickly (no await)
+// --- util una sola volta ---
 const markSeen = () => AsyncStorage.setItem("hasSeenOnboarding", "1").catch(() => {});
-const AnimatedLG = Animated.createAnimatedComponent(LinearGradient);
 const { width } = Dimensions.get("window");
 
+// solo CHIAVI i18n: i testi veri li prende t()
 const SLIDES = [
-  { key: "1", title: "onboarding.welcomeTitle", text: "onboarding.welcomeText" },
-  { key: "2", title: "onboarding.hotelTitle", text: "onboarding.hotelText" },
-  { key: "3", title: "onboarding.matchingTitle", text: "onboarding.matchingText" }
+  { key: "1", title: "onboarding.welcomeTitle",  text: "onboarding.welcomeText" },
+  { key: "2", title: "onboarding.hotelTitle",    text: "onboarding.hotelText" },
+  { key: "3", title: "onboarding.matchingTitle", text: "onboarding.matchingText" },
 ];
 
-export default function OnboardingScreen({ navigation }) {
-  const { t, setLang } = useI18n();
-
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const shineX = useRef(new Animated.Value(-200)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotateAnim, { toValue: 1, duration: 4500, useNativeDriver: true })
-    ).start();
-
-    const loopShine = () => {
-      shineX.setValue(-200);
-      Animated.sequence([
-        Animated.delay(700),
-        Animated.timing(shineX, { toValue: 200, duration: 1200, useNativeDriver: true })
-      ]).start(loopShine);
-    };
-    loopShine();
-  }, []);
-
+export default function OnboardingScreen() {
+  const { t } = useI18n();
+  const nav = useNavigation();
+  const scrollRef = useRef(null);
   const [index, setIndex] = useState(0);
-  const scrollX = useRef(new Animated.Value(0)).current;
-  const onScrollIndex = ({ nativeEvent: { contentOffset: { x } } }) => {
-    const i = Math.round(x / width);
-    if (i !== index) setIndex(i);
-  };
-  const listRef = useRef(null);
 
-  const goToOffers = () =>
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: "Login" }],
-      })
-    );
+  const goHome = () => {
+    markSeen();
+    nav.dispatch(CommonActions.reset({ index: 0, routes: [{ name: "Login" }] }));
+  };
 
   const onNext = () => {
-    if (index < SLIDES.length - 1) {
-      listRef.current?.scrollToIndex({ index: index + 1, animated: true });
-    } else {
-      // PRIMA andava a MainTabs: ora portiamo a Login
-      navigation.replace("Login");
-      // oppure:
-      // goToOffers();
-    }
+    if (index >= SLIDES.length - 1) return goHome();
+    const next = index + 1;
+    setIndex(next);
+    scrollRef.current?.scrollTo({ x: next * width, animated: true });
   };
 
-  const onSkip = () => { markSeen(); navigation.replace("Login"); };
-
-  // Component: moneta 3D con doppia faccia (evita l'effetto "mezzo logo")
-  const LogoCoin = ({ size = 140 }) => {
-    const spinFront = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
-    const spinBack  = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ["180deg", "540deg"] });
-    const scale = rotateAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.88, 1] });
-
-    return (
-      <View style={{ alignSelf: "center", marginBottom: 16 }}>
-        <View style={{ width: size, height: size }}>
-          {/* Faccia frontale */}
-          <Animated.Image
-            source={require("../assets/logo.png")}
-            style={[
-              styles.logoBase(size),
-              {
-                backfaceVisibility: "hidden",
-                transform: [{ perspective: 900 }, { rotateY: spinFront }, { scale }]
-              }
-            ]}
-            resizeMode="contain"
-          />
-          {/* Faccia posteriore */}
-          <Animated.Image
-            source={require("../assets/logo.png")}
-            style={[
-              styles.logoBase(size),
-              {
-                position: "absolute",
-                top: 0,
-                left: 0,
-                backfaceVisibility: "hidden",
-                transform: [{ perspective: 900 }, { rotateY: spinBack }, { scale }]
-              }
-            ]}
-            resizeMode="contain"
-          />
-          {/* Riflesso diagonale */}
-          <AnimatedLG
-            colors={["rgba(255,255,255,0)", "rgba(255,255,255,0.5)", "rgba(255,255,255,0)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              top: -20,
-              left: -60,
-              width: 120,
-              height: size + 40,
-              transform: [{ translateX: shineX }, { rotate: "20deg" }],
-              borderRadius: 16
-            }}
-          />
-        </View>
-      </View>
-    );
+  const onScrollEnd = (e) => {
+    const newIdx = Math.round(e.nativeEvent.contentOffset.x / width);
+    if (newIdx !== index) setIndex(newIdx);
   };
 
   return (
-    <View style={styles.container}>
-      {/* 🌍 Bandierine in alto a destra (overlay fisso) */}
-      <View style={styles.langWrap}>
-        <LanguageSwitcher />
-      </View>
+    <View style={styles.root}>
+      {/* TOP: bandierine in safe area */}
+      <SafeAreaView edges={["top"]} style={styles.safeTop}>
+        <View style={styles.langWrap}>
+          <LanguageSwitcher />
+        </View>
+      </SafeAreaView>
 
-      <Animated.FlatList
-        ref={listRef}
-        data={SLIDES}
-        keyExtractor={(i) => i.key}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ alignItems: "center" }}
-        getItemLayout={(data, i) => ({ length: width, offset: width * i, index: i })}
-        // ✅ Animated.event + listener che aggiorna l’indice
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: true, listener: onScrollIndex }
-        )}
-        onMomentumScrollEnd={(e) => {
-          const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
-          setIndex(newIndex);
-        }}
-        renderItem={({ item }) => (
-          <View style={{ width, paddingHorizontal: 24, paddingTop: 40 }}>
-            {/* Logo */}
-            <LogoCoin size={140} />
-            {/* Testi della slide */}
-            <Text style={styles.title}>{t(item.title)}</Text>
-            <Text style={styles.text}>{t(item.text)}</Text>
-          </View>
-        )}
-        getItemLayout={(data, i) => ({ length: width, offset: width * i, index: i })}
-      />
+      {/* corpo */}
+      <LinearGradient colors={[theme.colors.background, theme.colors.background]} style={{ flex: 1 }}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={onScrollEnd}
+          contentContainerStyle={{ alignItems: "center" }}
+        >
+          {SLIDES.map((s) => (
+            <View key={s.key} style={[styles.page, { width }]}>
+              <View style={styles.card}>
+                {/* MONETA */}
+                <View style={{ marginBottom: 16 }}>
+                  <Coin3D size={160} baseColor="#FDBB30" />
+                </View>
 
-      {/* Indicatori */}
-      <View style={styles.dotsRow}>
-        {SLIDES.map((_, i) => {
-          const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
-          const dotWidth = scrollX.interpolate({ inputRange, outputRange: [8, 20, 8], extrapolate: "clamp" });
-          const opacity  = scrollX.interpolate({ inputRange, outputRange: [0.3, 1, 0.3], extrapolate: "clamp" });
-          return <Animated.View key={i} style={[styles.dot, { width: dotWidth, opacity }]} />;
-        })}
-      </View>
+                {/* Testi */}
+                <Text style={styles.title} numberOfLines={2}>{t(s.title)}</Text>
+                <Text style={styles.text}  numberOfLines={3}>{t(s.text)}</Text>
 
-      {/* Pulsanti */}
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={onSkip} style={[styles.btn, styles.btnGhost]}>
-          <Text style={[styles.btnText, { color: "#111" }]}>Salta</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onNext} style={styles.btn}>
-          <Text style={styles.btnText}>{index === SLIDES.length - 1 ? "Comincia" : "Avanti"}</Text>
-        </TouchableOpacity>
-      </View>
+                {/* ...qui puoi avere eventuali CTA locali con il tuo <Button /> */}
+              </View>
+
+              {/* Dots (lasciati come sono: solo esempio) */}
+              <View style={styles.dotsRow}>
+                {SLIDES.map((_, i) => (
+                  <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
+                ))}
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      </LinearGradient>
+
+      {/* BOTTOM: Salta / Avanti in safe area */}
+      <SafeAreaView edges={["bottom"]} style={styles.safeBottom}>
+        <View style={styles.bottomBar}>
+          <TouchableOpacity onPress={goHome} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.bottomText}>{t("common.skip")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onNext} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.bottomText}>
+              {index === SLIDES.length - 1 ? t("common.start") : t("common.next")}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
 
-const handlePrimary = () => {
-  if (index < SLIDES.length - 1) {
-    listRef.current?.scrollToOffset({
-      offset: (index + 1) * width,
-      animated: true,
-    });
-  } else { markSeen(); navigation.replace("Login"); }
-};
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },
-  gradient: { flex: 1 },
-  langWrap: { position: "absolute", top: 12, right: 16, zIndex: 10 },
-  page: { flex:1, alignItems:"center", justifyContent:"center", paddingHorizontal:24, paddingTop:24, paddingBottom:18 },
-  card: { backgroundColor: theme.colors.surface, borderRadius: 24, padding: 24, width:"100%", borderWidth:1, borderColor: theme.colors.border },
+  // top
+  safeTop: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10 },
+  langWrap: {
+    alignItems: "flex-end",
+    paddingRight: 12,
+    paddingTop: Platform.OS === "android" ? 8 : 0,
+  },
+  // slide
+  page: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, paddingTop: 24, paddingBottom: 18 },
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    padding: 20,
+    width: "88%",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: "center",
+    ...theme.shadow.md,
+  },
   title: { fontSize: 24, fontWeight: "800", textAlign: "center", color: theme.colors.text },
   text: { fontSize: 16, color: theme.colors.textMuted, textAlign: "center", marginTop: 8 },
-  dotsRow: { flexDirection:"row", justifyContent:"center", alignItems:"center", marginTop:18, gap:8 },
-  dot: { height: 8, width: 8, borderRadius: 999, backgroundColor: "#111" },
-  actions: { flexDirection:"row", justifyContent:"space-between", gap:12, marginTop:16 },
-  logoBase: (size) => ({ width: size, height: size }),
+  // dots (lasciati semplici)
+  dotsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 18, gap: 8 },
+  dot: { height: 8, width: 8, borderRadius: 999, backgroundColor: "#D1D5DB" },
+  dotActive: { width: 16, backgroundColor: theme.colors.primary },
+  // bottom
+  safeBottom: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  bottomBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  bottomText: { fontSize: 16, fontWeight: "600", color: theme.colors.text },
 });

@@ -5,6 +5,8 @@ import { useNavigation } from "@react-navigation/native";
 import { listPublicListings, getCurrentUser } from "../lib/db";
 import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
+import { theme } from "../lib/theme";
+
 
 export default function HomeScreen() {
   const navigation = useNavigation();

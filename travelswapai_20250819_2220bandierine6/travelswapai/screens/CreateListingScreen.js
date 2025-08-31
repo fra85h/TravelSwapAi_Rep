@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useLayoutEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById } from "../lib/db";
+import { theme } from "../lib/theme";
 import {
   View,
   Text,

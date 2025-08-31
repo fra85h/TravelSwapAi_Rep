@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useNavigation } from "@react-navigation/native";
+import { theme } from "../lib/theme";
 export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

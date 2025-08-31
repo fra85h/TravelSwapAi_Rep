@@ -2,6 +2,8 @@
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "../lib/i18n";
+//import { theme } from "../lib";
+import { theme } from "../lib/theme";
 
 export default function OfferCTAs({ listing, me }) {
   const navigation = useNavigation();
@@ -43,7 +45,7 @@ export default function OfferCTAs({ listing, me }) {
 const s = StyleSheet.create({
   row: { flexDirection: "row", gap: 10, marginTop: 10 },
   btn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center" },
-  buy: { backgroundColor: "#111827" },
-  swap: { backgroundColor: "#1F2937" },
-  btnTxt: { color: "#fff", fontWeight: "800" },
+  buy: { backgroundColor: theme.colors.primary },
+  swap: { backgroundColor: theme.colors.primary },
+  btnTxt: { color: theme.colors.boardingText, fontWeight: "800" },
 });

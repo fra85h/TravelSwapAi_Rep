@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, TextInput, Pressable, Animated, Easing, 
 import { supabase } from "../lib/supabase";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
+import { theme } from "../lib/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 

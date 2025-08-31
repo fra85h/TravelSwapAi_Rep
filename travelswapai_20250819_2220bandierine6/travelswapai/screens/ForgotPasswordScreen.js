@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
+import { theme } from "../lib/theme";
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');

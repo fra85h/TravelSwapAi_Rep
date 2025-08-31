@@ -33,7 +33,7 @@ export default function Button({
   };
 
   const textVar = {
-    primary: { color: "#fff", fontWeight: "800" },
+    primary: { color: theme.colors.boardingText, fontWeight: "800" },
     secondary: { color: theme.colors.text, fontWeight: "800" },
     outline: { color: theme.colors.primary, fontWeight: "800" },
     subtle: { color: theme.colors.text, fontWeight: "700" },

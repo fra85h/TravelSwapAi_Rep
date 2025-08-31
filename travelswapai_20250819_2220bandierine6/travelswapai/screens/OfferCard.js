@@ -10,6 +10,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useI18n } from "../lib/i18n";
+import { theme } from "../lib/theme";
 
 export default function OfferCard({
   category,

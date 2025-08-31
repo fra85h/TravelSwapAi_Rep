@@ -5,6 +5,7 @@ import { acceptOffer, declineOffer, cancelOffer } from "../lib/offers";
 import { listIncomingOffersAny, listOutgoingOffersAny } from "../lib/offers_lists_rpc";
 import { useNavigation } from "@react-navigation/native";
 import { useI18n } from "../lib/i18n";
+import { theme } from "../lib/theme";
 
 function IncomingRow({ offer, onAccept, onDecline, busyId, t }) {
   const isBuy = offer.type === "buy";

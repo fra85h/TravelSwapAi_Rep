@@ -4,14 +4,18 @@ export const theme = {
     surface: "#FFFFFF",
     surfaceMuted: "#F3F4F6",
     border: "#E5E7EB",
-    text: "#0F172A",
+    text: "#1D2B6B",
     textMuted: "#6B7280",
-    primary: "#111827",
-    primaryMuted: "#1F2937",
+   primary: "#E7EEFF",      // Indigo 600
+   primaryMuted: "#6366F1", // Indigo 500/400 per hover/pressed
     success: "#16A34A",
     danger: "#DC2626",
     warning: "#F59E0B",
     info: "#2563EB",
+    // UI CTA color inspired by screenshot "Boarding passes"
+    boardingBg: "#E7EEFF",
+    boardingText: "#1D2B6B",
+    boardingBgPressed: "#D6E0FF",
   },
   radius: { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 },
   spacing: { xs: 6, sm: 10, md: 14, lg: 18, xl: 24, xxl: 32 },

@@ -11,6 +11,7 @@ import {
   listMyActiveListings
 } from "../lib/offers";
 import { useI18n } from "../lib/i18n";
+import { theme } from "../lib/theme";
 
 export default function OfferFlow() {
   const navigation = useNavigation();

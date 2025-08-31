@@ -1,5 +1,6 @@
 import { View, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { useI18n } from "../lib/i18n";
+import { theme } from "../lib/theme";
 
 export default function LanguageSwitcher() {
   const { locale, setLocale } = useI18n();
