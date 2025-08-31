@@ -426,8 +426,8 @@ const styles = StyleSheet.create({
   },
 
   profileRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#111827", alignItems: "center", justifyContent: "center" },
-  avatarText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
+  avatarText: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
   name: { fontSize: 16, fontWeight: "800", color: "#111827" },
   metaText: { color: "#6B7280" },
   editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.primary
