@@ -16,6 +16,8 @@ import MainTabs from './screens/MainTabs';
 import CreateListingScreen from './screens/CreateListingScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
+import ListingDetailScreen from './screens/ListingDetailScreen';
+import OfferDetailScreen from './screens/OfferDetailScreen';
 
 import { AuthProvider, useAuth } from './lib/auth';
 import { I18nProvider, useI18n } from './lib/i18n';
@@ -61,6 +63,9 @@ function RootNavigator() {
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profilo" }} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Modifica profilo" }} />
           <Stack.Screen name="OfferFlow" component={OfferFlow} options={{ title: "Offerta" }} />
+          <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Listing" }} />
+          <Stack.Screen name="OfferDetail" component={OfferDetailScreen} options={{ title: "Listing" }} />
+
         </>
       ) : (
         <>

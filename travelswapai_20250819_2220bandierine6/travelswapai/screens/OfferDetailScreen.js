@@ -166,11 +166,11 @@ export default function OfferDetailScreen() {
                     listingId: effectiveId,
                   })
                 }
-                style={[s.btn, { backgroundColor: "#111827" }]}
+                style={[s.btn, { backgroundColor: theme.colors.primary }]}
                 accessibilityRole="button"
                 accessibilityLabel={t("detail.actions.proposeSwap", "Proponi scambio")}
               >
-                <Text style={[s.btnTxt, { color: "#fff" }]}>
+                <Text style={[s.btnTxt, { color: theme.colors.boardingText }]}>
                   {t("detail.actions.proposeSwap", "Proponi scambio")}
                 </Text>
               </TouchableOpacity>
@@ -187,7 +187,7 @@ export default function OfferDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t("detail.actions.proposeBuy", "Proponi acquisto")}
               >
-                <Text style={[s.btnTxt, { color: "#111827" }]}>
+                <Text style={[s.btnTxt, { color: theme.colors.primary }]}>
                   {t("detail.actions.proposeBuy", "Proponi acquisto")}
                 </Text>
               </TouchableOpacity>

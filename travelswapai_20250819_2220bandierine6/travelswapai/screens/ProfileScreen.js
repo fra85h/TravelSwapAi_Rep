@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   profileRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
   avatarText: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
-  name: { fontSize: 16, fontWeight: "800", color: "#111827" },
+  name: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText},
   metaText: { color: "#6B7280" },
   editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.primary
 , borderWidth: 1, borderColor: "#E5E7EB" },
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   },
   statBoxActive: { backgroundColor: "#EEF2FF", borderColor: "#C7D2FE" },
   statIcon: { fontSize: 18, marginBottom: 4 },
-  statValue: { fontSize: 16, fontWeight: "800", color: "#111827" },
+  statValue: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
   statLabel: { fontSize: 12, color: "#6B7280" },
 
   filterBar: {
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
   clearBtnText: { color: "#fff", fontWeight: "700" },
 
   sectionHeader: { marginTop: 4, marginBottom: 8, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#111827" },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
 
   row: {
     flexDirection: "row",
