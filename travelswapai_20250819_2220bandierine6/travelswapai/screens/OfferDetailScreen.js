@@ -11,7 +11,7 @@ import { View, Text, ActivityIndicator, ScrollView, StyleSheet, Alert, Touchable
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { getListingById, listOffersForListing, getCurrentUser } from "../lib/db";
 import { acceptOffer, declineOffer } from "../lib/offers";
-import { useI18n } from "../lib/i18n";
+import { useI18n } from "../lib/i18n"; 
 import { theme } from "../lib/theme";
 export default function OfferDetailScreen() {
   const route = useRoute();

@@ -39,16 +39,16 @@ function EmptyState({ onRecompute, isLoading, hasError }) {
       <Ionicons
         name={hasError ? "cloud-offline-outline" : "bulb-outline"}
         size={28}
-        color="#111827"
+        color={theme.colors.boardingText}
       />
-      <Text style={{ marginTop: 10, fontWeight: "800" }}>
+      <Text style={{ marginTop: 10, fontWeight: "800" , color:theme.colors.boardingText}}>
         {hasError ? "Backend non raggiungibile" : "Nessun match calcolato"}
       </Text>
-      {!hasError && (
+    { /* {!hasError && (
         <TouchableOpacity
           onPress={onRecompute}
           disabled={isLoading}
-          style={{ marginTop: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: "#111827", borderRadius: 999 }}
+          style={{ marginTop: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: theme.colors.boardingText, borderRadius: 999 }}
         >
           {isLoading ? (
             <ActivityIndicator color="#fff" />
@@ -56,7 +56,7 @@ function EmptyState({ onRecompute, isLoading, hasError }) {
             <Text style={{ color: "#fff", fontWeight: "800" }}>Ricalcola AI</Text>
           )}
         </TouchableOpacity>
-      )}
+      )}*/}
     </View>
   );
 }
@@ -274,7 +274,7 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
         )}
 
         <TouchableOpacity onPress={onToggleInfo} style={styles.infoChip} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="information-circle-outline" size={16} color="#111827" />
+          <Ionicons name="information-circle-outline" size={16} color={theme.colors.boardingText}/>
           <Text style={styles.infoChipTxt}>{expanded ? t("matching.hide","Nascondi") : t("matching.info","Info")}</Text>
         </TouchableOpacity>
 
@@ -689,7 +689,7 @@ const compatible = useMemo(
                 accessibilityRole="button"
                 accessibilityLabel={showLegend ? "Nascondi spiegazione punteggi" : "Mostra spiegazione punteggi"}
               >
-                <Ionicons name={showLegend ? "chevron-up" : "information-circle-outline"} size={18} color="#111827" />
+                <Ionicons name={showLegend ? "chevron-up" : "information-circle-outline"} size={18} color={theme.colors.boardingText} />
                 <Text style={styles.legendToggleText}>{showLegend ? "Nascondi spiegazione" : "Mostra spiegazione"}</Text>
               </TouchableOpacity>
             </View>
@@ -735,7 +735,7 @@ refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         accessibilityLabel="Ricalcola AI"
         style={[styles.fab, { bottom: (tabBarHeight || 0) + (insets.bottom || 0) + 18 }]}
       >
-        {recomputing ? <ActivityIndicator color="#fff" /> : <Ionicons name="flash" size={26} color="#fff" />}
+        {recomputing ? <ActivityIndicator color="#fff" /> : <Ionicons name="flash" size={26} color={theme.colors.boardingText} />}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -766,7 +766,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  legendHeaderTitle: { fontSize: 18, fontWeight: "800", color: "#111827" },
+  legendHeaderTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.boardingText },
   legendToggle: {
     flexDirection: "row",
     alignItems: "center",
@@ -778,7 +778,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     backgroundColor: "#F9FAFB",
   },
-  legendToggleText: { fontWeight: "700", color: "#111827" },
+  legendToggleText: { fontWeight: "700", color: theme.colors.boardingText },
 
   /* Sezioni */
   section: {
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   sectionHeader: { marginBottom: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#111827" },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
   sectionSubtitle: { color: "#6B7280", marginTop: 4 },
 
   /* Riga */
@@ -803,14 +803,14 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   avatar: { width: 48, height: 48, borderRadius: 10 },
-  title: { fontWeight: "800", color: "#111827", marginRight: 8 },
+  title: { fontWeight: "800", color: theme.colors.boardingText, marginRight: 8 },
   meta: { color: "#6B7280", marginTop: 2 },
 
   /* colonna destra */
   rightCol: { alignItems: "flex-end", justifyContent: "center", gap: 8 },
 
   /* Badge "Nuovo" */
-  newPill: { paddingHorizontal: 8, paddingVertical: 2, backgroundColor: "#111827", borderRadius: 999 },
+  newPill: { paddingHorizontal: 8, paddingVertical: 2, backgroundColor: theme.colors.boardingText, borderRadius: 999 },
   newPillText: { color: "#fff", fontWeight: "800", fontSize: 10, marginTop: 1 },
 
   /* Badge score */
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  infoChipTxt: { color: "#111827", fontWeight: "700", fontSize: 12 },
+  infoChipTxt: { color: theme.colors.boardingText, fontWeight: "700", fontSize: 12 },
 
   /* Spiegazione */
   explBox: { marginTop: 8, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", borderRadius: 10, padding: 10 },
@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({
-      ios: { shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } },
+      ios: { shadowColor: "#000", shadowOpacity: 0.55, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } },
       android: { elevation: 8 },
     }),
   },

@@ -271,10 +271,10 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8, backgroundColor: "#111827", borderColor: "#111827" }]}
+              style={[styles.editBtn, { marginTop: 8, backgroundColor: theme.colors.primary, borderColor: "#111827" }]}
               onPress={handleLogout}
             >
-              <Text style={[styles.editBtnText, { color: "#fff" }]}>{t("profile.logout", "Esci")}</Text>
+              <Text style={[styles.editBtnText, { color: theme.colors.boardingText }]}>{t("profile.logout", "Esci")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -430,8 +430,9 @@ const styles = StyleSheet.create({
   avatarText: { color: "#fff", fontWeight: "800", fontSize: 16 },
   name: { fontSize: 16, fontWeight: "800", color: "#111827" },
   metaText: { color: "#6B7280" },
-  editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
-  editBtnText: { fontWeight: "700", color: "#111827" },
+  editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.primary
+, borderWidth: 1, borderColor: "#E5E7EB" },
+  editBtnText: { fontWeight: "700", color: theme.colors.boardingText},
 
   statsCard: { marginTop: 12 },
   statsRow: { paddingRight: 6, gap: 10, flexDirection: "row", alignItems: "center" },
@@ -505,10 +506,10 @@ const styles = StyleSheet.create({
 
   fabWrap: { position: "absolute", right: 16 },
   fab: {
-    width: 62, height: 62, borderRadius: 31, backgroundColor: "#111827", alignItems: "center", justifyContent: "center",
+    width: 62, height: 62, borderRadius: 31, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center",
     ...Platform.select({ ios: { shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, android: { elevation: 8 } }),
   },
-  fabPlus: { color: "#fff", fontSize: 28, fontWeight: "900", marginTop: -2 },
+  fabPlus: { color: theme.colors.boardingText, fontSize: 28, fontWeight: "900", marginTop: -2 },
 
   skel: { backgroundColor: "#E5E7EB" },
 });
