@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   // dots
   dotsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 18, gap: 8 },
   dot: { height: 8, width: 8, borderRadius: 999, backgroundColor: "#D1D5DB" },
-  dotActive: { width: 16, backgroundColor: theme.colors.primary },
+  dotActive: { width: 16, backgroundColor: theme.colors.boardingText },
   // bottom
   safeBottom: { position: "absolute", left: 0, right: 0, bottom: 0 },
   bottomBar: {

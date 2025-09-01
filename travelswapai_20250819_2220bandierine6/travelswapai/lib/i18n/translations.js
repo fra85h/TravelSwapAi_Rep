@@ -24,6 +24,8 @@ export const translations = {
       retry: "Riprova",
       confirm: "Conferma",
       clear: "Pulisci",
+      start: "Inizia",
+      skip: "Salta"
     },
 
     // --- Tab bar / Sezioni ---
@@ -344,13 +346,13 @@ aiMatching: "My AI Matches",
     },
 
     onboarding: {
-      title1: "Benvenuto su TravelSwap",
-      text1: "Scambia viaggi, risparmia e scopri il mondo.",
-      title2: "Crea o trova offerte",
-      text2:
+      welcomeTitle: "Benvenuto su TravelSwapAI",
+      welcomeText: "Scambia viaggi, risparmia e scopri il mondo.",
+      hotelTitle: "Crea o trova offerte",
+      hotelText:
         "Pubblica un annuncio o cerca tra centinaia di proposte.",
-      title3: "Match e partenza",
-      text3:
+      matchingTitle: "Match con l'AI e parti!",
+      matchingText:
         "Trova il match perfetto e parti senza pensieri.",
       skip: "Salta",
       next: "Avanti",
@@ -435,6 +437,8 @@ aiMatching: "My AI Matches",
       retry: "Retry",
       confirm: "Confirm",
       clear: "Clear",
+      start: "Start",
+      skip: "Skip"
     },
 
     tabs: {
@@ -744,7 +748,7 @@ listings: {
     },
 
     onboarding: {
-      title1: "Welcome to TravelSwap",
+      title1: "Welcome to TravelSwapAI",
       text1: "Swap trips, save money, and explore the world.",
       title2: "Create or find offers",
       text2: "Post a listing or browse hundreds of deals.",
@@ -831,6 +835,9 @@ listings: {
       retry: "Reintentar",
       confirm: "Confirmar",
       clear: "Limpiar",
+      start: "come si dice in sp",
+      skip: "come si dice"
+
     },
 
     tabs: {
@@ -1154,7 +1161,7 @@ listings: {
     },
 
     onboarding: {
-      title1: "Bienvenido a TravelSwap",
+      title1: "Bienvenido a TravelSwapAI",
       text1: "Intercambia viajes, ahorra y explora el mundo.",
       title2: "Crea o encuentra ofertas",
       text2:
