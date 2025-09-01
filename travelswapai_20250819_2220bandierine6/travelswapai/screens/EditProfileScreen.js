@@ -168,7 +168,7 @@ const s = StyleSheet.create({
   field: { marginBottom: 12 },
   label: { fontWeight: "700", marginBottom: 6, color: "#374151" },
   input: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, padding: 10, backgroundColor: "#fff" },
-  btn: { backgroundColor: "#111827", paddingVertical: 12, borderRadius: 12, alignItems: "center", marginTop: 8 },
-  btnTxt: { color: "#fff", fontWeight: "800" },
+  btn: { backgroundColor: theme.colors.primary, paddingVertical: 12, borderRadius: 12, alignItems: "center", marginTop: 8 },
+  btnTxt: { color: theme.colors.boardingText, fontWeight: "800" },
   btnDisabled: { opacity: 0.6 },
 });

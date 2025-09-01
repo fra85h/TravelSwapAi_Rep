@@ -273,7 +273,7 @@ useLayoutEffect(() => {
         : t("createListing.title", "Nuovo annuncio"),
       headerLeft: () => (
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 12 }}>
-          <Text style={{ color: "#111827", fontWeight: "700" }}>{t("common.back", "Indietro")}</Text>
+          <Text style={{ color: theme.colors.boardingText, fontWeight: "700" }}>{t("common.back", "Indietro")}</Text>
         </TouchableOpacity>
       ),
     });
@@ -921,11 +921,11 @@ const onSaveDraft = async () => {
 
           {step === 1 ? (
             <TouchableOpacity onPress={goNext} style={[styles.footerBtn, styles.footerPrimary]}>
-              <Text style={[styles.footerText, { color: "#fff" }]}>{t("common.next", "Avanti")}</Text>
+              <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{t("common.next", "Avanti")}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity onPress={onPublishOrSave} disabled={publishing} style={[styles.footerBtn, styles.footerPrimary]}>
-              {publishing ? <ActivityIndicator color="#fff" /> : <Text style={[styles.footerText, { color: "#fff" }]}>{mode === "edit" ? "Modifica" : t("createListing.publish", "Pubblica")}</Text>}
+              {publishing ? <ActivityIndicator color={theme.colors.boardingText} /> : <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{mode === "edit" ? "Modifica" : t("createListing.publish", "Pubblica")}</Text>}
             </TouchableOpacity>
           )}
         </View>
@@ -1030,10 +1030,10 @@ function mapListingToForm(l) {
 const styles = StyleSheet.create({
   card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: "#111827" },
+  cardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
   actionsCol: { flexDirection: "column", gap: 8, alignSelf: "stretch", marginBottom: 8 },
-  label: { fontWeight: "700", color: "#111827", marginTop: 8, marginBottom: 6 },
-  labelInline: { fontWeight: "700", color: "#111827" },
+  label: { fontWeight: "700", color: theme.colors.boardingText, marginTop: 8, marginBottom: 6 },
+  labelInline: { fontWeight: "700", color: theme.colors.boardingText },
   input: { borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: "#111827" },
   inputRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
@@ -1042,41 +1042,41 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 96 },
   segment: { flexDirection: "row", gap: 8 },
   segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
-  segBtnActive: { backgroundColor: "#111827", borderColor: "#111827" },
-  segText: { color: "#111827", fontWeight: "800" },
-  segTextActive: { color: "#fff" },
-  smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: "#111827" },
-  smallBtnText: { color: "#fff", fontWeight: "800" },
+  segBtnActive: { backgroundColor: theme.colors.primary, borderColor: "#111827" },
+  segText: { color: theme.colors.boardingText, fontWeight: "800" },
+  segTextActive: { color: theme.colors.boardingText},
+  smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.boardingText },
+  smallBtnText: { color:theme.colors.boardingText, fontWeight: "800" },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   noteSmall: { color: "#6B7280", marginTop: 6 },
   previewPlaceholder: { height: 160, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", alignItems: "center", justifyContent: "center", marginTop: 10 },
   previewText: { color: "#6B7280", textAlign: "center", paddingHorizontal: 12 },
   previewImage: { width: "100%", height: 200, borderRadius: 12, backgroundColor: "#E5E7EB", marginTop: 10 },
   stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12 },
-  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#E5E7EB" },
-  stepDotActive: { backgroundColor: "#111827" },
-  stepBar: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#E5E7EB" },
-  stepBarActive: { backgroundColor: "#111827" },
-  aiBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "#111827" },
-  aiBtnAlt: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E5E7EB" },
-  aiBtnText: { color: "#fff", fontWeight: "800" },
+  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary},
+  stepDotActive: { backgroundColor: theme.colors.boardingText},
+  stepBar: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.primary },
+  stepBarActive: { backgroundColor: theme.colors.boardingText},
+  aiBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.colors.primary },
+  aiBtnAlt: { backgroundColor: theme.colors.primary, borderWidth: 1, borderColor: "#E5E7EB" },
+  aiBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#fff", padding: 12, flexDirection: "row", gap: 10 },
   footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
-  footerPrimary: { backgroundColor: "#111827" },
+  footerPrimary: { backgroundColor: theme.colors.primary },
   footerGhost: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
-  footerText: { fontWeight: "800" },
+  footerText: { fontWeight: "800" , color:theme.colors.boardingText},
   sheetBackdrop: { flex: 1, backgroundColor: "#00000066", alignItems: "center", justifyContent: "flex-end" },
   sheetCard: { width: "100%", backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, borderTopWidth: 1, borderColor: "#E5E7EB" },
-  sheetTitle: { fontSize: 16, fontWeight: "800", color: "#111827" },
-  sheetText: { color: "#6B7280", marginTop: 4 },
+  sheetTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
+  sheetText: { color: theme.colors.boardingText, marginTop: 4 },
   sheetBtn: { marginTop: 10, paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  sheetBtnPrimary: { backgroundColor: "#111827" },
+  sheetBtnPrimary: { backgroundColor:  theme.colors.boardingText},
   sheetBtnGhost: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
-  sheetBtnText: { fontWeight: "800", color: "#111827" },
+  sheetBtnText: { fontWeight: "800", color: theme.colors.boardingText },
   sheetClose: { alignSelf: "center", marginTop: 10 },
   sheetCloseText: { color: "#6B7280" },
   qrOverlay: { flex: 1, backgroundColor: "#000000CC", alignItems: "center", justifyContent: "center", padding: 16 },
-  qrFrame: { width: "100%", maxWidth: 480, backgroundColor: "#fff", borderRadius: 16, padding: 12, gap: 12 },
-  qrTitle: { fontWeight: "800", color: "#111827", alignSelf: "center" },
+  qrFrame: { width: "100%", maxWidth: 480, backgroundColor: theme.colors.primary, borderRadius: 16, padding: 12, gap: 12 },
+  qrTitle: { fontWeight: "800", color: theme.colors.primary, alignSelf: "center" },
   qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "#E5E7EB" },
 });
