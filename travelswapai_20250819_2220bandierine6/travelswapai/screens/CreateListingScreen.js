@@ -25,6 +25,8 @@ import { useI18n } from "../lib/i18n";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import DateField from "../components/DateField";
 import DateTimeField from "../components/DateTimeField";
+import { parseListingFromTextAI } from "../lib/descriptionParser"; // ✅ OpenAI parser (server-side)
+
 const DRAFT_KEY = "@tsai:create_listing_draft";
 
 const TYPES = [
@@ -65,14 +67,14 @@ const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa",
 const MONTHS_IT = { GENNAIO:0, FEBBRAIO:1, MARZO:2, APRILE:3, MAGGIO:4, GIUGNO:5, LUGLIO:6, AGOSTO:7, SETTEMBRE:8, OTTOBRE:9, NOVEMBRE:10, DICEMBRE:11 };
 
 const DATE_ANY_RE = /\b(?:(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})|(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2}))\b/;
-const DATE_TEXT_RE = new RegExp(String.raw`\\b(\\d{1,2})\\s([A-Za-zÀ-ÿ]{3,})\\s(\\d{4})\\b`, "i");
-const TIME_RE = /\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b/;
-const FLIGHT_NO_RE = /\\b([A-Z]{2})\\s?(\\d{2,4})\\b/;
-const IATA_PAIR_RE = /\\b([A-Z]{3})\\s*(?:-|–|—|>|→|to|verso)\\s*([A-Z]{3})\\b/;
-const TRAIN_KEYWORDS_RE = /\\b(Trenitalia|Frecciarossa|FR\\s?\\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\\b/i;
-const ROUTE_TEXT_RE = /\\b(?:da|from)\\s([A-Za-zÀ-ÿ .'\\-]+)\\s(?:a|to)\\s([A-Za-zÀ-ÿ .'\\-]+)\\b/i;
-const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\\-]{3,})\\s*(?:-|–|—|>|→)\\s*([A-Za-zÀ-ÿ .'\\-]{3,})/;
-const PNR_RE = /\\b(?:PNR|booking\\s*reference|codice\\s*(?:prenotazione|biglietto)|record\\s*locator)\\s*[:=]?\\s*([A-Z0-9]{5,8})\\b/i;
+const DATE_TEXT_RE = new RegExp(String.raw`\b(\d{1,2})\s([A-Za-zÀ-ÿ]{3,})\s(\d{4})\b`, "i");
+const TIME_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
+const FLIGHT_NO_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
+const IATA_PAIR_RE = /\b([A-Z]{3})\s*(?:-|–|—|>|→|to|verso)\s*([A-Z]{3})\b/;
+const TRAIN_KEYWORDS_RE = /\b(Trenitalia|Frecciarossa|FR\s?\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\b/i;
+const ROUTE_TEXT_RE = /\b(?:da|from)\s([A-Za-zÀ-ÿ .'\-]+)\s(?:a|to)\s([A-Za-zÀ-ÿ .'\-]+)\b/i;
+const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\-]{3,})\s*(?:-|–|—|>|→)\s*([A-Za-zÀ-ÿ .'\-]{3,})/;
+const PNR_RE = /\b(?:PNR|booking\s*reference|codice\s*(?:prenotazione|biglietto)|record\s*locator)\s*[:=]?\s*([A-Z0-9]{5,8})\b/i;
 
 function parseAnyDate(text) {
   if (!text) return null;
@@ -122,13 +124,13 @@ function normalizeTitleFromRoute(from, to, carrierHint) {
   return null;
 }
 function smartParseTicket(text) {
-  const src = String(text || "").replace(/\\s/g, " ").trim();
+  const src = String(text || "").replace(/\s/g, " ").trim();
   const out = { status: "active" };
   const pnr = (src.match(PNR_RE) || [])[1];
   if (pnr) out.pnr = pnr.toUpperCase();
   const hasTrain = TRAIN_KEYWORDS_RE.test(src);
   const flMatch = src.match(FLIGHT_NO_RE);
-  const mentionsRyanair = /Ryanair|FR\\s?\\d{1,4}\\b/i.test(src);
+  const mentionsRyanair = /Ryanair|FR\s?\d{1,4}\b/i.test(src);
   let routeFrom = null, routeTo = null;
   const iata = src.match(IATA_PAIR_RE);
   if (iata) {
@@ -159,7 +161,7 @@ function smartParseTicket(text) {
     const plus = new Date(dt.getTime() + 90 * 60000);
     timeArrive = `${pad2(plus.getHours())}:${pad2(plus.getMinutes())}`;
   }
-  const isHotelish = /\\b(hotel|albergo|check[-\\s]?in|check[-\\s]?out|notti|night)\\b/i.test(src);
+  const isHotelish = /\b(hotel|albergo|check[-\s]?in|check[-\s]?out|notti|night)\b/i.test(src);
   const twoPlainDatesOnly = (dateMatches.length >= 2 || dateTextMatch) && times.length === 0;
   const isRyanair = mentionsRyanair || (flMatch && flMatch[1] === "FR");
   if (isHotelish || (twoPlainDatesOnly && !hasTrain && !isRyanair)) {
@@ -182,7 +184,7 @@ function smartParseTicket(text) {
   const carrierHint = isRyanair ? "Ryanair" : hasTrain ? "Trenitalia/Italo" : "";
   out.title = normalizeTitleFromRoute(routeFrom, routeTo, carrierHint) || (isRyanair ? `Volo Ryanair ${flMatch ? flMatch[1] + flMatch[2] : ""}` : "Viaggio");
   out.location = routeFrom && routeTo ? `${routeFrom} → ${routeTo}` : isRyanair ? "Volo Ryanair" : "Treno";
-  const pm = src.match(/(?:€|\\beur\\b|\\beuro\\b)\\s*([0-9](?:[\\,\\.][0-9]{1,2})?)/i);
+  const pm = src.match(/(?:€|\beur\b|\beuro\b)\s*([0-9](?:[\,\.][0-9]{1,2})?)/i);
   if (pm) out.price = String(pm[1]).replace(",", ".");
   if (isRyanair) out.imageUrl = "https://picsum.photos/seed/ryanair/1200/800";
   else if (hasTrain) out.imageUrl = "https://picsum.photos/seed/train/1200/800";
@@ -257,28 +259,25 @@ export default function CreateListingScreen({
   const { t } = useI18n();
   const navigation = useNavigation();
   const p = route?.params ?? {};
-const passedListing = p.listing ?? null;
-// prova a leggere id anche come _id per sicurezza
-const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null;
+  const passedListing = p.listing ?? null;
+  const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null;
+  const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
 
-// se arrivo con listing o listingId, considero comunque "edit"
-const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
-
-useLayoutEffect(() => {
-  try {
-    navigation.setOptions?.({
-      headerShown: true,
-      headerTitle: route?.params?.mode === "edit"
-        ? t("editListing.title", "Modifica annuncio")
-        : t("createListing.title", "Nuovo annuncio"),
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 12 }}>
-          <Text style={{ color: theme.colors.boardingText, fontWeight: "700" }}>{t("common.back", "Indietro")}</Text>
-        </TouchableOpacity>
-      ),
-    });
-  } catch {}
-}, [navigation, t, route?.params?.mode]);
+  useLayoutEffect(() => {
+    try {
+      navigation.setOptions?.({
+        headerShown: true,
+        headerTitle: route?.params?.mode === "edit"
+          ? t("editListing.title", "Modifica annuncio")
+          : t("createListing.title", "Nuovo annuncio"),
+        headerLeft: () => (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 12 }}>
+            <Text style={{ color: theme.colors.boardingText, fontWeight: "700" }}>{t("common.back", "Indietro")}</Text>
+          </TouchableOpacity>
+        ),
+      });
+    } catch {}
+  }, [navigation, t, route?.params?.mode]);
 
   const [step, setStep] = useState(1);
   const [loadingAI, setLoadingAI] = useState(false);
@@ -313,59 +312,58 @@ useLayoutEffect(() => {
   const [errors, setErrors] = useState({});
 
   // ---------- EDIT MODE: prefill ----------
-useEffect(() => {
-  let cancelled = false;
-  (async () => {
-    try {
-     if (mode === "edit" && route?.params?.listingId && typeof getListingById === "function") {
-       const l = await getListingById(route.params.listingId);
-       if (!cancelled && l) {
-         setForm((prev) => ({
-           ...prev,
-           type: l.type || prev.type,
-           cercoVendo: l.cerco_vendo || l.cercoVendo || prev.cercoVendo,
-           title: l.title ?? prev.title,
-           location: l.location ?? prev.location,
-           description: l.description ?? prev.description,
-           price: l.price != null ? String(l.price) : prev.price,
-           imageUrl: l.image_url || prev.imageUrl,
-           checkIn: l.check_in || "",
-           checkOut: l.check_out || "",
-           departAt: l.depart_at || "",
-           arriveAt: l.arrive_at || "",
-         }));
-       }
-      return; // in edit non caricare bozze
-     }
-      // --- CREAZIONE: eventuale bozza ---
-      if (route?.params?.draftFromId && typeof getListingById === "function") {
-        const l = await getListingById(route.params.draftFromId);
-        if (!cancelled && l) {
-          setForm((prev) => ({
-            ...prev,
-            title: l.title || prev.title,
-            location: l.location || prev.location,
-            description: l.description || prev.description,
-            price: l.price != null ? String(l.price) : prev.price,
-            imageUrl: l.image_url || prev.imageUrl,
-            checkIn: l.check_in || "",
-            checkOut: l.check_out || "",
-            departAt: l.depart_at || "",
-            arriveAt: l.arrive_at || "",
-          }));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (mode === "edit" && route?.params?.listingId && typeof getListingById === "function") {
+          const l = await getListingById(route.params.listingId);
+          if (!cancelled && l) {
+            setForm((prev) => ({
+              ...prev,
+              type: l.type || prev.type,
+              cercoVendo: l.cerco_vendo || l.cercoVendo || prev.cercoVendo,
+              title: l.title ?? prev.title,
+              location: l.location ?? prev.location,
+              description: l.description ?? prev.description,
+              price: l.price != null ? String(l.price) : prev.price,
+              imageUrl: l.image_url || prev.imageUrl,
+              checkIn: l.check_in || "",
+              checkOut: l.check_out || "",
+              departAt: l.depart_at || "",
+              arriveAt: l.arrive_at || "",
+            }));
+          }
+          return; // in edit non caricare bozze
         }
-      } else {
-        // carica bozza locale solo in create
-        const raw = await AsyncStorage.getItem(DRAFT_KEY);
-        if (raw && mode !== "edit") {
-          const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === "object") setForm((p) => ({ ...p, ...parsed }));
+        // --- CREAZIONE: eventuale bozza ---
+        if (route?.params?.draftFromId && typeof getListingById === "function") {
+          const l = await getListingById(route.params.draftFromId);
+          if (!cancelled && l) {
+            setForm((prev) => ({
+              ...prev,
+              title: l.title || prev.title,
+              location: l.location || prev.location,
+              description: l.description || prev.description,
+              price: l.price != null ? String(l.price) : prev.price,
+              imageUrl: l.image_url || prev.imageUrl,
+              checkIn: l.check_in || "",
+              checkOut: l.check_out || "",
+              departAt: l.depart_at || "",
+              arriveAt: l.arrive_at || "",
+            }));
+          }
+        } else {
+          const raw = await AsyncStorage.getItem(DRAFT_KEY);
+          if (raw && mode !== "edit") {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === "object") setForm((p) => ({ ...p, ...parsed }));
+          }
         }
-      }
-    } catch {}
-  })();
-  return () => { cancelled = true; };
-}, [mode, route?.params?.listingId]);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [mode, route?.params?.listingId]);
 
   const isDirty = useMemo(() => {
     if (initialJsonRef.current == null) return false;
@@ -380,7 +378,7 @@ useEffect(() => {
 
   const saveTimer = useRef(null);
   const queueAutoSave = useCallback((next) => {
-    if (mode === "edit") return; // niente autosave bozza in edit
+    if (mode === "edit") return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try { await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(next)); } catch {}
@@ -406,46 +404,89 @@ useEffect(() => {
   };
 
   const stepTitles = useMemo(() => ({
-   1: t("createListing.step1", "Dati principali"), 
-   2: mode === "edit" ? t("editListing.step2","Riepilogo & salva") : t("createListing.step2","Dettagli & pubblicazione"),
+    1: t("createListing.step1", "Dati principali"),
+    2: mode === "edit" ? t("editListing.step2","Riepilogo & salva") : t("createListing.step2","Dettagli & pubblicazione"),
   }), [t, mode]);
 
   const goNext = () => setStep((s) => Math.min(2, s + 1));
   const goPrev = () => setStep((s) => Math.max(1, s - 1));
 
+  // ---------- Magia AI (OpenAI server-side) ----------
   const runAI = async (currentStep) => {
     if (loadingAI || publishing || importBusy || saving) return;
     try {
       setLoadingAI(true);
-      await new Promise((r) => setTimeout(r, 700));
-      const ifEmpty = (val, fallback) => (val == null || String(val).trim() === "" ? fallback : val);
+      await new Promise((r) => setTimeout(r, 300));
+      const ifEmpty = (val, fb) => (val == null || String(val).trim() === "" ? fb : val);
       const patch = {};
+
       if (currentStep === 1) {
-        if (form.type === "hotel") {
-          const today = new Date();
-          const plusDays = (d, n) => { const dd = new Date(d); dd.setDate(dd.getDate() + n); return dd; };
-          patch.title = ifEmpty(form.title, t("createListing.ai.hotelTitle", "Soggiorno 2 notti in centro"));
-          patch.location = ifEmpty(form.location, t("createListing.ai.hotelLocation", "Milano, Duomo"));
-          patch.checkIn = ifEmpty(form.checkIn, toISODate(today));
-          patch.checkOut = ifEmpty(form.checkOut, toISODate(plusDays(today, 2)));
+        const text = String(form.description || "").trim();
+        if (text) {
+          try {
+            const parsed = await parseListingFromTextAI(text, "it");
+            if (parsed?.type) patch.type = parsed.type;
+            if (parsed?.title) patch.title = parsed.title;
+            if (parsed?.location) patch.location = parsed.location;
+            if (parsed?.checkIn) patch.checkIn = parsed.checkIn;
+            if (parsed?.checkOut) patch.checkOut = parsed.checkOut;
+            if (parsed?.departAt) patch.departAt = parsed.departAt.replace(" ", "T");
+            if (parsed?.arriveAt) patch.arriveAt = parsed.arriveAt.replace(" ", "T");
+            if (typeof parsed?.isNamedTicket === "boolean") patch.isNamedTicket = parsed.isNamedTicket;
+            if (parsed?.gender) patch.gender = parsed.gender;
+            if (parsed?.pnr) patch.pnr = parsed.pnr;
+            if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
+          } catch (e) {
+            console.log("[AI] parseListingFromTextAI failed:", e);
+            // fallback “vecchio” comportamento
+            if (form.type === "hotel") {
+              const today = new Date();
+              const plusDays = (d, n) => { const dd = new Date(d); dd.setDate(dd.getDate() + n); return dd; };
+              patch.title = ifEmpty(form.title, t("createListing.ai.hotelTitle", "Soggiorno 2 notti in centro"));
+              patch.location = ifEmpty(form.location, t("createListing.ai.hotelLocation", "Milano, Duomo"));
+              patch.checkIn = ifEmpty(form.checkIn, toISODate(today));
+              patch.checkOut = ifEmpty(form.checkOut, toISODate(plusDays(today, 2)));
+            } else {
+              const base = new Date(); base.setDate(base.getDate() + 1); base.setHours(9,0,0,0);
+              const arr = new Date(base.getTime() + 90 * 60000);
+              patch.title = ifEmpty(form.title, t("createListing.ai.trainTitle", "Frecciarossa Milano → Roma"));
+              patch.location = ifEmpty(form.location, t("createListing.ai.trainLocation", "Milano Centrale → Roma Termini"));
+              patch.departAt = ifEmpty(form.departAt, `${toISODate(base)}T${toISOTime(base)}`);
+              patch.arriveAt = ifEmpty(form.arriveAt, `${toISODate(arr)}T${toISOTime(arr)}`);
+              if (!form.isNamedTicket) patch.gender = "";
+            }
+          }
         } else {
-          const base = new Date(); base.setDate(base.getDate() + 1); base.setHours(9,0,0,0);
-          const arr = new Date(base.getTime() + 90 * 60000);
-          patch.title = ifEmpty(form.title, t("createListing.ai.trainTitle", "Frecciarossa Milano → Roma"));
-          patch.location = ifEmpty(form.location, t("createListing.ai.trainLocation", "Milano Centrale → Roma Termini"));
-          patch.departAt = ifEmpty(form.departAt, `${toISODate(base)}T${toISOTime(base)}`);
-          patch.arriveAt = ifEmpty(form.arriveAt, `${toISODate(arr)}T${toISOTime(arr)}`);
-          if (!form.isNamedTicket) patch.gender = "";
+          // nessuna descrizione → fallback
+          if (form.type === "hotel") {
+            const today = new Date();
+            const plusDays = (d, n) => { const dd = new Date(d); dd.setDate(dd.getDate() + n); return dd; };
+            patch.title = ifEmpty(form.title, t("createListing.ai.hotelTitle", "Soggiorno 2 notti in centro"));
+            patch.location = ifEmpty(form.location, t("createListing.ai.hotelLocation", "Milano, Duomo"));
+            patch.checkIn = ifEmpty(form.checkIn, toISODate(today));
+            patch.checkOut = ifEmpty(form.checkOut, toISODate(plusDays(today, 2)));
+          } else {
+            const base = new Date(); base.setDate(base.getDate() + 1); base.setHours(9,0,0,0);
+            const arr = new Date(base.getTime() + 90 * 60000);
+            patch.title = ifEmpty(form.title, t("createListing.ai.trainTitle", "Frecciarossa Milano → Roma"));
+            patch.location = ifEmpty(form.location, t("createListing.ai.trainLocation", "Milano Centrale → Roma Termini"));
+            patch.departAt = ifEmpty(form.departAt, `${toISODate(base)}T${toISOTime(base)}`);
+            patch.arriveAt = ifEmpty(form.arriveAt, `${toISODate(arr)}T${toISOTime(arr)}`);
+            if (!form.isNamedTicket) patch.gender = "";
+          }
         }
       } else if (currentStep === 2) {
-        patch.description = ifEmpty(form.description, form.type === "hotel"
-          ? t("createListing.ai.hotelDesc", "Camera doppia con colazione. Check-in flessibile, vicino ai mezzi.")
-          : t("createListing.ai.trainDesc", "Posto a sedere confermato, vagone silenzio. Biglietto cedibile.")
+        patch.description = ifEmpty(
+          form.description,
+          form.type === "hotel"
+            ? t("createListing.ai.hotelDesc", "Camera doppia con colazione. Check-in flessibile, vicino ai mezzi.")
+            : t("createListing.ai.trainDesc", "Posto a sedere confermato, vagone silenzio. Biglietto cedibile.")
         );
         patch.imageUrl = ifEmpty(form.imageUrl, "https://picsum.photos/1200/800");
         patch.price = ifEmpty(form.price, "120");
         if (form.type === "train" && form.isNamedTicket === false) { patch.isNamedTicket = false; patch.gender = ""; }
       }
+
       update(patch);
       Alert.alert(t("createListing.ai.title", "Magia AI ✨"), t("createListing.ai.applied", "Ho suggerito alcuni campi per questo step. Puoi sempre modificarli."));
     } catch {
@@ -491,97 +532,90 @@ useEffect(() => {
   const validate = () => { const e = computeErrors(); setErrors(e); return Object.keys(e).length === 0; };
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
- const onPublishOrSave = async () => {
-  if (!validate()) { setStep(1); return; }
-  try {
-    setPublishing(true);
-    onSubmitStart();
+  const onPublishOrSave = async () => {
+    if (!validate()) { setStep(1); return; }
+    try {
+      setPublishing(true);
+      onSubmitStart();
 
-    // 1) ID robusto (numerico o stringa, a seconda del tuo backend)
-   const idForUpdate =
-  (listingId != null) ? String(listingId) :
-  (passedListing?.id != null ? String(passedListing.id) : null);
+      const idForUpdate =
+        (listingId != null) ? String(listingId) :
+        (passedListing?.id != null ? String(passedListing.id) : null);
 
-if (mode === "edit" && !idForUpdate) {
-  Alert.alert(t("common.error", "Errore"), t("editListing.saveError", "ID annuncio mancante."));
-  return;
-}
-
-    const priceNum = Number(String(form.price).replace(",", "."));
-
-    // 2) NIENTE 'status' nel payload di update
-    const basePayload = {
-      type: form.type,
-      title: form.title.trim(),
-      location: form.location.trim(),
-      description: form.description.trim() || null,
-      price: Number.isFinite(priceNum) ? priceNum : null,
-      image_url: form.imageUrl?.trim() || null,
-      cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
-      // status lo aggiungiamo SOLO in create
-      ...(mode !== "edit" ? { status: "active" } : {})
-    };
-
-    const payload = form.type === "hotel"
-      ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
-      : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
-
-    console.log("[CreateListing] mode:", mode, "idForUpdate:", idForUpdate, "payload:", payload);
-
-    if (mode === "edit") {
-      // 3) Assicurati che updateListing accetti (id, data)
-      // Se la tua implementazione è diversa, adatta qui:
-      const res = await updateListing(idForUpdate, payload);
-      // opzionale: se la tua lib ritorna { error }, loggalo
-      if (res?.error) {
-        console.log("[CreateListing] updateListing error:", res.error);
-        throw res.error;
+      if (mode === "edit" && !idForUpdate) {
+        Alert.alert(t("common.error", "Errore"), t("editListing.saveError", "ID annuncio mancante."));
+        return;
       }
-      Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
-    } else {
-      const res = await insertListing(payload);
-      if (res?.error) {
-        console.log("[CreateListing] insertListing error:", res.error);
-        throw res.error;
+
+      const priceNum = Number(String(form.price).replace(",", "."));
+
+      const basePayload = {
+        type: form.type,
+        title: form.title.trim(),
+        location: form.location.trim(),
+        description: form.description.trim() || null,
+        price: Number.isFinite(priceNum) ? priceNum : null,
+        image_url: form.imageUrl?.trim() || null,
+        cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
+        ...(mode !== "edit" ? { status: "active" } : {})
+      };
+
+      const payload = form.type === "hotel"
+        ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
+        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
+
+      console.log("[CreateListing] mode:", mode, "idForUpdate:", idForUpdate, "payload:", payload);
+
+      if (mode === "edit") {
+        const res = await updateListing(idForUpdate, payload);
+        if (res?.error) {
+          console.log("[CreateListing] updateListing error:", res.error);
+          throw res.error;
+        }
+        Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
+      } else {
+        const res = await insertListing(payload);
+        if (res?.error) {
+          console.log("[CreateListing] insertListing error:", res.error);
+          throw res.error;
+        }
+        await AsyncStorage.removeItem(DRAFT_KEY);
+        Alert.alert(t("createListing.publishedTitle", "Pubblicato 🎉"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
       }
-      await AsyncStorage.removeItem(DRAFT_KEY);
-      Alert.alert(t("createListing.publishedTitle", "Pubblicato 🎉"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
+
+      initialJsonRef.current = JSON.stringify(form);
+      onDirtyChange(false);
+      navigation.goBack();
+    } catch (e) {
+      console.log("[CreateListing] onPublishOrSave EXCEPTION:", e);
+      Alert.alert(
+        t("common.error", "Errore"),
+        mode === "edit"
+          ? t("editListing.saveError", "Impossibile salvare le modifiche.")
+          : t("createListing.publishError", "Impossibile pubblicare l’annuncio.")
+      );
+    } finally {
+      setPublishing(false);
+      onSubmitEnd();
     }
-
-    initialJsonRef.current = JSON.stringify(form);
-    onDirtyChange(false);
-    navigation.goBack();
-  } catch (e) {
-    console.log("[CreateListing] onPublishOrSave EXCEPTION:", e);
-    Alert.alert(
-      t("common.error", "Errore"),
-      mode === "edit"
-        ? t("editListing.saveError", "Impossibile salvare le modifiche.")
-        : t("createListing.publishError", "Impossibile pubblicare l’annuncio.")
-    );
-  } finally {
-    setPublishing(false);
-    onSubmitEnd();
-  }
-};
-/* ---------- DRAFT ---------- */
-const onSaveDraft = async () => {
-  if (mode === "edit") { // niente bozza in modalità edit
-    Alert.alert("Bozza non disponibile", "Salva direttamente le modifiche.");
-    return;
-  }
-  try {
-    setSaving(true);
-    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(form));
-    await new Promise((r) => setTimeout(r, 350));
-    Alert.alert("Bozza salvata", "Puoi riprenderla in qualsiasi momento.");
-  } catch {
-    Alert.alert("Errore", "Non sono riuscito a salvare la bozza.");
-  } finally {
-    setSaving(false);
-  }
-};
-
+  };
+  /* ---------- DRAFT ---------- */
+  const onSaveDraft = async () => {
+    if (mode === "edit") {
+      Alert.alert("Bozza non disponibile", "Salva direttamente le modifiche.");
+      return;
+    }
+    try {
+      setSaving(true);
+      await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+      await new Promise((r) => setTimeout(r, 350));
+      Alert.alert("Bozza salvata", "Puoi riprenderla in qualsiasi momento.");
+    } catch {
+      Alert.alert("Errore", "Non sono riuscito a salvare la bozza.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   /* ---------- AI IMPORT ---------- */
   const openImport = () => setImportSheet(true);
@@ -607,6 +641,7 @@ const onSaveDraft = async () => {
     }
   };
 
+  const [cameraPermissionState] = [cameraPermission]; // keep reference
   const requestQrPermissionAndOpen = async () => {
     try {
       if (!cameraPermission || cameraPermission.granted !== true) {
@@ -677,9 +712,23 @@ const onSaveDraft = async () => {
   };
 
   /* ---------- UI ---------- */
+  // STEP 1 — Descrizione PRIMA di tutto + campi principali (incluse date/orari)
   const Step1 = (
     <View style={styles.card}>
       <Text style={[styles.cardTitle, { marginBottom: 8 }]}>{stepTitles[1]}</Text>
+
+      {/* ✅ Descrizione spostata in cima allo Step 1 */}
+      <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
+      <TextInput
+        value={form.description}
+        onChangeText={(v) => update({ description: v })}
+        placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
+        style={[styles.input, styles.multiline]}
+        placeholderTextColor="#9CA3AF"
+        multiline
+        numberOfLines={4}
+        textAlignVertical="top"
+      />
 
       <View style={styles.actionsCol}>
         <TouchableOpacity onPress={openImport} style={[styles.aiBtn, styles.aiBtnAlt]}>
@@ -721,6 +770,7 @@ const onSaveDraft = async () => {
         })}
       </View>
 
+      {/* TITOLO */}
       <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
       <TextInput
         value={form.title}
@@ -735,6 +785,7 @@ const onSaveDraft = async () => {
       />
       {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
+      {/* LOCALITÀ / ROTTA */}
       <Text style={styles.label}>{t("createListing.locationLabel", "Località *")}</Text>
       <TextInput
         value={form.location}
@@ -749,6 +800,7 @@ const onSaveDraft = async () => {
       />
       {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
 
+      {/* ✅ DATE HOTEL o ORARI TRENO (ripristinati) */}
       {form.type === "hotel" ? (
         <>
           <DateField
@@ -787,6 +839,7 @@ const onSaveDraft = async () => {
     </View>
   );
 
+  // ✅ DATI PARTICOLARI TRENO (incluso flag nominativo + genere + PNR)
   const TrainParticulars = form.type === "train" && (
     <View style={styles.subCard}>
       <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
@@ -836,6 +889,7 @@ const onSaveDraft = async () => {
     </View>
   );
 
+  // STEP 2 — Dettagli rimanenti (Descrizione ora NON è qui)
   const Step2 = (
     <View style={styles.card}>
       <Text style={[styles.cardTitle, { marginBottom: 8 }]}>{stepTitles[2]}</Text>
@@ -857,17 +911,7 @@ const onSaveDraft = async () => {
 
       {TrainParticulars}
 
-      <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
-      <TextInput
-        value={form.description}
-        onChangeText={(v) => update({ description: v })}
-        placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
-        style={[styles.input, styles.multiline]}
-        placeholderTextColor="#9CA3AF"
-        multiline
-        numberOfLines={4}
-        textAlignVertical="top"
-      />
+      {/* Descrizione è stata spostata in Step 1 */}
 
       <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
       <TextInput
@@ -915,7 +959,7 @@ const onSaveDraft = async () => {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity onPress={onSaveDraft} disabled={saving || mode === "edit"} style={[styles.footerBtn, styles.footerGhost, (saving || mode === "edit") && { opacity: 0.6 }]}>
-           {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: "#111827" }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft","Salva bozza")}</Text>}
+              {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: "#111827" }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft","Salva bozza")}</Text>}
             </TouchableOpacity>
           )}
 
@@ -1013,12 +1057,11 @@ function mapListingToForm(l) {
     // hotel
     checkIn: l?.check_in || l?.checkIn || "",
     checkOut: l?.check_out || l?.checkOut || "",
-    // train opts (if stored)
+    // train opts
     isNamedTicket: !!l?.isNamedTicket,
     gender: l?.gender || "",
     pnr: l?.pnr || "",
   };
-  // Normalize by type
   if (base.type === "hotel") {
     base.departAt = ""; base.arriveAt = "";
   } else {
@@ -1028,7 +1071,7 @@ function mapListingToForm(l) {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
   cardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
   actionsCol: { flexDirection: "column", gap: 8, alignSelf: "stretch", marginBottom: 8 },
@@ -1044,19 +1087,19 @@ const styles = StyleSheet.create({
   segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
   segBtnActive: { backgroundColor: theme.colors.primary, borderColor: "#111827" },
   segText: { color: theme.colors.boardingText, fontWeight: "800" },
-  segTextActive: { color: theme.colors.boardingText},
+  segTextActive: { color: theme.colors.boardingText },
   smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.boardingText },
-  smallBtnText: { color:theme.colors.boardingText, fontWeight: "800" },
+  smallBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   noteSmall: { color: "#6B7280", marginTop: 6 },
   previewPlaceholder: { height: 160, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", alignItems: "center", justifyContent: "center", marginTop: 10 },
   previewText: { color: "#6B7280", textAlign: "center", paddingHorizontal: 12 },
   previewImage: { width: "100%", height: 200, borderRadius: 12, backgroundColor: "#E5E7EB", marginTop: 10 },
   stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12 },
-  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary},
-  stepDotActive: { backgroundColor: theme.colors.boardingText},
+  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary },
+  stepDotActive: { backgroundColor: theme.colors.boardingText },
   stepBar: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.primary },
-  stepBarActive: { backgroundColor: theme.colors.boardingText},
+  stepBarActive: { backgroundColor: theme.colors.boardingText },
   aiBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.colors.primary },
   aiBtnAlt: { backgroundColor: theme.colors.primary, borderWidth: 1, borderColor: "#E5E7EB" },
   aiBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
@@ -1064,13 +1107,13 @@ const styles = StyleSheet.create({
   footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
   footerPrimary: { backgroundColor: theme.colors.primary },
   footerGhost: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
-  footerText: { fontWeight: "800" , color:theme.colors.boardingText},
+  footerText: { fontWeight: "800", color: theme.colors.boardingText },
   sheetBackdrop: { flex: 1, backgroundColor: "#00000066", alignItems: "center", justifyContent: "flex-end" },
   sheetCard: { width: "100%", backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, borderTopWidth: 1, borderColor: "#E5E7EB" },
   sheetTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
   sheetText: { color: theme.colors.boardingText, marginTop: 4 },
   sheetBtn: { marginTop: 10, paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  sheetBtnPrimary: { backgroundColor:  theme.colors.boardingText},
+  sheetBtnPrimary: { backgroundColor: theme.colors.boardingText },
   sheetBtnGhost: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
   sheetBtnText: { fontWeight: "800", color: theme.colors.boardingText },
   sheetClose: { alignSelf: "center", marginTop: 10 },

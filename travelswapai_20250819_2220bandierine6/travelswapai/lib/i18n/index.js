@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { translations, defaultLocale as defaultLocaleFromFile } from "./translations";
-
+import { mountParseDescriptionRoute } from "../descriptionParser.js";
 /* ----------------------------------------
  * Config / helpers
  * -------------------------------------- */
