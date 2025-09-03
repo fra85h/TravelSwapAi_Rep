@@ -4,11 +4,13 @@ import cors from 'cors';
 import { listingsRouter } from './routes/listing.js';   // assicurati che esista
 import { matchesRouter } from './routes/match.js';     // contiene GET / e POST /recompute
 import 'dotenv/config';
+import { mountParseDescriptionRoute } from "./ai/descriptionParse.js";
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "1mb" }));     // <— OBBLIGATORIO
 app.use(express.urlencoded({ extended: false }));
-
+const requireAuth = (req, res, next) => next();
+mountParseDescriptionRoute(app, requireAuth);
 
 //app.listen(process.env.PORT || 8080, "0.0.0.0", () => {
   //console.log("API on", process.env.PORT || 8080);
