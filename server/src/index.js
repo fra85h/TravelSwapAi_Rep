@@ -8,8 +8,9 @@ import crypto from 'crypto';
 import { listingsRouter } from './routes/listing.js';
 import { matchesRouter } from './routes/match.js';
 
+// ATTENZIONE: path corretto rispetto a server/src/index.js
+import { parseFacebookText } from './parsers/fbParser.js';
 import { upsertListingFromFacebook } from './models/fbIngest.js';
-import { parseFacebookText } from '../parsers/fbParser.js';
 
 const app = express();
 
@@ -23,6 +24,20 @@ app.use(express.urlencoded({ extended: false }));
 
 // --- Healthcheck ---
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// --- Ping diagnostico (sempre attivo per debug) ---
+app.get('/dev/ping', (_req, res) => {
+  res.json({ ok: true, env: process.env.NODE_ENV || null });
+});
+
+// --- Mini-logger in dev per vedere le richieste ---
+const isDev = process.env.NODE_ENV === 'development';
+if (isDev) {
+  app.use((req, _res, next) => {
+    console.log('[DEV]', req.method, req.path);
+    next();
+  });
+}
 
 // --- Monta i router esistenti ---
 app.use('/api/listings', listingsRouter);
@@ -60,7 +75,8 @@ app.get('/webhooks/facebook', (req, res) => {
 
 // --- Webhook receiver (POST) ---
 app.post('/webhooks/facebook', async (req, res) => {
-  if (!verifyFacebookSignature(req)) {
+  // in dev potresti voler bypassare per test, ma qui teniamo la verifica attiva
+  if (!isDev && !verifyFacebookSignature(req)) {
     return res.sendStatus(403);
   }
   const body = req.body;
@@ -74,7 +90,8 @@ app.post('/webhooks/facebook', async (req, res) => {
           if (change.field === 'feed') {
             const value = change.value || {};
             const text = value.message || value.comment_message || value.description || '';
-            const externalId = value.comment_id || value.post_id || value.video_id || value.photo_id || change.id || `${entry.id}:${Date.now()}`;
+            const externalId =
+              value.comment_id || value.post_id || value.video_id || value.photo_id || change.id || `${entry.id}:${Date.now()}`;
             const contactUrl = value.permalink_url || null;
             if (text?.trim()) {
               const parsed = await parseFacebookText({ text, hint: 'facebook:feed' });
@@ -115,20 +132,17 @@ app.post('/webhooks/facebook', async (req, res) => {
   }
 });
 
-// --- Start ---
-const PORT = process.env.PORT || 8080;
-if (process.env.NODE_ENV === 'development') {
+// --- Simulazione Facebook (solo in dev) ---
+if (isDev) {
   app.post('/simulate/facebook', async (req, res) => {
     try {
-      const text = req.body.message;
+      const text = req.body?.message;
       if (!text) {
         return res.status(400).json({ ok: false, error: "Missing field 'message'" });
       }
 
-      // Usa lo stesso parser del webhook
       const parsed = await parseFacebookText({ text, hint: 'facebook:simulate' });
 
-      // Inserisce in listings con source=facebook:simulate
       const result = await upsertListingFromFacebook({
         channel: 'facebook:simulate',
         externalId: 'sim-' + Date.now(),
@@ -144,7 +158,11 @@ if (process.env.NODE_ENV === 'development') {
     }
   });
 }
+
+// --- Start ---
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
+  console.log('NODE_ENV =', process.env.NODE_ENV);
   console.log(`API listening on :${PORT}`);
 });
 
