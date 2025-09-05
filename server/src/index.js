@@ -37,6 +37,17 @@ if (isDev) {
     console.log('[DEV]', req.method, req.path);
     next();
   });
+
+
+    app.get('/dev/token-check', (_req, res) => {
+    const t = (process.env.FB_VERIFY_TOKEN || '').trim();
+    res.json({
+      env: process.env.NODE_ENV,
+      token_length: t.length,
+      token_head: t.slice(0, 2),
+      token_tail: t.slice(-2)
+    });
+  });
 }
 
 // --- Monta i router esistenti ---
@@ -63,11 +74,18 @@ function verifyFacebookSignature(req) {
 }
 
 // --- Webhook verification (GET) ---
+// --- Webhook verification (GET) ---
 app.get('/webhooks/facebook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
+  const mode = (req.query['hub.mode'] || '').trim();
+  const tokenFromQuery = (req.query['hub.verify_token'] || '').trim();
   const challenge = req.query['hub.challenge'];
-  if (mode === 'subscribe' && token === FB_VERIFY_TOKEN) {
+
+  const serverToken = (process.env.FB_VERIFY_TOKEN || '').trim();
+
+  // log diagnostico: non stampa il token, solo lunghezze
+  console.log('[VERIFY] mode=%s qlen=%d slen=%d', mode, tokenFromQuery.length, serverToken.length);
+
+  if (mode === 'subscribe' && tokenFromQuery === serverToken) {
     return res.status(200).send(challenge);
   }
   return res.sendStatus(403);
