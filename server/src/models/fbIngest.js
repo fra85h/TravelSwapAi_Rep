@@ -1,85 +1,72 @@
-// server/src/models/fbIngest.js
-import { createClient } from '@supabase/supabase-js';
+// --- in alto tra le config
+const DEFAULT_LISTING_TYPE = (process.env.DEFAULT_LISTING_TYPE || 'train').trim();
+const DEFAULT_LOCATION     = (process.env.DEFAULT_LOCATION_FALLBACK || 'N/D').trim();
+const DEFAULT_PRICE        = Number(process.env.DEFAULT_PRICE_FALLBACK || 0);
 
-// 1) prova a riutilizzare il client condiviso come fanno gli altri moduli
-let sharedClient = null;
-try {
-  const mod = await import('../db.js');           // <-- stesso path che usano gli altri
-  sharedClient = mod?.supabase ?? null;
-} catch {
-  // se il modulo non esiste o non esporta, andiamo di fallback sotto
+// --- helper
+function inferType(parsed) {
+  const raw = (parsed?.asset_type || '').toLowerCase();
+  if (raw.includes('hotel') || raw === 'hotel') return 'hotel';
+  if (raw.includes('treno') || raw.includes('train') || raw === 'train') return 'train';
+  if (parsed?.from_location || parsed?.to_location) return 'train';
+  return DEFAULT_LISTING_TYPE; // <-- SEMPRE un valore valido
+}
+function buildLocation(parsed) {
+  const from = (parsed?.from_location ?? '').trim();
+  const to   = (parsed?.to_location   ?? '').trim();
+  if (from && to) return `${from} → ${to}`;
+  if (from) return from;
+  if (to) return to;
+  return DEFAULT_LOCATION;      // <-- MAI null
 }
 
-// 2) fallback: crea un client locale SOLO se quello condiviso non c'è
-function makeFallbackClient() {
-  const url = (process.env.SUPABASE_URL || '').trim();
-  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
+export async function upsertListingFromFacebook({ channel, externalId, contactUrl, rawText, parsed }) {
+  // ...
+  let cercoVendo = (parsed?.cerco_vendo || 'VENDO').toUpperCase();
+  if (cercoVendo !== 'CERCO' && cercoVendo !== 'VENDO') cercoVendo = 'VENDO';
 
-// 3) client effettivo usato dal model
-const supabase = sharedClient ?? makeFallbackClient();
+  // 👇👇👇 AGGIUNGI QUESTE 3 RIGHE “BLINDO”
+  let t = inferType(parsed);
+  if (!t) t = DEFAULT_LISTING_TYPE;                     // <-- 1) mai falsy
+  let location = buildLocation(parsed) || DEFAULT_LOCATION; // <-- 2) mai falsy
+  const price = (typeof parsed?.price === 'number' && parsed.price >= 0) ? parsed.price : DEFAULT_PRICE;
 
-const DEFAULT_LISTING_OWNER_ID = (process.env.DEFAULT_LISTING_OWNER_ID || '').trim();
-const SECRETS_TABLE = 'listing_secrets'; // se usi schema privato: 'private.listing_secrets'
+  // log diagnostico (rimuovilo più tardi)
+  console.log('[fbIngest] t=%s loc=%s price=%s', t, location, price);
 
-/**
- * Inserisce/aggiorna un annuncio in `listings` assegnandolo a un utente tecnico
- * (DEFAULT_LISTING_OWNER_ID) per soddisfare il vincolo NOT NULL su user_id.
- * Dedup su (source, external_id).
- */
-export async function upsertListingFromFacebook({
-  channel,
-  externalId,
-  contactUrl,
-  rawText,
-  parsed,
-}) {
-  // hard check: qui non deve mai mancare
-  if (!supabase) {
-    throw new Error(
-      '[fbIngest] Supabase client not configured (manca client condiviso e/o SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)'
-    );
-  }
-  if (!DEFAULT_LISTING_OWNER_ID) {
-    throw new Error('Missing DEFAULT_LISTING_OWNER_ID env var');
-  }
+  const titleParts = [cercoVendo, t];
+  const from = (parsed?.from_location ?? '').trim();
+  const to   = (parsed?.to_location   ?? '').trim();
+  if (from || to) titleParts.push([from, to].filter(Boolean).join(' · '));
+  if (parsed?.start_date) titleParts.push(parsed.start_date);
+  const title = titleParts.join(' · ') || 'Annuncio Facebook';
 
-  // Titolo sintetico
-  const parts = [];
-  if (parsed?.cerco_vendo) parts.push(parsed.cerco_vendo);
-  if (parsed?.asset_type) parts.push(parsed.asset_type);
-  if (parsed?.from_location || parsed?.to_location) {
-    const route = [parsed?.from_location, parsed?.to_location].filter(Boolean).join(' → ');
-    if (route) parts.push(route);
-  }
-  if (parsed?.start_date) parts.push(parsed.start_date);
-  const title = parts.join(' · ') || 'Annuncio Facebook';
+  const check_in  = t === 'hotel' ? parsed?.start_date ?? null : null;
+  const check_out = t === 'hotel' ? parsed?.end_date   ?? null : null;
+  const depart_at = t === 'train' ? (parsed?.start_date_time || parsed?.start_date || null) : null;
+  const arrive_at = t === 'train' ? (parsed?.end_date_time   || parsed?.end_date   || null) : null;
 
-  // Location human-friendly
-  const location =
-    parsed?.from_location && parsed?.to_location
-      ? `${parsed.from_location} → ${parsed.to_location}`
-      : parsed?.from_location || parsed?.to_location || null;
-
-  // riga base (allinea i nomi col tuo schema esistente)
   const baseRow = {
-    user_id: DEFAULT_LISTING_OWNER_ID, // soddisfa NOT NULL
-    title,
-    description: rawText,
-    type: parsed?.asset_type ?? null,
-    location,
-    price: parsed?.price ?? null,
+    user_id: DEFAULT_LISTING_OWNER_ID,
+    type: t,                             // <-- NOT NULL
+    title,                               // <-- NOT NULL
+    location,                            // <-- NOT NULL
+    check_in, check_out, depart_at, arrive_at,
+    is_named_ticket: parsed?.is_named_ticket ?? null,
+    gender: parsed?.gender ?? null,
+    pnr: parsed?.pnr ?? null,
+    description: rawText ?? null,
+    price,                               // <-- NOT NULL
     status: 'active',
-
-    // tracing/dedup
+    currency: 'EUR',
+    route_from: from || null,
+    route_to: to   || null,
+    cerco_vendo: cercoVendo,
     source: channel ?? null,
     external_id: externalId ?? null,
     contact_url: contactUrl ?? null,
   };
 
-  // upsert con dedup su (source, external_id)
   const { data, error } = await supabase
     .from('listings')
     .upsert(baseRow, { onConflict: 'source,external_id' })
@@ -87,24 +74,5 @@ export async function upsertListingFromFacebook({
     .single();
 
   if (error) throw error;
-
-  const listingId = data.id;
-
-  // patch opzionale con campi extra se esistono
-  const optionalPatch = {
-    cerco_vendo: parsed?.cerco_vendo ?? null,
-    route_from: parsed?.from_location ?? null,
-    route_to: parsed?.to_location ?? null,
-    depart_at: parsed?.start_date ?? null,
-    arrive_at: parsed?.end_date ?? null,
-  };
-
-  // best-effort: se alcune colonne non esistono, non fallire l’ingest
-  const upd = await supabase.from('listings').update(optionalPatch).eq('id', listingId);
-  if (upd.error && !/column .* does not exist/i.test(upd.error.message)) {
-    // logga ma non bloccare
-    console.warn('[fbIngest] optional update warning:', upd.error.message);
-  }
-
-  return { id: listingId };
+  return { id: data.id };
 }
