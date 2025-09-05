@@ -1,0 +1,13 @@
+{
+  "object": "page",
+  "entry": [{
+    "id": "PAGE_ID",
+    "time": 1730000000,
+    "messaging": [{
+      "sender": { "id": "USER_ID" },
+      "recipient": { "id": "PAGE_ID" },
+      "timestamp": 1730000000,
+      "message": { "mid": "m_123456", "text": "Test Messenger da curl" }
+    }]
+  }]
+}

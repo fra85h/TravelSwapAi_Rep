@@ -24,7 +24,13 @@ app.use(express.urlencoded({ extended: false }));
 
 // --- Healthcheck ---
 app.get('/health', (_req, res) => res.json({ ok: true }));
-
+app.get('/debug/env', (_req, res) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV,
+    FB_VERIFY_TOKEN: (process.env.FB_VERIFY_TOKEN || '').trim().slice(0,6) + '...',
+    FB_APP_SECRET: process.env.FB_APP_SECRET ? 'SET' : 'MISSING'
+  });
+});
 // --- Ping diagnostico (sempre attivo per debug) ---
 app.get('/dev/ping', (_req, res) => {
   res.json({ ok: true, env: process.env.NODE_ENV || null });
@@ -93,8 +99,9 @@ app.get('/webhooks/facebook', (req, res) => {
 
 // --- Webhook receiver (POST) ---
 app.post('/webhooks/facebook', async (req, res) => {
+  const allow = process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true';
   // in dev potresti voler bypassare per test, ma qui teniamo la verifica attiva
-  if (!isDev && !verifyFacebookSignature(req)) {
+  if (!allow && !isDev && !verifyFacebookSignature(req)) {
     return res.sendStatus(403);
   }
   const body = req.body;
