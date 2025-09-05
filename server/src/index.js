@@ -3,7 +3,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
-
+import { supabase } from './db.js';
 // Routers esistenti (manteniamo compatibilità con il tuo progetto)
 import { listingsRouter } from './routes/listing.js';
 import { matchesRouter } from './routes/match.js';
@@ -30,6 +30,63 @@ app.get('/debug/env', (_req, res) => {
     FB_VERIFY_TOKEN: (process.env.FB_VERIFY_TOKEN || '').trim().slice(0,6) + '...',
     FB_APP_SECRET: process.env.FB_APP_SECRET ? 'SET' : 'MISSING'
   });
+});
+app.get('/debug/env', (_req, res) => {
+  res.json({
+    NODE_ENV: process.env.NODE_ENV,
+    FB_VERIFY_TOKEN: (process.env.FB_VERIFY_TOKEN || '').trim().slice(0,6) + '...',
+    FB_APP_SECRET: process.env.FB_APP_SECRET ? 'SET' : 'MISSING'
+  });
+});
+
+// --- Debug Supabase (NUOVO) ---
+app.get('/debug/supabase', async (_req, res) => {
+  const urlSet = !!(process.env.SUPABASE_URL || '').trim();
+  const keySet = !!(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+
+  // se il client non è inizializzato, ritorno subito info utili
+  if (!supabase) {
+    return res.status(200).json({
+      NODE_ENV: process.env.NODE_ENV,
+      supabase_url_set: urlSet,
+      supabase_key_set: keySet,
+      client_inited: false,
+      ok: false,
+      note: 'Supabase client non inizializzato (controlla SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY su Render)'
+    });
+  }
+
+  // prova una query leggera per testare la connessione
+  try {
+    const { data, error } = await supabase.from('listings').select('id').limit(1);
+    if (error) {
+      return res.status(200).json({
+        NODE_ENV: process.env.NODE_ENV,
+        supabase_url_set: urlSet,
+        supabase_key_set: keySet,
+        client_inited: true,
+        ok: false,
+        supabase_error: error.message
+      });
+    }
+    return res.status(200).json({
+      NODE_ENV: process.env.NODE_ENV,
+      supabase_url_set: urlSet,
+      supabase_key_set: keySet,
+      client_inited: true,
+      ok: true,
+      sample_rows: data?.length ?? 0
+    });
+  } catch (e) {
+    return res.status(200).json({
+      NODE_ENV: process.env.NODE_ENV,
+      supabase_url_set: urlSet,
+      supabase_key_set: keySet,
+      client_inited: true,
+      ok: false,
+      exception: String(e?.message || e)
+    });
+  }
 });
 // --- Ping diagnostico (sempre attivo per debug) ---
 app.get('/dev/ping', (_req, res) => {
@@ -61,7 +118,8 @@ app.use('/api/listings', listingsRouter);
 app.use('/api/matches', matchesRouter);
 
 // --- Utils firma FB ---
-const { FB_VERIFY_TOKEN, FB_APP_SECRET } = process.env;
+const FB_VERIFY_TOKEN = (process.env.FB_VERIFY_TOKEN || '').trim();    // CHANGE: trim qui
+const FB_APP_SECRET  = (process.env.FB_APP_SECRET  || '').trim();      // CHANGE: trim qui
 function verifyFacebookSignature(req) {
   try {
     const signature = req.get('X-Hub-Signature-256');
