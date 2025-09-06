@@ -1,7 +1,17 @@
-// --- in alto tra le config
-const DEFAULT_LISTING_TYPE = (process.env.DEFAULT_LISTING_TYPE || 'train').trim();
-const DEFAULT_LOCATION     = (process.env.DEFAULT_LOCATION_FALLBACK || 'N/D').trim();
-const DEFAULT_PRICE        = Number(process.env.DEFAULT_PRICE_FALLBACK || 0);
+// server/src/models/fbIngest.js
+import { createClient } from '@supabase/supabase-js';
+
+// ==== ENV/FALLBACKS (DEVONO STARE IN CIMA) ====
+const DEFAULT_LISTING_OWNER_ID = (process.env.DEFAULT_LISTING_OWNER_ID || '').trim();
+const DEFAULT_LISTING_TYPE     = (process.env.DEFAULT_LISTING_TYPE || 'train').trim();
+const DEFAULT_LOCATION         = (process.env.DEFAULT_LOCATION_FALLBACK || 'N/D').trim();
+const DEFAULT_PRICE            = Number(process.env.DEFAULT_PRICE_FALLBACK || 0);
+
+// (opzionale, solo per debug temporaneo)
+console.log('[fbIngest:init]', {
+  owner_set: !!DEFAULT_LISTING_OWNER_ID,
+  owner_head: DEFAULT_LISTING_OWNER_ID ? DEFAULT_LISTING_OWNER_ID.slice(0, 8) : null
+});
 
 // --- helper
 function inferType(parsed) {
