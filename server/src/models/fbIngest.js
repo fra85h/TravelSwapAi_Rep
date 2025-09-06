@@ -1,5 +1,5 @@
 // server/src/models/fbIngest.js
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../db.js';
 
 // ==== ENV/FALLBACKS (DEVONO STARE IN CIMA) ====
 const DEFAULT_LISTING_OWNER_ID = (process.env.DEFAULT_LISTING_OWNER_ID || '').trim();
@@ -31,6 +31,8 @@ function buildLocation(parsed) {
 }
 
 export async function upsertListingFromFacebook({ channel, externalId, contactUrl, rawText, parsed }) {
+    if (!supabase) throw new Error('Supabase client not configured');
+  if (!DEFAULT_LISTING_OWNER_ID) throw new Error('Missing DEFAULT_LISTING_OWNER_ID env var');
   // ...
   let cercoVendo = (parsed?.cerco_vendo || 'VENDO').toUpperCase();
   if (cercoVendo !== 'CERCO' && cercoVendo !== 'VENDO') cercoVendo = 'VENDO';
