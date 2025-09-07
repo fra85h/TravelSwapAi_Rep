@@ -136,6 +136,7 @@ function verifyFacebookSignature(req) {
 // --- Webhook verification (GET) ---
 // --- Webhook verification (GET) ---
 app.get('/webhooks/facebook', (req, res) => {
+     console.log("stampo fb");
   const mode = (req.query['hub.mode'] || '').trim();
   const tokenFromQuery = (req.query['hub.verify_token'] || '').trim();
   const challenge = req.query['hub.challenge'];
@@ -155,6 +156,7 @@ app.get('/webhooks/facebook', (req, res) => {
 
 // --- Webhook receiver (POST) ---
 app.post('/webhooks/facebook', async (req, res) => {
+   console.log("stampo fb");
   const allow = process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true';
   if (!allow && !isDev && !verifyFacebookSignature(req)) {
     return res.sendStatus(403);
@@ -165,6 +167,7 @@ app.post('/webhooks/facebook', async (req, res) => {
 
   try {
     for (const entry of body.entry || []) {
+         console.log("stampo fb");
       // 1) FEED: post/commenti
       // 1) FEED: post/commenti — con log e fallback testo più ampio
 if (Array.isArray(entry.changes)) {
