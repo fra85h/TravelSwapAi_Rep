@@ -168,7 +168,14 @@ app.post('/webhooks/facebook', async (req, res) => {
   const body = req.body;
   if (body.object !== 'page') return res.sendStatus(404);
 // 2) Messenger
-if (Array.isArray(entry.messaging)) {
+
+
+  try {
+    for (const entry of body.entry || []) {
+      // 1) Feed: post/commenti
+      if (Array.isArray(entry.changes)) {
+        for (const change of entry.changes) {
+          if (Array.isArray(entry.messaging)) {
   for (const m of entry.messaging) {
     const message = m.message;
     if (!message || !message.text) continue;
@@ -220,12 +227,6 @@ if (Array.isArray(entry.messaging)) {
     }
   }
 }
-
-  try {
-    for (const entry of body.entry || []) {
-      // 1) Feed: post/commenti
-      if (Array.isArray(entry.changes)) {
-        for (const change of entry.changes) {
           if (change.field === 'feed') {
             const value = change.value || {};
             const text = value.message || value.comment_message || value.description || '';
