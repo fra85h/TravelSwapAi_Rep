@@ -166,41 +166,61 @@ app.post('/webhooks/facebook', async (req, res) => {
   try {
     for (const entry of body.entry || []) {
       // 1) FEED: post/commenti
-      if (Array.isArray(entry.changes)) {
-        for (const change of entry.changes) {
-          if (change.field === 'feed') {
-            const value = change.value || {};
-            // Fallback più completi per il testo
-            const text =
-              value.message ||
-              value.comment_message ||
-              value.description ||
-              value.story ||
-              '';
+      // 1) FEED: post/commenti — con log e fallback testo più ampio
+if (Array.isArray(entry.changes)) {
+  for (const change of entry.changes) {
+    if (change.field !== 'feed') continue;
 
-            const externalId =
-              value.comment_id ||
-              value.post_id ||
-              value.video_id ||
-              value.photo_id ||
-              change.id ||
-              `${entry.id}:${Date.now()}`;
+    // LOG diagnostico per capire che payload arriva da Meta
+    console.log('[FB FEED RAW]', JSON.stringify(change, null, 2));
 
-            const contactUrl = value.permalink_url || null;
+    const v = change.value || {};
 
-            if (text?.trim()) {
-              const parsed = await parseFacebookText({ text, hint: 'facebook:feed' });
-              await upsertListingFromFacebook({
-                channel: 'facebook:feed',
-                externalId: String(externalId),
-                contactUrl,
-                rawText: text,
-                parsed,
-              });
-            }
-          }
-        }
-      }
+    // attachments fallback (post con immagine/link)
+    const attachments = Array.isArray(v.attachments?.data) ? v.attachments.data : [];
+    const firstAtt = attachments[0] || {};
+
+    // prova più campi per ricavare testo utile
+    const text =
+      v.message ||
+      v.comment_message ||
+      v.description ||
+      v.story ||
+      firstAtt.description ||
+      firstAtt.title ||
+      '';
+
+    const externalId =
+      v.comment_id ||
+      v.post_id ||
+      v.video_id ||
+      v.photo_id ||
+      change.id ||
+      `${entry.id}:${Date.now()}`;
+
+    const contactUrl = v.permalink_url || null;
+
+    if (!text?.trim()) {
+      console.log('[FB FEED] Nessun testo utile, skip insert. ids=', { externalId, contactUrl });
+      continue;
+    }
+
+    try {
+      const parsed = await parseFacebookText({ text, hint: 'facebook:feed' });
+      const result = await upsertListingFromFacebook({
+        channel: 'facebook:feed',
+        externalId: String(externalId),
+        contactUrl,
+        rawText: text,
+        parsed,
+      });
+      console.log('[FB FEED] Inserito listing id=', result?.id, 'extId=', externalId);
+    } catch (e) {
+      console.error('[FB FEED] Error during ingest:', e);
+    }
+  }
+}
+
 
       // 2) MESSENGER: **FLOW GUIDATO** (pubblica solo quando completo)
    // 2) MESSENGER — FLOW GUIDATO con messaggi TravelSwap
