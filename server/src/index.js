@@ -203,67 +203,98 @@ app.post('/webhooks/facebook', async (req, res) => {
       }
 
       // 2) MESSENGER: **FLOW GUIDATO** (pubblica solo quando completo)
-      if (Array.isArray(entry.messaging)) {
-        for (const m of entry.messaging) {
-          const message = m.message;
-          if (!message || !message.text) continue;
+   // 2) MESSENGER — FLOW GUIDATO con messaggi TravelSwap
+if (Array.isArray(entry.messaging)) {
+  for (const m of entry.messaging) {
+    const message = m.message;
+    if (!message || !message.text) continue;
 
-          const senderId = m.sender?.id;
-          const text = message.text;
+    const senderId = m.sender?.id;
+    const text = message.text;
 
-          try {
-            // a) stato parziale corrente
-            const prev = await getSession(senderId);
+    try {
+      // a) stato parziale
+      const prev = await getSession(senderId);
 
-            // b) estrazione AI-only dal tuo parser
-            const ai = await parseFacebookText({ text, hint: 'facebook:messenger' });
+      // b) estrazione AI-only
+      const ai = await parseFacebookText({ text, hint: 'facebook:messenger' });
 
-            // c) merge (i nuovi campi non-null vincono)
-            const merged = mergeParsed(prev, ai);
+      // c) merge (i nuovi campi non-null vincono)
+      const merged = mergeParsed(prev, ai);
 
-            // d) verifica campi minimi
-            const miss = missingFields(merged);
-            console.log('[Messenger Flow] missing=', miss, 'merged=', {
-              cerco_vendo: merged.cerco_vendo,
-              asset_type: merged.asset_type,
-              depart_at: merged.depart_at,
-              arrive_at: merged.arrive_at,
-              check_in: merged.check_in,
-              check_out: merged.check_out,
-              price: merged.price
-            });
+      // d) verifica campi minimi
+      const miss = missingFields(merged);
+      console.log('[Messenger Flow] missing=', miss, 'merged=', {
+        cerco_vendo: merged.cerco_vendo,
+        asset_type: merged.asset_type,
+        depart_at: merged.depart_at,
+        arrive_at: merged.arrive_at,
+        check_in: merged.check_in,
+        check_out: merged.check_out,
+        price: merged.price
+      });
 
-            if (miss.length > 0) {
-              await saveSession(senderId, merged);
-              const prompt = nextPromptFor(miss, merged.asset_type);
-              await sendFbText(senderId, `Mi mancano: ${miss.join(', ')}.\n${prompt}`);
-              continue; // ⛔ niente insert
-            }
+      if (miss.length > 0) {
+        // salva stato parziale
+        await saveSession(senderId, merged);
 
-            // e) tutto ok → pubblica
-            const result = await upsertListingFromFacebook({
-              channel: 'facebook:messenger',
-              externalId: message.mid || `${senderId}:${m.timestamp}`,
-              contactUrl: null,
-              rawText: text, // puoi salvare anche lo storico, se vuoi
-              parsed: {
-                ...merged,
-                // compat per ingest se usa start/end
-                start_date: merged.check_in || merged.depart_at || null,
-                end_date:   merged.check_out || merged.arrive_at || null,
-              },
-            });
+        // prompt specifico
+        const prompt = nextPromptFor(miss, merged.asset_type);
 
-            // f) pulisci sessione e conferma
-            await clearSession(senderId);
-            await sendFbText(senderId, `✅ Annuncio pubblicato su TravelSwap! ID: ${result.id}`);
-
-          } catch (e) {
-            console.error('[Messenger Flow] Error:', e);
-            await sendFbText(senderId, 'Ops, si è verificato un errore. Riprova tra poco.');
-          }
+        // se è il primo messaggio/nessun dato raccolto → benvenuto
+        const isFirstTouch = !prev || Object.keys(prev).length === 0;
+        if (isFirstTouch) {
+          await sendFbText(
+            senderId,
+            "👋 Ciao e benvenuto su TravelSwap! Per pubblicare un annuncio mi servono alcune info minime:\n" +
+              "• CERCO o VENDO\n" +
+              "• Treno o Hotel\n" +
+              "• Date (partenza/arrivo oppure check-in/check-out)\n" +
+              "• Prezzo in €\n\n" +
+              "Scrivimi pure i dati e ti guiderò passo passo 😉"
+          );
+        } else {
+          // messaggi successivi: cosa manca + domanda successiva
+          await sendFbText(
+            senderId,
+            `📌 Ottimo! Mi mancano ancora: ${miss.join(', ')}.\n${prompt}\n\n` +
+              "Non preoccuparti, scrivi pure con calma 😃"
+          );
         }
+
+        continue; // ⛔ niente insert finché non è completo
       }
+
+      // e) tutto ok → pubblica
+      const result = await upsertListingFromFacebook({
+        channel: 'facebook:messenger',
+        externalId: message.mid || `${senderId}:${m.timestamp}`,
+        contactUrl: null,
+        rawText: text,
+        parsed: {
+          ...merged,
+          // compat con ingest se usa start/end
+          start_date: merged.check_in || merged.depart_at || null,
+          end_date: merged.check_out || merged.arrive_at || null
+        }
+      });
+
+      // f) pulisci sessione
+      await clearSession(senderId);
+
+      // g) conferma amichevole
+      await sendFbText(
+        senderId,
+        "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n\n" +
+          "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
+      );
+    } catch (e) {
+      console.error('[Messenger Flow] Error:', e);
+      await sendFbText(senderId, 'Ops, si è verificato un errore. Riprova tra poco.');
+    }
+  }
+}
+
     }
 
     return res.sendStatus(200);
