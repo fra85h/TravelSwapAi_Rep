@@ -33,13 +33,7 @@ app.get('/debug/env', (_req, res) => {
     FB_APP_SECRET: process.env.FB_APP_SECRET ? 'SET' : 'MISSING'
   });
 });
-app.get('/debug/env', (_req, res) => {
-  res.json({
-    NODE_ENV: process.env.NODE_ENV,
-    FB_VERIFY_TOKEN: (process.env.FB_VERIFY_TOKEN || '').trim().slice(0,6) + '...',
-    FB_APP_SECRET: process.env.FB_APP_SECRET ? 'SET' : 'MISSING'
-  });
-});
+
 
 // --- Debug Supabase (NUOVO) ---
 app.get('/debug/supabase', async (_req, res) => {
@@ -159,80 +153,41 @@ app.get('/webhooks/facebook', (req, res) => {
 
 // --- Webhook receiver (POST) ---
 
+// --- Webhook receiver (POST) ---
 app.post('/webhooks/facebook', async (req, res) => {
   const allow = process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true';
-  // in dev potresti voler bypassare per test, ma qui teniamo la verifica attiva
   if (!allow && !isDev && !verifyFacebookSignature(req)) {
     return res.sendStatus(403);
   }
+
   const body = req.body;
   if (body.object !== 'page') return res.sendStatus(404);
-// 2) Messenger
-
 
   try {
     for (const entry of body.entry || []) {
-      // 1) Feed: post/commenti
+      // 1) FEED: post/commenti
       if (Array.isArray(entry.changes)) {
         for (const change of entry.changes) {
-          if (Array.isArray(entry.messaging)) {
-  for (const m of entry.messaging) {
-    const message = m.message;
-    if (!message || !message.text) continue;
-
-    const senderId = m.sender?.id;
-    const text = message.text;
-
-    try {
-      // 1) stato parziale
-      const prev = await getSession(senderId);
-
-      // 2) estrazione AI (riusa il tuo parser AI-only)
-      const ai = await parseFacebookText({ text, hint: 'facebook:messenger' });
-
-      // 3) merge
-      const merged = mergeParsed(prev, ai);
-
-      // 4) check campi minimi
-      const miss = missingFields(merged);
-      if (miss.length > 0) {
-        await saveSession(senderId, merged);
-        const prompt = nextPromptFor(miss, merged.asset_type);
-        await sendFbText(senderId, `Mi mancano alcuni dati: ${miss.join(', ')}.\n${prompt}`);
-        continue; // ⛔ niente insert
-      }
-
-      // 5) tutto ok → pubblica
-      const result = await upsertListingFromFacebook({
-        channel: 'facebook:messenger',
-        externalId: message.mid || `${senderId}:${m.timestamp}`,
-        contactUrl: null,
-        rawText: text,   // puoi anche salvare l’ultimo testo o tutta la storia se vuoi
-        parsed: {
-          ...merged,
-          // compat per l’ingest (se lo usi internamente)
-          start_date: merged.check_in || merged.depart_at || null,
-          end_date:   merged.check_out || merged.arrive_at || null,
-        },
-      });
-
-      // 6) pulizia sessione
-      await clearSession(senderId);
-
-      // 7) conferma all’utente
-      await sendFbText(senderId, `✅ Annuncio pubblicato su TravelSwap! ID: ${result.id}`);
-    } catch (e) {
-      console.error('[Messenger Flow] Error:', e);
-      await sendFbText(senderId, 'Ops, si è verificato un errore. Riprova tra poco.');
-    }
-  }
-}
           if (change.field === 'feed') {
             const value = change.value || {};
-            const text = value.message || value.comment_message || value.description || '';
+            // Fallback più completi per il testo
+            const text =
+              value.message ||
+              value.comment_message ||
+              value.description ||
+              value.story ||
+              '';
+
             const externalId =
-              value.comment_id || value.post_id || value.video_id || value.photo_id || change.id || `${entry.id}:${Date.now()}`;
+              value.comment_id ||
+              value.post_id ||
+              value.video_id ||
+              value.photo_id ||
+              change.id ||
+              `${entry.id}:${Date.now()}`;
+
             const contactUrl = value.permalink_url || null;
+
             if (text?.trim()) {
               const parsed = await parseFacebookText({ text, hint: 'facebook:feed' });
               await upsertListingFromFacebook({
@@ -246,31 +201,78 @@ app.post('/webhooks/facebook', async (req, res) => {
           }
         }
       }
-      // 2) Messenger
+
+      // 2) MESSENGER: **FLOW GUIDATO** (pubblica solo quando completo)
       if (Array.isArray(entry.messaging)) {
         for (const m of entry.messaging) {
           const message = m.message;
-          if (message && message.text) {
-            const text = message.text;
-            const externalId = message.mid || `${m.sender?.id}:${m.timestamp}`;
-            const parsed = await parseFacebookText({ text, hint: 'facebook:messenger' });
-            await upsertListingFromFacebook({
-              channel: 'facebook:messenger',
-              externalId: String(externalId),
-              contactUrl: null,
-              rawText: text,
-              parsed,
+          if (!message || !message.text) continue;
+
+          const senderId = m.sender?.id;
+          const text = message.text;
+
+          try {
+            // a) stato parziale corrente
+            const prev = await getSession(senderId);
+
+            // b) estrazione AI-only dal tuo parser
+            const ai = await parseFacebookText({ text, hint: 'facebook:messenger' });
+
+            // c) merge (i nuovi campi non-null vincono)
+            const merged = mergeParsed(prev, ai);
+
+            // d) verifica campi minimi
+            const miss = missingFields(merged);
+            console.log('[Messenger Flow] missing=', miss, 'merged=', {
+              cerco_vendo: merged.cerco_vendo,
+              asset_type: merged.asset_type,
+              depart_at: merged.depart_at,
+              arrive_at: merged.arrive_at,
+              check_in: merged.check_in,
+              check_out: merged.check_out,
+              price: merged.price
             });
+
+            if (miss.length > 0) {
+              await saveSession(senderId, merged);
+              const prompt = nextPromptFor(miss, merged.asset_type);
+              await sendFbText(senderId, `Mi mancano: ${miss.join(', ')}.\n${prompt}`);
+              continue; // ⛔ niente insert
+            }
+
+            // e) tutto ok → pubblica
+            const result = await upsertListingFromFacebook({
+              channel: 'facebook:messenger',
+              externalId: message.mid || `${senderId}:${m.timestamp}`,
+              contactUrl: null,
+              rawText: text, // puoi salvare anche lo storico, se vuoi
+              parsed: {
+                ...merged,
+                // compat per ingest se usa start/end
+                start_date: merged.check_in || merged.depart_at || null,
+                end_date:   merged.check_out || merged.arrive_at || null,
+              },
+            });
+
+            // f) pulisci sessione e conferma
+            await clearSession(senderId);
+            await sendFbText(senderId, `✅ Annuncio pubblicato su TravelSwap! ID: ${result.id}`);
+
+          } catch (e) {
+            console.error('[Messenger Flow] Error:', e);
+            await sendFbText(senderId, 'Ops, si è verificato un errore. Riprova tra poco.');
           }
         }
       }
     }
+
     return res.sendStatus(200);
   } catch (e) {
     console.error('[FB Webhook] Error', e);
     return res.sendStatus(500);
   }
 });
+
 
 // --- Simulazione Facebook (solo in dev) ---
 if (isDev) {
