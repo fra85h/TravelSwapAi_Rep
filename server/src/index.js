@@ -7,10 +7,12 @@ import { supabase } from './db.js';
 // Routers esistenti (manteniamo compatibilità con il tuo progetto)
 import { listingsRouter } from './routes/listing.js';
 import { matchesRouter } from './routes/match.js';
-
 // ATTENZIONE: path corretto rispetto a server/src/index.js
 import { parseFacebookText } from './parsers/fbParser.js';
 import { upsertListingFromFacebook } from './models/fbIngest.js';
+import { sendFbText } from './lib/fbSend.js';
+import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.js';
+import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
 
 const app = express();
 
@@ -156,6 +158,7 @@ app.get('/webhooks/facebook', (req, res) => {
 });
 
 // --- Webhook receiver (POST) ---
+
 app.post('/webhooks/facebook', async (req, res) => {
   const allow = process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true';
   // in dev potresti voler bypassare per test, ma qui teniamo la verifica attiva
@@ -164,6 +167,59 @@ app.post('/webhooks/facebook', async (req, res) => {
   }
   const body = req.body;
   if (body.object !== 'page') return res.sendStatus(404);
+// 2) Messenger
+if (Array.isArray(entry.messaging)) {
+  for (const m of entry.messaging) {
+    const message = m.message;
+    if (!message || !message.text) continue;
+
+    const senderId = m.sender?.id;
+    const text = message.text;
+
+    try {
+      // 1) stato parziale
+      const prev = await getSession(senderId);
+
+      // 2) estrazione AI (riusa il tuo parser AI-only)
+      const ai = await parseFacebookText({ text, hint: 'facebook:messenger' });
+
+      // 3) merge
+      const merged = mergeParsed(prev, ai);
+
+      // 4) check campi minimi
+      const miss = missingFields(merged);
+      if (miss.length > 0) {
+        await saveSession(senderId, merged);
+        const prompt = nextPromptFor(miss, merged.asset_type);
+        await sendFbText(senderId, `Mi mancano alcuni dati: ${miss.join(', ')}.\n${prompt}`);
+        continue; // ⛔ niente insert
+      }
+
+      // 5) tutto ok → pubblica
+      const result = await upsertListingFromFacebook({
+        channel: 'facebook:messenger',
+        externalId: message.mid || `${senderId}:${m.timestamp}`,
+        contactUrl: null,
+        rawText: text,   // puoi anche salvare l’ultimo testo o tutta la storia se vuoi
+        parsed: {
+          ...merged,
+          // compat per l’ingest (se lo usi internamente)
+          start_date: merged.check_in || merged.depart_at || null,
+          end_date:   merged.check_out || merged.arrive_at || null,
+        },
+      });
+
+      // 6) pulizia sessione
+      await clearSession(senderId);
+
+      // 7) conferma all’utente
+      await sendFbText(senderId, `✅ Annuncio pubblicato su TravelSwap! ID: ${result.id}`);
+    } catch (e) {
+      console.error('[Messenger Flow] Error:', e);
+      await sendFbText(senderId, 'Ops, si è verificato un errore. Riprova tra poco.');
+    }
+  }
+}
 
   try {
     for (const entry of body.entry || []) {
