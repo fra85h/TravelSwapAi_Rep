@@ -35,26 +35,28 @@ function normalize(p) {
 }
 
 // Requisiti minimi
-export function missingFields(p) {
-  const missing = [];
+export function missingFields(s) {
+  const miss = [];
 
-  if (!p.cerco_vendo) missing.push('CERCO/VENDO');
+  const kind = (s?.asset_type ?? s?.type ?? '').toLowerCase(); // 👈 alias
 
-  const t = p.asset_type;
-  if (t !== 'train' && t !== 'hotel') missing.push('TIPO (treno/hotel)');
+  if (!s?.cerco_vendo) miss.push('azione (CERCO/VENDO)');
+  if (!kind)           miss.push('tipo (treno/hotel)');
+  if (s?.price == null) miss.push('prezzo');
 
-  if (t === 'train') {
-    if (!p.depart_at) missing.push('DATA PARTENZA');
-    if (!p.arrive_at) missing.push('DATA ARRIVO');
-  } else if (t === 'hotel') {
-    if (!p.check_in)  missing.push('CHECK-IN');
-    if (!p.check_out) missing.push('CHECK-OUT');
+  if (kind === 'train' || kind === 'treno') {
+    if (!s?.from_location && !s?.route_from) miss.push('partenza (città di origine)');
+    if (!s?.to_location   && !s?.route_to)   miss.push('arrivo (città di destinazione)');
+    if (!s?.depart_at) miss.push('data di partenza');
+  } else if (kind === 'hotel' || kind === 'albergo') {
+    if (!s?.hotel_city && !s?.location) miss.push('città (hotel)');
+    if (!s?.check_in)  miss.push('check-in');
+    if (!s?.check_out) miss.push('check-out');
   }
 
-  if (p.price == null) missing.push('PREZZO');
-
-  return missing;
+  return miss;
 }
+
 
 export function nextPromptFor(missing, t) {
   if (missing.includes('CERCO/VENDO')) return 'Stai CERCANDO o VENDENDO? Scrivi "CERCO" oppure "VENDO".';

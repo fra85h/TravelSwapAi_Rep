@@ -44,6 +44,23 @@ function fmtDate(d) {
     return dt.toISOString().slice(0,10); // YYYY-MM-DD
   } catch { return String(d); }
 }
+function normalizeSession(s) {
+  if (!s) return s;
+  const out = { ...s };
+  // alias tipo
+  if (!out.asset_type && out.type) out.asset_type = out.type;
+  // normalizza IT→EN
+  const t = String(out.asset_type || '').toLowerCase();
+  if (t === 'treno') out.asset_type = 'train';
+  if (t === 'albergo') out.asset_type = 'hotel';
+  // normalizza numeri prezzo tipo "45€"
+  if (out.price != null) {
+    const n = Number(String(out.price).replace(',', '.').replace(/[^\d.]/g, ''));
+    if (Number.isFinite(n)) out.price = n;
+  }
+  return out;
+}
+
 function summaryText(s) {
   const az = s?.cerco_vendo ?? '—';
   const tp = s?.asset_type ?? '—';
@@ -335,45 +352,63 @@ const quickPayload = m.message?.quick_reply?.payload;
 if (quickPayload) {
   try {
     // 🔹 1) Gestisci SUBITO Conferma / Modifica (sono quick replies)
-    if (quickPayload === 'PUB_CONFERMA') {
-      let s = await getSession(senderId);
-      if (s && isSessionExpired?.(s)) {
-        await clearSession(senderId);
-        s = null;
-      }
-      if (!s) {
-        await sendFbText(senderId, "⚠️ Sessione scaduta. Ricominciamo! Scrivimi i dati dell'annuncio 😉");
-        await sendFbQuickReplies?.(senderId, "Se vuoi, scegli da cosa partiamo:", [
-          { title: "CERCO", payload: "CV_CERCO" },
-          { title: "VENDO", payload: "CV_VENDO" }
-        ]);
-        return;
-      }
+   if (quickPayload === 'PUB_CONFERMA') {
+  let s = await getSession(senderId);
+  if (s && isSessionExpired?.(s)) {
+    await clearSession(senderId);
+    s = null;
+  }
+  if (!s) {
+    await sendFbText(senderId, "⚠️ Sessione scaduta. Ricominciamo! Scrivimi i dati dell'annuncio 😉");
+    await sendFbQuickReplies?.(senderId, "Se vuoi, scegli da cosa partiamo:", [
+      { title: "CERCO", payload: "CV_CERCO" },
+      { title: "VENDO", payload: "CV_VENDO" }
+    ]);
+    return;
+  }
 
-      try {
-        const result = await upsertListingFromFacebook({
-          channel: 'facebook:messenger',
-          externalId: m.message?.mid || `${senderId}:${m.timestamp}`,
-          contactUrl: null,
-          rawText: '', // opzionale
-          parsed: {
-            ...s,
-            start_date: s.check_in || s.depart_at || null,
-            end_date:   s.check_out || s.arrive_at || null
-          }
-        });
-        await clearSession(senderId);
-        await sendFbText(
-          senderId,
-          "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n" +
-          "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
-        );
-      } catch (e) {
-        console.error('[Messenger QuickReply CONFIRM] Error:', e);
-        await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
-      }
-      return;
+  // 👇 normalizza alias/valori PRIMA di confermare
+  s = normalizeSession(s);
+
+  // 👇 ricontrollo di sicurezza: se manca qualcosa, non inserire
+  const miss = missingFields(s);
+  if (miss.length > 0) {
+    const prompt = nextPromptFor(miss, s.asset_type);
+    await sendFbText(senderId, `📌 Mi manca ancora: ${miss.join(', ')}.\n${prompt}`);
+    if (!s.asset_type && miss.includes('tipo (treno/hotel)')) {
+      await sendFbQuickReplies?.(senderId, "È per treno o hotel?", [
+        { title: "🚆 Treno", payload: "TYPE_TRENO" },
+        { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
+      ]);
     }
+    return;
+  }
+
+  try {
+    const result = await upsertListingFromFacebook({
+      channel: 'facebook:messenger',
+      externalId: m.message?.mid || `${senderId}:${m.timestamp}`,
+      contactUrl: null,
+      rawText: '', // opzionale
+      parsed: {
+        ...s,
+        start_date: s.check_in || s.depart_at || null,
+        end_date:   s.check_out || s.arrive_at || null
+      }
+    });
+    await clearSession(senderId);
+    await sendFbText(
+      senderId,
+      "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n" +
+      "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
+    );
+  } catch (e) {
+    console.error('[Messenger QuickReply CONFIRM] Error:', e);
+    await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
+  }
+  return;
+}
+
 
     if (quickPayload === 'PUB_MODIFICA') {
       await sendFbText(senderId,

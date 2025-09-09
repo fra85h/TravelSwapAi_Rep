@@ -37,7 +37,10 @@ function cap(s) {
  */
 function buildPresentation(parsed) {
   const az = (parsed?.cerco_vendo || '').toUpperCase(); // CERCO | VENDO
-  const type = (parsed?.asset_type || '').toLowerCase(); // train | hotel
+
+  // 👇 prende sia asset_type che type e normalizza "treno"→train
+  const type = normType(parsed?.asset_type ?? parsed?.type);
+
   const from = parsed?.from_location || parsed?.route_from || null;
   const to   = parsed?.to_location   || parsed?.route_to   || null;
   const city = parsed?.hotel_city || parsed?.location || null;
