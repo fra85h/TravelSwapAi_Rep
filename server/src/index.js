@@ -12,7 +12,7 @@ import { matchesRouter } from './routes/match.js';
 // Parser / ingest / Messenger
 import { parseFacebookText } from './parsers/fbParser.js';
 import { upsertListingFromFacebook } from './models/fbIngest.js';
-import { sendFbText, sendFbQuickReplies } from './lib/fbSend.js'; // ⬅️ aggiunto quick replies
+import { sendFbText, sendFbQuickReplies } from './lib/fbSend.js'; // quick replies
 import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.js';
 import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
 
@@ -25,6 +25,41 @@ app.use(cors({ origin: true, credentials: true }));
 const rawBodySaver = (req, _res, buf) => { req.rawBody = buf; };
 app.use(express.json({ limit: '2mb', verify: rawBodySaver }));
 app.use(express.urlencoded({ extended: false }));
+
+// ========== Helpers Messenger (TTL + riepilogo) ==========
+const SESSION_TTL_HOURS = 24;
+
+function isSessionExpired(s) {
+  if (!s?._ts) return false;
+  return (Date.now() - s._ts) > SESSION_TTL_HOURS * 3600 * 1000;
+}
+async function saveSessionWithTtl(senderId, data) {
+  await saveSession(senderId, { ...data, _ts: Date.now() });
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d);
+    if (Number.isNaN(dt.getTime())) return String(d);
+    return dt.toISOString().slice(0,10); // YYYY-MM-DD
+  } catch { return String(d); }
+}
+function summaryText(s) {
+  const az = s?.cerco_vendo ?? '—';
+  const tp = s?.asset_type ?? '—';
+  const dep = fmtDate(s?.depart_at ?? s?.check_in);
+  const arr = fmtDate(s?.arrive_at ?? s?.check_out);
+  const pr = (s?.price != null) ? `${s.price} €` : '—';
+  return (
+    "🧾 *Riepilogo annuncio*\n" +
+    `• Azione: ${az}\n` +
+    `• Tipo: ${tp}\n` +
+    `• Partenza/Check-in: ${dep}\n` +
+    `• Arrivo/Check-out: ${arr}\n` +
+    `• Prezzo: ${pr}`
+  );
+}
+// =========================================================
 
 // --- Healthcheck / Debug ---
 app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -205,7 +240,7 @@ app.post('/webhooks/facebook', async (req, res) => {
         for (const m of entry.messaging) {
           const senderId = m.sender?.id;
 
-          // --- 2a) POSTBACK (Get Started + menu) ---
+          // --- 2a) POSTBACK (Get Started + menu + Conferma/Modifica) ---
           if (m.postback && m.postback.payload) {
             const p = m.postback.payload;
             try {
@@ -217,12 +252,12 @@ app.post('/webhooks/facebook', async (req, res) => {
                   "• CERCO o VENDO\n• Treno o Hotel\n• Date (partenza/arrivo oppure check-in/check-out)\n• Prezzo in €\n\n" +
                   "Scrivimi pure i dati e ti guiderò passo passo 😉"
                 );
-                 await sendFbQuickReplies(senderId, "È per treno o hotel?", [
-      { title: "🚆 Treno", payload: "TYPE_TRENO" },
-      { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
-    ]);
-                // quick replies iniziali
-                await sendFbQuickReplies?.(senderId, "Partiamo: stai CERCANDO o VENDENDO?", [
+                // proponi tipo + azione
+                await sendFbQuickReplies(senderId, "È per treno o hotel?", [
+                  { title: "🚆 Treno", payload: "TYPE_TRENO" },
+                  { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
+                ]);
+                await sendFbQuickReplies(senderId, "Partiamo: stai CERCANDO o VENDENDO?", [
                   { title: "CERCO", payload: "CV_CERCO" },
                   { title: "VENDO", payload: "CV_VENDO" }
                 ]);
@@ -239,6 +274,54 @@ app.post('/webhooks/facebook', async (req, res) => {
                 await clearSession(senderId);
                 await sendFbText(senderId, "❌ Ho annullato la compilazione. Quando vuoi ricominciare, scrivi pure “ciao”.");
               }
+              // 🔹 Nuovi postback: Conferma/Modifica pubblicazione
+              else if (p === 'PUB_CONFERMA') {
+                let s = await getSession(senderId);
+                if (!s || isSessionExpired(s)) {
+                  await clearSession(senderId);
+                  await sendFbText(senderId, "⚠️ Sessione scaduta. Ricominciamo! Scrivi pure i dati dell'annuncio 😉");
+                  await sendFbQuickReplies(senderId, "Se vuoi, scegli da cosa partiamo:", [
+                    { title: "CERCO", payload: "CV_CERCO" },
+                    { title: "VENDO", payload: "CV_VENDO" }
+                  ]);
+                  return;
+                }
+                try {
+                  const result = await upsertListingFromFacebook({
+                    channel: 'facebook:messenger',
+                    externalId: m?.mid || `${senderId}:${m.timestamp}`,
+                    contactUrl: null,
+                    rawText: '', // opzionale
+                    parsed: {
+                      ...s,
+                      start_date: s.check_in || s.depart_at || null,
+                      end_date: s.check_out || s.arrive_at || null
+                    }
+                  });
+                  await clearSession(senderId);
+                  await sendFbText(
+                    senderId,
+                    "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n" +
+                    "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
+                  );
+                } catch (e) {
+                  console.error('[Messenger Confirm Publish] Error:', e);
+                  await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
+                }
+                return;
+              } else if (p === 'PUB_MODIFICA') {
+                await sendFbText(senderId,
+                  "✏️ Nessun problema! Dimmi cosa vuoi correggere: azione (CERCO/VENDO), tipo (treno/hotel), date o prezzo."
+                );
+                const s = await getSession(senderId);
+                if (!s?.asset_type) {
+                  await sendFbQuickReplies(senderId, "È per treno o hotel?", [
+                    { title: "🚆 Treno", payload: "TYPE_TRENO" },
+                    { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
+                  ]);
+                }
+                return;
+              }
             } catch (e) {
               console.error('[Messenger Postback] Error:', e);
               await sendFbText(senderId, 'Ops, si è verificato un errore. Riprova tra poco.');
@@ -250,46 +333,40 @@ app.post('/webhooks/facebook', async (req, res) => {
           const quickPayload = m.message?.quick_reply?.payload;
           if (quickPayload) {
             try {
-              let prev = await getSession(senderId) || {};
+              // sessione con TTL
+              let prev = await getSession(senderId);
+              if (prev && isSessionExpired(prev)) {
+                await clearSession(senderId);
+                prev = null;
+              }
+              prev = prev || {};
+
               if (quickPayload === 'CV_CERCO') prev = { ...prev, cerco_vendo: 'CERCO' };
               if (quickPayload === 'CV_VENDO') prev = { ...prev, cerco_vendo: 'VENDO' };
               if (quickPayload === 'TYPE_TRENO') prev = { ...prev, asset_type: 'train' };
               if (quickPayload === 'TYPE_HOTEL') prev = { ...prev, asset_type: 'hotel' };
 
-              await saveSession(senderId, prev);
+              await saveSessionWithTtl(senderId, prev);
 
-              // dopo una scelta, proponi la successiva
               const miss = missingFields(prev);
+
               if (miss.length > 0) {
                 const prompt = nextPromptFor(miss, prev.asset_type);
-                // suggerisci le prossime quick replies se serve
-                if (!prev.asset_type && (miss.includes('asset_type'))) {
-                  await sendFbQuickReplies?.(senderId, "È per treno o hotel?", [
+                await sendFbText(senderId, `📌 Mi manca ancora: ${miss.join(', ')}.\n${prompt}`);
+                if (!prev.asset_type && miss.includes('asset_type')) {
+                  await sendFbQuickReplies(senderId, "È per treno o hotel?", [
                     { title: "🚆 Treno", payload: "TYPE_TRENO" },
                     { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
                   ]);
-                } else {
-                  await sendFbText(senderId, `📌 Mi manca ancora: ${miss.join(', ')}.\n${prompt}`);
                 }
               } else {
-                // tutto presente → pubblica
-                const result = await upsertListingFromFacebook({
-                  channel: 'facebook:messenger',
-                  externalId: m.message?.mid || `${senderId}:${m.timestamp}`,
-                  contactUrl: null,
-                  rawText: '', // opzionale
-                  parsed: {
-                    ...prev,
-                    start_date: prev.check_in || prev.depart_at || null,
-                    end_date: prev.check_out || prev.arrive_at || null
-                  }
-                });
-                await clearSession(senderId);
-                await sendFbText(
-                  senderId,
-                  "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n\n" +
-                  "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
-                );
+                // ✅ completi → riepilogo + conferma
+                await saveSessionWithTtl(senderId, prev);
+                await sendFbText(senderId, summaryText(prev));
+                await sendFbQuickReplies(senderId, "Procedo con la pubblicazione?", [
+                  { title: "✅ Conferma", payload: "PUB_CONFERMA" },
+                  { title: "✏️ Modifica", payload: "PUB_MODIFICA" }
+                ]);
               }
             } catch (e) {
               console.error('[Messenger QuickReply] Error:', e);
@@ -304,8 +381,13 @@ app.post('/webhooks/facebook', async (req, res) => {
 
           const text = message.text;
           try {
-            const prev = await getSession(senderId);
             // scorciatoie
+            let prev = await getSession(senderId);
+            if (prev && isSessionExpired(prev)) {
+              await clearSession(senderId);
+              prev = null;
+            }
+
             const lower = text.trim().toLowerCase();
             if (lower === 'annulla' || lower === 'cancel') {
               await clearSession(senderId);
@@ -313,6 +395,7 @@ app.post('/webhooks/facebook', async (req, res) => {
               continue;
             }
             if (lower === 'riepilogo') {
+              prev = prev || {};
               await sendFbText(senderId, "🧾 Riepilogo provvisorio:\n" +
                 `• Azione: ${prev?.cerco_vendo ?? '—'}\n` +
                 `• Tipo: ${prev?.asset_type ?? '—'}\n` +
@@ -328,7 +411,7 @@ app.post('/webhooks/facebook', async (req, res) => {
             const miss = missingFields(merged);
 
             if (miss.length > 0) {
-              await saveSession(senderId, merged);
+              await saveSessionWithTtl(senderId, merged);
               const prompt = nextPromptFor(miss, merged.asset_type);
               const isFirstTouch = !prev || Object.keys(prev).length === 0;
               if (isFirstTouch) {
@@ -338,7 +421,7 @@ app.post('/webhooks/facebook', async (req, res) => {
                   "• CERCO o VENDO\n• Treno o Hotel\n• Date (partenza/arrivo oppure check-in/check-out)\n• Prezzo in €\n\n" +
                   "Scrivimi pure i dati e ti guiderò passo passo 😉"
                 );
-                await sendFbQuickReplies?.(senderId, "Partiamo: stai CERCANDO o VENDENDO?", [
+                await sendFbQuickReplies(senderId, "Partiamo: stai CERCANDO o VENDENDO?", [
                   { title: "CERCO", payload: "CV_CERCO" },
                   { title: "VENDO", payload: "CV_VENDO" }
                 ]);
@@ -349,7 +432,7 @@ app.post('/webhooks/facebook', async (req, res) => {
                   "Non preoccuparti, scrivi pure con calma 😃"
                 );
                 if (!merged.asset_type && miss.includes('asset_type')) {
-                  await sendFbQuickReplies?.(senderId, "È per treno o hotel?", [
+                  await sendFbQuickReplies(senderId, "È per treno o hotel?", [
                     { title: "🚆 Treno", payload: "TYPE_TRENO" },
                     { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
                   ]);
@@ -358,24 +441,15 @@ app.post('/webhooks/facebook', async (req, res) => {
               continue;
             }
 
-            // tutto ok → pubblica
-            const result = await upsertListingFromFacebook({
-              channel: 'facebook:messenger',
-              externalId: message.mid || `${senderId}:${m.timestamp}`,
-              contactUrl: null,
-              rawText: text,
-              parsed: {
-                ...merged,
-                start_date: merged.check_in || merged.depart_at || null,
-                end_date: merged.check_out || merged.arrive_at || null
-              }
-            });
-            await clearSession(senderId);
-            await sendFbText(
-              senderId,
-              "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n\n" +
-              "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
-            );
+            // ✅ tutto ok → riepilogo + conferma (non pubblichiamo subito)
+            await saveSessionWithTtl(senderId, merged);
+            await sendFbText(senderId, summaryText(merged));
+            await sendFbQuickReplies(senderId, "Procedo con la pubblicazione?", [
+              { title: "✅ Conferma", payload: "PUB_CONFERMA" },
+              { title: "✏️ Modifica", payload: "PUB_MODIFICA" }
+            ]);
+            continue;
+
           } catch (e) {
             console.error('[Messenger Flow] Error:', e);
             await sendFbText(senderId, 'Ops, si è verificato un errore. Riprova tra poco.');
