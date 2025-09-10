@@ -1,37 +1,45 @@
 {
   "expo": {
-    "name": "travelswapai",
-    "scheme": "travelswapai",
-    "slug": "snack-3ef2e4ab-8382-4785-a1de-df07a9246250",
+    "name": "travelswap",
+    "slug": "travelswap",
+    "owner": "fra85h",
+    "scheme": "travelswap",
+
     "extra": {
       "EXPO_PUBLIC_SUPABASE_URL": "https://jkjjpgrnbnbaplbxzhgt.supabase.co",
       "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprampwZ3JuYm5iYXBsYnh6aGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDU4MzMsImV4cCI6MjA3MDQyMTgzM30.1Exr_yxKrHBmCkK5HWKfCZpjju7Qn2I1Zx-3mGNYSAE"
     },
+
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.travelswap.app"
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.travelswap.app"
     },
+
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-barcode-scanner"
-    ]
+
+    "plugins": ["expo-barcode-scanner"]
   }
 }

@@ -1,4 +1,5 @@
-import "react-native-url-polyfill";
+import "expo-standard-web-crypto";
+import "react-native-url-polyfill/auto";
 import "react-native-get-random-values";
 import "fast-text-encoding";
 

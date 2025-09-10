@@ -1,25 +1,25 @@
 import './lib/polyfills';
 import { fetchJson } from "./lib/backendApi";
-
-import React, { useEffect, useState } from 'react';
+import * as Linking from 'expo-linking';
+import React from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
 import { theme } from './lib/theme';
 import { StatusBar } from 'expo-status-bar';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import OfferFlow from './screens/OfferFlow';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import MainTabs from './screens/MainTabs';
 import CreateListingScreen from './screens/CreateListingScreen';
+import OAuthCallbackScreen from './screens/OAuthCallbackScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import OfferDetailScreen from './screens/OfferDetailScreen';
-import { AuthProvider, useAuth } from './lib/auth';
-import { I18nProvider, useI18n } from './lib/i18n';
 import ListingDetailScreen from './screens/ListingDetailScreen';
+import { AuthProvider, useAuth } from './lib/auth';
+import { I18nProvider } from './lib/i18n';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +33,22 @@ const navTheme = {
     border: theme.colors.border,
     primary: theme.colors.primary,
   }
+};
+
+// Deep link + callback per OAuth
+const linking = {
+  prefixes: [
+    Linking.createURL('/'),           // exp://... durante dev
+    'travelswapai://',                // scheme nativo
+    ...(typeof window !== 'undefined' && window.location?.origin
+      ? [window.location.origin + '/']
+      : []),
+  ],
+  config: {
+    screens: {
+      OAuthCallback: 'auth/callback',
+    },
+  },
 };
 
 function RootNavigator() {
@@ -62,13 +78,15 @@ function RootNavigator() {
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profilo" }} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Modifica profilo" }} />
           <Stack.Screen name="OfferFlow" component={OfferFlow} options={{ title: "Offerta" }} />
-              <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Listing" }} />
+          <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Listing" }} />
           <Stack.Screen name="OfferDetail" component={OfferDetailScreen} options={{ title: "Offer" }} />
         </>
       ) : (
         <>
           <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Login" component={LoginScreen} options={{ title: "Accedi" }} />
+          <Stack.Screen name="OAuthCallback" component={OAuthCallbackScreen} options={{ title: "Accesso…" }} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: "Password dimenticata" }} />
         </>
       )}
     </Stack.Navigator>
@@ -79,7 +97,7 @@ export default function App() {
   return (
     <AuthProvider>
       <I18nProvider>
-        <NavigationContainer theme={navTheme}>
+        <NavigationContainer theme={navTheme} linking={linking}>
           <StatusBar style="dark" />
           <RootNavigator />
         </NavigationContainer>
