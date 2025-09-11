@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "travelswap",
-    "slug": "travelswap",
+    
     "owner": "fra85h",
+    "slug": "travelswap",
     "scheme": "travelswap",
 
     "extra": {
