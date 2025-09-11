@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Alert, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Alert } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { makeRedirectUri } from "expo-auth-session";
 import { theme } from "../lib/theme";
@@ -9,23 +9,14 @@ import { AntDesign } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 
 WebBrowser.maybeCompleteAuthSession();
-const getRedirectTo = () => `https://auth.expo.io/fra85h/travelswap`;
 
-const makeRedirectUrlNative = () => {
-  if (Platform.OS === "web") {
-    const origin = window.location.origin;
-    const url = `${origin}/auth/callback`;
-    console.log("[OAuth][WEB] redirectTo:", url);
-    return url;
-  }
-  const uri = makeRedirectUri({
-    scheme: "travelswap",  // deve combaciare con app.json
-    useProxy: true,        // proxy di Expo in dev/Expo Go
+// Redirect con proxy Expo (coerente con app.json -> scheme "travelswap")
+const getRedirectTo = () =>
+  makeRedirectUri({
+    scheme: "travelswap",
+    useProxy: true,
     path: "auth/callback",
   });
-  console.log("[OAuth][NATIVE-PROXY] redirectTo:", uri);
-  return uri;
-};
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
@@ -49,26 +40,45 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-const signInWithProvider = async (provider) => {
+  const signInWithProvider = async (provider) => {
   try {
     setLoading(true);
     const redirectTo = getRedirectTo();
 
-    navigation.navigate("OAuthCallback"); // spinner
+    console.log(`[OAuth] start ${provider} with redirectTo:`, redirectTo);
 
+    // 1) Chiedo a Supabase l'URL di autorizzazione, senza redirect automatico
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo,              // <-- PROXY fisso
-        skipBrowserRedirect: false, // <-- lascia aprire Safari/Chrome a Supabase
+        redirectTo,
+        skipBrowserRedirect: true, // <<< IMPORTANTE: apriamo noi la sessione
         // queryParams: provider === "google" ? { access_type: "offline", prompt: "consent" } : undefined,
       },
     });
     if (error) throw error;
+
+    // 2) Apro una auth session e attendo l'URL finale di callback (con ?code=…)
+    const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    // res = { type: 'success'|'cancel'|'dismiss', url?: '...'}
+    if (res.type !== "success" || !res.url) {
+      if (res.type !== "dismiss" && res.type !== "cancel") {
+        Alert.alert("Accesso social", "Operazione annullata.");
+      }
+      return;
+    }
+
+    // 3) Scambio codice ↔ sessione SUPABASE
+    const { error: exchErr } = await supabase.auth.exchangeCodeForSession(res.url);
+    if (exchErr) throw exchErr;
+
+    // 4) A questo punto la sessione è attiva (onAuthStateChange scatterà)
+    // Se vuoi, puoi anche navigare subito:
+    // navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
+
   } catch (err) {
     console.error("[OAuth] signInWithProvider error:", err);
     Alert.alert("Accesso social fallito", err?.message ?? String(err));
-    if (navigation.canGoBack()) navigation.goBack();
   } finally {
     setLoading(false);
   }
