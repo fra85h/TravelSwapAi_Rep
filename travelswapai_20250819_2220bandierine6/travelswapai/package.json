@@ -15,7 +15,7 @@
     "@react-navigation/native": "*",
     "@react-navigation/native-stack": "*",
     "@supabase/supabase-js": "*",
-    "expo": "53.0.22",
+    "expo": "~54.0.0",
     "expo-auth-session": "~6.2.1",
     "expo-barcode-scanner": "^13.0.1",
     "expo-camera": "~16.1.11",
