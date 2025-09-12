@@ -17,16 +17,65 @@ const REDIRECT_TO = 'https://auth.expo.io/@fra85h/travelswap'; // <-- fisso
 
 // Redirect per Expo Go (proxy). Deve essere whitelisted in Supabase.
 const getRedirectTo = () => {
-  const url = makeRedirectUri({ useProxy: true }); // niente path
+  const url = makeRedirectUri({ useProxy: false }); // niente path
   console.log("[OAuth] redirectTo =", url);
   return url;
 };
+export async function signInWithProvider(provider) {
+  let sub;
+  try {
+    // iOS: miglior stabilità
+    try { await WebBrowser.warmUpAsync(); } catch {}
 
+    // 1) Chiedi l’URL (PKCE) senza redirect automatico
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: REDIRECT_TO,
+        skipBrowserRedirect: true,
+        flowType: "pkce",
+        // Per Google puoi voler forzare consenso:
+        // queryParams: { prompt: "consent", access_type: "offline" },
+      },
+    });
+    if (error) throw error;
+    if (!data?.url) throw new Error("OAuth URL mancante.");
+
+    // 2) Primo tentativo: ASWebAuthenticationSession (ephemeral)
+    const res = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      REDIRECT_TO,
+      { preferEphemeralSession: true }
+    );
+
+    if (res.type === "success" && res.url) {
+      await handleOAuthCallback(res.url);
+      return;
+    }
+
+    // 3) Fallback: browser “pieno” + listener su Linking
+    const urlPromise = new Promise((resolve) => {
+      sub = Linking.addEventListener("url", ({ url }) => resolve(url));
+    });
+    await WebBrowser.openBrowserAsync(data.url);
+    const callbackUrl = await urlPromise;
+    await WebBrowser.dismissBrowser();
+
+    if (!callbackUrl) throw new Error("Accesso annullato o nessun callback.");
+    await handleOAuthCallback(callbackUrl);
+  } catch (e) {
+    console.log("[OAuth] error", e);
+    alert(e?.message ?? "Errore OAuth.");
+  } finally {
+    sub?.remove?.();
+    try { await WebBrowser.coolDownAsync(); } catch {}
+  }
+}
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const REDIRECT_TO = "https://auth.expo.io/@fra85h/travelswap";
   const signInWithEmail = async () => {
     if (!email || !password) {
       Alert.alert("Compila tutti i campi", "Email e password sono richiesti.");
@@ -45,61 +94,101 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const REDIRECT_TO = "https://auth.expo.io/@fra85h/travelswap";
 
-const signInWithProvider = async (provider) => {
-  try {
-    setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: REDIRECT_TO,      // deve combaciare con Supabase
-        skipBrowserRedirect: true,
-        flowType: "pkce",
-      },
-    });
+async function handleOAuthCallback(returnUrl) {
+  console.log("[OAuth] callback url", returnUrl);
+  const parsed = Linking.parse(returnUrl);
+
+  // A) PKCE: ?code=...
+  const code = parsed?.queryParams?.code;
+  if (code) {
+    console.log("[OAuth] exchanging code...");
+    const { error } = await supabase.auth.exchangeCodeForSession({ authCode: code });
     if (error) throw error;
-    if (!data?.url) throw new Error("OAuth URL mancante.");
+    console.log("[OAuth] exchange OK");
+    return;
+  }
 
-    const res = await WebBrowser.openAuthSessionAsync(data.url, REDIRECT_TO);
-    if (res.type !== "success" || !res.url) {
-      if (res.type === "cancel") return;
-      throw new Error("OAuth non completato.");
-    }
-
-    // 1) prova PKCE (?code=...)
-    const parsed = Linking.parse(res.url);
-    let code = parsed?.queryParams?.code;
-    if (code) {
-      const { error: exchErr } = await supabase.auth.exchangeCodeForSession({ authCode: code });
-      if (exchErr) throw exchErr;
+  // B) Fallback implicit: #access_token=...
+  if (typeof parsed?.fragment === "string") {
+    const token = new URLSearchParams(parsed.fragment).get("access_token");
+    if (token) {
+      console.log("[OAuth] setSession fallback...");
+      const { error } = await supabase.auth.setSession({
+        access_token: token,
+        refresh_token: null,
+      });
+      if (error) throw error;
       return;
     }
-
-    // 2) fallback implicit flow (#access_token=...)
-    if (typeof parsed?.fragment === "string") {
-      const params = new URLSearchParams(parsed.fragment);
-      const token = params.get("access_token");
-      if (token) {
-        const { error: sessErr } = await supabase.auth.setSession({
-          access_token: token,
-          refresh_token: null,
-        });
-        if (sessErr) throw sessErr;
-        return;
-      }
-    }
-
-    throw new Error("Nessun code né access_token nel redirect.");
-  } catch (e) {
-    console.error("[OAuth] error:", e);
-    Alert.alert("Accesso social fallito", e?.message ?? "Errore OAuth.");
-  } finally {
-    try { await WebBrowser.dismissBrowser(); } catch {}
-    setLoading(false);
   }
-};
+
+  throw new Error("Né code né access_token nel redirect.");
+}
+
+
+
+
+async function handleOAuthCallback(returnUrl) {
+  console.log("[OAuth] callback url", returnUrl);
+  const parsed = Linking.parse(returnUrl);
+
+  // A) PKCE: ?code=...
+  const code = parsed?.queryParams?.code;
+  if (code) {
+    console.log("[OAuth] exchanging code...");
+    const { error } = await supabase.auth.exchangeCodeForSession({ authCode: code });
+    if (error) throw error;
+    console.log("[OAuth] exchange OK");
+    return;
+  }
+
+  // B) Fallback implicit: #access_token=...
+  if (typeof parsed?.fragment === "string") {
+    const token = new URLSearchParams(parsed.fragment).get("access_token");
+    if (token) {
+      console.log("[OAuth] setSession fallback...");
+      const { error } = await supabase.auth.setSession({
+        access_token: token,
+        refresh_token: null,
+      });
+      if (error) throw error;
+      return;
+    }
+  }
+
+  throw new Error("Né code né access_token nel redirect.");
+}
+
+async function handleOAuthCallback(returnUrl) {
+  const parsed = ExpoLinking.parse(returnUrl);
+
+  // 1) PKCE: ?code=...
+  const code = parsed?.queryParams?.code;
+  if (code) {
+    const { error: exchErr } = await supabase.auth.exchangeCodeForSession({ authCode: code });
+    if (exchErr) throw exchErr;
+    return;
+  }
+
+  // 2) Implicit fallback: #access_token=...
+  if (typeof parsed?.fragment === "string") {
+    const params = new URLSearchParams(parsed.fragment);
+    const token = params.get("access_token");
+    if (token) {
+      const { error: sessErr } = await supabase.auth.setSession({
+        access_token: token,
+        refresh_token: null,
+      });
+      if (sessErr) throw sessErr;
+      return;
+    }
+  }
+
+  throw new Error("Nessun code né access_token nel redirect.");
+}
+
 
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: theme.colors.background }}>
@@ -149,7 +238,7 @@ const signInWithProvider = async (provider) => {
           title="Continua con Google"
           variant="outline"
           leftIcon={<AntDesign name="google" size={18} />}
-          onPress={() => signInWithProvider("google")}
+            onPress={() => signInWithProvider("google")}
           loading={loading}
         />
         <Button

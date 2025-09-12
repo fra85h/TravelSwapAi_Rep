@@ -1,45 +1,46 @@
 {
   "expo": {
-    
     "owner": "fra85h",
     "slug": "travelswap",
+    "name": "TravelSwapAI",
     "scheme": "travelswap",
-
-    "extra": {
-      "EXPO_PUBLIC_SUPABASE_URL": "https://jkjjpgrnbnbaplbxzhgt.supabase.co",
-      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprampwZ3JuYm5iYXBsYnh6aGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDU4MzMsImV4cCI6MjA3MDQyMTgzM30.1Exr_yxKrHBmCkK5HWKfCZpjju7Qn2I1Zx-3mGNYSAE"
-    },
-
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.travelswap.app"
-    },
-
+    "ios": { "bundleIdentifier": "com.travelswap.app" },
+    "android": { "package": "com.travelswap.app" }
+  },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.travelswap.app"
+      "package": "com.travelswap.app",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
-
+    "extra": {
+      "EXPO_PUBLIC_SUPABASE_URL": "https://jkjjpgrnbnbaplbxzhgt.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImprampwZ3JuYm5iYXBsYnh6aGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NDU4MzMsImV4cCI6MjA3MDQyMTgzM30.1Exr_yxKrHBmCkK5HWKfCZpjju7Qn2I1Zx-3mGNYSAE",
+      "eas": {
+        "projectId": "12c67a60-2b71-4679-820b-3f17d03a515c"
+      }
+    },
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
-    "plugins": ["expo-barcode-scanner"]
+    "plugins": [
+      "expo-barcode-scanner",
+      "expo-web-browser"
+    ]
   }
-}
+

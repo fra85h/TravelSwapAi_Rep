@@ -20,9 +20,19 @@ import OfferDetailScreen from './screens/OfferDetailScreen';
 import ListingDetailScreen from './screens/ListingDetailScreen';
 import { AuthProvider, useAuth } from './lib/auth';
 import { I18nProvider } from './lib/i18n';
-
+import Constants from "expo-constants";
 const Stack = createNativeStackNavigator();
-
+class ErrorBoundary extends React.Component {
+  state = { error: null };
+  componentDidCatch(error, info) {
+    console.log("[ErrorBoundary]", error, info);
+    this.setState({ error });
+  }
+  render() {
+    if (this.state.error) return null; // o un fallback <Text>Errore</Text>
+    return this.props.children;
+  }
+}
 const navTheme = {
   ...DefaultTheme,
   colors: {
@@ -94,7 +104,11 @@ function RootNavigator() {
 }
 
 export default function App() {
+  
+console.log("[WHOAMI] owner =", Constants.expoConfig?.owner, "slug =", Constants.expoConfig?.slug, "name =", Constants.expoConfig?.name);
+
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <I18nProvider>
         <NavigationContainer theme={navTheme} linking={linking}>
@@ -103,5 +117,6 @@ export default function App() {
         </NavigationContainer>
       </I18nProvider>
     </AuthProvider>
+        </ErrorBoundary>
   );
 }
