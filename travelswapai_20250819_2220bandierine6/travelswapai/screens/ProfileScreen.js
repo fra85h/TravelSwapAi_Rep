@@ -23,6 +23,7 @@ import { useI18n } from "../lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher"; // 🇮🇹🇬🇧🇺🇸 bandierine condivise
 import { useAuth } from "../lib/auth";
 import { theme } from "../lib/theme";
+import { supabase } from "../lib/supabase.js";
 
 function StatItem({ label, icon, value, active, onPress }) {
   return (
@@ -234,7 +235,10 @@ export default function ProfileScreen() {
   // 🔐 Logout → signOut() + reset verso Login
   const handleLogout = async () => {
     try {
-      await signOut();
+          console.log("[Auth] signOut start");
+    const { error } = await supabase.auth.signOut(); // <-- questo è il metodo corretto
+    if (error) throw error;
+    console.log("[Auth] signOut OK");
       navigation.reset({
         index: 0,
         routes: [{ name: "Login" }],

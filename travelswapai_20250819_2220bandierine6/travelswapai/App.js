@@ -49,7 +49,7 @@ const navTheme = {
 const linking = {
   prefixes: [
     Linking.createURL('/'),           // exp://... durante dev
-    'travelswapai://',                // scheme nativo
+    'travelswap://',                // scheme nativo
     ...(typeof window !== 'undefined' && window.location?.origin
       ? [window.location.origin + '/']
       : []),

@@ -35,7 +35,7 @@ export async function signInWithProvider(provider) {
         skipBrowserRedirect: true,
         flowType: "pkce",
         // Per Google puoi voler forzare consenso:
-        // queryParams: { prompt: "consent", access_type: "offline" },
+         queryParams: { prompt: "consent", access_type: "offline" },
       },
     });
     if (error) throw error;
