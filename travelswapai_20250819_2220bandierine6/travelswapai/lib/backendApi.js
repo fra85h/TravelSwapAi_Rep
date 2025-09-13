@@ -1,133 +1,148 @@
-import { supabase } from "./supabase";
 // lib/backendApi.js
-const BASE = (process.env.EXPO_PUBLIC_API_BASE || "").replace(/\/+$/, "");
+import { supabase } from "./supabase";
 
+const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || "").replace(/\/+$/, "");
 
-function ensureBase() {
-  if (!BASE) {
-    throw new Error("EXPO_PUBLIC_API_BASE non impostata");
-  }
-}
-
-/*async function fetchJson(path, opts = {}) {
-  ensureBase();
-  const url = `${BASE}${path}`;
-  const res = await fetch(url, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      ...(opts.headers || {}),
-    },
-  });
-
-  // Se non 2xx -> leggi testo e lancia
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    const msg = text && text.trim().startsWith("<")
-      ? `HTTP ${res.status} — HTML ricevuto (probabile reverse-proxy/redirect)`
-      : `HTTP ${res.status}: ${text || res.statusText}`;
-    throw new Error(msg);
-  }
-
-  // Prova JSON, blocca se ricevi HTML
-  const text = await res.text();
-  if (text.trim().startsWith("<")) {
-    throw new Error("Risposta HTML inattesa (probabile proxy o URL BASE errato)");
-  }
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    throw new Error(`JSON Parse error: ${e?.message || e}`);
-  }
-}*/
-const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || "").replace(/\/$/, "");
-
-/*export async function fetchJson(path, opts = {}) {
-  console.log("qui sono dentro fetchJSon");
-  const url = /^https?:\/\//.test(path) ? path : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
-  console.log("qui stampo url");
-    console.log(url);
-  // Prendi il token della sessione corrente
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-
-  const headers = {
-    "Content-Type": "application/json",
-    ...(opts.headers || {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-
-  const res = await fetch(url, { ...opts, headers });
- console.log("qui stampo res");
-  
-
-  const text = await res.text();
-    console.log(text);
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
-  return text ? JSON.parse(text) : null;
-}*/
-// helper: rileva se siamo su *.app.github.dev
+// --- utils ---
 const isTunnelHost = (u) => {
   try { return /app\.github\.dev$/i.test(new URL(u).host); } catch { return false; }
 };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// warm-up del tunnel (GET /api/health + piccola pausa)
-async function warmUpTunnel(base) {
-  const b = (base || API_BASE || "").replace(/\/+$/, "");
-  if (!isTunnelHost(b)) return;
-  try { await fetch(`${b}/api/health`, { method: "GET" }); } catch {}
-  await new Promise(r => setTimeout(r, 200));
+// warm-up tunnel solo una volta
+let tunnelWarmed = false;
+async function warmUpTunnelOnce() {
+  if (tunnelWarmed) return;
+  if (!API_BASE || !isTunnelHost(API_BASE)) return;
+  try {
+    await fetch(`${API_BASE}/api/health`, { method: "GET" });
+  } catch {}
+  await sleep(200);
+  tunnelWarmed = true;
 }
+
+// --- core fetch ---
+/**
+ * fetchJson(path, opts?)
+ * - path può essere assoluto (https://) o relativo (/api/...)
+ * - opts.body: se è un object → JSON.stringify + Content-Type
+ * - timeoutMs: default 20000
+ * - retry: 1 tentativo extra su 502/503/504
+ */
 export async function fetchJson(path, opts = {}) {
-  // Costruisci URL evitando doppio slash
-  const base = (typeof API_BASE === "string" ? API_BASE : "").replace(/\/+$/, "");
+  if (!API_BASE && !/^https?:\/\//.test(path)) {
+    throw new Error("EXPO_PUBLIC_API_BASE non impostata");
+  }
+
+  await warmUpTunnelOnce();
+
   const url = /^https?:\/\//.test(path)
     ? path
-    : `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+    : `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 
-  // Token Supabase (se c'è)
+  // Auth (Supabase)
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
-  // Header di default: Accept JSON; Content-Type JSON solo se stai mandando body string/JSON
-  const defaultHeaders = {
+  // Body handling
+  let body = opts.body;
+  let contentTypeHeader = {};
+  if (body && typeof body === "object" && !(body instanceof FormData)) {
+    body = JSON.stringify(body);
+    contentTypeHeader = { "Content-Type": "application/json" };
+  }
+
+  const headers = {
     Accept: "application/json",
-    ...(typeof opts.body === "string" ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...contentTypeHeader,
+    ...(opts.headers || {}),
   };
 
-  // Merge: gli header passati in opts sovrascrivono i default
-  const headers = { ...defaultHeaders, ...(opts.headers || {}) };
+  const controller = new AbortController();
+  const timeoutMs = opts.timeoutMs ?? 20000;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Debug utile
-  console.log("[fetchJson] ->", url, opts?.method || "GET");
+  const doFetch = async () => {
+    return fetch(url, {
+      ...opts,
+      method: opts.method || "GET",
+      headers,
+      body,
+      signal: controller.signal,
+    });
+  };
 
-  const res = await fetch(url, { ...opts, headers });
-   console.log("gia cosumato???");
- console.log(res.bodyUsed);
-  // Leggi corpo una sola volta
-  console.log("status", res.status, "ct", res.headers.get("content-type"), "len", res.headers.get("content-length"));
+  let res;
+  let attempts = 0;
+  const maxAttempts = 2; // 1 retry su errori temporanei
+  while (true) {
+    attempts++;
+    try {
+      // eslint-disable-next-line no-console
+      if (__DEV__) console.log("[fetchJson]", opts.method || "GET", url);
+      res = await doFetch();
+      break;
+    } catch (e) {
+      if (attempts >= maxAttempts) {
+        clearTimeout(timer);
+        if (e?.name === "AbortError") throw new Error(`Timeout dopo ${timeoutMs}ms: ${url}`);
+        throw e;
+      }
+      await sleep(250);
+    }
+  }
 
-//  const text = await res.json().catch(() => "");
-  const text = await res.text();   
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { /* JSON invalido */ }
-console.log(text);
+  clearTimeout(timer);
+
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  const isJson = ct.includes("application/json");
+  const text = await res.text();
+
+  // Riprova su 502/503/504 una volta se non già ritentato
+  if (!res.ok && [502, 503, 504].includes(res.status) && attempts < maxAttempts) {
+    await sleep(250);
+    return fetchJson(path, { ...opts, timeoutMs }); // riparte tutto (compreso warmup già fatto)
+  }
+
+  // HTML inatteso (proxy/redirect)
+  if (text && !isJson && /^\s*</.test(text)) {
+    const msg = `Risposta HTML inattesa (probabile proxy/redirect). HTTP ${res.status}`;
+    if (!res.ok) throw new Error(`${msg} — ${text.slice(0, 200)}`);
+    throw new Error(msg);
+  }
+
+  // Errori HTTP → messaggio con snippet utile
   if (!res.ok) {
+    // 429: messaggio più umano
+    if (res.status === 429) {
+      let parsed;
+      try { parsed = text ? JSON.parse(text) : null; } catch {}
+      const detail = parsed?.message || parsed?.error || text?.slice(0, 200) || res.statusText;
+      throw new Error(`Limite raggiunto (429): ${detail}`);
+    }
     const snippet = text ? ` — ${text.slice(0, 200)}` : "";
-    throw new Error(`HTTP ${res.status} ${res.statusText}${snippet}`);
+    throw new Error(`HTTP ${res.status}: ${res.statusText}${snippet}`);
   }
 
-  // Parse solo se è JSON
-  const ct = res.headers.get("content-type") || "";
-  if (ct.includes("application/json")) {
-    try { return text ? JSON.parse(text) : null; }
-    catch { /* se JSON invalido, restituisci raw */ return text || null; }
+  // Success
+  if (!text) return null; // es: 204 No Content
+  if (isJson) {
+    try { return JSON.parse(text); }
+    catch (e) { throw new Error(`JSON Parse error: ${e?.message || e}`); }
   }
-  return text || null; // es. 204 No Content -> null
+  // Se non JSON ma ok → torna stringa raw
+  return text;
 }
 
-// -------- API snapshot utente --------
+// -------- API convenience --------
+
+// Health check rapido
+export async function apiHealth() {
+  return fetchJson(`/api/health`);
+}
+
+// Snapshot utente
 export async function getUserSnapshot(userId) {
   if (!userId) throw new Error("userId mancante");
   return fetchJson(`/api/matches/snapshot?userId=${encodeURIComponent(userId)}`);
@@ -137,60 +152,39 @@ export async function recomputeUserSnapshot(userId, { topPerListing = 3, maxTota
   if (!userId) throw new Error("userId mancante");
   return fetchJson(`/api/matches/snapshot/recompute`, {
     method: "POST",
-    body: JSON.stringify({ userId, topPerListing, maxTotal }),
+    body: { userId, topPerListing, maxTotal },
   });
 }
 
-// (facoltativo) health per debug rapido
-export async function apiHealth() {
-  return fetchJson(`/api/health`);
+// Recompute AI → Snapshot (accetta userId esplicito o ricava dalla sessione)
+export async function recomputeAIAndSnapshot(
+  userId,
+  { topPerListing = 3, maxTotal = 50 } = {}
+) {
+  // prova a ricavare l'utente se non passato
+  if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = user?.id || null;
+  }
+  if (!userId) throw new Error("missing userId");
+
+  return fetchJson(`/api/matches/ai/recompute`, {
+    method: "POST",
+    body: { userId, topPerListing, maxTotal },
+  });
+}
+
+// Listings con filtro/ordinamento TrustScore
+export async function fetchListings({ minTrust, sort } = {}) {
+  const qs = new URLSearchParams();
+  if (minTrust != null) qs.set("minTrust", String(minTrust));
+  if (sort) qs.set("sort", sort);
+  const q = qs.toString();
+  return fetchJson(`/listings${q ? `?${q}` : ""}`);
 }
 
 // debug: stampa BASE una volta
 if (__DEV__) {
   // eslint-disable-next-line no-console
-  console.log("[backendApi] BASE =", BASE || "(vuota!)");
+  console.log("[backendApi] API_BASE =", API_BASE || "(vuota!)");
 }
-// Orchestrazione AI → Snapshot
-// PRIMA
-// export async function recomputeAIAndSnapshot({ topPerListing = 3, maxTotal = 50 } = {}) {
-
-// DOPO: accetta userId come primo argomento
-export async function recomputeAIAndSnapshot(
-  userId,
-  { topPerListing = 3, maxTotal = 50 } = {}
-) {
-  // prendi il token (se presente) per l’Authorization
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-console.log("userid dentro recomputeAIandSnap");
-  // fallback: se non l’hai passato, prova a ricavarlo dalla sessione Supabase
-  if (!userId) {console.log("qui entro?");
-    const { data: { user } } = await supabase.auth.getUser();
-    userId = user?.id || null;
-  }
-  
-  if (!userId) throw new Error("missing userId");
-
-  return fetchJson(`/api/matches/ai/recompute`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",              // ⬅️ importante per req.body
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ userId, topPerListing, maxTotal }),
-  });
-}
-
-
-/*export async function recomputeAIAndSnapshot(
-  userId,
-  { topPerListing = 3, maxTotal = 50 } = {}
-) {
-  if (!userId) throw new Error("userId mancante");
-  console.log("qui sono dentro la function recomputeaiandsnapshot");
-  return fetchJson(`/api/matches/ai/recompute`, {
-    method: "POST",
-    body: JSON.stringify({ userId, topPerListing, maxTotal }),
-  });
-}*/

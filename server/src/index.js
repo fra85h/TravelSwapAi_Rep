@@ -4,7 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import { supabase } from './db.js';
-
+import { trustscoreRouter } from './routes/trustscore.js';
 // Routers esistenti
 import { listingsRouter } from './routes/listing.js';
 import { matchesRouter } from './routes/match.js';
@@ -19,8 +19,9 @@ import { getSession, saveSession, clearSession } from './models/fbSessionStore.j
 const app = express();
 
 // --- CORS ---
+app.use('/', listingsRouter);
 app.use(cors({ origin: true, credentials: true }));
-
+app.use('/ai', trustscoreRouter);
 // --- JSON parser con raw body per firma Facebook ---
 const rawBodySaver = (req, _res, buf) => { req.rawBody = buf; };
 app.use(express.json({ limit: '2mb', verify: rawBodySaver }));

@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-  "dev": "NODE_ENV=development nodemon --watch src --ext js --exec node src/index.js",
+    "dev": "NODE_ENV=development nodemon --watch src --ext js --exec node src/index.js",
     "start": "node src/index.js"
   },
   "dependencies": {
@@ -12,11 +12,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.19.2",
-    "openai": "^4.55.0"
+    "express-validator": "^7.2.1",
+    "openai": "^4.55.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   }
-  
 }
-

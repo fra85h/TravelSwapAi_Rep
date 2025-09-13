@@ -4,6 +4,8 @@ import { useLayoutEffect } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById } from "../lib/db";
 import { theme } from "../lib/theme";
+import TrustScoreBadge from '../components/TrustScoreBadge';
+import { useTrustScore } from '../lib/useTrustScore';
 import {
   View,
   Text,
@@ -262,6 +264,86 @@ export default function CreateListingScreen({
   const passedListing = p.listing ?? null;
   const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null;
   const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
+
+  // 🔮 TrustScore hook + UI state
+  const { loading: trustLoading, data: trustData, error: trustError, evaluate } = useTrustScore();
+  const [lastTrustRunAt, setLastTrustRunAt] = useState(0);
+  const [showFixesModal, setShowFixesModal] = useState(false);
+
+  // Esegue il check con cooldown 10s
+  const onTrustCheck = async () => {
+    const now = Date.now();
+    if (now - lastTrustRunAt < 10_000) {
+      const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
+      Alert.alert("Attendi un attimo", `Puoi rilanciare la verifica tra ~${secs}s.`);
+      return;
+    }
+    const hasArrow = form.type === "train" && /→/.test(form.location || "");
+    const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null]; 
+const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200, height: 800 }] : [];
+    const payload = {
+      id: passedListing?.id || listingId || null,
+      type: form.type,
+      title: form.title,
+      description: form.description,
+      origin: form.type === "train" ? (locFrom || null) : null,
+      destination: form.type === "train" ? (locTo || null) : (form.location || null),
+      startDate: form.type === "hotel" ? form.checkIn : (form.departAt?.split("T")[0] || null),
+      endDate: form.type === "hotel" ? form.checkOut : (form.arriveAt?.split("T")[0] || null),
+      price: form.price ? Number(String(form.price).replace(",", ".")) : null,
+      currency: "EUR",
+      provider: undefined,
+      holderName: undefined,
+      images: images.map(i => ({ url: i.uri, width: i.width, height: i.height }))
+    };
+    const res = await evaluate(payload);
+    setLastTrustRunAt(Date.now());
+    if (!res && trustError) {
+      Alert.alert("AI TrustScore", trustError);
+    }
+  };
+
+  // Applica tutti i fix proposti dall’AI (solo campi noti)
+  const applyAllTrustFixes = () => {
+    try {
+      const fixes = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes : [];
+      if (!fixes.length) {
+        Alert.alert("Nessun fix", "Non ci sono suggerimenti da applicare.");
+        return;
+      }
+      const patch = {};
+      const mapKey = (k) => {
+        // mappa nomi campo più comuni dal backend al form
+        const key = String(k || "").toLowerCase();
+        if (["title","titolo"].includes(key)) return "title";
+        if (["location","località","destinazione","destination"].includes(key)) return "location";
+        if (["checkin","check_in","check-in"].includes(key)) return "checkIn";
+        if (["checkout","check_out","check-out"].includes(key)) return "checkOut";
+        if (["departat","depart_at","departure","partenza"].includes(key)) return "departAt";
+        if (["arriveat","arrive_at","arrival","arrivo"].includes(key)) return "arriveAt";
+        if (["price","prezzo"].includes(key)) return "price";
+        if (["image","imageurl","image_url","foto","immagine"].includes(key)) return "imageUrl";
+        if (["pnr","codiceprenotazione"].includes(key)) return "pnr";
+        return null; // ignora campi non mappati
+      };
+      for (const f of fixes) {
+        const k = mapKey(f.field);
+        if (!k) continue;
+        let v = f.suggestion;
+        if (k === "price") v = String(v).replace(",", ".");
+        patch[k] = String(v);
+      }
+      if (Object.keys(patch).length) {
+        update(patch);
+        setShowFixesModal(false);
+        Alert.alert("Fix applicati", "Ho applicato i suggerimenti AI. Puoi comunque modificarli.");
+      } else {
+        Alert.alert("Nulla da applicare", "I suggerimenti non riguardano campi modificabili.");
+      }
+    } catch {
+      Alert.alert("Errore", "Impossibile applicare i fix.");
+    }
+  };
 
   useLayoutEffect(() => {
     try {
@@ -715,7 +797,11 @@ export default function CreateListingScreen({
   // STEP 1 — Descrizione PRIMA di tutto + campi principali (incluse date/orari)
   const Step1 = (
     <View style={styles.card}>
-      <Text style={[styles.cardTitle, { marginBottom: 8 }]}>{stepTitles[1]}</Text>
+      {/* Titolo + TrustScore */}
+      <View style={styles.titleRow}>
+        <Text style={[styles.cardTitle]}>{stepTitles[1]}</Text>
+        <TrustScoreBadge score={trustData?.trustScore} />
+      </View>
 
       {/* ✅ Descrizione spostata in cima allo Step 1 */}
       <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
@@ -742,6 +828,19 @@ export default function CreateListingScreen({
           style={styles.aiBtn}
         >
           {loadingAI ? <ActivityIndicator size="small" /> : <Text style={styles.aiBtnText}>{t("createListing.aiMagic", "Magia AI ✨")}</Text>}
+        </TouchableOpacity>
+
+        {/* 🔮 Verifica AI TrustScore */}
+        <TouchableOpacity
+          onPress={onTrustCheck}
+          disabled={trustLoading}
+          style={[styles.aiBtn, { backgroundColor: "#111827" }]}
+        >
+          {trustLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={[styles.aiBtnText, { color: "#fff" }]}>Verifica AI 🔮</Text>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -800,7 +899,7 @@ export default function CreateListingScreen({
       />
       {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
 
-      {/* ✅ DATE HOTEL o ORARI TRENO (ripristinati) */}
+      {/* ✅ DATE HOTEL o ORARI TRENO */}
       {form.type === "hotel" ? (
         <>
           <DateField
@@ -839,7 +938,7 @@ export default function CreateListingScreen({
     </View>
   );
 
-  // ✅ DATI PARTICOLARI TRENO (incluso flag nominativo + genere + PNR)
+  // ✅ DATI PARTICOLARI TRENO
   const TrainParticulars = form.type === "train" && (
     <View style={styles.subCard}>
       <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
@@ -889,10 +988,13 @@ export default function CreateListingScreen({
     </View>
   );
 
-  // STEP 2 — Dettagli rimanenti (Descrizione ora NON è qui)
+  // STEP 2 — Dettagli + pannelli Trust
   const Step2 = (
     <View style={styles.card}>
-      <Text style={[styles.cardTitle, { marginBottom: 8 }]}>{stepTitles[2]}</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.cardTitle]}>{stepTitles[2]}</Text>
+        <TrustScoreBadge score={trustData?.trustScore} />
+      </View>
 
       <View style={styles.actionsCol}>
         <TouchableOpacity onPress={openImport} style={[styles.aiBtn, styles.aiBtnAlt]}>
@@ -907,12 +1009,24 @@ export default function CreateListingScreen({
         >
           {loadingAI ? <ActivityIndicator size="small" /> : <Text style={styles.aiBtnText}>{t("createListing.aiMagic", "Magia AI ✨")}</Text>}
         </TouchableOpacity>
+
+        {/* 🔮 Verifica AI TrustScore */}
+        <TouchableOpacity
+          onPress={onTrustCheck}
+          disabled={trustLoading}
+          style={[styles.aiBtn, { backgroundColor: "#111827" }]}
+        >
+          {trustLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={[styles.aiBtnText, { color: "#fff" }]}>Verifica AI 🔮</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {TrainParticulars}
 
-      {/* Descrizione è stata spostata in Step 1 */}
-
+      {/* Prezzo */}
       <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
       <TextInput
         value={String(form.price)}
@@ -924,6 +1038,7 @@ export default function CreateListingScreen({
       />
       {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
 
+      {/* Immagine */}
       <Text style={styles.label}>{t("createListing.imageUrl", "URL immagine")}</Text>
       <TextInput
         value={form.imageUrl}
@@ -936,6 +1051,32 @@ export default function CreateListingScreen({
       />
 
       <ImagePreview url={form.imageUrl} />
+
+      {/* 🔎 Pannello Flags */}
+      {!!trustData?.flags?.length && (
+        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
+          <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
+          {trustData.flags.map((f, i) => (
+            <Text key={i}>• {f.msg}</Text>
+          ))}
+        </View>
+      )}
+
+      {/* ✅ Pannello Suggerimenti + Applica tutti */}
+      {!!trustData?.suggestedFixes?.length && (
+        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
+            <TouchableOpacity onPress={() => setShowFixesModal(true)} style={[styles.smallBtn, { backgroundColor: "#111827" }]}>
+              <Text style={[styles.smallBtnText, { color: "#fff" }]}>Applica tutti</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 6 }} />
+          {trustData.suggestedFixes.map((s, i) => (
+            <Text key={i}>• {s.field}: {s.suggestion}</Text>
+          ))}
+        </View>
+      )}
     </View>
   );
 
@@ -1037,6 +1178,23 @@ export default function CreateListingScreen({
           </View>
         </View>
       </Modal>
+
+      {/* -------- Modal Applica tutti i fix -------- */}
+      <Modal visible={showFixesModal} transparent animationType="fade" onRequestClose={() => setShowFixesModal(false)}>
+        <View style={styles.sheetBackdrop}>
+          <View style={[styles.sheetCard, { maxWidth: 520, alignSelf: "center" }]}>
+            <Text style={styles.sheetTitle}>Applica tutti i fix AI?</Text>
+            <Text style={styles.sheetText}>Verranno aggiornati automaticamente i campi suggeriti (titolo, località, date/orari, prezzo, immagine…).</Text>
+            <View style={{ height: 10 }} />
+            <TouchableOpacity onPress={applyAllTrustFixes} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
+              <Text style={[styles.sheetBtnText, { color: "#fff" }]}>Applica adesso</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowFixesModal(false)} style={[styles.sheetBtn, styles.sheetBtnGhost]}>
+              <Text style={styles.sheetBtnText}>Annulla</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1073,6 +1231,7 @@ function mapListingToForm(l) {
 const styles = StyleSheet.create({
   card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   cardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
   actionsCol: { flexDirection: "column", gap: 8, alignSelf: "stretch", marginBottom: 8 },
   label: { fontWeight: "700", color: theme.colors.boardingText, marginTop: 8, marginBottom: 6 },

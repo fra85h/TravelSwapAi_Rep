@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { isUUID } from '../util/uuid.js';
 import { createListing, getListingPublic, listActiveListings, updateListing } from '../models/listings.js';
+import express from 'express';
+import { supabase } from '../db.js';
 
+//export const listingsRouter = express.Router();
 export const listingsRouter = Router();
 
 // Esempio: middleware auth che setta req.user.id
@@ -14,6 +17,10 @@ listingsRouter.get('/', async (req, res) => {
   const { ownerId, limit } = req.query;
   const items = await listActiveListings({ ownerId, limit: Number(limit) || 50 });
   res.json({ items, count: items.length });
+
+
+
+  
 });
 
 listingsRouter.get('/:id', async (req, res) => {
