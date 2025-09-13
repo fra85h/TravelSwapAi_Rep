@@ -15,7 +15,7 @@ async function warmUpTunnelOnce() {
   if (tunnelWarmed) return;
   if (!API_BASE || !isTunnelHost(API_BASE)) return;
   try {
-    await fetch(`${API_BASE}/api/health`, { method: "GET" });
+    await fetch(`${API_BASE}/health`, { method: "GET" });
   } catch {}
   await sleep(200);
   tunnelWarmed = true;

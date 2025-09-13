@@ -1,11 +1,11 @@
 // screens/CreateListingScreen.js
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useLayoutEffect } from "react";
+import React, { useLayoutEffect, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById } from "../lib/db";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
+import TrustInfo from '../components/TrustInfo';
 import {
   View,
   Text,
@@ -29,6 +29,26 @@ import DateField from "../components/DateField";
 import DateTimeField from "../components/DateTimeField";
 import { parseListingFromTextAI } from "../lib/descriptionParser"; // ✅ OpenAI parser (server-side)
 
+/* ---------- Small UI pill for AI actions ---------- */
+function AIPill({ title, onPress, disabled, dark }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        styles.pill,
+        dark ? styles.pillDark : styles.pillLight,
+        disabled && { opacity: 0.6 }
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <Text style={[styles.pillText, dark && styles.pillTextDark]}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/* ---------- CONSTS ---------- */
 const DRAFT_KEY = "@tsai:create_listing_draft";
 
 const TYPES = [
@@ -69,14 +89,14 @@ const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa",
 const MONTHS_IT = { GENNAIO:0, FEBBRAIO:1, MARZO:2, APRILE:3, MAGGIO:4, GIUGNO:5, LUGLIO:6, AGOSTO:7, SETTEMBRE:8, OTTOBRE:9, NOVEMBRE:10, DICEMBRE:11 };
 
 const DATE_ANY_RE = /\b(?:(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})|(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2}))\b/;
-const DATE_TEXT_RE = new RegExp(String.raw`\b(\d{1,2})\s([A-Za-zÀ-ÿ]{3,})\s(\d{4})\b`, "i");
-const TIME_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
-const FLIGHT_NO_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
-const IATA_PAIR_RE = /\b([A-Z]{3})\s*(?:-|–|—|>|→|to|verso)\s*([A-Z]{3})\b/;
-const TRAIN_KEYWORDS_RE = /\b(Trenitalia|Frecciarossa|FR\s?\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\b/i;
-const ROUTE_TEXT_RE = /\b(?:da|from)\s([A-Za-zÀ-ÿ .'\-]+)\s(?:a|to)\s([A-Za-zÀ-ÿ .'\-]+)\b/i;
-const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\-]{3,})\s*(?:-|–|—|>|→)\s*([A-Za-zÀ-ÿ .'\-]{3,})/;
-const PNR_RE = /\b(?:PNR|booking\s*reference|codice\s*(?:prenotazione|biglietto)|record\s*locator)\s*[:=]?\s*([A-Z0-9]{5,8})\b/i;
+const DATE_TEXT_RE = new RegExp(String.raw`\\b(\\d{1,2})\\s([A-Za-zÀ-ÿ]{3,})\\s(\\d{4})\\b`, "i");
+const TIME_RE = /\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b/;
+const FLIGHT_NO_RE = /\\b([A-Z]{2})\\s?(\\d{2,4})\\b/;
+const IATA_PAIR_RE = /\\b([A-Z]{3})\\s*(?:-|–|—|>|→|to|verso)\\s*([A-Z]{3})\\b/;
+const TRAIN_KEYWORDS_RE = /\\b(Trenitalia|Frecciarossa|FR\\s?\\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\\b/i;
+const ROUTE_TEXT_RE = /\\b(?:da|from)\\s([A-Za-zÀ-ÿ .'\\-]+)\\s(?:a|to)\\s([A-Za-zÀ-ÿ .'\\-]+)\\b/i;
+const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\\-]{3,})\\s*(?:-|–|—|>|→)\\s*([A-Za-zÀ-ÿ .'\\-]{3,})/;
+const PNR_RE = /\\b(?:PNR|booking\\s*reference|codice\\s*(?:prenotazione|biglietto)|record\\s*locator)\\s*[:=]?\\s*([A-Z0-9]{5,8})\\b/i;
 
 function parseAnyDate(text) {
   if (!text) return null;
@@ -126,13 +146,13 @@ function normalizeTitleFromRoute(from, to, carrierHint) {
   return null;
 }
 function smartParseTicket(text) {
-  const src = String(text || "").replace(/\s/g, " ").trim();
+  const src = String(text || "").replace(/\\s/g, " ").trim();
   const out = { status: "active" };
   const pnr = (src.match(PNR_RE) || [])[1];
   if (pnr) out.pnr = pnr.toUpperCase();
   const hasTrain = TRAIN_KEYWORDS_RE.test(src);
   const flMatch = src.match(FLIGHT_NO_RE);
-  const mentionsRyanair = /Ryanair|FR\s?\d{1,4}\b/i.test(src);
+  const mentionsRyanair = /Ryanair|FR\\s?\\d{1,4}\\b/i.test(src);
   let routeFrom = null, routeTo = null;
   const iata = src.match(IATA_PAIR_RE);
   if (iata) {
@@ -163,7 +183,7 @@ function smartParseTicket(text) {
     const plus = new Date(dt.getTime() + 90 * 60000);
     timeArrive = `${pad2(plus.getHours())}:${pad2(plus.getMinutes())}`;
   }
-  const isHotelish = /\b(hotel|albergo|check[-\s]?in|check[-\s]?out|notti|night)\b/i.test(src);
+  const isHotelish = /\\b(hotel|albergo|check[-\\s]?in|check[-\\s]?out|notti|night)\\b/i.test(src);
   const twoPlainDatesOnly = (dateMatches.length >= 2 || dateTextMatch) && times.length === 0;
   const isRyanair = mentionsRyanair || (flMatch && flMatch[1] === "FR");
   if (isHotelish || (twoPlainDatesOnly && !hasTrain && !isRyanair)) {
@@ -186,7 +206,7 @@ function smartParseTicket(text) {
   const carrierHint = isRyanair ? "Ryanair" : hasTrain ? "Trenitalia/Italo" : "";
   out.title = normalizeTitleFromRoute(routeFrom, routeTo, carrierHint) || (isRyanair ? `Volo Ryanair ${flMatch ? flMatch[1] + flMatch[2] : ""}` : "Viaggio");
   out.location = routeFrom && routeTo ? `${routeFrom} → ${routeTo}` : isRyanair ? "Volo Ryanair" : "Treno";
-  const pm = src.match(/(?:€|\beur\b|\beuro\b)\s*([0-9](?:[\,\.][0-9]{1,2})?)/i);
+  const pm = src.match(/(?:€|\\beur\\b|\\beuro\\b)\\s*([0-9](?:[\\,\\.][0-9]{1,2})?)/i);
   if (pm) out.price = String(pm[1]).replace(",", ".");
   if (isRyanair) out.imageUrl = "https://picsum.photos/seed/ryanair/1200/800";
   else if (hasTrain) out.imageUrl = "https://picsum.photos/seed/train/1200/800";
@@ -280,7 +300,7 @@ export default function CreateListingScreen({
     }
     const hasArrow = form.type === "train" && /→/.test(form.location || "");
     const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null]; 
-const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200, height: 800 }] : [];
+    const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200, height: 800 }] : [];
     const payload = {
       id: passedListing?.id || listingId || null,
       type: form.type,
@@ -294,7 +314,7 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
       currency: "EUR",
       provider: undefined,
       holderName: undefined,
-      images: images.map(i => ({ url: i.uri, width: i.width, height: i.height }))
+      images: images.map(i => ({ url: i.url, width: i.width, height: i.height }))
     };
     const res = await evaluate(payload);
     setLastTrustRunAt(Date.now());
@@ -361,7 +381,6 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
     } catch {}
   }, [navigation, t, route?.params?.mode]);
 
-  const [step, setStep] = useState(1);
   const [loadingAI, setLoadingAI] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -370,6 +389,7 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
   const [pnrInput, setPnrInput] = useState("");
   const [importBusy, setImportBusy] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
+  const [slideIndex, setSlideIndex] = useState(0);
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
@@ -392,6 +412,14 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
 
   const initialJsonRef = useRef(null);
   const [errors, setErrors] = useState({});
+
+  // ref per lo slider orizzontale (per scroll programmatico)
+  const sliderRef = useRef(null);
+  const scrollToSlide = useCallback((idx) => {
+    try {
+      sliderRef.current?.scrollTo({ x: idx * (sliderRef.current?.props?.style?.width || 0), animated: true });
+    } catch {}
+  }, []);
 
   // ---------- EDIT MODE: prefill ----------
   useEffect(() => {
@@ -485,14 +513,6 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
     }
   };
 
-  const stepTitles = useMemo(() => ({
-    1: t("createListing.step1", "Dati principali"),
-    2: mode === "edit" ? t("editListing.step2","Riepilogo & salva") : t("createListing.step2","Dettagli & pubblicazione"),
-  }), [t, mode]);
-
-  const goNext = () => setStep((s) => Math.min(2, s + 1));
-  const goPrev = () => setStep((s) => Math.max(1, s - 1));
-
   // ---------- Magia AI (OpenAI server-side) ----------
   const runAI = async (currentStep) => {
     if (loadingAI || publishing || importBusy || saving) return;
@@ -519,8 +539,7 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
             if (parsed?.pnr) patch.pnr = parsed.pnr;
             if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
           } catch (e) {
-            console.log("[AI] parseListingFromTextAI failed:", e);
-            // fallback “vecchio” comportamento
+            // fallback
             if (form.type === "hotel") {
               const today = new Date();
               const plusDays = (d, n) => { const dd = new Date(d); dd.setDate(dd.getDate() + n); return dd; };
@@ -558,6 +577,7 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
           }
         }
       } else if (currentStep === 2) {
+        const ifEmpty = (val, fb) => (val == null || String(val).trim() === "" ? fb : val);
         patch.description = ifEmpty(
           form.description,
           form.type === "hotel"
@@ -615,7 +635,12 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
-    if (!validate()) { setStep(1); return; }
+    if (!validate()) {
+      // vai alla prima slide per correggere
+      setSlideIndex(0);
+      sliderRef.current?.scrollTo({ x: 0, animated: true });
+      return;
+    }
     try {
       setPublishing(true);
       onSubmitStart();
@@ -646,19 +671,15 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
         : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
 
-      console.log("[CreateListing] mode:", mode, "idForUpdate:", idForUpdate, "payload:", payload);
-
       if (mode === "edit") {
         const res = await updateListing(idForUpdate, payload);
         if (res?.error) {
-          console.log("[CreateListing] updateListing error:", res.error);
           throw res.error;
         }
         Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
       } else {
         const res = await insertListing(payload);
         if (res?.error) {
-          console.log("[CreateListing] insertListing error:", res.error);
           throw res.error;
         }
         await AsyncStorage.removeItem(DRAFT_KEY);
@@ -669,7 +690,6 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
       onDirtyChange(false);
       navigation.goBack();
     } catch (e) {
-      console.log("[CreateListing] onPublishOrSave EXCEPTION:", e);
       Alert.alert(
         t("common.error", "Errore"),
         mode === "edit"
@@ -681,6 +701,7 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
       onSubmitEnd();
     }
   };
+
   /* ---------- DRAFT ---------- */
   const onSaveDraft = async () => {
     if (mode === "edit") {
@@ -715,7 +736,8 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
       applyImportedData(data);
       closeImport();
       Alert.alert("AI Import", t("createListing.aiImportSuccess", "Dati importati correttamente."));
-      setStep(2);
+      setSlideIndex(1);
+      sliderRef.current?.scrollTo({ x: 1 * (sliderRef.current?.props?.style?.width || 0), animated: true });
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.aiImportError", "Impossibile importare dal PNR."));
     } finally {
@@ -747,7 +769,8 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
       setQrVisible(false);
       closeImport();
       Alert.alert("AI Import", t("createListing.aiImportFromQr", "Dati importati dal QR."));
-      setStep(2);
+      setSlideIndex(1);
+      sliderRef.current?.scrollTo({ x: 1 * (sliderRef.current?.props?.style?.width || 0), animated: true });
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.qrImportError", "Import da QR non riuscito."));
     } finally {
@@ -794,56 +817,9 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
   };
 
   /* ---------- UI ---------- */
-  // STEP 1 — Descrizione PRIMA di tutto + campi principali (incluse date/orari)
-  const Step1 = (
-    <View style={styles.card}>
-      {/* Titolo + TrustScore */}
-      <View style={styles.titleRow}>
-        <Text style={[styles.cardTitle]}>{stepTitles[1]}</Text>
-        <TrustScoreBadge score={trustData?.trustScore} />
-      </View>
-
-      {/* ✅ Descrizione spostata in cima allo Step 1 */}
-      <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
-      <TextInput
-        value={form.description}
-        onChangeText={(v) => update({ description: v })}
-        placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
-        style={[styles.input, styles.multiline]}
-        placeholderTextColor="#9CA3AF"
-        multiline
-        numberOfLines={4}
-        textAlignVertical="top"
-      />
-
-      <View style={styles.actionsCol}>
-        <TouchableOpacity onPress={openImport} style={[styles.aiBtn, styles.aiBtnAlt]}>
-          <Text style={[styles.aiBtnText, { color: "#111827" }]}>{t("createListing.aiImport", "AI Import 1-click")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t("createListing.aiMagic", "Magia AI ✨")}
-          onPress={() => runAI(1)}
-          disabled={loadingAI || publishing || importBusy || saving}
-          style={styles.aiBtn}
-        >
-          {loadingAI ? <ActivityIndicator size="small" /> : <Text style={styles.aiBtnText}>{t("createListing.aiMagic", "Magia AI ✨")}</Text>}
-        </TouchableOpacity>
-
-        {/* 🔮 Verifica AI TrustScore */}
-        <TouchableOpacity
-          onPress={onTrustCheck}
-          disabled={trustLoading}
-          style={[styles.aiBtn, { backgroundColor: "#111827" }]}
-        >
-          {trustLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={[styles.aiBtnText, { color: "#fff" }]}>Verifica AI 🔮</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
+  const Slide1 = (
+    <View style={styles.slideInner}>
+      {/* Tipo */}
       <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
       <View style={styles.segment}>
         {TYPES.map((tt) => {
@@ -869,7 +845,7 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
         })}
       </View>
 
-      {/* TITOLO */}
+      {/* Titolo */}
       <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
       <TextInput
         value={form.title}
@@ -884,7 +860,7 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
       />
       {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
-      {/* LOCALITÀ / ROTTA */}
+      {/* Località / Rotta */}
       <Text style={styles.label}>{t("createListing.locationLabel", "Località *")}</Text>
       <TextInput
         value={form.location}
@@ -899,7 +875,7 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
       />
       {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
 
-      {/* ✅ DATE HOTEL o ORARI TRENO */}
+      {/* Date */}
       {form.type === "hotel" ? (
         <>
           <DateField
@@ -938,7 +914,6 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
     </View>
   );
 
-  // ✅ DATI PARTICOLARI TRENO
   const TrainParticulars = form.type === "train" && (
     <View style={styles.subCard}>
       <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
@@ -988,42 +963,9 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
     </View>
   );
 
-  // STEP 2 — Dettagli + pannelli Trust
-  const Step2 = (
-    <View style={styles.card}>
-      <View style={styles.titleRow}>
-        <Text style={[styles.cardTitle]}>{stepTitles[2]}</Text>
-        <TrustScoreBadge score={trustData?.trustScore} />
-      </View>
-
-      <View style={styles.actionsCol}>
-        <TouchableOpacity onPress={openImport} style={[styles.aiBtn, styles.aiBtnAlt]}>
-          <Text style={[styles.aiBtnText, { color: "#111827" }]}>{t("createListing.aiImport", "AI Import 1-click")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={t("createListing.aiMagic", "Magia AI ✨")}
-          onPress={() => runAI(2)}
-          disabled={loadingAI || publishing || importBusy || saving}
-          style={styles.aiBtn}
-        >
-          {loadingAI ? <ActivityIndicator size="small" /> : <Text style={styles.aiBtnText}>{t("createListing.aiMagic", "Magia AI ✨")}</Text>}
-        </TouchableOpacity>
-
-        {/* 🔮 Verifica AI TrustScore */}
-        <TouchableOpacity
-          onPress={onTrustCheck}
-          disabled={trustLoading}
-          style={[styles.aiBtn, { backgroundColor: "#111827" }]}
-        >
-          {trustLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={[styles.aiBtnText, { color: "#fff" }]}>Verifica AI 🔮</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
+  const Slide2 = (
+    <View style={styles.slideInner}>
+      {/* Particolari treno (se serve) */}
       {TrainParticulars}
 
       {/* Prezzo */}
@@ -1049,10 +991,9 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
         style={styles.input}
         placeholderTextColor="#9CA3AF"
       />
-
       <ImagePreview url={form.imageUrl} />
 
-      {/* 🔎 Pannello Flags */}
+      {/* Pannelli Trust */}
       {!!trustData?.flags?.length && (
         <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
           <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
@@ -1062,7 +1003,6 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
         </View>
       )}
 
-      {/* ✅ Pannello Suggerimenti + Applica tutti */}
       {!!trustData?.suggestedFixes?.length && (
         <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
@@ -1082,37 +1022,106 @@ const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <KeyboardAvoidingView behavior={Platform.select({ ios: "padding", android: undefined })} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+      {/* ===== TOP PANNELLO FISSO ===== */}
+      <View style={styles.topPanel}>
+        <View style={styles.topHeaderRow}>
+          <Text style={styles.topTitle}>{t("createListing.titleTop", "Crea annuncio")}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TrustScoreBadge score={trustData?.trustScore} />
+            {/* <TrustInfo /> */}
+          </View>
+        </View>
+
+        {/* Descrizione */}
+        <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
+        <TextInput
+          value={form.description}
+          onChangeText={(v) => update({ description: v })}
+          placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
+          style={[styles.input, styles.multiline, styles.inputSurface]}
+          placeholderTextColor="#9CA3AF"
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+
+        {/* Azioni AI in riga */}
+        <View style={styles.pillsRow}>
+          <AIPill
+            title={t("createListing.aiImport", "AI Import")}
+            onPress={openImport}
+            disabled={importBusy || saving || publishing}
+          />
+          <AIPill
+            title={t("createListing.aiMagic", "Magia AI ✨")}
+            onPress={() => runAI(1)}
+            disabled={loadingAI || importBusy || saving || publishing}
+          />
+          <AIPill
+            title={"Verifica AI 🔮"}
+            onPress={onTrustCheck}
+            disabled={trustLoading}
+            dark
+          />
+        </View>
+      </View>
+
+      {/* ===== SOTTO: SLIDER ORIZZONTALE A PAGINE ===== */}
+      <KeyboardAvoidingView
+        behavior={Platform.select({ ios: "padding", android: undefined })}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.sliderWrap}>
+          {/* Dots */}
           <View style={styles.stepRow}>
-            <View style={[styles.stepDot, step >= 1 && styles.stepDotActive]} />
-            <View style={[styles.stepBar, step >= 2 && styles.stepBarActive]} />
-            <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]} />
+            <View style={[styles.stepDot, slideIndex >= 0 && styles.stepDotActive]} />
+            <View style={[styles.stepBar, slideIndex >= 1 && styles.stepBarActive]} />
+            <View style={[styles.stepDot, slideIndex >= 1 && styles.stepDotActive]} />
           </View>
 
-          {step === 1 ? Step1 : Step2}
-        </ScrollView>
+          {/* Pagine orizzontali */}
+          <ScrollView
+            ref={sliderRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const w = e.nativeEvent.layoutMeasurement.width;
+              const x = e.nativeEvent.contentOffset.x;
+              const idx = Math.round(x / w);
+              setSlideIndex(idx);
+            }}
+            contentContainerStyle={{ flexGrow: 1 }}
+            style={{ flex: 1 }}
+          >
+            {/* SLIDE 1 */}
+            <View style={styles.slide}>{Slide1}</View>
+            {/* SLIDE 2 */}
+            <View style={styles.slide}>{Slide2}</View>
+          </ScrollView>
 
-        <View style={styles.footer}>
-          {step > 1 ? (
-            <TouchableOpacity onPress={goPrev} style={[styles.footerBtn, styles.footerGhost]}>
-              <Text style={[styles.footerText, { color: "#111827" }]}>{t("common.back", "Indietro")}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={onSaveDraft} disabled={saving || mode === "edit"} style={[styles.footerBtn, styles.footerGhost, (saving || mode === "edit") && { opacity: 0.6 }]}>
-              {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: "#111827" }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft","Salva bozza")}</Text>}
-            </TouchableOpacity>
-          )}
+          {/* Footer azioni */}
+          <View style={styles.footer}>
+            {slideIndex > 0 ? (
+              <TouchableOpacity onPress={() => { setSlideIndex(0); sliderRef.current?.scrollTo({ x: 0, animated: true }); }} style={[styles.footerBtn, styles.footerGhost]}>
+                <Text style={[styles.footerText, { color: "#111827" }]}>{t("common.back", "Indietro")}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={onSaveDraft} disabled={saving || mode === "edit"} style={[styles.footerBtn, styles.footerGhost, (saving || mode === "edit") && { opacity: 0.6 }]}>
+                {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: "#111827" }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft","Salva bozza")}</Text>}
+              </TouchableOpacity>
+            )}
 
-          {step === 1 ? (
-            <TouchableOpacity onPress={goNext} style={[styles.footerBtn, styles.footerPrimary]}>
-              <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{t("common.next", "Avanti")}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={onPublishOrSave} disabled={publishing} style={[styles.footerBtn, styles.footerPrimary]}>
-              {publishing ? <ActivityIndicator color={theme.colors.boardingText} /> : <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{mode === "edit" ? "Modifica" : t("createListing.publish", "Pubblica")}</Text>}
-            </TouchableOpacity>
-          )}
+            {slideIndex === 0 ? (
+              <TouchableOpacity onPress={() => { setSlideIndex(1); sliderRef.current?.scrollTo({ x: 99999, animated: true }); }} style={[styles.footerBtn, styles.footerPrimary]}>
+                <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{t("common.next", "Avanti")}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={onPublishOrSave} disabled={publishing} style={[styles.footerBtn, styles.footerPrimary]}>
+                {publishing ? <ActivityIndicator color={theme.colors.boardingText} /> : <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{mode === "edit" ? "Modifica" : t("createListing.publish", "Pubblica")}</Text>}
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </KeyboardAvoidingView>
 
@@ -1229,44 +1238,75 @@ function mapListingToForm(l) {
 }
 
 const styles = StyleSheet.create({
+  topPanel: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  topTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.boardingText },
+
+  sliderWrap: { flex: 1, backgroundColor: "#F3F4F6" },
+
+  slide: { width: "100%", paddingHorizontal: 16, paddingVertical: 12 },
+  slideInner: { backgroundColor: "#fff", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+
   card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
+  subCardTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.boardingText, marginBottom: 8 },
+
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   cardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
+
   actionsCol: { flexDirection: "column", gap: 8, alignSelf: "stretch", marginBottom: 8 },
+
   label: { fontWeight: "700", color: theme.colors.boardingText, marginTop: 8, marginBottom: 6 },
   labelInline: { fontWeight: "700", color: theme.colors.boardingText },
+
   input: { borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: "#111827" },
+  inputSurface: { backgroundColor: "#F9FAFB" },
   inputRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
+
   errorText: { color: "#B91C1C", marginTop: 4 },
   note: { fontSize: 12, lineHeight: 16, color: "#6B7280", marginTop: 6 },
   multiline: { minHeight: 96 },
+
   segment: { flexDirection: "row", gap: 8 },
   segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
   segBtnActive: { backgroundColor: theme.colors.primary, borderColor: "#111827" },
   segText: { color: theme.colors.boardingText, fontWeight: "800" },
   segTextActive: { color: theme.colors.boardingText },
+
   smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.boardingText },
   smallBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
+
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   noteSmall: { color: "#6B7280", marginTop: 6 },
+
   previewPlaceholder: { height: 160, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", alignItems: "center", justifyContent: "center", marginTop: 10 },
   previewText: { color: "#6B7280", textAlign: "center", paddingHorizontal: 12 },
   previewImage: { width: "100%", height: 200, borderRadius: 12, backgroundColor: "#E5E7EB", marginTop: 10 },
-  stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12 },
+
+  stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginVertical: 8 },
   stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary },
   stepDotActive: { backgroundColor: theme.colors.boardingText },
   stepBar: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.primary },
   stepBarActive: { backgroundColor: theme.colors.boardingText },
+
   aiBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.colors.primary },
   aiBtnAlt: { backgroundColor: theme.colors.primary, borderWidth: 1, borderColor: "#E5E7EB" },
   aiBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
+
+  pillsRow: { flexDirection: "row", gap: 8, marginTop: 8 },
+  pill: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  pillLight: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+  pillDark: { backgroundColor: "#111827", borderColor: "#111827" },
+  pillText: { fontWeight: "800", color: "#111827" },
+  pillTextDark: { color: "#fff" },
+
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#fff", padding: 12, flexDirection: "row", gap: 10 },
   footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
   footerPrimary: { backgroundColor: theme.colors.primary },
   footerGhost: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
   footerText: { fontWeight: "800", color: theme.colors.boardingText },
+
   sheetBackdrop: { flex: 1, backgroundColor: "#00000066", alignItems: "center", justifyContent: "flex-end" },
   sheetCard: { width: "100%", backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, borderTopWidth: 1, borderColor: "#E5E7EB" },
   sheetTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },

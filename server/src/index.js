@@ -19,13 +19,17 @@ import { getSession, saveSession, clearSession } from './models/fbSessionStore.j
 const app = express();
 
 // --- CORS ---
-app.use('/', listingsRouter);
 app.use(cors({ origin: true, credentials: true }));
-app.use('/ai', trustscoreRouter);
-// --- JSON parser con raw body per firma Facebook ---
 const rawBodySaver = (req, _res, buf) => { req.rawBody = buf; };
 app.use(express.json({ limit: '2mb', verify: rawBodySaver }));
 app.use(express.urlencoded({ extended: false }));
+
+
+app.use('/ai', trustscoreRouter);
+app.use('/', listingsRouter);
+app.use('/api/matches', matchesRouter);
+
+
 
 // ========== Helpers Messenger (TTL + riepilogo) ==========
 const SESSION_TTL_HOURS = 24;
