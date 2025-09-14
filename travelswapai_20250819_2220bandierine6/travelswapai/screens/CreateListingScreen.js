@@ -214,7 +214,7 @@ function smartParseTicket(text) {
 }
 
 /* ---------- IMAGE PREVIEW ---------- */
-function ImagePreview({ url }) {
+/*function ImagePreview({ url }) {
   const { t } = useI18n();
   const [error, setError] = useState(false);
   if (!String(url || "").trim()) {
@@ -232,7 +232,7 @@ function ImagePreview({ url }) {
     );
   }
   return <Image source={{ uri: url }} onError={() => setError(true)} style={styles.previewImage} resizeMode="cover" />;
-}
+}*/
 
 /* ---------- AI IMPORT RESOLVERS ---------- */
 async function aiImportFromPNR(pnr) {
@@ -303,7 +303,7 @@ export default function CreateListingScreen({
     }
     const hasArrow = form.type === "train" && /→/.test(form.location || "");
     const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null];
-    const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200, height: 800 }] : [];
+   // const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200, height: 800 }] : [];
     const payload = {
       id: passedListing?.id || listingId || null,
       type: form.type,
@@ -317,7 +317,7 @@ export default function CreateListingScreen({
       currency: "EUR",
       provider: undefined,
       holderName: undefined,
-      images: images.map(i => ({ url: i.url, width: i.width, height: i.height }))
+      //images: images.map(i => ({ url: i.url, width: i.width, height: i.height }))
     };
     const res = await evaluate(payload);
     setLastTrustRunAt(Date.now());
@@ -344,7 +344,7 @@ export default function CreateListingScreen({
         if (["departat","depart_at","departure","partenza"].includes(key)) return "departAt";
         if (["arriveat","arrive_at","arrival","arrivo"].includes(key)) return "arriveAt";
         if (["price","prezzo"].includes(key)) return "price";
-        if (["image","imageurl","image_url","foto","immagine"].includes(key)) return "imageUrl";
+       // if (["image","imageurl","image_url","foto","immagine"].includes(key)) return "imageUrl";
         if (["pnr","codiceprenotazione"].includes(key)) return "pnr";
         return null;
       };
@@ -408,7 +408,7 @@ export default function CreateListingScreen({
     pnr: "",
     description: "",
     price: "",
-    imageUrl: "",
+   // imageUrl: "",
   });
 
   const initialJsonRef = useRef(null);
@@ -430,7 +430,7 @@ export default function CreateListingScreen({
               location: l.location ?? prev.location,
               description: l.description ?? prev.description,
               price: l.price != null ? String(l.price) : prev.price,
-              imageUrl: l.image_url || prev.imageUrl,
+             // imageUrl: l.image_url || prev.imageUrl,
               checkIn: l.check_in || "",
               checkOut: l.check_out || "",
               departAt: l.depart_at || "",
@@ -530,6 +530,7 @@ export default function CreateListingScreen({
             if (parsed?.gender) patch.gender = parsed.gender;
             if (parsed?.pnr) patch.pnr = parsed.pnr;
             if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
+            if (parsed?.cercoVendo) patch.cercoVendo = parsed.cercoVendo;
           } catch (e) {
             const today = new Date();
             if (form.type === "hotel") {
@@ -556,7 +557,7 @@ export default function CreateListingScreen({
             ? t("createListing.ai.hotelDesc", "Camera doppia con colazione. Check-in flessibile, vicino ai mezzi.")
             : t("createListing.ai.trainDesc", "Posto a sedere confermato, vagone silenzio. Biglietto cedibile.")
         );
-        patch.imageUrl = ifEmpty(form.imageUrl, "https://picsum.photos/1200/800");
+       // patch.imageUrl = ifEmpty(form.imageUrl, "https://picsum.photos/1200/800");
         patch.price = ifEmpty(form.price, "120");
         if (form.type === "train" && form.isNamedTicket === false) { patch.isNamedTicket = false; patch.gender = ""; }
       }
@@ -629,7 +630,7 @@ export default function CreateListingScreen({
         location: form.location.trim(),
         description: form.description.trim() || null,
         price: Number.isFinite(priceNum) ? priceNum : null,
-        image_url: form.imageUrl?.trim() || null,
+        //image_url: form.imageUrl?.trim() || null,
         cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
         ...(mode !== "edit" ? { status: "active" } : {})
       };
@@ -753,7 +754,7 @@ export default function CreateListingScreen({
         checkIn: "",
         checkOut: "",
         price: data.price ?? "",
-        imageUrl: data.imageUrl ?? "",
+       // imageUrl: data.imageUrl ?? "",
         description: data.description ?? "",
       });
     } else {
@@ -770,7 +771,7 @@ export default function CreateListingScreen({
         gender: "",
         pnr: "",
         price: data.price ?? "",
-        imageUrl: data.imageUrl ?? "",
+       // imageUrl: data.imageUrl ?? "",
         description: data.description ?? "",
       });
     }
@@ -1019,18 +1020,7 @@ export default function CreateListingScreen({
                 />
                 {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
 
-                {/* Immagine */}
-                <Text style={styles.label}>{t("createListing.imageUrl", "URL immagine")}</Text>
-                <TextInput
-                  value={form.imageUrl}
-                  onChangeText={(v) => update({ imageUrl: v })}
-                  placeholder="https://…"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={styles.input}
-                  placeholderTextColor="#9CA3AF"
-                />
-                <ImagePreview url={form.imageUrl} />
+   
 
                 {/* Pannelli Trust */}
                 {!!trustData?.flags?.length && (
