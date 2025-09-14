@@ -20,6 +20,7 @@ import {
   Image,
   Switch,
   Modal,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,9 +28,12 @@ import { useI18n } from "../lib/i18n";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import DateField from "../components/DateField";
 import DateTimeField from "../components/DateTimeField";
-import { parseListingFromTextAI } from "../lib/descriptionParser"; // ✅ OpenAI parser (server-side)
+import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI parser (server-side)
 
-/* ---------- Small UI pill for AI actions ---------- */
+/* ---------- CONST ---------- */
+const FOOTER_H = 96; // usato per dare spazio sotto alle slide
+const DRAFT_KEY = "@tsai:create_listing_draft";
+
 function AIPill({ title, onPress, disabled, dark }) {
   return (
     <TouchableOpacity
@@ -43,13 +47,10 @@ function AIPill({ title, onPress, disabled, dark }) {
       accessibilityRole="button"
       accessibilityLabel={title}
     >
-      <Text style={[styles.pillText, dark && styles.pillTextDark]}>{title}</Text>
+      <Text style={[styles.pillText, dark && styles.pillTextDark]} numberOfLines={1}>{title}</Text>
     </TouchableOpacity>
   );
 }
-
-/* ---------- CONSTS ---------- */
-const DRAFT_KEY = "@tsai:create_listing_draft";
 
 const TYPES = [
   { key: "hotel", labelKey: "listing.type.hotel" },
@@ -83,12 +84,9 @@ const parseISODateTime = (s) => {
 };
 
 /* ---------- AI PARSER helpers (semplificati) ---------- */
-
 const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa", LIN:"Milano Linate", BGY:"Bergamo Orio", VCE:"Venezia", BLQ:"Bologna", NAP:"Napoli", CTA:"Catania", PMO:"Palermo", CAG:"Cagliari", PSA:"Pisa", TRN:"Torino", VRN:"Verona", BRI:"Bari", OLB:"Olbia" };
-
 const MONTHS_IT = { GENNAIO:0, FEBBRAIO:1, MARZO:2, APRILE:3, MAGGIO:4, GIUGNO:5, LUGLIO:6, AGOSTO:7, SETTEMBRE:8, OTTOBRE:9, NOVEMBRE:10, DICEMBRE:11 };
-
-const DATE_ANY_RE = /\b(?:(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})|(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2}))\b/;
+const DATE_ANY_RE = /\\b(?:(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})|(\\d{4})[\\/-](\\d{1,2})[\\/-](\\d{1,2}))\\b/;
 const DATE_TEXT_RE = new RegExp(String.raw`\\b(\\d{1,2})\\s([A-Za-zÀ-ÿ]{3,})\\s(\\d{4})\\b`, "i");
 const TIME_RE = /\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b/;
 const FLIGHT_NO_RE = /\\b([A-Z]{2})\\s?(\\d{2,4})\\b/;
@@ -96,7 +94,7 @@ const IATA_PAIR_RE = /\\b([A-Z]{3})\\s*(?:-|–|—|>|→|to|verso)\\s*([A-Z]{3}
 const TRAIN_KEYWORDS_RE = /\\b(Trenitalia|Frecciarossa|FR\\s?\\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\\b/i;
 const ROUTE_TEXT_RE = /\\b(?:da|from)\\s([A-Za-zÀ-ÿ .'\\-]+)\\s(?:a|to)\\s([A-Za-zÀ-ÿ .'\\-]+)\\b/i;
 const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\\-]{3,})\\s*(?:-|–|—|>|→)\\s*([A-Za-zÀ-ÿ .'\\-]{3,})/;
-const PNR_RE = /\\b(?:PNR|booking\\s*reference|codice\\s*(?:prenotazione|biglietto)|record\\s*locator)\\s*[:=]?\\s*([A-Z0-9]{5,8})\\b/i;
+const PNR_RE = /\\b(?:PNR|booking\\s*reference|codice\\s*(?:prenotazione|biglietto)|record\\s*locator)\\s*[:=]?\\s([A-Z0-9]{5,8})\\b/i;
 
 function parseAnyDate(text) {
   if (!text) return null;
@@ -285,12 +283,15 @@ export default function CreateListingScreen({
   const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null;
   const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
 
-  // 🔮 TrustScore hook + UI state
+  // TrustScore hook + UI state
   const { loading: trustLoading, data: trustData, error: trustError, evaluate } = useTrustScore();
   const [lastTrustRunAt, setLastTrustRunAt] = useState(0);
   const [showFixesModal, setShowFixesModal] = useState(false);
 
-  // Esegue il check con cooldown 10s
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
+
+  // cooldown 10s
   const onTrustCheck = async () => {
     const now = Date.now();
     if (now - lastTrustRunAt < 10_000) {
@@ -299,7 +300,7 @@ export default function CreateListingScreen({
       return;
     }
     const hasArrow = form.type === "train" && /→/.test(form.location || "");
-    const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null]; 
+    const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null];
     const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200, height: 800 }] : [];
     const payload = {
       id: passedListing?.id || listingId || null,
@@ -333,7 +334,6 @@ export default function CreateListingScreen({
       }
       const patch = {};
       const mapKey = (k) => {
-        // mappa nomi campo più comuni dal backend al form
         const key = String(k || "").toLowerCase();
         if (["title","titolo"].includes(key)) return "title";
         if (["location","località","destinazione","destination"].includes(key)) return "location";
@@ -344,7 +344,7 @@ export default function CreateListingScreen({
         if (["price","prezzo"].includes(key)) return "price";
         if (["image","imageurl","image_url","foto","immagine"].includes(key)) return "imageUrl";
         if (["pnr","codiceprenotazione"].includes(key)) return "pnr";
-        return null; // ignora campi non mappati
+        return null;
       };
       for (const f of fixes) {
         const k = mapKey(f.field);
@@ -389,7 +389,6 @@ export default function CreateListingScreen({
   const [pnrInput, setPnrInput] = useState("");
   const [importBusy, setImportBusy] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
-  const [slideIndex, setSlideIndex] = useState(0);
 
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
@@ -412,14 +411,6 @@ export default function CreateListingScreen({
 
   const initialJsonRef = useRef(null);
   const [errors, setErrors] = useState({});
-
-  // ref per lo slider orizzontale (per scroll programmatico)
-  const sliderRef = useRef(null);
-  const scrollToSlide = useCallback((idx) => {
-    try {
-      sliderRef.current?.scrollTo({ x: idx * (sliderRef.current?.props?.style?.width || 0), animated: true });
-    } catch {}
-  }, []);
 
   // ---------- EDIT MODE: prefill ----------
   useEffect(() => {
@@ -513,8 +504,7 @@ export default function CreateListingScreen({
     }
   };
 
-  // ---------- Magia AI (OpenAI server-side) ----------
-  const runAI = async (currentStep) => {
+  const runAI = async (currentSlide) => {
     if (loadingAI || publishing || importBusy || saving) return;
     try {
       setLoadingAI(true);
@@ -522,7 +512,7 @@ export default function CreateListingScreen({
       const ifEmpty = (val, fb) => (val == null || String(val).trim() === "" ? fb : val);
       const patch = {};
 
-      if (currentStep === 1) {
+      if (currentSlide === 0) {
         const text = String(form.description || "").trim();
         if (text) {
           try {
@@ -539,9 +529,8 @@ export default function CreateListingScreen({
             if (parsed?.pnr) patch.pnr = parsed.pnr;
             if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
           } catch (e) {
-            // fallback
+            const today = new Date();
             if (form.type === "hotel") {
-              const today = new Date();
               const plusDays = (d, n) => { const dd = new Date(d); dd.setDate(dd.getDate() + n); return dd; };
               patch.title = ifEmpty(form.title, t("createListing.ai.hotelTitle", "Soggiorno 2 notti in centro"));
               patch.location = ifEmpty(form.location, t("createListing.ai.hotelLocation", "Milano, Duomo"));
@@ -557,27 +546,8 @@ export default function CreateListingScreen({
               if (!form.isNamedTicket) patch.gender = "";
             }
           }
-        } else {
-          // nessuna descrizione → fallback
-          if (form.type === "hotel") {
-            const today = new Date();
-            const plusDays = (d, n) => { const dd = new Date(d); dd.setDate(dd.getDate() + n); return dd; };
-            patch.title = ifEmpty(form.title, t("createListing.ai.hotelTitle", "Soggiorno 2 notti in centro"));
-            patch.location = ifEmpty(form.location, t("createListing.ai.hotelLocation", "Milano, Duomo"));
-            patch.checkIn = ifEmpty(form.checkIn, toISODate(today));
-            patch.checkOut = ifEmpty(form.checkOut, toISODate(plusDays(today, 2)));
-          } else {
-            const base = new Date(); base.setDate(base.getDate() + 1); base.setHours(9,0,0,0);
-            const arr = new Date(base.getTime() + 90 * 60000);
-            patch.title = ifEmpty(form.title, t("createListing.ai.trainTitle", "Frecciarossa Milano → Roma"));
-            patch.location = ifEmpty(form.location, t("createListing.ai.trainLocation", "Milano Centrale → Roma Termini"));
-            patch.departAt = ifEmpty(form.departAt, `${toISODate(base)}T${toISOTime(base)}`);
-            patch.arriveAt = ifEmpty(form.arriveAt, `${toISODate(arr)}T${toISOTime(arr)}`);
-            if (!form.isNamedTicket) patch.gender = "";
-          }
         }
-      } else if (currentStep === 2) {
-        const ifEmpty = (val, fb) => (val == null || String(val).trim() === "" ? fb : val);
+      } else {
         patch.description = ifEmpty(
           form.description,
           form.type === "hotel"
@@ -590,7 +560,7 @@ export default function CreateListingScreen({
       }
 
       update(patch);
-      Alert.alert(t("createListing.ai.title", "Magia AI ✨"), t("createListing.ai.applied", "Ho suggerito alcuni campi per questo step. Puoi sempre modificarli."));
+      Alert.alert(t("createListing.ai.title", "Magia AI ✨"), t("createListing.ai.applied", "Ho suggerito alcuni campi. Puoi modificarli."));
     } catch {
       Alert.alert("AI", t("createListing.ai.error", "Impossibile generare suggerimenti."));
     } finally {
@@ -635,12 +605,7 @@ export default function CreateListingScreen({
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
-    if (!validate()) {
-      // vai alla prima slide per correggere
-      setSlideIndex(0);
-      sliderRef.current?.scrollTo({ x: 0, animated: true });
-      return;
-    }
+    if (!validate()) { return; }
     try {
       setPublishing(true);
       onSubmitStart();
@@ -673,15 +638,11 @@ export default function CreateListingScreen({
 
       if (mode === "edit") {
         const res = await updateListing(idForUpdate, payload);
-        if (res?.error) {
-          throw res.error;
-        }
+        if (res?.error) throw res.error;
         Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
       } else {
         const res = await insertListing(payload);
-        if (res?.error) {
-          throw res.error;
-        }
+        if (res?.error) throw res.error;
         await AsyncStorage.removeItem(DRAFT_KEY);
         Alert.alert(t("createListing.publishedTitle", "Pubblicato 🎉"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
       }
@@ -737,7 +698,6 @@ export default function CreateListingScreen({
       closeImport();
       Alert.alert("AI Import", t("createListing.aiImportSuccess", "Dati importati correttamente."));
       setSlideIndex(1);
-      sliderRef.current?.scrollTo({ x: 1 * (sliderRef.current?.props?.style?.width || 0), animated: true });
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.aiImportError", "Impossibile importare dal PNR."));
     } finally {
@@ -745,7 +705,6 @@ export default function CreateListingScreen({
     }
   };
 
-  const [cameraPermissionState] = [cameraPermission]; // keep reference
   const requestQrPermissionAndOpen = async () => {
     try {
       if (!cameraPermission || cameraPermission.granted !== true) {
@@ -770,7 +729,6 @@ export default function CreateListingScreen({
       closeImport();
       Alert.alert("AI Import", t("createListing.aiImportFromQr", "Dati importati dal QR."));
       setSlideIndex(1);
-      sliderRef.current?.scrollTo({ x: 1 * (sliderRef.current?.props?.style?.width || 0), animated: true });
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.qrImportError", "Import da QR non riuscito."));
     } finally {
@@ -817,218 +775,15 @@ export default function CreateListingScreen({
   };
 
   /* ---------- UI ---------- */
-  const Slide1 = (
-    <View style={styles.slideInner}>
-      {/* Tipo */}
-      <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
-      <View style={styles.segment}>
-        {TYPES.map((tt) => {
-          const active = form.type === tt.key;
-          return (
-            <TouchableOpacity key={tt.key} onPress={() => onChangeType(tt.key)} style={[styles.segBtn, active && styles.segBtnActive]}>
-              <Text style={[styles.segText, active && styles.segTextActive]}>{t(tt.labelKey, tt.key === "hotel" ? "Hotel" : "Treno")}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* CERCO/VENDO */}
-      <Text style={styles.label}>{t("createListing.cercoVendoLabel", "Tipo annuncio")}</Text>
-      <View style={styles.segment}>
-        {["CERCO","VENDO"].map((cv) => {
-          const active = form.cercoVendo === cv;
-          return (
-            <TouchableOpacity key={cv} onPress={() => update({ cercoVendo: cv })} style={[styles.segBtn, active && styles.segBtnActive]}>
-              <Text style={[styles.segText, active && styles.segTextActive]}>{cv === "CERCO" ? t("createListing.cerco","Cerco") : t("createListing.vendo","Vendo")}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Titolo */}
-      <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
-      <TextInput
-        value={form.title}
-        onChangeText={(v) => update({ title: v })}
-        placeholder={
-          form.type === "hotel"
-            ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
-            : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
-        }
-        style={[styles.input, errors.title && styles.inputError]}
-        placeholderTextColor="#9CA3AF"
-      />
-      {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
-
-      {/* Località / Rotta */}
-      <Text style={styles.label}>{t("createListing.locationLabel", "Località *")}</Text>
-      <TextInput
-        value={form.location}
-        onChangeText={(v) => update({ location: v })}
-        placeholder={
-          form.type === "hotel"
-            ? t("createListing.locationPlaceholderHotel", "Es. Milano, Navigli")
-            : t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")
-        }
-        style={[styles.input, errors.location && styles.inputError]}
-        placeholderTextColor="#9CA3AF"
-      />
-      {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
-
-      {/* Date */}
-      {form.type === "hotel" ? (
-        <>
-          <DateField
-            label={t("createListing.checkIn", "Check-in")}
-            required
-            value={form.checkIn}
-            onChange={(v) => update({ checkIn: v })}
-            error={errors.checkIn}
-          />
-          <DateField
-            label={t("createListing.checkOut", "Check-out")}
-            required
-            value={form.checkOut}
-            onChange={(v) => update({ checkOut: v })}
-            error={errors.checkOut}
-          />
-        </>
-      ) : (
-        <>
-          <DateTimeField
-            label={t("createListing.departAt", "Partenza (data e ora)")}
-            required
-            value={form.departAt}
-            onChange={(v) => update({ departAt: v })}
-            error={errors.departAt}
-          />
-          <DateTimeField
-            label={t("createListing.arriveAt", "Arrivo (data e ora)")}
-            required
-            value={form.arriveAt}
-            onChange={(v) => update({ arriveAt: v })}
-            error={errors.arriveAt}
-          />
-        </>
-      )}
-    </View>
-  );
-
-  const TrainParticulars = form.type === "train" && (
-    <View style={styles.subCard}>
-      <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
-
-      <View style={styles.switchRow}>
-        <Text style={styles.labelInline}>{t("createListing.train.namedTicket", "Biglietto nominativo")}</Text>
-        <Switch
-          value={form.isNamedTicket}
-          onValueChange={(v) => {
-            if (!v) {
-              update({ isNamedTicket: false, gender: "" });
-            } else {
-              update({ isNamedTicket: true });
-            }
-          }}
-        />
-      </View>
-      <Text style={styles.noteSmall}>{t("createListing.train.genderNote", "Se attivo, indica il genere presente sul biglietto.")}</Text>
-
-      {form.isNamedTicket && (
-        <>
-          <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.genderLabel", "Genere *")}</Text>
-          <View style={styles.segment}>
-            {["M", "F"].map((g) => {
-              const active = form.gender === g;
-              return (
-                <TouchableOpacity key={g} onPress={() => update({ gender: g })} style={[styles.segBtn, active && styles.segBtnActive]}>
-                  <Text style={[styles.segText, active && styles.segTextActive]}>{g}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
-        </>
-      )}
-
-      <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.pnrLabel", "PNR (opzionale)")}</Text>
-      <TextInput
-        value={form.pnr}
-        onChangeText={(v) => update({ pnr: v })}
-        placeholder={t("createListing.train.pnrPlaceholder", "Es. ABCDEF")}
-        style={styles.input}
-        autoCapitalize="characters"
-        placeholderTextColor="#9CA3AF"
-      />
-      <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
-    </View>
-  );
-
-  const Slide2 = (
-    <View style={styles.slideInner}>
-      {/* Particolari treno (se serve) */}
-      {TrainParticulars}
-
-      {/* Prezzo */}
-      <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
-      <TextInput
-        value={String(form.price)}
-        onChangeText={(v) => update({ price: v.replace(",", ".") })}
-        placeholder={t("createListing.pricePlaceholder", "Es. 120")}
-        keyboardType="decimal-pad"
-        style={[styles.input, errors.price && styles.inputError]}
-        placeholderTextColor="#9CA3AF"
-      />
-      {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
-
-      {/* Immagine */}
-      <Text style={styles.label}>{t("createListing.imageUrl", "URL immagine")}</Text>
-      <TextInput
-        value={form.imageUrl}
-        onChangeText={(v) => update({ imageUrl: v })}
-        placeholder="https://…"
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={styles.input}
-        placeholderTextColor="#9CA3AF"
-      />
-      <ImagePreview url={form.imageUrl} />
-
-      {/* Pannelli Trust */}
-      {!!trustData?.flags?.length && (
-        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
-          <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
-          {trustData.flags.map((f, i) => (
-            <Text key={i}>• {f.msg}</Text>
-          ))}
-        </View>
-      )}
-
-      {!!trustData?.suggestedFixes?.length && (
-        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
-            <TouchableOpacity onPress={() => setShowFixesModal(true)} style={[styles.smallBtn, { backgroundColor: "#111827" }]}>
-              <Text style={[styles.smallBtnText, { color: "#fff" }]}>Applica tutti</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ height: 6 }} />
-          {trustData.suggestedFixes.map((s, i) => (
-            <Text key={i}>• {s.field}: {s.suggestion}</Text>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1 }} edges={['left','right','bottom']}>
       {/* ===== TOP PANNELLO FISSO ===== */}
       <View style={styles.topPanel}>
         <View style={styles.topHeaderRow}>
-          <Text style={styles.topTitle}>{t("createListing.titleTop", "Crea annuncio")}</Text>
+          <Text style={styles.topTitle}>{t("createListing.step1", "Dati principali")}</Text>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TrustScoreBadge score={trustData?.trustScore} />
-            {/* <TrustInfo /> */}
+            <TrustInfo />
           </View>
         </View>
 
@@ -1048,17 +803,17 @@ export default function CreateListingScreen({
         {/* Azioni AI in riga */}
         <View style={styles.pillsRow}>
           <AIPill
-            title={t("createListing.aiImport", "AI Import")}
+            title={t("createListing.aiImport", "AI Import 1-click")}
             onPress={openImport}
             disabled={importBusy || saving || publishing}
           />
           <AIPill
-            title={t("createListing.aiMagic", "Magia AI ✨")}
-            onPress={() => runAI(1)}
+            title={t("createListing.aiMagic", "Magia IA ✨")}
+            onPress={() => runAI(0)}
             disabled={loadingAI || importBusy || saving || publishing}
           />
           <AIPill
-            title={"Verifica AI 🔮"}
+            title={"Check AI 🔮"}
             onPress={onTrustCheck}
             disabled={trustLoading}
             dark
@@ -1070,8 +825,9 @@ export default function CreateListingScreen({
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: "padding", android: undefined })}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
       >
-        <View style={styles.sliderWrap}>
+        <View style={styles.sliderWrap} onLayout={(e) => setSliderW(e.nativeEvent.layout.width)}>
           {/* Dots */}
           <View style={styles.stepRow}>
             <View style={[styles.stepDot, slideIndex >= 0 && styles.stepDotActive]} />
@@ -1081,7 +837,6 @@ export default function CreateListingScreen({
 
           {/* Pagine orizzontali */}
           <ScrollView
-            ref={sliderRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -1091,19 +846,225 @@ export default function CreateListingScreen({
               const idx = Math.round(x / w);
               setSlideIndex(idx);
             }}
-            contentContainerStyle={{ flexGrow: 1 }}
-            style={{ flex: 1 }}
+           contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
           >
-            {/* SLIDE 1 */}
-            <View style={styles.slide}>{Slide1}</View>
-            {/* SLIDE 2 */}
-            <View style={styles.slide}>{Slide2}</View>
+            {/* ===== SLIDE 1 ===== */}
+            <View style={[styles.slide, { width: sliderW }]}>
+              <View style={styles.slideCard}>
+                {/* Riga combinata: Tipo + Tipo annuncio */}
+                <View style={styles.row2}>
+                  <View style={styles.col}>
+                    <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
+                    <View style={styles.segment}>
+                      {TYPES.map((tt) => {
+                        const active = form.type === tt.key;
+                        return (
+                          <TouchableOpacity key={tt.key} onPress={() => onChangeType(tt.key)} style={[styles.segBtn, active && styles.segBtnActive]}>
+                            <Text style={[styles.segText, active && styles.segTextActive]}>{t(tt.labelKey, tt.key === "hotel" ? "Hotel" : "Treno")}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                  <View style={styles.col}>
+                    <Text style={styles.label}>{t("createListing.cercoVendoLabel", "Tipo annuncio")}</Text>
+                    <View style={styles.segment}>
+                      {["CERCO","VENDO"].map((cv) => {
+                        const active = form.cercoVendo === cv;
+                        return (
+                          <TouchableOpacity key={cv} onPress={() => update({ cercoVendo: cv })} style={[styles.segBtn, active && styles.segBtnActive]}>
+                            <Text style={[styles.segText, active && styles.segTextActive]}>{cv === "CERCO" ? t("createListing.cerco","Cerco") : t("createListing.vendo","Vendo")}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Titolo */}
+                <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
+                <TextInput
+                  value={form.title}
+                  onChangeText={(v) => update({ title: v })}
+                  placeholder={
+                    form.type === "hotel"
+                      ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
+                      : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
+                  }
+                  style={[styles.input, errors.title && styles.inputError]}
+                  placeholderTextColor="#9CA3AF"
+                />
+                {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+
+                {/* Località / Rotta */}
+                <Text style={styles.label}>{t("createListing.locationLabel", "Località *")}</Text>
+                <TextInput
+                  value={form.location}
+                  onChangeText={(v) => update({ location: v })}
+                  placeholder={
+                    form.type === "hotel"
+                      ? t("createListing.locationPlaceholderHotel", "Es. Milano, Navigli")
+                      : t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")
+                  }
+                  style={[styles.input, errors.location && styles.inputError]}
+                  placeholderTextColor="#9CA3AF"
+                />
+                {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+
+                {/* Date */}
+                {form.type === "hotel" ? (
+                  <>
+                    <DateField
+                      label={t("createListing.checkIn", "Check-in")}
+                      required
+                      value={form.checkIn}
+                      onChange={(v) => update({ checkIn: v })}
+                      error={errors.checkIn}
+                    />
+                    <DateField
+                      label={t("createListing.checkOut", "Check-out")}
+                      required
+                      value={form.checkOut}
+                      onChange={(v) => update({ checkOut: v })}
+                      error={errors.checkOut}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <DateTimeField
+                      label={t("createListing.departAt", "Partenza (data e ora)")}
+                      required
+                      value={form.departAt}
+                      onChange={(v) => update({ departAt: v })}
+                      error={errors.departAt}
+                    />
+                    <DateTimeField
+                      label={t("createListing.arriveAt", "Arrivo (data e ora)")}
+                      required
+                      value={form.arriveAt}
+                      onChange={(v) => update({ arriveAt: v })}
+                      error={errors.arriveAt}
+                    />
+                  </>
+                )}
+
+                {/* Spacer per non far coprire dal footer */}
+                <View style={{ height: FOOTER_H + 12 }} />
+              </View>
+            </View>
+
+            {/* ===== SLIDE 2 ===== */}
+            <View style={[styles.slide, { width: sliderW }]}>
+              <View style={styles.slideCard}>
+                {/* Particolari treno (se serve) */}
+                {form.type === "train" && (
+                  <View style={styles.subCard}>
+                    <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
+
+                    <View style={styles.switchRow}>
+                      <Text style={styles.labelInline}>{t("createListing.train.namedTicket", "Biglietto nominativo")}</Text>
+                      <Switch
+                        value={form.isNamedTicket}
+                        onValueChange={(v) => {
+                          if (!v) {
+                            update({ isNamedTicket: false, gender: "" });
+                          } else {
+                            update({ isNamedTicket: true });
+                          }
+                        }}
+                      />
+                    </View>
+                    <Text style={styles.noteSmall}>{t("createListing.train.genderNote", "Se attivo, indica il genere presente sul biglietto.")}</Text>
+
+                    {form.isNamedTicket && (
+                      <>
+                        <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.genderLabel", "Genere *")}</Text>
+                        <View style={styles.segment}>
+                          {["M", "F"].map((g) => {
+                            const active = form.gender === g;
+                            return (
+                              <TouchableOpacity key={g} onPress={() => update({ gender: g })} style={[styles.segBtn, active && styles.segBtnActive]}>
+                                <Text style={[styles.segText, active && styles.segTextActive]}>{g}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                        {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+                      </>
+                    )}
+
+                    <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.pnrLabel", "PNR (opzionale)")}</Text>
+                    <TextInput
+                      value={form.pnr}
+                      onChangeText={(v) => update({ pnr: v })}
+                      placeholder={t("createListing.train.pnrPlaceholder", "Es. ABCDEF")}
+                      style={styles.input}
+                      autoCapitalize="characters"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
+                  </View>
+                )}
+
+                {/* Prezzo */}
+                <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
+                <TextInput
+                  value={String(form.price)}
+                  onChangeText={(v) => update({ price: v.replace(",", ".") })}
+                  placeholder={t("createListing.pricePlaceholder", "Es. 120")}
+                  keyboardType="decimal-pad"
+                  style={[styles.input, errors.price && styles.inputError]}
+                  placeholderTextColor="#9CA3AF"
+                />
+                {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
+
+                {/* Immagine */}
+                <Text style={styles.label}>{t("createListing.imageUrl", "URL immagine")}</Text>
+                <TextInput
+                  value={form.imageUrl}
+                  onChangeText={(v) => update({ imageUrl: v })}
+                  placeholder="https://…"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={styles.input}
+                  placeholderTextColor="#9CA3AF"
+                />
+                <ImagePreview url={form.imageUrl} />
+
+                {/* Pannelli Trust */}
+                {!!trustData?.flags?.length && (
+                  <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
+                    <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
+                    {trustData.flags.map((f, i) => (
+                      <Text key={i}>• {f.msg}</Text>
+                    ))}
+                  </View>
+                )}
+
+                {!!trustData?.suggestedFixes?.length && (
+                  <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
+                      <TouchableOpacity onPress={() => setShowFixesModal(true)} style={[styles.smallBtn, { backgroundColor: "#111827" }]}>
+                        <Text style={[styles.smallBtnText, { color: "#fff" }]}>Applica tutti</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={{ height: 6 }} />
+                    {trustData.suggestedFixes.map((s, i) => (
+                      <Text key={i}>• {s.field}: {s.suggestion}</Text>
+                    ))}
+                  </View>
+                )}
+
+                <View style={{ height: FOOTER_H + 12 }} />
+              </View>
+            </View>
           </ScrollView>
 
           {/* Footer azioni */}
           <View style={styles.footer}>
             {slideIndex > 0 ? (
-              <TouchableOpacity onPress={() => { setSlideIndex(0); sliderRef.current?.scrollTo({ x: 0, animated: true }); }} style={[styles.footerBtn, styles.footerGhost]}>
+              <TouchableOpacity onPress={() => setSlideIndex((i) => i - 1)} style={[styles.footerBtn, styles.footerGhost]}>
                 <Text style={[styles.footerText, { color: "#111827" }]}>{t("common.back", "Indietro")}</Text>
               </TouchableOpacity>
             ) : (
@@ -1113,7 +1074,7 @@ export default function CreateListingScreen({
             )}
 
             {slideIndex === 0 ? (
-              <TouchableOpacity onPress={() => { setSlideIndex(1); sliderRef.current?.scrollTo({ x: 99999, animated: true }); }} style={[styles.footerBtn, styles.footerPrimary]}>
+              <TouchableOpacity onPress={() => setSlideIndex(1)} style={[styles.footerBtn, styles.footerPrimary]}>
                 <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{t("common.next", "Avanti")}</Text>
               </TouchableOpacity>
             ) : (
@@ -1208,103 +1169,85 @@ export default function CreateListingScreen({
   );
 }
 
-/* ---------- HELPERS ---------- */
-function mapListingToForm(l) {
-  const base = {
-    type: l?.type || "hotel",
-    cercoVendo: l?.cerco_vendo || l?.cercoVendo || "VENDO",
-    title: l?.title || "",
-    location: l?.location || "",
-    description: l?.description || "",
-    price: (l?.price ?? "") === null ? "" : String(l?.price ?? ""),
-    imageUrl: l?.image_url || l?.imageUrl || "",
-    // train
-    departAt: l?.depart_at || l?.departAt || "",
-    arriveAt: l?.arrive_at || l?.arriveAt || "",
-    // hotel
-    checkIn: l?.check_in || l?.checkIn || "",
-    checkOut: l?.check_out || l?.checkOut || "",
-    // train opts
-    isNamedTicket: !!l?.isNamedTicket,
-    gender: l?.gender || "",
-    pnr: l?.pnr || "",
-  };
-  if (base.type === "hotel") {
-    base.departAt = ""; base.arriveAt = "";
-  } else {
-    base.checkIn = ""; base.checkOut = "";
-  }
-  return base;
-}
-
+/* ---------- STYLES ---------- */
 const styles = StyleSheet.create({
-  topPanel: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  // --- top ---
+  topPanel: { backgroundColor: "#F4F7FB", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  topTitle: { fontSize: 18, fontWeight: "800", color: theme.colors.boardingText },
+  topTitle: { fontSize: 20, fontWeight: "900", color: theme.colors.boardingText },
 
-  sliderWrap: { flex: 1, backgroundColor: "#F3F4F6" },
+  pillsRow: { flexDirection: "row", gap: 12, paddingTop: 8, paddingBottom: 6 },
+  pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
+  pillLight: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
+  pillDark: { backgroundColor: "#0F172A", borderColor: "#0F172A" },
+  pillText: { fontWeight: "800", color: "#111827" },
+  pillTextDark: { color: "#fff" },
 
-  slide: { width: "100%", paddingHorizontal: 16, paddingVertical: 12 },
-  slideInner: { backgroundColor: "#fff", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  inputSurface: { backgroundColor: "#FBFDFF" },
 
-  card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
-  subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
-  subCardTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.boardingText, marginBottom: 8 },
-
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
-
-  actionsCol: { flexDirection: "column", gap: 8, alignSelf: "stretch", marginBottom: 8 },
-
-  label: { fontWeight: "700", color: theme.colors.boardingText, marginTop: 8, marginBottom: 6 },
-  labelInline: { fontWeight: "700", color: theme.colors.boardingText },
-
-  input: { borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: "#111827" },
-  inputSurface: { backgroundColor: "#F9FAFB" },
-  inputRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
-
-  errorText: { color: "#B91C1C", marginTop: 4 },
-  note: { fontSize: 12, lineHeight: 16, color: "#6B7280", marginTop: 6 },
-  multiline: { minHeight: 96 },
-
-  segment: { flexDirection: "row", gap: 8 },
-  segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
-  segBtnActive: { backgroundColor: theme.colors.primary, borderColor: "#111827" },
-  segText: { color: theme.colors.boardingText, fontWeight: "800" },
-  segTextActive: { color: theme.colors.boardingText },
-
-  smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.boardingText },
-  smallBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
-
-  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  noteSmall: { color: "#6B7280", marginTop: 6 },
-
-  previewPlaceholder: { height: 160, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", alignItems: "center", justifyContent: "center", marginTop: 10 },
-  previewText: { color: "#6B7280", textAlign: "center", paddingHorizontal: 12 },
-  previewImage: { width: "100%", height: 200, borderRadius: 12, backgroundColor: "#E5E7EB", marginTop: 10 },
-
-  stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginVertical: 8 },
+  // --- slider ---
+  sliderWrap: { flex: 1 },
+  stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginVertical: 10 },
   stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary },
   stepDotActive: { backgroundColor: theme.colors.boardingText },
   stepBar: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.primary },
   stepBarActive: { backgroundColor: theme.colors.boardingText },
 
-  aiBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: theme.colors.primary },
-  aiBtnAlt: { backgroundColor: theme.colors.primary, borderWidth: 1, borderColor: "#E5E7EB" },
-  aiBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
+  slide: { paddingHorizontal: 16 ,  marginBottom: 180,   // 👈 lascia aria sopra i pulsanti
+},
+  slideCard: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , 
+    minHeight: 120,         // ⬅️ altezza minima della card (regola a piacere)
+  paddingBottom: 12,    // 👈 lascia aria sopra i pulsanti
+},
 
-  pillsRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  pill: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  pillLight: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
-  pillDark: { backgroundColor: "#111827", borderColor: "#111827" },
-  pillText: { fontWeight: "800", color: "#111827" },
-  pillTextDark: { color: "#fff" },
+  // row with two equal columns
+  row2: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+  col: { flex: 1, minWidth: 0 },
 
-  footer: { position: "absolute", left: 0, right: 0, bottom: 0, borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#fff", padding: 12, flexDirection: "row", gap: 10 },
-  footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
-  footerPrimary: { backgroundColor: theme.colors.primary },
-  footerGhost: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
+  // common
+  card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  cardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
+
+  label: { fontWeight: "700", color: theme.colors.boardingText, marginTop: 8, marginBottom: 6 },
+  labelInline: { fontWeight: "700", color: theme.colors.boardingText },
+  input: { borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: "#111827" },
+  inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
+  errorText: { color: "#B91C1C", marginTop: 4 },
+  note: { fontSize: 12, lineHeight: 16, color: "#6B7280", marginTop: 6 },
+  multiline: { minHeight: 96 },
+  segment: { flexDirection: "row", gap: 8 },
+  segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
+  segBtnActive: { backgroundColor: theme.colors.primary, borderColor: "#111827" },
+  segText: { color: theme.colors.boardingText, fontWeight: "800" },
+  segTextActive: { color: theme.colors.boardingText },
+  smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.boardingText },
+  smallBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
+  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  noteSmall: { color: "#6B7280", marginTop: 6 },
+  previewPlaceholder: { height: 160, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", alignItems: "center", justifyContent: "center", marginTop: 10 },
+  previewText: { color: "#6B7280", textAlign: "center", paddingHorizontal: 12 },
+  previewImage: { width: "100%", height: 200, borderRadius: 12, backgroundColor: "#E5E7EB", marginTop: 10 },
+
+  footer: {
+    position: "absolute", left: 0, right: 0, bottom: 0,
+    backgroundColor: "transparent",           // 👈 niente striscia bianca/riga
+    paddingHorizontal: 12, paddingBottom: 12, // mantieni aria
+    paddingTop: 0,
+    flexDirection: "row", gap: 10
+  },
+    footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
+ footerPrimary: {
+   backgroundColor: theme.colors.primary,
+   shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: {width:0, height:4},
+   elevation: 3
+ },
+ footerGhost: {
+   backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB",
+   shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: {width:0, height:3},
+   elevation: 2
+ },
   footerText: { fontWeight: "800", color: theme.colors.boardingText },
 
   sheetBackdrop: { flex: 1, backgroundColor: "#00000066", alignItems: "center", justifyContent: "flex-end" },
@@ -1322,3 +1265,4 @@ const styles = StyleSheet.create({
   qrTitle: { fontWeight: "800", color: theme.colors.primary, alignSelf: "center" },
   qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "#E5E7EB" },
 });
+
