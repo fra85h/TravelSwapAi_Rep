@@ -1,7 +1,6 @@
 // server/src/ai/descriptionParse.js
 import OpenAI from "openai";
 
-/** Config **/
 const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0);
 
@@ -9,7 +8,6 @@ const client = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
-/** Prompt **/
 const SYSTEM_PROMPT = `
 Sei un parser che legge descrizioni di annunci (italiano) e restituisce **solo** JSON conforme allo schema.
 Regole:
@@ -27,17 +25,10 @@ Regole:
 `;
 
 const EMPTY = {
-  type: null,
-  title: null,
-  location: null,
-  checkIn: null,
-  checkOut: null,
-  departAt: null,
-  arriveAt: null,
-  isNamedTicket: null,
-  gender: null,
-  pnr: null,
-  price: null,
+  type: null, title: null, location: null,
+  checkIn: null, checkOut: null,
+  departAt: null, arriveAt: null,
+  isNamedTicket: null, gender: null, pnr: null, price: null,
 };
 
 export async function parseDescriptionWithAI(text, locale = "it") {
@@ -46,7 +37,6 @@ export async function parseDescriptionWithAI(text, locale = "it") {
   const user = String(text ?? "").trim();
   if (!user) return { ...EMPTY };
 
-  // ✅ Nuova sintassi: text.format.schema (non json_schema)
   const resp = await client.responses.create({
     model: MODEL,
     temperature: TEMPERATURE,
@@ -64,6 +54,7 @@ export async function parseDescriptionWithAI(text, locale = "it") {
       format: {
         type: "json_schema",
         name: "ParsedListing",
+        strict: true,
         schema: {
           type: "object",
           additionalProperties: false,
@@ -81,20 +72,10 @@ export async function parseDescriptionWithAI(text, locale = "it") {
             price: { type: ["string", "null"] },
           },
           required: [
-            "type",
-            "title",
-            "location",
-            "checkIn",
-            "checkOut",
-            "departAt",
-            "arriveAt",
-            "isNamedTicket",
-            "gender",
-            "pnr",
-            "price",
+            "type","title","location","checkIn","checkOut",
+            "departAt","arriveAt","isNamedTicket","gender","pnr","price"
           ],
         },
-        strict: true,
       },
     },
   });
@@ -116,28 +97,41 @@ export async function parseDescriptionWithAI(text, locale = "it") {
       checkOut: parsed?.checkOut ?? null,
       departAt: parsed?.departAt ?? null,
       arriveAt: parsed?.arriveAt ?? null,
-      isNamedTicket:
-        typeof parsed?.isNamedTicket === "boolean" ? parsed.isNamedTicket : null,
+      isNamedTicket: typeof parsed?.isNamedTicket === "boolean" ? parsed.isNamedTicket : null,
       gender: parsed?.gender ?? null,
       pnr: parsed?.pnr ?? null,
       price: parsed?.price ?? null,
     };
-  } catch (e) {
+  } catch {
     console.warn("[AI] JSON parse fallita, ritorno EMPTY. Raw:", out);
     return { ...EMPTY };
   }
 }
 
-/** Route Express: POST /ai/parse-description */
+
+
+
+
+
+
+
+
+
+
+
+
+// Route
 export function mountParseDescriptionRoute(app, requireAuth) {
   app.post("/ai/parse-description", requireAuth, async (req, res) => {
+    console.log("[DEV] POST /ai/parse-description");
     try {
       const { text, locale = "it" } = req.body || {};
       const data = await parseDescriptionWithAI(text, locale);
       return res.json({ ok: true, data });
     } catch (err) {
       console.error("[/ai/parse-description] error:", err);
-      return res.status(500).json({ ok: false, error: "AI_PARSE_FAILED" });
+      // invece di 500 con ok:false, rimandiamo ok:true + EMPTY per non bloccare la UI
+      return res.json({ ok: true, data: { ...EMPTY } });
     }
   });
 }

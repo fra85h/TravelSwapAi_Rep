@@ -34,20 +34,22 @@ import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI par
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
 const DRAFT_KEY = "@tsai:create_listing_draft";
 
-function AIPill({ title, onPress, disabled, dark }) {
+function AIPill({ title, onPress, disabled, dark, loading }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || loading}
       style={[
         styles.pill,
         dark ? styles.pillDark : styles.pillLight,
-        disabled && { opacity: 0.6 }
+        (disabled || loading) && { opacity: 0.6 }
       ]}
       accessibilityRole="button"
       accessibilityLabel={title}
     >
-      <Text style={[styles.pillText, dark && styles.pillTextDark]} numberOfLines={1}>{title}</Text>
+      {loading
+        ? <ActivityIndicator size="small" color={dark ? "#fff" : "#111827"} />
+        : <Text style={[styles.pillText, dark && styles.pillTextDark]} numberOfLines={1}>{title}</Text>}
     </TouchableOpacity>
   );
 }
@@ -813,10 +815,9 @@ export default function CreateListingScreen({
             disabled={loadingAI || importBusy || saving || publishing}
           />
           <AIPill
-            title={"Check AI 🔮"}
+            title={"Check AI"}
             onPress={onTrustCheck}
             disabled={trustLoading}
-            dark
           />
         </View>
       </View>
@@ -1198,6 +1199,7 @@ const styles = StyleSheet.create({
   slideCard: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , 
     minHeight: 120,         // ⬅️ altezza minima della card (regola a piacere)
   paddingBottom: 12,    // 👈 lascia aria sopra i pulsanti
+  maxHeight: 420,  
 },
 
   // row with two equal columns

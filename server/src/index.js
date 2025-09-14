@@ -15,6 +15,7 @@ import { upsertListingFromFacebook } from './models/fbIngest.js';
 import { sendFbText, sendFbQuickReplies } from './lib/fbSend.js'; // quick replies
 import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.js';
 import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
+import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
 
 const app = express();
 
@@ -23,13 +24,13 @@ app.use(cors({ origin: true, credentials: true }));
 const rawBodySaver = (req, _res, buf) => { req.rawBody = buf; };
 app.use(express.json({ limit: '2mb', verify: rawBodySaver }));
 app.use(express.urlencoded({ extended: false }));
-
+const requireAuth = (req, _res, next) => next();
 
 app.use('/ai', trustscoreRouter);
 app.use('/', listingsRouter);
 app.use('/api/matches', matchesRouter);
 
-
+mountParseDescriptionRoute(app, requireAuth);
 
 // ========== Helpers Messenger (TTL + riepilogo) ==========
 const SESSION_TTL_HOURS = 24;
