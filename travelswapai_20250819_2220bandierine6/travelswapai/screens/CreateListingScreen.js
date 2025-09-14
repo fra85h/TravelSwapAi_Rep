@@ -7,21 +7,12 @@ import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
 import TrustInfo from '../components/TrustInfo';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
-  Image,
-  Switch,
-  Modal,
-  Dimensions,
+  View, Text, TextInput, TouchableOpacity, ScrollView,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  StyleSheet, Image, Switch, Modal, Dimensions,borderBottomWidth,
+  Keyboard,                // 👈 aggiungi questo
 } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useI18n } from "../lib/i18n";
@@ -289,10 +280,37 @@ export default function CreateListingScreen({
   const { loading: trustLoading, data: trustData, error: trustError, evaluate } = useTrustScore();
   const [lastTrustRunAt, setLastTrustRunAt] = useState(0);
   const [showFixesModal, setShowFixesModal] = useState(false);
+  // Stato tastiera (per bloccare swipe orizzontale quando è aperta)
+const [isKbOpen, setIsKbOpen] = useState(false);
+useEffect(() => {
+  const showSub = Keyboard.addListener(
+    Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+    () => setIsKbOpen(true)
+  );
+  const hideSub = Keyboard.addListener(
+    Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+    () => setIsKbOpen(false)
+  );
+  return () => { showSub.remove(); hideSub.remove(); };
+}, []);
 
+const flagsNoImg = useMemo(() => {
+  const rx = /(image|imageurl|image_url|foto|immagine)/i;
+  return Array.isArray(trustData?.flags) ? trustData.flags.filter(f =>
+    !rx.test(String(f?.field || f?.msg || "")))
+  : [];
+}, [trustData]);
+
+const fixesNoImg = useMemo(() => {
+  const rx = /(image|imageurl|image_url|foto|immagine)/i;
+  return Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes.filter(s =>
+    !rx.test(String(s?.field || s?.suggestion || "")))
+  : [];
+}, [trustData]);
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
-
+const [insightsOpen, setInsightsOpen] = useState(false);
+const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
   // cooldown 10s
   const onTrustCheck = async () => {
     const now = Date.now();
@@ -787,6 +805,7 @@ export default function CreateListingScreen({
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TrustScoreBadge score={trustData?.trustScore} />
             <TrustInfo />
+            
           </View>
         </View>
 
@@ -804,6 +823,7 @@ export default function CreateListingScreen({
         />
 
         {/* Azioni AI in riga */}
+ 
         <View style={styles.pillsRow}>
           <AIPill
             title={t("createListing.aiImport", "AI Import 1-click")}
@@ -821,6 +841,7 @@ export default function CreateListingScreen({
             disabled={trustLoading}
           />
         </View>
+        
       </View>
 
       {/* ===== SOTTO: SLIDER ORIZZONTALE A PAGINE ===== */}
@@ -842,6 +863,11 @@ export default function CreateListingScreen({
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            onScrollBeginDrag={() => Keyboard.dismiss()}
+  // 👇 evita che la tastiera resti appiccicata mentre trascini
+  keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+  // 👇 blocca lo swipe orizzontale quando la tastiera è aperta
+  scrollEnabled={!isKbOpen}
             onMomentumScrollEnd={(e) => {
               const w = e.nativeEvent.layoutMeasurement.width;
               const x = e.nativeEvent.contentOffset.x;
@@ -951,105 +977,109 @@ export default function CreateListingScreen({
                 )}
 
                 {/* Spacer per non far coprire dal footer */}
-                <View style={{ height: FOOTER_H + 12 }} />
+                <View style={{ height: 2 }} />
               </View>
             </View>
 
             {/* ===== SLIDE 2 ===== */}
-            <View style={[styles.slide, { width: sliderW }]}>
-              <View style={styles.slideCard}>
-                {/* Particolari treno (se serve) */}
-                {form.type === "train" && (
-                  <View style={styles.subCard}>
-                    <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
+<View >
+  {/* Scroll verticale SOLO dentro la card della slide 2 */}
+  <ScrollView
+    style={{ flex: 1 }}
+    contentContainerStyle={{ padding: 16, paddingBottom: FOOTER_H + 20 }}
+    showsVerticalScrollIndicator={false}
+    keyboardShouldPersistTaps="handled"
+  >
+    <View style={styles.slideCardTall}>
+      {/* Particolari treno (se serve) */}
+      {form.type === "train" && (
+        <View style={styles.subCard}>
+          <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
 
-                    <View style={styles.switchRow}>
-                      <Text style={styles.labelInline}>{t("createListing.train.namedTicket", "Biglietto nominativo")}</Text>
-                      <Switch
-                        value={form.isNamedTicket}
-                        onValueChange={(v) => {
-                          if (!v) {
-                            update({ isNamedTicket: false, gender: "" });
-                          } else {
-                            update({ isNamedTicket: true });
-                          }
-                        }}
-                      />
-                    </View>
-                    <Text style={styles.noteSmall}>{t("createListing.train.genderNote", "Se attivo, indica il genere presente sul biglietto.")}</Text>
+          <View style={styles.switchRow}>
+            <Text style={styles.labelInline}>{t("createListing.train.namedTicket", "Biglietto nominativo")}</Text>
+            <Switch
+              value={form.isNamedTicket}
+              onValueChange={(v) => {
+                if (!v) update({ isNamedTicket: false, gender: "" });
+                else update({ isNamedTicket: true });
+              }}
+            />
+          </View>
+          <Text style={styles.noteSmall}>{t("createListing.train.genderNote", "Se attivo, indica il genere presente sul biglietto.")}</Text>
 
-                    {form.isNamedTicket && (
-                      <>
-                        <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.genderLabel", "Genere *")}</Text>
-                        <View style={styles.segment}>
-                          {["M", "F"].map((g) => {
-                            const active = form.gender === g;
-                            return (
-                              <TouchableOpacity key={g} onPress={() => update({ gender: g })} style={[styles.segBtn, active && styles.segBtnActive]}>
-                                <Text style={[styles.segText, active && styles.segTextActive]}>{g}</Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </View>
-                        {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
-                      </>
-                    )}
-
-                    <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.pnrLabel", "PNR (opzionale)")}</Text>
-                    <TextInput
-                      value={form.pnr}
-                      onChangeText={(v) => update({ pnr: v })}
-                      placeholder={t("createListing.train.pnrPlaceholder", "Es. ABCDEF")}
-                      style={styles.input}
-                      autoCapitalize="characters"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                    <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
-                  </View>
-                )}
-
-                {/* Prezzo */}
-                <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
-                <TextInput
-                  value={String(form.price)}
-                  onChangeText={(v) => update({ price: v.replace(",", ".") })}
-                  placeholder={t("createListing.pricePlaceholder", "Es. 120")}
-                  keyboardType="decimal-pad"
-                  style={[styles.input, errors.price && styles.inputError]}
-                  placeholderTextColor="#9CA3AF"
-                />
-                {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
-
-   
-
-                {/* Pannelli Trust */}
-                {!!trustData?.flags?.length && (
-                  <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
-                    <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
-                    {trustData.flags.map((f, i) => (
-                      <Text key={i}>• {f.msg}</Text>
-                    ))}
-                  </View>
-                )}
-
-                {!!trustData?.suggestedFixes?.length && (
-                  <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                      <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
-                      <TouchableOpacity onPress={() => setShowFixesModal(true)} style={[styles.smallBtn, { backgroundColor: "#111827" }]}>
-                        <Text style={[styles.smallBtnText, { color: "#fff" }]}>Applica tutti</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={{ height: 6 }} />
-                    {trustData.suggestedFixes.map((s, i) => (
-                      <Text key={i}>• {s.field}: {s.suggestion}</Text>
-                    ))}
-                  </View>
-                )}
-
-                <View style={{ height: FOOTER_H + 12 }} />
+          {form.isNamedTicket && (
+            <>
+              <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.genderLabel", "Genere *")}</Text>
+              <View style={styles.segment}>
+                {["M", "F"].map((g) => {
+                  const active = form.gender === g;
+                  return (
+                    <TouchableOpacity key={g} onPress={() => update({ gender: g })} style={[styles.segBtn, active && styles.segBtnActive]}>
+                      <Text style={[styles.segText, active && styles.segTextActive]}>{g}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-            </View>
+              {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+            </>
+          )}
+
+          <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.pnrLabel", "PNR (opzionale)")}</Text>
+          <TextInput
+            value={form.pnr}
+            onChangeText={(v) => update({ pnr: v })}
+            placeholder={t("createListing.train.pnrPlaceholder", "Es. ABCDEF")}
+            style={styles.input}
+            autoCapitalize="characters"
+            placeholderTextColor="#9CA3AF"
+          />
+          <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
+        </View>
+      )}
+
+      {/* Prezzo */}
+      <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
+      <TextInput
+        value={String(form.price)}
+        onChangeText={(v) => update({ price: v.replace(",", ".") })}
+        placeholder={t("createListing.pricePlaceholder", "Es. 120")}
+        keyboardType="decimal-pad"
+        style={[styles.input, errors.price && styles.inputError]}
+        placeholderTextColor="#9CA3AF"
+      />
+      {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
+
+      {/* Box Trust: usa le versioni filtrate SENZA immagine */}
+      {!!flagsNoImg?.length && (
+        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
+          <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
+          {flagsNoImg.map((f, i) => (
+            <Text key={i}>• {f.msg}</Text>
+          ))}
+        </View>
+      )}
+
+      {!!fixesNoImg?.length && (
+        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+            <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
+            <TouchableOpacity onPress={() => setShowFixesModal(true)} style={[styles.smallBtn, { backgroundColor: "#111827" }]}>
+              <Text style={[styles.smallBtnText, { color: "#fff" }]}>Applica tutti</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 6 }} />
+          {fixesNoImg.map((s, i) => (
+            <Text key={i}>• {s.field}: {s.suggestion}</Text>
+          ))}
+        </View>
+      )}
+
+      <View style={{ marginBottom: 8 }} />
+    </View>
+  </ScrollView>
+</View>
+
           </ScrollView>
 
           {/* Footer azioni */}
@@ -1166,7 +1196,24 @@ const styles = StyleSheet.create({
   topPanel: { backgroundColor: "#F4F7FB", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   topTitle: { fontSize: 20, fontWeight: "900", color: theme.colors.boardingText },
-
+slideCardTall: {
+  backgroundColor: "#fff",
+  borderRadius: 20,
+  padding: 16,
+  borderWidth: 1,
+  borderColor: "#E5E7EB",
+  shadowColor: "#0F172A",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.06,
+  shadowRadius: 12,
+  elevation: 4,
+  borderBottomWidth: 0,
+  minHeight: 120,         // ⬅️ altezza minima della card (regola a piacere)
+  paddingBottom: 12,    // 👈 lascia aria sopra i pulsanti
+  maxHeight: 420, 
+  //alignSelf:0,     // 👈 prende tutta la larghezza della slide
+  //arginHorizontal: 0,      // 👈 come slideCard
+},
   pillsRow: { flexDirection: "row", gap: 12, paddingTop: 8, paddingBottom: 6 },
   pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
   pillLight: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
