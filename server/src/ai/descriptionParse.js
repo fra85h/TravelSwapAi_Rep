@@ -42,69 +42,43 @@ const EMPTY = {
   price: null,
 };
 
-export async function parseDescriptionWithAI(text, locale = "it") {
-  if (!client) throw new Error("OPENAI_API_KEY non configurata sul server");
+function sanitizeParsed(obj) {
+  const p = { ...EMPTY, ...(obj || {}) };
 
-  const user = String(text ?? "").trim();
-  if (!user) return { ...EMPTY };
-
-  const resp = await client.responses.create({
-    model: MODEL,
-    temperature: TEMPERATURE,
-    input: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content:
-          `Lingua: ${locale}\n` +
-          `Testo annuncio:\n"""${user}"""\n` +
-          `Rispondi SOLO con JSON conforme allo schema.`,
-      },
-    ],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "ParsedListing",
-        strict: true,
-        schema: {
-          type: "object",
-          additionalProperties: false,
-  properties: {
-  cercoVendo: { type: ["string", "null"], enum: ["CERCO", "VENDO", null] },
-  type: { type: ["string", "null"], enum: ["hotel", "train", null] },
-  title: { type: ["string", "null"] },
-  location: { type: ["string", "null"] },
-  checkIn: { type: ["string", "null"], description: "YYYY-MM-DD" },
-  checkOut: { type: ["string", "null"], description: "YYYY-MM-DD" },
-  departAt: { type: ["string", "null"], description: "YYYY-MM-DD HH:mm" },
-  arriveAt: { type: ["string", "null"], description: "YYYY-MM-DD HH:mm" },
-  returnAt: { type: ["string", "null"], description: "YYYY-MM-DD HH:mm (opzionale per treno)" },
-  isNamedTicket: { type: ["boolean", "null"] },
-  gender: { type: ["string", "null"], enum: ["M", "F", null] },
-  pnr: { type: ["string", "null"] },
-  price: { type: ["string", "null"] },
-},
-required: [
-  "cercoVendo",
-  "type","title","location","checkIn","checkOut",
-  "departAt","arriveAt","returnAt","isNamedTicket","gender","pnr","price"
-],
-        },
-      },
-    },
-  });
-
-  const out =
-    resp?.output_text ||
-    resp?.output?.[0]?.content?.[0]?.text ||
-    resp?.choices?.[0]?.message?.content ||
-    "";
-
-try {
-  const p = JSON.parse(out || "{}") || {};
+  // Se price è numero → stringa
   if (typeof p.price === "number") p.price = String(p.price);
 
-  // Normalizza titolo “standard”
+  // Normalizzazione per tipo
+  if (p.type === "hotel") {
+    // per hotel ignoriamo i campi del treno
+    p.departAt = "";
+    p.arriveAt = "";
+    p.returnAt = undefined; // non mandato alla app/salvataggio
+    p.isNamedTicket = false;
+    p.gender = "";
+  }
+  if (p.type === "train") {
+    // per treno ignoriamo i campi dell'hotel
+    p.checkIn = "";
+    p.checkOut = "";
+  }
+
+  // Null → stringa vuota per i campi testo usati nel form
+  const toStr = ["title","location","checkIn","checkOut","departAt","arriveAt","pnr","price","gender"];
+  for (const k of toStr) {
+    if (p[k] == null) p[k] = "";
+  }
+
+  // Mantieni boolean o null per isNamedTicket
+  if (typeof p.isNamedTicket !== "boolean") {
+    // se hotel abbiamo già messo false sopra, altrimenti lascia null
+    if (p.type !== "hotel") p.isNamedTicket = null;
+  }
+
+  return p;
+}
+
+function buildStandardTitle(p) {
   const cv = p.cercoVendo || null;          // CERCO | VENDO | null
   const tp = p.type || null;                 // hotel | train | null
   const loc = p.location || null;            // “Origine → Destinazione” o località
@@ -119,38 +93,89 @@ try {
     tp === "hotel" ? "hotel" :
     tp === "train" ? "treno" : null;
 
-  const hasArrow = loc && /→/.test(loc);
-  const [from, to] = hasArrow ? loc.split("→").map(s => s.trim()) : [null, null];
+  if (!cv || !tag || !loc) return null;
 
-  const titleStd =
-    (cv && tag && (from || loc)) ?
-      `${cv} ${tag} ${from ? `${from} → ${to || ""}`.trim() : loc}${pickDate ? ` ${pickDate}` : ""}${priceStr ? ` €${priceStr}` : ""}`.trim()
-      : null;
-
-  const safeTitle = (p.title && p.title.length >= 8) ? p.title : titleStd;
-
- return {
-  cercoVendo: data.cercoVendo ?? null,
-  type: data.type ?? null,
-  title: data.title ?? null,
-  location: data.location ?? null,
-  checkIn: data.checkIn ?? null,
-  checkOut: data.checkOut ?? null,
-  departAt: data.departAt ?? null,
-  arriveAt: data.arriveAt ?? null,
-  returnAt: data.returnAt ?? null,
-  isNamedTicket: typeof data.isNamedTicket === "boolean" ? data.isNamedTicket : null,
-  gender: data.gender ?? null,
-  pnr: data.pnr ?? null,
-  price: data.price ?? null,
-};
-} catch {
-  console.warn("[AI] JSON parse fallita, ritorno EMPTY. Raw:", out);
-  return { ...EMPTY };
+  return `${cv} ${tag} ${loc}${pickDate ? ` ${pickDate}` : ""}${priceStr ? ` €${priceStr}` : ""}`.trim();
 }
 
-}
+export async function parseDescriptionWithAI(text, locale = "it") {
+  if (!client) throw new Error("OPENAI_API_KEY non configurata sul server");
 
+  const user = String(text ?? "").trim();
+  if (!user) return { ...EMPTY };
+
+  const resp = await client.responses.create({
+    model: MODEL,
+    temperature: TEMPERATURE,
+    input: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content:
+          "Lingua: " + locale + "\n" +
+          "Testo annuncio:\n\"\"\"" + user + "\"\"\"\n" +
+          "Rispondi SOLO con JSON conforme allo schema.",
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "ParsedListing",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            cercoVendo: { type: ["string", "null"], enum: ["CERCO", "VENDO", null] },
+            type: { type: ["string", "null"], enum: ["hotel", "train", null] },
+            title: { type: ["string", "null"] },
+            location: { type: ["string", "null"] },
+            checkIn: { type: ["string", "null"], description: "YYYY-MM-DD" },
+            checkOut: { type: ["string", "null"], description: "YYYY-MM-DD" },
+            departAt: { type: ["string", "null"], description: "YYYY-MM-DD HH:mm" },
+            arriveAt: { type: ["string", "null"], description: "YYYY-MM-DD HH:mm" },
+            returnAt: { type: ["string", "null"], description: "YYYY-MM-DD HH:mm (opzionale per treno)" },
+            isNamedTicket: { type: ["boolean", "null"] },
+            gender: { type: ["string", "null"], enum: ["M", "F", null] },
+            pnr: { type: ["string", "null"] },
+            price: { type: ["string", "null"] },
+          },
+          required: [
+            "cercoVendo",
+            "type","title","location","checkIn","checkOut",
+            "departAt","arriveAt","returnAt","isNamedTicket","gender","pnr","price"
+          ],
+        },
+      },
+    },
+  });
+
+  const out =
+    resp?.output_text ||
+    resp?.output?.[0]?.content?.[0]?.text ||
+    resp?.choices?.[0]?.message?.content ||
+    "";
+
+  try {
+    const raw = JSON.parse(out || "{}") || {};
+    // pulizia/normalizzazione
+    const p = sanitizeParsed(raw);
+
+    // Titolo: se mancante o troppo corto, costruiscine uno standard
+    if (!p.title || String(p.title).trim().length < 8) {
+      const std = buildStandardTitle(p);
+      if (std) p.title = std;
+    }
+
+    // Non esportare returnAt se vuoto/undefined (coerenza con app)
+    if (!p.returnAt) delete p.returnAt;
+
+    return p;
+  } catch {
+    console.warn("[AI] JSON parse fallita, ritorno EMPTY. Raw:", out);
+    return { ...EMPTY };
+  }
+}
 
 // Route
 export function mountParseDescriptionRoute(app, requireAuth) {

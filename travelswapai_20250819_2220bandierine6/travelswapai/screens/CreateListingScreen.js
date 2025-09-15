@@ -63,6 +63,30 @@ const TYPES = [
 ];
 
 /* ---------- UTIL DATE/TIME ---------- */
+// 👇 subito sotto ai tuoi util per le date
+function normalizeDateStr(s) {
+  const v = String(s || "").trim();
+  if (!v) return "";
+  let m;
+  // YYYY-M-D o YYYY/MM/DD
+  m = v.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  if (m) {
+    const y = parseInt(m[1], 10);
+    const mo = pad2(parseInt(m[2], 10));
+    const d = pad2(parseInt(m[3], 10));
+    return `${y}-${mo}-${d}`;
+  }
+  // D-M-YYYY o D/M/YYYY
+  m = v.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (m) {
+    const d = pad2(parseInt(m[1], 10));
+    const mo = pad2(parseInt(m[2], 10));
+    const y = parseInt(m[3], 10);
+    return `${y}-${mo}-${d}`;
+  }
+  return v; // lascio invariato se già OK o formato sconosciuto
+}
+
 const pad2 = (n) => String(n).padStart(2, "0");
 const toISODate = (d) => {
   const dt = new Date(d);
@@ -73,8 +97,9 @@ const toISOTime = (d) => {
   return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
 };
 const parseISODate = (s) => {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(s))) return null;
-  const [y, m, d] = s.split("-").map((x) => parseInt(x, 10));
+  const norm = normalizeDateStr(s);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(norm))) return null;
+  const [y, m, d] = norm.split("-").map((x) => parseInt(x, 10));
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
   return dt;
@@ -617,7 +642,20 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
 
   /* ---------- VALIDAZIONI ---------- */
   const computeErrors = useCallback(() => {
+    const ciNorm = normalizeDateStr(form.checkIn);
+const coNorm = normalizeDateStr(form.checkOut);
     const e = {};
+    // poi usa ciNorm/coNorm per i parse e i confronti
+if (form.type === "hotel") {
+  if (!ciNorm) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
+  if (!coNorm) e.checkOut = t("createListing.errors.checkOutRequired", "Check-out obbligatorio.");
+  if (ciNorm && !parseISODate(ciNorm)) e.checkIn = t("createListing.errors.checkInInvalid", "Check-in non valido (YYYY-MM-DD).");
+  if (coNorm && !parseISODate(coNorm)) e.checkOut = t("createListing.errors.checkOutInvalid", "Check-out non valido (YYYY-MM-DD).");
+  if (ciNorm && coNorm) {
+    const a = parseISODate(ciNorm), b = parseISODate(coNorm);
+    if (a && b && b < a) e.checkOut = t("createListing.errors.checkoutBeforeCheckin", "Il check-out non può precedere il check-in.");
+  }
+}
     if (!form.title.trim()) e.title = t("createListing.errors.titleRequired", "Titolo obbligatorio.");
     if (!form.location.trim()) e.location = t("createListing.errors.locationRequired", "Località obbligatoria.");
     if (form.type === "hotel") {
@@ -975,19 +1013,20 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
                 {form.type === "hotel" ? (
                   <>
                     <DateField
-                      label={t("createListing.checkIn", "Check-in")}
-                      required
-                      value={form.checkIn}
-                      onChange={(v) => update({ checkIn: v })}
-                      error={errors.checkIn}
-                    />
-                    <DateField
-                      label={t("createListing.checkOut", "Check-out")}
-                      required
-                      value={form.checkOut}
-                      onChange={(v) => update({ checkOut: v })}
-                      error={errors.checkOut}
-                    />
+  label={t("createListing.checkIn", "Check-in")}
+  required
+  value={form.checkIn}
+  onChange={(v) => update({ checkIn: normalizeDateStr(v) })}   // 👈
+  error={errors.checkIn}
+/>
+
+<DateField
+  label={t("createListing.checkOut", "Check-out")}
+  required
+  value={form.checkOut}
+  onChange={(v) => update({ checkOut: normalizeDateStr(v) })}  // 👈
+  error={errors.checkOut}
+/>
                   </>
                 ) : (
                   <>
