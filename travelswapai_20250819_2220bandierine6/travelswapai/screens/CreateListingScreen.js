@@ -24,6 +24,18 @@ import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI par
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
 const DRAFT_KEY = "@tsai:create_listing_draft";
+function uniqBy(arr, keyFn) {
+  try {
+    const seen = new Set();
+    return (Array.isArray(arr) ? arr : []).filter(it => {
+      const key = keyFn(it);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  } catch { return Array.isArray(arr) ? arr : []; }
+}
+
 
 function AIPill({ title, onPress, disabled, dark, loading }) {
   return (
@@ -61,14 +73,14 @@ const toISOTime = (d) => {
   return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
 };
 const parseISODate = (s) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s))) return null;
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(s))) return null;
   const [y, m, d] = s.split("-").map((x) => parseInt(x, 10));
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
   return dt;
 };
 const parseISODateTime = (s) => {
-  if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(String(s))) return null;
+  if (!/^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}$/.test(String(s))) return null;
   const [date, time] = s.replace("T", " ").split(" ");
   const [y, m, d] = date.split("-").map((x) => parseInt(x, 10));
   const [H, M] = time.split(":").map((x) => parseInt(x, 10));
@@ -296,16 +308,30 @@ useEffect(() => {
 
 const flagsNoImg = useMemo(() => {
   const rx = /(image|imageurl|image_url|foto|immagine)/i;
-  return Array.isArray(trustData?.flags) ? trustData.flags.filter(f =>
-    !rx.test(String(f?.field || f?.msg || "")))
-  : [];
+  const arr = Array.isArray(trustData?.flags) ? trustData.flags.filter(f =>
+    !rx.test(String(f?.field || f?.msg || ""))) : [];
+  // de-duplica per (field|msg)
+  const seen = new Set();
+  return arr.filter(f => {
+    const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }, [trustData]);
 
 const fixesNoImg = useMemo(() => {
   const rx = /(image|imageurl|image_url|foto|immagine)/i;
-  return Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes.filter(s =>
-    !rx.test(String(s?.field || s?.suggestion || "")))
-  : [];
+  const arr = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes.filter(s =>
+    !rx.test(String(s?.field || s?.suggestion || ""))) : [];
+  // de-duplica per (field|suggestion)
+  const seen = new Set();
+  return arr.filter(s => {
+    const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }, [trustData]);
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
@@ -864,21 +890,27 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onScrollBeginDrag={() => Keyboard.dismiss()}
-  // 👇 evita che la tastiera resti appiccicata mentre trascini
-  keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-  // 👇 blocca lo swipe orizzontale quando la tastiera è aperta
-  scrollEnabled={!isKbOpen}
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            scrollEnabled={!isKbOpen}
             onMomentumScrollEnd={(e) => {
               const w = e.nativeEvent.layoutMeasurement.width;
               const x = e.nativeEvent.contentOffset.x;
               const idx = Math.round(x / w);
               setSlideIndex(idx);
             }}
-           contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
           >
             {/* ===== SLIDE 1 ===== */}
             <View style={[styles.slide, { width: sliderW }]}>
               <View style={styles.slideCard}>
+                {/* Scroll verticale interno alla card per contenuti lunghi (Slide 1) */}
+                <ScrollView
+                  style={{ maxHeight: 420 }}
+                  contentContainerStyle={{ paddingBottom: FOOTER_H + 20 }}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                >
                 {/* Riga combinata: Tipo + Tipo annuncio */}
                 <View style={styles.row2}>
                   <View style={styles.col}>
@@ -978,107 +1010,109 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
 
                 {/* Spacer per non far coprire dal footer */}
                 <View style={{ height: 2 }} />
+                </ScrollView>
               </View>
             </View>
 
-            {/* ===== SLIDE 2 ===== */}
-<View >
-  {/* Scroll verticale SOLO dentro la card della slide 2 */}
-  <ScrollView
-    style={{ flex: 1 }}
-    contentContainerStyle={{ padding: 16, paddingBottom: FOOTER_H + 20 }}
-    showsVerticalScrollIndicator={false}
-    keyboardShouldPersistTaps="handled"
-  >
-    <View style={styles.slideCardTall}>
-      {/* Particolari treno (se serve) */}
-      {form.type === "train" && (
-        <View style={styles.subCard}>
-          <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
+            {/* ===== SLIDE 2 (UNIFORMATA A SLIDE 1) ===== */}
+            <View style={[styles.slide, { width: sliderW }]}>
+              <View style={styles.slideCard}>
+                {/* Scroll verticale interno alla card per contenuti lunghi */}
+                <ScrollView
+                  style={{ maxHeight: 420 }}
+                  contentContainerStyle={{ paddingBottom: FOOTER_H + 20 }}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                >
+                  {/* Particolari treno (se serve) */}
+                  {form.type === "train" && (
+                    <View style={styles.subCard}>
+                      <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
 
-          <View style={styles.switchRow}>
-            <Text style={styles.labelInline}>{t("createListing.train.namedTicket", "Biglietto nominativo")}</Text>
-            <Switch
-              value={form.isNamedTicket}
-              onValueChange={(v) => {
-                if (!v) update({ isNamedTicket: false, gender: "" });
-                else update({ isNamedTicket: true });
-              }}
-            />
-          </View>
-          <Text style={styles.noteSmall}>{t("createListing.train.genderNote", "Se attivo, indica il genere presente sul biglietto.")}</Text>
+                      <View style={styles.switchRow}>
+                        <Text style={styles.labelInline}>{t("createListing.train.namedTicket", "Biglietto nominativo")}</Text>
+                        <Switch
+                          value={form.isNamedTicket}
+                          onValueChange={(v) => {
+                            if (!v) update({ isNamedTicket: false, gender: "" });
+                            else update({ isNamedTicket: true });
+                          }}
+                        />
+                      </View>
+                      <Text style={styles.noteSmall}>{t("createListing.train.genderNote", "Se attivo, indica il genere presente sul biglietto.")}</Text>
 
-          {form.isNamedTicket && (
-            <>
-              <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.genderLabel", "Genere *")}</Text>
-              <View style={styles.segment}>
-                {["M", "F"].map((g) => {
-                  const active = form.gender === g;
-                  return (
-                    <TouchableOpacity key={g} onPress={() => update({ gender: g })} style={[styles.segBtn, active && styles.segBtnActive]}>
-                      <Text style={[styles.segText, active && styles.segTextActive]}>{g}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                      {form.isNamedTicket && (
+                        <>
+                          <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.genderLabel", "Genere *")}</Text>
+                          <View style={styles.segment}>
+                            {["M", "F"].map((g) => {
+                              const active = form.gender === g;
+                              return (
+                                <TouchableOpacity key={g} onPress={() => update({ gender: g })} style={[styles.segBtn, active && styles.segBtnActive]}>
+                                  <Text style={[styles.segText, active && styles.segTextActive]}>{g}</Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
+                          {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+                        </>
+                      )}
+
+                      <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.pnrLabel", "PNR (opzionale)")}</Text>
+                      <TextInput
+                        value={form.pnr}
+                        onChangeText={(v) => update({ pnr: v })}
+                        placeholder={t("createListing.train.pnrPlaceholder", "Es. ABCDEF")}
+                        style={styles.input}
+                        autoCapitalize="characters"
+                        placeholderTextColor="#9CA3AF"
+                      />
+                      <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
+                    </View>
+                  )}
+
+                  {/* Prezzo */}
+                  <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
+                  <TextInput
+                    value={String(form.price)}
+                    onChangeText={(v) => update({ price: v.replace(",", ".") })}
+                    placeholder={t("createListing.pricePlaceholder", "Es. 120")}
+                    keyboardType="decimal-pad"
+                    style={[styles.input, errors.price && styles.inputError]}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
+
+                  {/* Box Trust: usa le versioni filtrate SENZA immagine */}
+                  {!!flagsNoImg?.length && (
+                    <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
+                      <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
+                      {flagsNoImg.map((f, i) => (
+                        <Text key={i}>• {f.msg}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {!!fixesNoImg?.length && (
+                    <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
+                        <TouchableOpacity onPress={() => setShowFixesModal(true)} style={[styles.smallBtn, { backgroundColor: "#111827" }]}>
+                          <Text style={[styles.smallBtnText, { color: "#fff" }]}>Applica tutti</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={{ height: 6 }} />
+                      {fixesNoImg.map((s, i) => (
+                        <Text key={i}>• {s.field}: {s.suggestion}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  <View style={{ marginBottom: 8 }} />
+                </ScrollView>
               </View>
-              {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
-            </>
-          )}
-
-          <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.pnrLabel", "PNR (opzionale)")}</Text>
-          <TextInput
-            value={form.pnr}
-            onChangeText={(v) => update({ pnr: v })}
-            placeholder={t("createListing.train.pnrPlaceholder", "Es. ABCDEF")}
-            style={styles.input}
-            autoCapitalize="characters"
-            placeholderTextColor="#9CA3AF"
-          />
-          <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
-        </View>
-      )}
-
-      {/* Prezzo */}
-      <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
-      <TextInput
-        value={String(form.price)}
-        onChangeText={(v) => update({ price: v.replace(",", ".") })}
-        placeholder={t("createListing.pricePlaceholder", "Es. 120")}
-        keyboardType="decimal-pad"
-        style={[styles.input, errors.price && styles.inputError]}
-        placeholderTextColor="#9CA3AF"
-      />
-      {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
-
-      {/* Box Trust: usa le versioni filtrate SENZA immagine */}
-      {!!flagsNoImg?.length && (
-        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
-          <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
-          {flagsNoImg.map((f, i) => (
-            <Text key={i}>• {f.msg}</Text>
-          ))}
-        </View>
-      )}
-
-      {!!fixesNoImg?.length && (
-        <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-            <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
-            <TouchableOpacity onPress={() => setShowFixesModal(true)} style={[styles.smallBtn, { backgroundColor: "#111827" }]}>
-              <Text style={[styles.smallBtnText, { color: "#fff" }]}>Applica tutti</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ height: 6 }} />
-          {fixesNoImg.map((s, i) => (
-            <Text key={i}>• {s.field}: {s.suggestion}</Text>
-          ))}
-        </View>
-      )}
-
-      <View style={{ marginBottom: 8 }} />
-    </View>
-  </ScrollView>
-</View>
+            </View>
 
           </ScrollView>
 
@@ -1196,24 +1230,6 @@ const styles = StyleSheet.create({
   topPanel: { backgroundColor: "#F4F7FB", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   topTitle: { fontSize: 20, fontWeight: "900", color: theme.colors.boardingText },
-slideCardTall: {
-  backgroundColor: "#fff",
-  borderRadius: 20,
-  padding: 16,
-  borderWidth: 1,
-  borderColor: "#E5E7EB",
-  shadowColor: "#0F172A",
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.06,
-  shadowRadius: 12,
-  elevation: 4,
-  borderBottomWidth: 0,
-  minHeight: 120,         // ⬅️ altezza minima della card (regola a piacere)
-  paddingBottom: 12,    // 👈 lascia aria sopra i pulsanti
-  maxHeight: 420, 
-  //alignSelf:0,     // 👈 prende tutta la larghezza della slide
-  //arginHorizontal: 0,      // 👈 come slideCard
-},
   pillsRow: { flexDirection: "row", gap: 12, paddingTop: 8, paddingBottom: 6 },
   pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
   pillLight: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
@@ -1231,13 +1247,25 @@ slideCardTall: {
   stepBar: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.primary },
   stepBarActive: { backgroundColor: theme.colors.boardingText },
 
-  slide: { paddingHorizontal: 16 ,  marginBottom: 180,   // 👈 lascia aria sopra i pulsanti
-},
-  slideCard: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 , 
-    minHeight: 120,         // ⬅️ altezza minima della card (regola a piacere)
-  paddingBottom: 12,    // 👈 lascia aria sopra i pulsanti
-  maxHeight: 420,  
-},
+  slide: {
+    paddingHorizontal: 16,
+    marginBottom: 180,   // spazio sopra i pulsanti
+  },
+  slideCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+    minHeight: 120,
+    paddingBottom: 12,
+    maxHeight: 420
+  },
 
   // row with two equal columns
   row2: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
@@ -1246,6 +1274,7 @@ slideCardTall: {
   // common
   card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
   subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
+  subCardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText, marginBottom: 6 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   cardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
 
@@ -1271,22 +1300,22 @@ slideCardTall: {
 
   footer: {
     position: "absolute", left: 0, right: 0, bottom: 0,
-    backgroundColor: "transparent",           // 👈 niente striscia bianca/riga
-    paddingHorizontal: 12, paddingBottom: 12, // mantieni aria
+    backgroundColor: "transparent",
+    paddingHorizontal: 12, paddingBottom: 12,
     paddingTop: 0,
     flexDirection: "row", gap: 10
   },
-    footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
- footerPrimary: {
-   backgroundColor: theme.colors.primary,
-   shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: {width:0, height:4},
-   elevation: 3
- },
- footerGhost: {
-   backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB",
-   shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: {width:0, height:3},
-   elevation: 2
- },
+  footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
+  footerPrimary: {
+    backgroundColor: theme.colors.primary,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: {width:0, height:4},
+    elevation: 3
+  },
+  footerGhost: {
+    backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB",
+    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: {width:0, height:3},
+    elevation: 2
+  },
   footerText: { fontWeight: "800", color: theme.colors.boardingText },
 
   sheetBackdrop: { flex: 1, backgroundColor: "#00000066", alignItems: "center", justifyContent: "flex-end" },
@@ -1304,4 +1333,3 @@ slideCardTall: {
   qrTitle: { fontWeight: "800", color: theme.colors.primary, alignSelf: "center" },
   qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "#E5E7EB" },
 });
-
