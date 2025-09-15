@@ -9,8 +9,8 @@ import TrustInfo from '../components/TrustInfo';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
-  StyleSheet, Image, Switch, Modal, Dimensions,borderBottomWidth,
-  Keyboard,                // 👈 aggiungi questo
+  StyleSheet, Image, Switch, Modal, Dimensions,
+  Keyboard,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,6 +24,7 @@ import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI par
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
 const DRAFT_KEY = "@tsai:create_listing_draft";
+
 function uniqBy(arr, keyFn) {
   try {
     const seen = new Set();
@@ -35,7 +36,6 @@ function uniqBy(arr, keyFn) {
     });
   } catch { return Array.isArray(arr) ? arr : []; }
 }
-
 
 function AIPill({ title, onPress, disabled, dark, loading }) {
   return (
@@ -63,7 +63,6 @@ const TYPES = [
 ];
 
 /* ---------- UTIL DATE/TIME ---------- */
-// 👇 subito sotto ai tuoi util per le date
 function normalizeDateStr(s) {
   const v = String(s || "").trim();
   if (!v) return "";
@@ -84,7 +83,7 @@ function normalizeDateStr(s) {
     const y = parseInt(m[3], 10);
     return `${y}-${mo}-${d}`;
   }
-  return v; // lascio invariato se già OK o formato sconosciuto
+  return v; // già OK o formato sconosciuto
 }
 
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -105,7 +104,7 @@ const parseISODate = (s) => {
   return dt;
 };
 const parseISODateTime = (s) => {
-  if (!/^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}$/.test(String(s))) return null;
+  if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(String(s))) return null;
   const [date, time] = s.replace("T", " ").split(" ");
   const [y, m, d] = date.split("-").map((x) => parseInt(x, 10));
   const [H, M] = time.split(":").map((x) => parseInt(x, 10));
@@ -116,15 +115,15 @@ const parseISODateTime = (s) => {
 /* ---------- AI PARSER helpers (semplificati) ---------- */
 const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa", LIN:"Milano Linate", BGY:"Bergamo Orio", VCE:"Venezia", BLQ:"Bologna", NAP:"Napoli", CTA:"Catania", PMO:"Palermo", CAG:"Cagliari", PSA:"Pisa", TRN:"Torino", VRN:"Verona", BRI:"Bari", OLB:"Olbia" };
 const MONTHS_IT = { GENNAIO:0, FEBBRAIO:1, MARZO:2, APRILE:3, MAGGIO:4, GIUGNO:5, LUGLIO:6, AGOSTO:7, SETTEMBRE:8, OTTOBRE:9, NOVEMBRE:10, DICEMBRE:11 };
-const DATE_ANY_RE = /\\b(?:(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})|(\\d{4})[\\/-](\\d{1,2})[\\/-](\\d{1,2}))\\b/;
-const DATE_TEXT_RE = new RegExp(String.raw`\\b(\\d{1,2})\\s([A-Za-zÀ-ÿ]{3,})\\s(\\d{4})\\b`, "i");
-const TIME_RE = /\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b/;
-const FLIGHT_NO_RE = /\\b([A-Z]{2})\\s?(\\d{2,4})\\b/;
-const IATA_PAIR_RE = /\\b([A-Z]{3})\\s*(?:-|–|—|>|→|to|verso)\\s*([A-Z]{3})\\b/;
-const TRAIN_KEYWORDS_RE = /\\b(Trenitalia|Frecciarossa|FR\\s?\\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\\b/i;
-const ROUTE_TEXT_RE = /\\b(?:da|from)\\s([A-Za-zÀ-ÿ .'\\-]+)\\s(?:a|to)\\s([A-Za-zÀ-ÿ .'\\-]+)\\b/i;
-const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\\-]{3,})\\s*(?:-|–|—|>|→)\\s*([A-Za-zÀ-ÿ .'\\-]{3,})/;
-const PNR_RE = /\\b(?:PNR|booking\\s*reference|codice\\s*(?:prenotazione|biglietto)|record\\s*locator)\\s*[:=]?\\s([A-Z0-9]{5,8})\\b/i;
+const DATE_ANY_RE = /\b(?:(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})|(\d{4})[\/-](\d{1,2})[\/-](\d{1,2}))\b/;
+const DATE_TEXT_RE = new RegExp(String.raw`\b(\d{1,2})\s([A-Za-zÀ-ÿ]{3,})\s(\d{4})\b`, "i");
+const TIME_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
+const FLIGHT_NO_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
+const IATA_PAIR_RE = /\b([A-Z]{3})\s*(?:-|–|—|>|→|to|verso)\s*([A-Z]{3})\b/;
+const TRAIN_KEYWORDS_RE = /\b(Trenitalia|Frecciarossa|FR\s?\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\b/i;
+const ROUTE_TEXT_RE = /\b(?:da|from)\s([A-Za-zÀ-ÿ .'\-]+)\s(?:a|to)\s([A-Za-zÀ-ÿ .'\-]+)\b/i;
+const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\-]{3,})\s*(?:-|–|—|>|→)\s*([A-Za-zÀ-ÿ .'\-]{3,})/;
+const PNR_RE = /\b(?:PNR|booking\s*reference|codice\s*(?:prenotazione|biglietto)|record\s*locator)\s*[:=]?\s([A-Z0-9]{5,8})\b/i;
 
 function parseAnyDate(text) {
   if (!text) return null;
@@ -174,13 +173,13 @@ function normalizeTitleFromRoute(from, to, carrierHint) {
   return null;
 }
 function smartParseTicket(text) {
-  const src = String(text || "").replace(/\\s/g, " ").trim();
+  const src = String(text || "").replace(/\s/g, " ").trim();
   const out = { status: "active" };
   const pnr = (src.match(PNR_RE) || [])[1];
   if (pnr) out.pnr = pnr.toUpperCase();
   const hasTrain = TRAIN_KEYWORDS_RE.test(src);
   const flMatch = src.match(FLIGHT_NO_RE);
-  const mentionsRyanair = /Ryanair|FR\\s?\\d{1,4}\\b/i.test(src);
+  const mentionsRyanair = /Ryanair|FR\s?\d{1,4}\b/i.test(src);
   let routeFrom = null, routeTo = null;
   const iata = src.match(IATA_PAIR_RE);
   if (iata) {
@@ -211,7 +210,7 @@ function smartParseTicket(text) {
     const plus = new Date(dt.getTime() + 90 * 60000);
     timeArrive = `${pad2(plus.getHours())}:${pad2(plus.getMinutes())}`;
   }
-  const isHotelish = /\\b(hotel|albergo|check[-\\s]?in|check[-\\s]?out|notti|night)\\b/i.test(src);
+  const isHotelish = /\b(hotel|albergo|check[-\s]?in|check[-\s]?out|notti|night)\b/i.test(src);
   const twoPlainDatesOnly = (dateMatches.length >= 2 || dateTextMatch) && times.length === 0;
   const isRyanair = mentionsRyanair || (flMatch && flMatch[1] === "FR");
   if (isHotelish || (twoPlainDatesOnly && !hasTrain && !isRyanair)) {
@@ -234,33 +233,12 @@ function smartParseTicket(text) {
   const carrierHint = isRyanair ? "Ryanair" : hasTrain ? "Trenitalia/Italo" : "";
   out.title = normalizeTitleFromRoute(routeFrom, routeTo, carrierHint) || (isRyanair ? `Volo Ryanair ${flMatch ? flMatch[1] + flMatch[2] : ""}` : "Viaggio");
   out.location = routeFrom && routeTo ? `${routeFrom} → ${routeTo}` : isRyanair ? "Volo Ryanair" : "Treno";
-  const pm = src.match(/(?:€|\\beur\\b|\\beuro\\b)\\s*([0-9](?:[\\,\\.][0-9]{1,2})?)/i);
+  const pm = src.match(/(?:€|\beur\b|\beuro\b)\s*([0-9](?:[\,\.][0-9]{1,2})?)/i);
   if (pm) out.price = String(pm[1]).replace(",", ".");
   if (isRyanair) out.imageUrl = "https://picsum.photos/seed/ryanair/1200/800";
   else if (hasTrain) out.imageUrl = "https://picsum.photos/seed/train/1200/800";
   return out;
 }
-
-/* ---------- IMAGE PREVIEW ---------- */
-/*function ImagePreview({ url }) {
-  const { t } = useI18n();
-  const [error, setError] = useState(false);
-  if (!String(url || "").trim()) {
-    return (
-      <View style={styles.previewPlaceholder}>
-        <Text style={styles.previewText}>{t("createListing.imageHint", "Aggiungi un URL immagine per vedere l’anteprima")}</Text>
-      </View>
-    );
-  }
-  if (error) {
-    return (
-      <View style={[styles.previewPlaceholder, { borderColor: "#FECACA", backgroundColor: "#FEF2F2" }]}>
-        <Text style={[styles.previewText, { color: "#991B1B" }]}>{t("createListing.imageLoadError", "Impossibile caricare l’immagine")}</Text>
-      </View>
-    );
-  }
-  return <Image source={{ uri: url }} onError={() => setError(true)} style={styles.previewImage} resizeMode="cover" />;
-}*/
 
 /* ---------- AI IMPORT RESOLVERS ---------- */
 async function aiImportFromPNR(pnr) {
@@ -309,6 +287,7 @@ export default function CreateListingScreen({
   const { t } = useI18n();
   const navigation = useNavigation();
   const p = route?.params ?? {};
+  thead: null;
   const passedListing = p.listing ?? null;
   const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null;
   const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
@@ -317,53 +296,62 @@ export default function CreateListingScreen({
   const { loading: trustLoading, data: trustData, error: trustError, evaluate } = useTrustScore();
   const [lastTrustRunAt, setLastTrustRunAt] = useState(0);
   const [showFixesModal, setShowFixesModal] = useState(false);
+
   // Stato tastiera (per bloccare swipe orizzontale quando è aperta)
-const [isKbOpen, setIsKbOpen] = useState(false);
-useEffect(() => {
-  const showSub = Keyboard.addListener(
-    Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-    () => setIsKbOpen(true)
-  );
-  const hideSub = Keyboard.addListener(
-    Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-    () => setIsKbOpen(false)
-  );
-  return () => { showSub.remove(); hideSub.remove(); };
-}, []);
+  const [isKbOpen, setIsKbOpen] = useState(false);
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setIsKbOpen(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+      () => setIsKbOpen(false)
+    );
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
-const flagsNoImg = useMemo(() => {
-  const rx = /(image|imageurl|image_url|foto|immagine)/i;
-  const arr = Array.isArray(trustData?.flags) ? trustData.flags.filter(f =>
-    !rx.test(String(f?.field || f?.msg || ""))) : [];
-  // de-duplica per (field|msg)
-  const seen = new Set();
-  return arr.filter(f => {
-    const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}, [trustData]);
+  const flagsNoImg = useMemo(() => {
+    const rx = /(image|imageurl|image_url|foto|immagine)/i;
+    const arr = Array.isArray(trustData?.flags) ? trustData.flags.filter(f =>
+      !rx.test(String(f?.field || f?.msg || ""))) : [];
+    // de-duplica per (field|msg)
+    const seen = new Set();
+    return arr.filter(f => {
+      const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [trustData]);
 
-const fixesNoImg = useMemo(() => {
-  const rx = /(image|imageurl|image_url|foto|immagine)/i;
-  const arr = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes.filter(s =>
-    !rx.test(String(s?.field || s?.suggestion || ""))) : [];
-  // de-duplica per (field|suggestion)
-  const seen = new Set();
-  return arr.filter(s => {
-    const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}, [trustData]);
+  const fixesNoImg = useMemo(() => {
+    const rx = /(image|imageurl|image_url|foto|immagine)/i;
+    const arr = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes.filter(s =>
+      !rx.test(String(s?.field || s?.suggestion || ""))) : [];
+    // de-duplica per (field|suggestion)
+    const seen = new Set();
+    return arr.filter(s => {
+      const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [trustData]);
+
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
-const [insightsOpen, setInsightsOpen] = useState(false);
-const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
-  // cooldown 10s
-  const onTrustCheck = async () => {
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
+
+  // --- Combined Check AI (runs AI magic first, then Trust check) ---
+  const runMagicThenTrust = useCallback(async () => {
+    if (trustLoading) return;
+    // first run AI "magic" fill based on description (slide 0 behavior)
+    try {
+      await runAI(0);
+    } catch {}
+    // then run trust check with cooldown
     const now = Date.now();
     if (now - lastTrustRunAt < 10_000) {
       const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
@@ -372,7 +360,6 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
     }
     const hasArrow = form.type === "train" && /→/.test(form.location || "");
     const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null];
-   // const images = form.imageUrl?.trim() ? [{ url: form.imageUrl.trim(), width: 1200, height: 800 }] : [];
     const payload = {
       id: passedListing?.id || listingId || null,
       type: form.type,
@@ -384,19 +371,17 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
       endDate: form.type === "hotel" ? form.checkOut : (form.arriveAt?.split("T")[0] || null),
       price: form.price ? Number(String(form.price).replace(",", ".")) : null,
       currency: "EUR",
-      provider: undefined,
-      holderName: undefined,
-      //images: images.map(i => ({ url: i.url, width: i.width, height: i.height }))
     };
     const res = await evaluate(payload);
     setLastTrustRunAt(Date.now());
     if (!res && trustError) {
       Alert.alert("AI TrustScore", trustError);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, evaluate, trustLoading, lastTrustRunAt, trustError, passedListing?.id, listingId]);
 
   // Applica tutti i fix proposti dall’AI (solo campi noti)
-  const applyAllTrustFixes = () => {
+  const applyAllTrustFixes = useCallback(() => {
     try {
       const fixes = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes : [];
       if (!fixes.length) {
@@ -413,7 +398,6 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
         if (["departat","depart_at","departure","partenza"].includes(key)) return "departAt";
         if (["arriveat","arrive_at","arrival","arrivo"].includes(key)) return "arriveAt";
         if (["price","prezzo"].includes(key)) return "price";
-       // if (["image","imageurl","image_url","foto","immagine"].includes(key)) return "imageUrl";
         if (["pnr","codiceprenotazione"].includes(key)) return "pnr";
         return null;
       };
@@ -434,7 +418,7 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
     } catch {
       Alert.alert("Errore", "Impossibile applicare i fix.");
     }
-  };
+  }, [trustData, update]);
 
   useLayoutEffect(() => {
     try {
@@ -477,7 +461,6 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
     pnr: "",
     description: "",
     price: "",
-   // imageUrl: "",
   });
 
   const initialJsonRef = useRef(null);
@@ -499,7 +482,6 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
               location: l.location ?? prev.location,
               description: l.description ?? prev.description,
               price: l.price != null ? String(l.price) : prev.price,
-             // imageUrl: l.image_url || prev.imageUrl,
               checkIn: l.check_in || "",
               checkOut: l.check_out || "",
               departAt: l.depart_at || "",
@@ -575,7 +557,7 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
     }
   };
 
-  const runAI = async (currentSlide) => {
+  const runAI = useCallback(async (currentSlide) => {
     if (loadingAI || publishing || importBusy || saving) return;
     try {
       setLoadingAI(true);
@@ -626,45 +608,35 @@ const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.leng
             ? t("createListing.ai.hotelDesc", "Camera doppia con colazione. Check-in flessibile, vicino ai mezzi.")
             : t("createListing.ai.trainDesc", "Posto a sedere confermato, vagone silenzio. Biglietto cedibile.")
         );
-       // patch.imageUrl = ifEmpty(form.imageUrl, "https://picsum.photos/1200/800");
         patch.price = ifEmpty(form.price, "120");
         if (form.type === "train" && form.isNamedTicket === false) { patch.isNamedTicket = false; patch.gender = ""; }
       }
 
       update(patch);
-      Alert.alert(t("createListing.ai.title", "Magia AI ✨"), t("createListing.ai.applied", "Ho suggerito alcuni campi. Puoi modificarli."));
+      // niente alert qui per non essere invasivi quando parte dal Check AI
     } catch {
-      Alert.alert("AI", t("createListing.ai.error", "Impossibile generare suggerimenti."));
+      // silenzioso
     } finally {
       setLoadingAI(false);
     }
-  };
+  }, [form, importBusy, loadingAI, publishing, saving, t, update]);
 
   /* ---------- VALIDAZIONI ---------- */
   const computeErrors = useCallback(() => {
     const ciNorm = normalizeDateStr(form.checkIn);
-const coNorm = normalizeDateStr(form.checkOut);
+    const coNorm = normalizeDateStr(form.checkOut);
     const e = {};
-    // poi usa ciNorm/coNorm per i parse e i confronti
-if (form.type === "hotel") {
-  if (!ciNorm) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
-  if (!coNorm) e.checkOut = t("createListing.errors.checkOutRequired", "Check-out obbligatorio.");
-  if (ciNorm && !parseISODate(ciNorm)) e.checkIn = t("createListing.errors.checkInInvalid", "Check-in non valido (YYYY-MM-DD).");
-  if (coNorm && !parseISODate(coNorm)) e.checkOut = t("createListing.errors.checkOutInvalid", "Check-out non valido (YYYY-MM-DD).");
-  if (ciNorm && coNorm) {
-    const a = parseISODate(ciNorm), b = parseISODate(coNorm);
-    if (a && b && b < a) e.checkOut = t("createListing.errors.checkoutBeforeCheckin", "Il check-out non può precedere il check-in.");
-  }
-}
+
     if (!form.title.trim()) e.title = t("createListing.errors.titleRequired", "Titolo obbligatorio.");
     if (!form.location.trim()) e.location = t("createListing.errors.locationRequired", "Località obbligatoria.");
+
     if (form.type === "hotel") {
-      if (!form.checkIn.trim()) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
-      if (!form.checkOut.trim()) e.checkOut = t("createListing.errors.checkOutRequired", "Check-out obbligatorio.");
-      if (form.checkIn && !parseISODate(form.checkIn)) e.checkIn = t("createListing.errors.checkInInvalid", "Check-in non valido (YYYY-MM-DD).");
-      if (form.checkOut && !parseISODate(form.checkOut)) e.checkOut = t("createListing.errors.checkOutInvalid", "Check-out non valido (YYYY-MM-DD).");
-      if (form.checkIn && form.checkOut) {
-        const a = parseISODate(form.checkIn), b = parseISODate(form.checkOut);
+      if (!ciNorm) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
+      if (!coNorm) e.checkOut = t("createListing.errors.checkOutRequired", "Check-out obbligatorio.");
+      if (ciNorm && !parseISODate(ciNorm)) e.checkIn = t("createListing.errors.checkInInvalid", "Check-in non valido (YYYY-MM-DD).");
+      if (coNorm && !parseISODate(coNorm)) e.checkOut = t("createListing.errors.checkOutInvalid", "Check-out non valido (YYYY-MM-DD).");
+      if (ciNorm && coNorm) {
+        const a = parseISODate(ciNorm), b = parseISODate(coNorm);
         if (a && b && b < a) e.checkOut = t("createListing.errors.checkoutBeforeCheckin", "Il check-out non può precedere il check-in.");
       }
     } else {
@@ -680,9 +652,11 @@ if (form.type === "hotel") {
         e.gender = t("createListing.errors.genderRequired", "Seleziona M o F.");
       }
     }
+
     const priceStr = String(form.price || "").trim();
     if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
     else if (!isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
+
     return e;
   }, [form, t]);
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
@@ -712,7 +686,6 @@ if (form.type === "hotel") {
         location: form.location.trim(),
         description: form.description.trim() || null,
         price: Number.isFinite(priceNum) ? priceNum : null,
-        //image_url: form.imageUrl?.trim() || null,
         cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
         ...(mode !== "edit" ? { status: "active" } : {})
       };
@@ -836,7 +809,6 @@ if (form.type === "hotel") {
         checkIn: "",
         checkOut: "",
         price: data.price ?? "",
-       // imageUrl: data.imageUrl ?? "",
         description: data.description ?? "",
       });
     } else {
@@ -853,7 +825,6 @@ if (form.type === "hotel") {
         gender: "",
         pnr: "",
         price: data.price ?? "",
-       // imageUrl: data.imageUrl ?? "",
         description: data.description ?? "",
       });
     }
@@ -869,7 +840,6 @@ if (form.type === "hotel") {
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TrustScoreBadge score={trustData?.trustScore} />
             <TrustInfo />
-            
           </View>
         </View>
 
@@ -886,8 +856,7 @@ if (form.type === "hotel") {
           textAlignVertical="top"
         />
 
-        {/* Azioni AI in riga */}
- 
+        {/* Azioni AI in riga (solo Import + Check AI combinato) */}
         <View style={styles.pillsRow}>
           <AIPill
             title={t("createListing.aiImport", "AI Import 1-click")}
@@ -895,17 +864,11 @@ if (form.type === "hotel") {
             disabled={importBusy || saving || publishing}
           />
           <AIPill
-            title={t("createListing.aiMagic", "Magia IA ✨")}
-            onPress={() => runAI(0)}
-            disabled={loadingAI || importBusy || saving || publishing}
-          />
-          <AIPill
             title={"Check AI"}
-            onPress={onTrustCheck}
-            disabled={trustLoading}
+            onPress={runMagicThenTrust}
+            disabled={trustLoading || loadingAI}
           />
         </View>
-        
       </View>
 
       {/* ===== SOTTO: SLIDER ORIZZONTALE A PAGINE ===== */}
@@ -949,106 +912,105 @@ if (form.type === "hotel") {
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
                 >
-                {/* Riga combinata: Tipo + Tipo annuncio */}
-                <View style={styles.row2}>
-                  <View style={styles.col}>
-                    <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
-                    <View style={styles.segment}>
-                      {TYPES.map((tt) => {
-                        const active = form.type === tt.key;
-                        return (
-                          <TouchableOpacity key={tt.key} onPress={() => onChangeType(tt.key)} style={[styles.segBtn, active && styles.segBtnActive]}>
-                            <Text style={[styles.segText, active && styles.segTextActive]}>{t(tt.labelKey, tt.key === "hotel" ? "Hotel" : "Treno")}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                  {/* Riga combinata: Tipo + Tipo annuncio */}
+                  <View style={styles.row2}>
+                    <View style={styles.col}>
+                      <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
+                      <View style={styles.segment}>
+                        {TYPES.map((tt) => {
+                          const active = form.type === tt.key;
+                          return (
+                            <TouchableOpacity key={tt.key} onPress={() => onChangeType(tt.key)} style={[styles.segBtn, active && styles.segBtnActive]}>
+                              <Text style={[styles.segText, active && styles.segTextActive]}>{t(tt.labelKey, tt.key === "hotel" ? "Hotel" : "Treno")}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+                    <View style={styles.col}>
+                      <Text style={styles.label}>{t("createListing.cercoVendoLabel", "Tipo annuncio")}</Text>
+                      <View style={styles.segment}>
+                        {["CERCO","VENDO"].map((cv) => {
+                          const active = form.cercoVendo === cv;
+                          return (
+                            <TouchableOpacity key={cv} onPress={() => update({ cercoVendo: cv })} style={[styles.segBtn, active && styles.segBtnActive]}>
+                              <Text style={[styles.segText, active && styles.segTextActive]}>{cv === "CERCO" ? t("createListing.cerco","Cerco") : t("createListing.vendo","Vendo")}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </View>
                   </View>
-                  <View style={styles.col}>
-                    <Text style={styles.label}>{t("createListing.cercoVendoLabel", "Tipo annuncio")}</Text>
-                    <View style={styles.segment}>
-                      {["CERCO","VENDO"].map((cv) => {
-                        const active = form.cercoVendo === cv;
-                        return (
-                          <TouchableOpacity key={cv} onPress={() => update({ cercoVendo: cv })} style={[styles.segBtn, active && styles.segBtnActive]}>
-                            <Text style={[styles.segText, active && styles.segTextActive]}>{cv === "CERCO" ? t("createListing.cerco","Cerco") : t("createListing.vendo","Vendo")}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-                </View>
 
-                {/* Titolo */}
-                <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
-                <TextInput
-                  value={form.title}
-                  onChangeText={(v) => update({ title: v })}
-                  placeholder={
-                    form.type === "hotel"
-                      ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
-                      : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
-                  }
-                  style={[styles.input, errors.title && styles.inputError]}
-                  placeholderTextColor="#9CA3AF"
-                />
-                {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+                  {/* Titolo */}
+                  <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
+                  <TextInput
+                    value={form.title}
+                    onChangeText={(v) => update({ title: v })}
+                    placeholder={
+                      form.type === "hotel"
+                        ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
+                        : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
+                    }
+                    style={[styles.input, errors.title && styles.inputError]}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
-                {/* Località / Rotta */}
-                <Text style={styles.label}>{t("createListing.locationLabel", "Località *")}</Text>
-                <TextInput
-                  value={form.location}
-                  onChangeText={(v) => update({ location: v })}
-                  placeholder={
-                    form.type === "hotel"
-                      ? t("createListing.locationPlaceholderHotel", "Es. Milano, Navigli")
-                      : t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")
-                  }
-                  style={[styles.input, errors.location && styles.inputError]}
-                  placeholderTextColor="#9CA3AF"
-                />
-                {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+                  {/* Località / Rotta */}
+                  <Text style={styles.label}>{t("createListing.locationLabel", "Località *")}</Text>
+                  <TextInput
+                    value={form.location}
+                    onChangeText={(v) => update({ location: v })}
+                    placeholder={
+                      form.type === "hotel"
+                        ? t("createListing.locationPlaceholderHotel", "Es. Milano, Navigli")
+                        : t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")
+                    }
+                    style={[styles.input, errors.location && styles.inputError]}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
 
-                {/* Date */}
-                {form.type === "hotel" ? (
-                  <>
-                    <DateField
-  label={t("createListing.checkIn", "Check-in")}
-  required
-  value={form.checkIn}
-  onChange={(v) => update({ checkIn: normalizeDateStr(v) })}   // 👈
-  error={errors.checkIn}
-/>
+                  {/* Date */}
+                  {form.type === "hotel" ? (
+                    <>
+                      <DateField
+                        label={t("createListing.checkIn", "Check-in")}
+                        required
+                        value={form.checkIn}
+                        onChange={(v) => update({ checkIn: normalizeDateStr(v) })}
+                        error={errors.checkIn}
+                      />
+                      <DateField
+                        label={t("createListing.checkOut", "Check-out")}
+                        required
+                        value={form.checkOut}
+                        onChange={(v) => update({ checkOut: normalizeDateStr(v) })}
+                        error={errors.checkOut}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <DateTimeField
+                        label={t("createListing.departAt", "Partenza (data e ora)")}
+                        required
+                        value={form.departAt}
+                        onChange={(v) => update({ departAt: v })}
+                        error={errors.departAt}
+                      />
+                      <DateTimeField
+                        label={t("createListing.arriveAt", "Arrivo (data e ora)")}
+                        required
+                        value={form.arriveAt}
+                        onChange={(v) => update({ arriveAt: v })}
+                        error={errors.arriveAt}
+                      />
+                    </>
+                  )}
 
-<DateField
-  label={t("createListing.checkOut", "Check-out")}
-  required
-  value={form.checkOut}
-  onChange={(v) => update({ checkOut: normalizeDateStr(v) })}  // 👈
-  error={errors.checkOut}
-/>
-                  </>
-                ) : (
-                  <>
-                    <DateTimeField
-                      label={t("createListing.departAt", "Partenza (data e ora)")}
-                      required
-                      value={form.departAt}
-                      onChange={(v) => update({ departAt: v })}
-                      error={errors.departAt}
-                    />
-                    <DateTimeField
-                      label={t("createListing.arriveAt", "Arrivo (data e ora)")}
-                      required
-                      value={form.arriveAt}
-                      onChange={(v) => update({ arriveAt: v })}
-                      error={errors.arriveAt}
-                    />
-                  </>
-                )}
-
-                {/* Spacer per non far coprire dal footer */}
-                <View style={{ height: 2 }} />
+                  {/* Spacer per non far coprire dal footer */}
+                  <View style={{ height: 2 }} />
                 </ScrollView>
               </View>
             </View>
@@ -1248,7 +1210,7 @@ if (form.type === "hotel") {
         <View style={styles.sheetBackdrop}>
           <View style={[styles.sheetCard, { maxWidth: 520, alignSelf: "center" }]}>
             <Text style={styles.sheetTitle}>Applica tutti i fix AI?</Text>
-            <Text style={styles.sheetText}>Verranno aggiornati automaticamente i campi suggeriti (titolo, località, date/orari, prezzo, immagine…).</Text>
+            <Text style={styles.sheetText}>Verranno aggiornati automaticamente i campi suggeriti (titolo, località, date/orari, prezzo…).</Text>
             <View style={{ height: 10 }} />
             <TouchableOpacity onPress={applyAllTrustFixes} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
               <Text style={[styles.sheetBtnText, { color: "#fff" }]}>Applica adesso</Text>
