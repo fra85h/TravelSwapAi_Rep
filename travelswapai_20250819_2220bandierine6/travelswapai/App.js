@@ -2,6 +2,7 @@ import './lib/polyfills';
 import { fetchJson } from "./lib/backendApi";
 import * as Linking from 'expo-linking';
 import React from 'react';
+import 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
