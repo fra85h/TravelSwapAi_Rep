@@ -63,6 +63,9 @@ const TYPES = [
 ];
 
 /* ---------- UTIL DATE/TIME ---------- */
+function pad2(n) { return String(n).padStart(2, "0"); }
+
+// Normalizza input liberi tipo 14-3-2026 -> 2026-03-14
 function normalizeDateStr(s) {
   const v = String(s || "").trim();
   if (!v) return "";
@@ -83,34 +86,33 @@ function normalizeDateStr(s) {
     const y = parseInt(m[3], 10);
     return `${y}-${mo}-${d}`;
   }
-  return v; // già OK o formato sconosciuto
+  return v; // lascio invariato se già OK o formato sconosciuto
 }
 
-const pad2 = (n) => String(n).padStart(2, "0");
-const toISODate = (d) => {
+function toISODate(d) {
   const dt = new Date(d);
   return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
-};
-const toISOTime = (d) => {
+}
+function toISOTime(d) {
   const dt = new Date(d);
   return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
-};
-const parseISODate = (s) => {
+}
+function parseISODate(s) {
   const norm = normalizeDateStr(s);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(norm))) return null;
   const [y, m, d] = norm.split("-").map((x) => parseInt(x, 10));
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
   return dt;
-};
-const parseISODateTime = (s) => {
+}
+function parseISODateTime(s) {
   if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(String(s))) return null;
   const [date, time] = s.replace("T", " ").split(" ");
   const [y, m, d] = date.split("-").map((x) => parseInt(x, 10));
   const [H, M] = time.split(":").map((x) => parseInt(x, 10));
   const dt = new Date(y, m - 1, d, H, M, 0, 0);
   return Number.isNaN(dt.getTime()) ? null : dt;
-};
+}
 
 /* ---------- AI PARSER helpers (semplificati) ---------- */
 const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa", LIN:"Milano Linate", BGY:"Bergamo Orio", VCE:"Venezia", BLQ:"Bologna", NAP:"Napoli", CTA:"Catania", PMO:"Palermo", CAG:"Cagliari", PSA:"Pisa", TRN:"Torino", VRN:"Verona", BRI:"Bari", OLB:"Olbia" };
@@ -287,7 +289,6 @@ export default function CreateListingScreen({
   const { t } = useI18n();
   const navigation = useNavigation();
   const p = route?.params ?? {};
-  thead: null;
   const passedListing = p.listing ?? null;
   const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null;
   const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
@@ -311,11 +312,14 @@ export default function CreateListingScreen({
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
+  // Micro-UI stato per “Check AI” (soft)
+  const [aiPhase, setAiPhase] = useState("idle"); // idle | filling | checking | done | error
+  const [aiPct, setAiPct] = useState(0);
+
   const flagsNoImg = useMemo(() => {
     const rx = /(image|imageurl|image_url|foto|immagine)/i;
     const arr = Array.isArray(trustData?.flags) ? trustData.flags.filter(f =>
       !rx.test(String(f?.field || f?.msg || ""))) : [];
-    // de-duplica per (field|msg)
     const seen = new Set();
     return arr.filter(f => {
       const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
@@ -329,7 +333,6 @@ export default function CreateListingScreen({
     const rx = /(image|imageurl|image_url|foto|immagine)/i;
     const arr = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes.filter(s =>
       !rx.test(String(s?.field || s?.suggestion || ""))) : [];
-    // de-duplica per (field|suggestion)
     const seen = new Set();
     return arr.filter(s => {
       const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
@@ -341,84 +344,6 @@ export default function CreateListingScreen({
 
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
-  const [insightsOpen, setInsightsOpen] = useState(false);
-  const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
-
-  // --- Combined Check AI (runs AI magic first, then Trust check) ---
-  const runMagicThenTrust = useCallback(async () => {
-    if (trustLoading) return;
-    // first run AI "magic" fill based on description (slide 0 behavior)
-    try {
-      await runAI(0);
-    } catch {}
-    // then run trust check with cooldown
-    const now = Date.now();
-    if (now - lastTrustRunAt < 10_000) {
-      const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
-      Alert.alert("Attendi un attimo", `Puoi rilanciare la verifica tra ~${secs}s.`);
-      return;
-    }
-    const hasArrow = form.type === "train" && /→/.test(form.location || "");
-    const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null];
-    const payload = {
-      id: passedListing?.id || listingId || null,
-      type: form.type,
-      title: form.title,
-      description: form.description,
-      origin: form.type === "train" ? (locFrom || null) : null,
-      destination: form.type === "train" ? (locTo || null) : (form.location || null),
-      startDate: form.type === "hotel" ? form.checkIn : (form.departAt?.split("T")[0] || null),
-      endDate: form.type === "hotel" ? form.checkOut : (form.arriveAt?.split("T")[0] || null),
-      price: form.price ? Number(String(form.price).replace(",", ".")) : null,
-      currency: "EUR",
-    };
-    const res = await evaluate(payload);
-    setLastTrustRunAt(Date.now());
-    if (!res && trustError) {
-      Alert.alert("AI TrustScore", trustError);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, evaluate, trustLoading, lastTrustRunAt, trustError, passedListing?.id, listingId]);
-
-  // Applica tutti i fix proposti dall’AI (solo campi noti)
-  const applyAllTrustFixes = useCallback(() => {
-    try {
-      const fixes = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes : [];
-      if (!fixes.length) {
-        Alert.alert("Nessun fix", "Non ci sono suggerimenti da applicare.");
-        return;
-      }
-      const patch = {};
-      const mapKey = (k) => {
-        const key = String(k || "").toLowerCase();
-        if (["title","titolo"].includes(key)) return "title";
-        if (["location","località","destinazione","destination"].includes(key)) return "location";
-        if (["checkin","check_in","check-in"].includes(key)) return "checkIn";
-        if (["checkout","check_out","check-out"].includes(key)) return "checkOut";
-        if (["departat","depart_at","departure","partenza"].includes(key)) return "departAt";
-        if (["arriveat","arrive_at","arrival","arrivo"].includes(key)) return "arriveAt";
-        if (["price","prezzo"].includes(key)) return "price";
-        if (["pnr","codiceprenotazione"].includes(key)) return "pnr";
-        return null;
-      };
-      for (const f of fixes) {
-        const k = mapKey(f.field);
-        if (!k) continue;
-        let v = f.suggestion;
-        if (k === "price") v = String(v).replace(",", ".");
-        patch[k] = String(v);
-      }
-      if (Object.keys(patch).length) {
-        update(patch);
-        setShowFixesModal(false);
-        Alert.alert("Fix applicati", "Ho applicato i suggerimenti AI. Puoi comunque modificarli.");
-      } else {
-        Alert.alert("Nulla da applicare", "I suggerimenti non riguardano campi modificabili.");
-      }
-    } catch {
-      Alert.alert("Errore", "Impossibile applicare i fix.");
-    }
-  }, [trustData, update]);
 
   useLayoutEffect(() => {
     try {
@@ -436,7 +361,6 @@ export default function CreateListingScreen({
     } catch {}
   }, [navigation, t, route?.params?.mode]);
 
-  const [loadingAI, setLoadingAI] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -500,7 +424,6 @@ export default function CreateListingScreen({
               location: l.location || prev.location,
               description: l.description || prev.description,
               price: l.price != null ? String(l.price) : prev.price,
-              imageUrl: l.image_url || prev.imageUrl,
               checkIn: l.check_in || "",
               checkOut: l.check_out || "",
               departAt: l.depart_at || "",
@@ -557,80 +480,164 @@ export default function CreateListingScreen({
     }
   };
 
-  const runAI = useCallback(async (currentSlide) => {
-    if (loadingAI || publishing || importBusy || saving) return;
+  // ---- Nuovo: “Check AI” fa autofill + trust check con micro progress ----
+  const runAIAutofill = async () => {
+    const text = String(form.description || "").trim();
+    if (!text) return;
     try {
-      setLoadingAI(true);
-      await new Promise((r) => setTimeout(r, 300));
-      const ifEmpty = (val, fb) => (val == null || String(val).trim() === "" ? fb : val);
+      const parsed = await parseListingFromTextAI(text, "it");
       const patch = {};
+      if (parsed?.type) patch.type = parsed.type;
+      if (parsed?.title) patch.title = parsed.title;
+      if (parsed?.location) patch.location = parsed.location;
+      if (parsed?.checkIn) patch.checkIn = normalizeDateStr(parsed.checkIn);
+      if (parsed?.checkOut) patch.checkOut = normalizeDateStr(parsed.checkOut);
+      if (parsed?.departAt) patch.departAt = parsed.departAt.replace(" ", "T");
+      if (parsed?.arriveAt) patch.arriveAt = parsed.arriveAt.replace(" ", "T");
+      if (typeof parsed?.isNamedTicket === "boolean") patch.isNamedTicket = parsed.isNamedTicket;
+      if (parsed?.gender) patch.gender = parsed.gender;
+      if (parsed?.pnr) patch.pnr = parsed.pnr;
+      if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
+      if (parsed?.cercoVendo) patch.cercoVendo = parsed.cercoVendo;
+      if (Object.keys(patch).length) update(patch);
+    } catch (e) {
+      // Silenzioso: niente alert, è “soft”
+    }
+  };
 
-      if (currentSlide === 0) {
-        const text = String(form.description || "").trim();
-        if (text) {
-          try {
-            const parsed = await parseListingFromTextAI(text, "it");
-            if (parsed?.type) patch.type = parsed.type;
-            if (parsed?.title) patch.title = parsed.title;
-            if (parsed?.location) patch.location = parsed.location;
-            if (parsed?.checkIn) patch.checkIn = parsed.checkIn;
-            if (parsed?.checkOut) patch.checkOut = parsed.checkOut;
-            if (parsed?.departAt) patch.departAt = parsed.departAt.replace(" ", "T");
-            if (parsed?.arriveAt) patch.arriveAt = parsed.arriveAt.replace(" ", "T");
-            if (typeof parsed?.isNamedTicket === "boolean") patch.isNamedTicket = parsed.isNamedTicket;
-            if (parsed?.gender) patch.gender = parsed.gender;
-            if (parsed?.pnr) patch.pnr = parsed.pnr;
-            if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
-            if (parsed?.cercoVendo) patch.cercoVendo = parsed.cercoVendo;
-          } catch (e) {
-            const today = new Date();
-            if (form.type === "hotel") {
-              const plusDays = (d, n) => { const dd = new Date(d); dd.setDate(dd.getDate() + n); return dd; };
-              patch.title = ifEmpty(form.title, t("createListing.ai.hotelTitle", "Soggiorno 2 notti in centro"));
-              patch.location = ifEmpty(form.location, t("createListing.ai.hotelLocation", "Milano, Duomo"));
-              patch.checkIn = ifEmpty(form.checkIn, toISODate(today));
-              patch.checkOut = ifEmpty(form.checkOut, toISODate(plusDays(today, 2)));
-            } else {
-              const base = new Date(); base.setDate(base.getDate() + 1); base.setHours(9,0,0,0);
-              const arr = new Date(base.getTime() + 90 * 60000);
-              patch.title = ifEmpty(form.title, t("createListing.ai.trainTitle", "Frecciarossa Milano → Roma"));
-              patch.location = ifEmpty(form.location, t("createListing.ai.trainLocation", "Milano Centrale → Roma Termini"));
-              patch.departAt = ifEmpty(form.departAt, `${toISODate(base)}T${toISOTime(base)}`);
-              patch.arriveAt = ifEmpty(form.arriveAt, `${toISODate(arr)}T${toISOTime(arr)}`);
-              if (!form.isNamedTicket) patch.gender = "";
-            }
-          }
+  const onTrustCheck = async () => {
+    const now = Date.now();
+    if (now - lastTrustRunAt < 10_000) {
+      const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
+      Alert.alert("Attendi un attimo", `Puoi rilanciare la verifica tra ~${secs}s.`);
+      return;
+    }
+
+    try {
+      setAiPhase("filling"); setAiPct(0.25);
+      await runAIAutofill();
+      setAiPct(0.45);
+
+      // coerenza date locale (warning client-side)
+      const localWarnings = [];
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      if (form.type === "hotel") {
+        const ci = parseISODate(form.checkIn);
+        const co = parseISODate(form.checkOut);
+        if (ci && ci < today) localWarnings.push("Check-in nel passato.");
+        if (co && co < today) localWarnings.push("Check-out nel passato.");
+        if (ci && co) {
+          const diffDays = Math.round((co - ci) / (1000*60*60*24));
+          if (diffDays > 30) localWarnings.push("Durata soggiorno > 30 giorni.");
+          if (co < ci) localWarnings.push("Il check-out precede il check-in.");
         }
       } else {
-        patch.description = ifEmpty(
-          form.description,
-          form.type === "hotel"
-            ? t("createListing.ai.hotelDesc", "Camera doppia con colazione. Check-in flessibile, vicino ai mezzi.")
-            : t("createListing.ai.trainDesc", "Posto a sedere confermato, vagone silenzio. Biglietto cedibile.")
-        );
-        patch.price = ifEmpty(form.price, "120");
-        if (form.type === "train" && form.isNamedTicket === false) { patch.isNamedTicket = false; patch.gender = ""; }
+        const da = parseISODateTime(form.departAt);
+        const aa = parseISODateTime(form.arriveAt);
+        if (da && da < new Date()) localWarnings.push("Partenza nel passato.");
+        if (aa && aa < new Date()) localWarnings.push("Arrivo nel passato.");
+        if (da && aa) {
+          const diffH = (aa - da) / (1000*60*60);
+          if (diffH > 48) localWarnings.push("Durata tratta > 48 ore.");
+          if (aa < da) localWarnings.push("L’arrivo precede la partenza.");
+        }
+        if (form.isNamedTicket && !/^(M|F)$/.test(form.gender)) {
+          localWarnings.push("Biglietto nominativo senza genere (M/F).");
+        }
       }
 
-      update(patch);
-      // niente alert qui per non essere invasivi quando parte dal Check AI
-    } catch {
-      // silenzioso
-    } finally {
-      setLoadingAI(false);
+      setAiPhase("checking"); setAiPct(0.7);
+
+      const hasArrow = form.type === "train" && /→/.test(form.location || "");
+      const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null];
+      const payload = {
+        id: passedListing?.id || listingId || null,
+        type: form.type,
+        title: form.title,
+        description: form.description,
+        origin: form.type === "train" ? (locFrom || null) : null,
+        destination: form.type === "train" ? (locTo || null) : (form.location || null),
+        startDate: form.type === "hotel" ? form.checkIn : (form.departAt?.split("T")[0] || null),
+        endDate: form.type === "hotel" ? form.checkOut : (form.arriveAt?.split("T")[0] || null),
+        price: form.price ? Number(String(form.price).replace(",", ".")) : null,
+        currency: "EUR",
+        provider: undefined,
+        holderName: undefined,
+      };
+      const res = await evaluate(payload);
+      setLastTrustRunAt(Date.now());
+
+      setAiPct(1); setAiPhase("done");
+      setTimeout(() => setAiPhase("idle"), 1400);
+
+      if (localWarnings.length) {
+        Alert.alert("Controlli data", localWarnings.join("\n"));
+      }
+
+      if (!res && trustError) {
+        Alert.alert("AI TrustScore", trustError);
+      }
+    } catch (e) {
+      setAiPhase("error");
+      setTimeout(() => setAiPhase("idle"), 1400);
+      Alert.alert("AI", "Controllo non riuscito.");
     }
-  }, [form, importBusy, loadingAI, publishing, saving, t, update]);
+  };
+
+  // Applica tutti i fix proposti dall’AI (solo campi noti)
+  const applyAllTrustFixes = () => {
+    try {
+      const fixes = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes : [];
+      if (!fixes.length) {
+        Alert.alert("Nessun fix", "Non ci sono suggerimenti da applicare.");
+        return;
+      }
+      const patch = {};
+      const mapKey = (k) => {
+        const key = String(k || "").toLowerCase();
+        if (["title","titolo"].includes(key)) return "title";
+        if (["location","località","destinazione","destination"].includes(key)) return "location";
+        if (["checkin","check_in","check-in"].includes(key)) return "checkIn";
+        if (["checkout","check_out","check-out"].includes(key)) return "checkOut";
+        if (["departat","depart_at","departure","partenza"].includes(key)) return "departAt";
+        if (["arriveat","arrive_at","arrival","arrivo"].includes(key)) return "arriveAt";
+        if (["price","prezzo"].includes(key)) return "price";
+        if (["pnr","codiceprenotazione"].includes(key)) return "pnr";
+        return null;
+      };
+      for (const f of fixes) {
+        const k = mapKey(f.field);
+        if (!k) continue;
+        let v = f.suggestion;
+        if (k === "price") v = String(v).replace(",", ".");
+        patch[k] = String(v);
+      }
+      if (Object.keys(patch).length) {
+        update(patch);
+        setShowFixesModal(false);
+        Alert.alert("Fix applicati", "Ho applicato i suggerimenti AI. Puoi comunque modificarli.");
+      } else {
+        Alert.alert("Nulla da applicare", "I suggerimenti non riguardano campi modificabili.");
+      }
+    } catch {
+      Alert.alert("Errore", "Impossibile applicare i fix.");
+    }
+  };
 
   /* ---------- VALIDAZIONI ---------- */
   const computeErrors = useCallback(() => {
-    const ciNorm = normalizeDateStr(form.checkIn);
-    const coNorm = normalizeDateStr(form.checkOut);
     const e = {};
 
+    // titolo / location
     if (!form.title.trim()) e.title = t("createListing.errors.titleRequired", "Titolo obbligatorio.");
     if (!form.location.trim()) e.location = t("createListing.errors.locationRequired", "Località obbligatoria.");
 
+    // date
     if (form.type === "hotel") {
+      const ciNorm = normalizeDateStr(form.checkIn);
+      const coNorm = normalizeDateStr(form.checkOut);
       if (!ciNorm) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
       if (!coNorm) e.checkOut = t("createListing.errors.checkOutRequired", "Check-out obbligatorio.");
       if (ciNorm && !parseISODate(ciNorm)) e.checkIn = t("createListing.errors.checkInInvalid", "Check-in non valido (YYYY-MM-DD).");
@@ -653,12 +660,14 @@ export default function CreateListingScreen({
       }
     }
 
+    // prezzo
     const priceStr = String(form.price || "").trim();
     if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
     else if (!isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
 
     return e;
   }, [form, t]);
+
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
   const validate = () => { const e = computeErrors(); setErrors(e); return Object.keys(e).length === 0; };
 
@@ -691,7 +700,7 @@ export default function CreateListingScreen({
       };
 
       const payload = form.type === "hotel"
-        ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
+        ? { ...basePayload, check_in: normalizeDateStr(form.checkIn), check_out: normalizeDateStr(form.checkOut) }
         : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
 
       if (mode === "edit") {
@@ -831,6 +840,13 @@ export default function CreateListingScreen({
   };
 
   /* ---------- UI ---------- */
+  const aiLabel = aiPhase === "idle" ? "Check AI"
+    : aiPhase === "filling" ? "Compilo…"
+    : aiPhase === "checking" ? "Verifico…"
+    : aiPhase === "done" ? "Fatto ✓"
+    : aiPhase === "error" ? "Errore"
+    : "Check AI";
+
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left','right','bottom']}>
       {/* ===== TOP PANNELLO FISSO ===== */}
@@ -856,19 +872,28 @@ export default function CreateListingScreen({
           textAlignVertical="top"
         />
 
-        {/* Azioni AI in riga (solo Import + Check AI combinato) */}
+        {/* Azioni AI in riga - SOLO “AI Import” + “Check AI” */}
         <View style={styles.pillsRow}>
           <AIPill
             title={t("createListing.aiImport", "AI Import 1-click")}
             onPress={openImport}
-            disabled={importBusy || saving || publishing}
+            disabled={importBusy || saving || publishing || aiPhase!=="idle"}
           />
           <AIPill
-            title={"Check AI"}
-            onPress={runMagicThenTrust}
-            disabled={trustLoading || loadingAI}
+            title={aiLabel}
+            onPress={onTrustCheck}
+            disabled={saving || publishing || aiPhase!=="idle"}
+            dark
+            loading={aiPhase!=="idle" && aiPhase!=="done" && aiPhase!=="error"}
           />
         </View>
+
+        {/* Micro progress bar soft (sottile) */}
+        {aiPhase !== "idle" && (
+          <View style={styles.aiProgressWrap}>
+            <View style={[styles.aiProgressBar, { width: `${Math.round(aiPct*100)}%` }]} />
+          </View>
+        )}
       </View>
 
       {/* ===== SOTTO: SLIDER ORIZZONTALE A PAGINE ===== */}
@@ -914,7 +939,7 @@ export default function CreateListingScreen({
                 >
                   {/* Riga combinata: Tipo + Tipo annuncio */}
                   <View style={styles.row2}>
-                    <View style={styles.col}>
+                    <View className="col" style={styles.col}>
                       <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
                       <View style={styles.segment}>
                         {TYPES.map((tt) => {
@@ -1009,16 +1034,14 @@ export default function CreateListingScreen({
                     </>
                   )}
 
-                  {/* Spacer per non far coprire dal footer */}
                   <View style={{ height: 2 }} />
                 </ScrollView>
               </View>
             </View>
 
-            {/* ===== SLIDE 2 (UNIFORMATA A SLIDE 1) ===== */}
+            {/* ===== SLIDE 2 ===== */}
             <View style={[styles.slide, { width: sliderW }]}>
               <View style={styles.slideCard}>
-                {/* Scroll verticale interno alla card per contenuti lunghi */}
                 <ScrollView
                   style={{ maxHeight: 420 }}
                   contentContainerStyle={{ paddingBottom: FOOTER_H + 20 }}
@@ -1085,7 +1108,7 @@ export default function CreateListingScreen({
                   />
                   {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
 
-                  {/* Box Trust: usa le versioni filtrate SENZA immagine */}
+                  {/* Box Trust (senza duplicati, niente immagini) */}
                   {!!flagsNoImg?.length && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
                       <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
@@ -1239,6 +1262,10 @@ const styles = StyleSheet.create({
   pillTextDark: { color: "#fff" },
 
   inputSurface: { backgroundColor: "#FBFDFF" },
+
+  // Micro progress
+  aiProgressWrap: { height: 4, backgroundColor: "#E5E7EB", borderRadius: 999, overflow: "hidden", marginTop: 4 },
+  aiProgressBar: { height: 4, backgroundColor: theme.colors.boardingText },
 
   // --- slider ---
   sliderWrap: { flex: 1 },
