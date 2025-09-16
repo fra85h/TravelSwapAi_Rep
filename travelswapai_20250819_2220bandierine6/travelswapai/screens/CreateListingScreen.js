@@ -24,6 +24,7 @@ import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI par
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
 const DRAFT_KEY = "@tsai:create_listing_draft";
+const AUTO_HIDE_MS = 4500;   // tempo dopo cui spariscono micro log e barra
 
 function uniqBy(arr, keyFn) {
   try {
@@ -35,6 +36,21 @@ function uniqBy(arr, keyFn) {
       return true;
     });
   } catch { return Array.isArray(arr) ? arr : []; }
+}
+
+/* Estrazione CERCO/VENDO dal testo descrizione (fallback locale se l'AI non lo imposta) */
+function guessCercoVendoFromText(text) {
+  const s = String(text || "").toLowerCase();
+  if (!s) return null;
+  // segnali di "cerco"
+  const cercoRx = /\b(cerco|cercasi|compro|acquisto|mi\s+serve|sto\s+cercando)\b/;
+  // segnali di "vendo"
+  const vendoRx = /\b(vendo|cedo|rivendo|offro|metto\s+in\s+vendita|scambio)\b/;
+  if (cercoRx.test(s) && !vendoRx.test(s)) return "CERCO";
+  if (vendoRx.test(s) && !cercoRx.test(s)) return "VENDO";
+  // priorità al "cerco" se sono presenti entrambi (annunci tipicamente dichiarano "cerco" esplicitamente)
+  if (cercoRx.test(s) && vendoRx.test(s)) return "CERCO";
+  return null;
 }
 
 function AIPill({ title, onPress, disabled, dark, loading }) {
@@ -63,56 +79,52 @@ const TYPES = [
 ];
 
 /* ---------- UTIL DATE/TIME ---------- */
-function pad2(n) { return String(n).padStart(2, "0"); }
-
-// Normalizza input liberi tipo 14-3-2026 -> 2026-03-14
 function normalizeDateStr(s) {
   const v = String(s || "").trim();
   if (!v) return "";
   let m;
-  // YYYY-M-D o YYYY/MM/DD
-  m = v.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  m = v.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/); // YYYY-M-D
   if (m) {
     const y = parseInt(m[1], 10);
     const mo = pad2(parseInt(m[2], 10));
     const d = pad2(parseInt(m[3], 10));
     return `${y}-${mo}-${d}`;
   }
-  // D-M-YYYY o D/M/YYYY
-  m = v.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  m = v.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/); // D-M-YYYY
   if (m) {
     const d = pad2(parseInt(m[1], 10));
     const mo = pad2(parseInt(m[2], 10));
     const y = parseInt(m[3], 10);
     return `${y}-${mo}-${d}`;
   }
-  return v; // lascio invariato se già OK o formato sconosciuto
+  return v;
 }
 
-function toISODate(d) {
+const pad2 = (n) => String(n).padStart(2, "0");
+const toISODate = (d) => {
   const dt = new Date(d);
   return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
-}
-function toISOTime(d) {
+};
+const toISOTime = (d) => {
   const dt = new Date(d);
   return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
-}
-function parseISODate(s) {
+};
+const parseISODate = (s) => {
   const norm = normalizeDateStr(s);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(norm))) return null;
   const [y, m, d] = norm.split("-").map((x) => parseInt(x, 10));
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
   return dt;
-}
-function parseISODateTime(s) {
+};
+const parseISODateTime = (s) => {
   if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(String(s))) return null;
   const [date, time] = s.replace("T", " ").split(" ");
   const [y, m, d] = date.split("-").map((x) => parseInt(x, 10));
   const [H, M] = time.split(":").map((x) => parseInt(x, 10));
   const dt = new Date(y, m - 1, d, H, M, 0, 0);
   return Number.isNaN(dt.getTime()) ? null : dt;
-}
+};
 
 /* ---------- AI PARSER helpers (semplificati) ---------- */
 const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa", LIN:"Milano Linate", BGY:"Bergamo Orio", VCE:"Venezia", BLQ:"Bologna", NAP:"Napoli", CTA:"Catania", PMO:"Palermo", CAG:"Cagliari", PSA:"Pisa", TRN:"Torino", VRN:"Verona", BRI:"Bari", OLB:"Olbia" };
@@ -276,7 +288,7 @@ async function aiImportFromQR(raw) {
   }
   if (!parsed.title) parsed.title = parsed.type === "hotel" ? "Soggiorno" : "Viaggio";
   if (!parsed.location) parsed.location = parsed.type === "hotel" ? "Hotel" : "Tratta";
-  if (!parsed.imageUrl) parsed.imageUrl = parsed.type === "hotel" ? "https://picsum.photos/seed/hotel/1200/800" : "https://picsum.photos/seed/train/1200/800";
+  if (!parsed.imageUrl) parsed.imageUrl = parsed.type === "hotel" ? "httpsum.photos/seed/hotel/1200/800" : "https://picsum.photos/seed/train/1200/800";
   return parsed;
 }
 
@@ -298,7 +310,13 @@ export default function CreateListingScreen({
   const [lastTrustRunAt, setLastTrustRunAt] = useState(0);
   const [showFixesModal, setShowFixesModal] = useState(false);
 
-  // Stato tastiera (per bloccare swipe orizzontale quando è aperta)
+  // Micro log + progress per Check AI
+  const [microLog, setMicroLog] = useState([]);             // array di stringhe
+  const [showMicroLog, setShowMicroLog] = useState(false);  // pannello visibile
+  const [progress, setProgress] = useState(0);              // 0–100
+  const hideTimerRef = useRef(null);
+
+  // Tastiera (per bloccare swipe orizzontale quando è aperta)
   const [isKbOpen, setIsKbOpen] = useState(false);
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -311,10 +329,6 @@ export default function CreateListingScreen({
     );
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
-
-  // Micro-UI stato per “Check AI” (soft)
-  const [aiPhase, setAiPhase] = useState("idle"); // idle | filling | checking | done | error
-  const [aiPct, setAiPct] = useState(0);
 
   const flagsNoImg = useMemo(() => {
     const rx = /(image|imageurl|image_url|foto|immagine)/i;
@@ -344,33 +358,10 @@ export default function CreateListingScreen({
 
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
+  const [insightsOpen, setInsightsOpen] = useState(false);
+  const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
 
-  useLayoutEffect(() => {
-    try {
-      navigation.setOptions?.({
-        headerShown: true,
-        headerTitle: route?.params?.mode === "edit"
-          ? t("editListing.title", "Modifica annuncio")
-          : t("createListing.title", "Nuovo annuncio"),
-        headerLeft: () => (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingHorizontal: 12 }}>
-            <Text style={{ color: theme.colors.boardingText, fontWeight: "700" }}>{t("common.back", "Indietro")}</Text>
-          </TouchableOpacity>
-        ),
-      });
-    } catch {}
-  }, [navigation, t, route?.params?.mode]);
-
-  const [publishing, setPublishing] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const [importSheet, setImportSheet] = useState(false);
-  const [pnrInput, setPnrInput] = useState("");
-  const [importBusy, setImportBusy] = useState(false);
-  const [qrVisible, setQrVisible] = useState(false);
-
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-
+  // Stato form
   const [form, setForm] = useState({
     type: "hotel",
     cercoVendo: "VENDO",
@@ -424,6 +415,7 @@ export default function CreateListingScreen({
               location: l.location || prev.location,
               description: l.description || prev.description,
               price: l.price != null ? String(l.price) : prev.price,
+              imageUrl: l.image_url || prev.imageUrl,
               checkIn: l.check_in || "",
               checkOut: l.check_out || "",
               departAt: l.depart_at || "",
@@ -480,12 +472,63 @@ export default function CreateListingScreen({
     }
   };
 
-  // ---- Nuovo: “Check AI” fa autofill + trust check con micro progress ----
-  const runAIAutofill = async () => {
-    const text = String(form.description || "").trim();
-    if (!text) return;
+  /* ---------- CHECK AI (comprende ex “Magia IA”) ---------- */
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [importSheet, setImportSheet] = useState(false);
+  const [pnrInput, setPnrInput] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+  const [qrVisible, setQrVisible] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  const logStep = useCallback((msg, pct) => {
+    setMicroLog((prev) => [...prev, msg]);
+    if (typeof pct === "number") setProgress((p) => Math.max(p, Math.min(100, pct)));
+  }, []);
+
+  const clearLogSoon = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      setShowMicroLog(false);
+      setMicroLog([]);
+      setProgress(0);
+    }, AUTO_HIDE_MS);
+  }, []);
+
+  const onTrustCheck = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastTrustRunAt < 10_000) {
+      const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
+      Alert.alert("Attendi un attimo", `Puoi rilanciare la verifica tra ~${secs}s.`);
+      return;
+    }
+
     try {
-      const parsed = await parseListingFromTextAI(text, "it");
+      setLoadingAI(true);
+      setShowMicroLog(true);
+      setMicroLog([]);
+      setProgress(0);
+      logStep("Inizio controllo…", 5);
+
+      // 1) Analisi descrizione (ex Magia IA)
+      logStep("Analisi descrizione con AI…", 20);
+      const text = String(form.description || "").trim();
+      let parsed = null;
+      if (text) {
+        try {
+          parsed = await parseListingFromTextAI(text, "it");
+        } catch {}
+      }
+
+      // 1.1) Determina cerco/vendo
+      let cercoFromText = guessCercoVendoFromText(text);
+      let nextCercoVendo =
+        (parsed?.cercoVendo === "CERCO" || parsed?.cercoVendo === "VENDO")
+          ? parsed.cercoVendo
+          : (cercoFromText || form.cercoVendo);
+
+      // 1.2) Costruisci patch dai suggerimenti AI
       const patch = {};
       if (parsed?.type) patch.type = parsed.type;
       if (parsed?.title) patch.title = parsed.title;
@@ -498,93 +541,84 @@ export default function CreateListingScreen({
       if (parsed?.gender) patch.gender = parsed.gender;
       if (parsed?.pnr) patch.pnr = parsed.pnr;
       if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
-      if (parsed?.cercoVendo) patch.cercoVendo = parsed.cercoVendo;
-      if (Object.keys(patch).length) update(patch);
-    } catch (e) {
-      // Silenzioso: niente alert, è “soft”
-    }
-  };
+      if (nextCercoVendo) patch.cercoVendo = nextCercoVendo;
 
-  const onTrustCheck = async () => {
-    const now = Date.now();
-    if (now - lastTrustRunAt < 10_000) {
-      const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
-      Alert.alert("Attendi un attimo", `Puoi rilanciare la verifica tra ~${secs}s.`);
-      return;
-    }
+      if (Object.keys(patch).length) {
+        update(patch);
+        logStep("Suggerimenti AI applicati.", 40);
+      } else {
+        logStep("Nessun suggerimento AI da applicare.", 40);
+      }
 
-    try {
-      setAiPhase("filling"); setAiPct(0.25);
-      await runAIAutofill();
-      setAiPct(0.45);
-
-      // coerenza date locale (warning client-side)
-      const localWarnings = [];
-      const today = new Date();
-      today.setHours(0,0,0,0);
+      // 2) Coerenza/validazioni locali (warning)
+      logStep("Controllo coerenza e date…", 60);
+      const localFlags = [];
+      const nowDate = new Date();
 
       if (form.type === "hotel") {
-        const ci = parseISODate(form.checkIn);
-        const co = parseISODate(form.checkOut);
-        if (ci && ci < today) localWarnings.push("Check-in nel passato.");
-        if (co && co < today) localWarnings.push("Check-out nel passato.");
-        if (ci && co) {
-          const diffDays = Math.round((co - ci) / (1000*60*60*24));
-          if (diffDays > 30) localWarnings.push("Durata soggiorno > 30 giorni.");
-          if (co < ci) localWarnings.push("Il check-out precede il check-in.");
+        const a = parseISODate(normalizeDateStr(patch.checkIn || form.checkIn));
+        const b = parseISODate(normalizeDateStr(patch.checkOut || form.checkOut));
+        if (a && b) {
+          const ms = b - a;
+          const days = ms / (1000 * 60 * 60 * 24);
+          if (days > 30) localFlags.push({ field: "checkOut", msg: "Durata soggiorno oltre 30 giorni." });
         }
+        if (a && a < new Date(nowDate.toDateString())) localFlags.push({ field: "checkIn", msg: "Check-in nel passato." });
+        if (b && b < new Date(nowDate.toDateString())) localFlags.push({ field: "checkOut", msg: "Check-out nel passato." });
       } else {
-        const da = parseISODateTime(form.departAt);
-        const aa = parseISODateTime(form.arriveAt);
-        if (da && da < new Date()) localWarnings.push("Partenza nel passato.");
-        if (aa && aa < new Date()) localWarnings.push("Arrivo nel passato.");
-        if (da && aa) {
-          const diffH = (aa - da) / (1000*60*60);
-          if (diffH > 48) localWarnings.push("Durata tratta > 48 ore.");
-          if (aa < da) localWarnings.push("L’arrivo precede la partenza.");
+        const da = parseISODateTime(patch.departAt || form.departAt);
+        const ar = parseISODateTime(patch.arriveAt || form.arriveAt);
+        if (da && ar) {
+          const hrs = (ar - da) / (1000 * 60 * 60);
+          if (hrs > 48) localFlags.push({ field: "arriveAt", msg: "Durata tratta oltre 48 ore." });
         }
-        if (form.isNamedTicket && !/^(M|F)$/.test(form.gender)) {
-          localWarnings.push("Biglietto nominativo senza genere (M/F).");
-        }
+        if (da && da < new Date()) localFlags.push({ field: "departAt", msg: "Partenza nel passato." });
+        if (ar && ar < new Date()) localFlags.push({ field: "arriveAt", msg: "Arrivo nel passato." });
       }
 
-      setAiPhase("checking"); setAiPct(0.7);
-
-      const hasArrow = form.type === "train" && /→/.test(form.location || "");
-      const [locFrom, locTo] = hasArrow ? form.location.split("→").map(s => s.trim()) : [null, null];
+      // 3) TrustScore remoto
+      logStep("Verifica affidabilità annuncio…", 80);
+      const hasArrow = (patch.type || form.type) === "train" && /→/.test((patch.location || form.location || ""));
+      const [locFrom, locTo] = hasArrow ? (patch.location || form.location).split("→").map(s => s.trim()) : [null, null];
       const payload = {
         id: passedListing?.id || listingId || null,
-        type: form.type,
-        title: form.title,
+        type: patch.type || form.type,
+        title: patch.title || form.title,
         description: form.description,
-        origin: form.type === "train" ? (locFrom || null) : null,
-        destination: form.type === "train" ? (locTo || null) : (form.location || null),
-        startDate: form.type === "hotel" ? form.checkIn : (form.departAt?.split("T")[0] || null),
-        endDate: form.type === "hotel" ? form.checkOut : (form.arriveAt?.split("T")[0] || null),
-        price: form.price ? Number(String(form.price).replace(",", ".")) : null,
+        origin: (patch.type || form.type) === "train" ? (locFrom || null) : null,
+        destination: (patch.type || form.type) === "train" ? (locTo || null) : ((patch.location || form.location) || null),
+        startDate: (patch.type || form.type) === "hotel" ? (patch.checkIn || form.checkIn) : ((patch.departAt || form.departAt)?.split("T")[0] || null),
+        endDate: (patch.type || form.type) === "hotel" ? (patch.checkOut || form.checkOut) : ((patch.arriveAt || form.arriveAt)?.split("T")[0] || null),
+        price: (patch.price || form.price) ? Number(String(patch.price || form.price).replace(",", ".")) : null,
         currency: "EUR",
-        provider: undefined,
-        holderName: undefined,
       };
       const res = await evaluate(payload);
-      setLastTrustRunAt(Date.now());
 
-      setAiPct(1); setAiPhase("done");
-      setTimeout(() => setAiPhase("idle"), 1400);
-
-      if (localWarnings.length) {
-        Alert.alert("Controlli data", localWarnings.join("\n"));
+      // 4) Merge dei localFlags con eventuali flags del trust (senza immagini, altrove filtriamo)
+      if (Array.isArray(localFlags) && localFlags.length) {
+        // NB: usiamo un campo speciale per mostrarli subito nel box “Possibili problemi”
+        const existing = Array.isArray(res?.flags) ? res.flags : [];
+        const merged = uniqBy([...existing, ...localFlags], f => `${f.field}|${f.msg}`.toLowerCase());
+        // finto update dello stato trust: non abbiamo setTrustData, ma evaluate dovrebbe già aggiornare il hook;
+        // i localFlags li mostriamo anche nel microLog per feedback immediato
+        localFlags.forEach(f => logStep(`⚠︎ ${f.msg}`, 90));
       }
 
+      logStep("Fatto.", 100);
+      setLastTrustRunAt(Date.now());
+      clearLogSoon();
       if (!res && trustError) {
         Alert.alert("AI TrustScore", trustError);
       }
-    } catch (e) {
-      setAiPhase("error");
-      setTimeout(() => setAiPhase("idle"), 1400);
-      Alert.alert("AI", "Controllo non riuscito.");
+    } catch (err) {
+      logStep("Errore durante il Check AI.", 100);
+      clearLogSoon();
+      Alert.alert("AI TrustScore", "Qualcosa è andato storto durante la verifica.");
+    } finally {
+      setLoadingAI(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, lastTrustRunAt, trustError, evaluate, update, logStep, clearLogSoon, passedListing?.id, listingId]);
 
   // Applica tutti i fix proposti dall’AI (solo campi noti)
   const applyAllTrustFixes = () => {
@@ -605,6 +639,7 @@ export default function CreateListingScreen({
         if (["arriveat","arrive_at","arrival","arrivo"].includes(key)) return "arriveAt";
         if (["price","prezzo"].includes(key)) return "price";
         if (["pnr","codiceprenotazione"].includes(key)) return "pnr";
+        if (["cerco","vendo","cercovendo","tipo annuncio"].includes(key)) return "cercoVendo";
         return null;
       };
       for (const f of fixes) {
@@ -612,6 +647,8 @@ export default function CreateListingScreen({
         if (!k) continue;
         let v = f.suggestion;
         if (k === "price") v = String(v).replace(",", ".");
+        if (k === "cercoVendo") v = /cerco/i.test(String(v)) ? "CERCO" : /vendo/i.test(String(v)) ? "VENDO" : null;
+        if (v == null) continue;
         patch[k] = String(v);
       }
       if (Object.keys(patch).length) {
@@ -628,16 +665,14 @@ export default function CreateListingScreen({
 
   /* ---------- VALIDAZIONI ---------- */
   const computeErrors = useCallback(() => {
+    const ciNorm = normalizeDateStr(form.checkIn);
+    const coNorm = normalizeDateStr(form.checkOut);
     const e = {};
 
-    // titolo / location
     if (!form.title.trim()) e.title = t("createListing.errors.titleRequired", "Titolo obbligatorio.");
     if (!form.location.trim()) e.location = t("createListing.errors.locationRequired", "Località obbligatoria.");
 
-    // date
     if (form.type === "hotel") {
-      const ciNorm = normalizeDateStr(form.checkIn);
-      const coNorm = normalizeDateStr(form.checkOut);
       if (!ciNorm) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
       if (!coNorm) e.checkOut = t("createListing.errors.checkOutRequired", "Check-out obbligatorio.");
       if (ciNorm && !parseISODate(ciNorm)) e.checkIn = t("createListing.errors.checkInInvalid", "Check-in non valido (YYYY-MM-DD).");
@@ -659,15 +694,11 @@ export default function CreateListingScreen({
         e.gender = t("createListing.errors.genderRequired", "Seleziona M o F.");
       }
     }
-
-    // prezzo
     const priceStr = String(form.price || "").trim();
     if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
     else if (!isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
-
     return e;
   }, [form, t]);
-
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
   const validate = () => { const e = computeErrors(); setErrors(e); return Object.keys(e).length === 0; };
 
@@ -700,7 +731,7 @@ export default function CreateListingScreen({
       };
 
       const payload = form.type === "hotel"
-        ? { ...basePayload, check_in: normalizeDateStr(form.checkIn), check_out: normalizeDateStr(form.checkOut) }
+        ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
         : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
 
       if (mode === "edit") {
@@ -840,13 +871,6 @@ export default function CreateListingScreen({
   };
 
   /* ---------- UI ---------- */
-  const aiLabel = aiPhase === "idle" ? "Check AI"
-    : aiPhase === "filling" ? "Compilo…"
-    : aiPhase === "checking" ? "Verifico…"
-    : aiPhase === "done" ? "Fatto ✓"
-    : aiPhase === "error" ? "Errore"
-    : "Check AI";
-
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left','right','bottom']}>
       {/* ===== TOP PANNELLO FISSO ===== */}
@@ -872,26 +896,30 @@ export default function CreateListingScreen({
           textAlignVertical="top"
         />
 
-        {/* Azioni AI in riga - SOLO “AI Import” + “Check AI” */}
+        {/* Azioni (niente più “Magia IA ✨”, tutto in Check AI) */}
         <View style={styles.pillsRow}>
           <AIPill
             title={t("createListing.aiImport", "AI Import 1-click")}
             onPress={openImport}
-            disabled={importBusy || saving || publishing || aiPhase!=="idle"}
+            disabled={importBusy || saving || publishing}
           />
           <AIPill
-            title={aiLabel}
+            title={"Check AI"}
             onPress={onTrustCheck}
-            disabled={saving || publishing || aiPhase!=="idle"}
-            dark
-            loading={aiPhase!=="idle" && aiPhase!=="done" && aiPhase!=="error"}
+            disabled={trustLoading || loadingAI}
+            loading={loadingAI}
           />
         </View>
 
-        {/* Micro progress bar soft (sottile) */}
-        {aiPhase !== "idle" && (
-          <View style={styles.aiProgressWrap}>
-            <View style={[styles.aiProgressBar, { width: `${Math.round(aiPct*100)}%` }]} />
+        {/* Micro log + progress bar */}
+        {showMicroLog && (
+          <View style={styles.microWrap}>
+            {microLog.map((line, idx) => (
+              <Text key={idx} style={styles.microLine}>• {line}</Text>
+            ))}
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, progress))}%` }]} />
+            </View>
           </View>
         )}
       </View>
@@ -929,7 +957,6 @@ export default function CreateListingScreen({
             {/* ===== SLIDE 1 ===== */}
             <View style={[styles.slide, { width: sliderW }]}>
               <View style={styles.slideCard}>
-                {/* Scroll verticale interno alla card per contenuti lunghi (Slide 1) */}
                 <ScrollView
                   style={{ maxHeight: 420 }}
                   contentContainerStyle={{ paddingBottom: FOOTER_H + 20 }}
@@ -937,9 +964,9 @@ export default function CreateListingScreen({
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
                 >
-                  {/* Riga combinata: Tipo + Tipo annuncio */}
+                  {/* Tipo + Cerco/Vendo */}
                   <View style={styles.row2}>
-                    <View className="col" style={styles.col}>
+                    <View style={styles.col}>
                       <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
                       <View style={styles.segment}>
                         {TYPES.map((tt) => {
@@ -1034,6 +1061,7 @@ export default function CreateListingScreen({
                     </>
                   )}
 
+                  {/* Spacer */}
                   <View style={{ height: 2 }} />
                 </ScrollView>
               </View>
@@ -1108,7 +1136,7 @@ export default function CreateListingScreen({
                   />
                   {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
 
-                  {/* Box Trust (senza duplicati, niente immagini) */}
+                  {/* Box Trust */}
                   {!!flagsNoImg?.length && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
                       <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
@@ -1233,7 +1261,7 @@ export default function CreateListingScreen({
         <View style={styles.sheetBackdrop}>
           <View style={[styles.sheetCard, { maxWidth: 520, alignSelf: "center" }]}>
             <Text style={styles.sheetTitle}>Applica tutti i fix AI?</Text>
-            <Text style={styles.sheetText}>Verranno aggiornati automaticamente i campi suggeriti (titolo, località, date/orari, prezzo…).</Text>
+            <Text style={styles.sheetText}>Verranno aggiornati automaticamente i campi suggeriti (titolo, località, date/orari, prezzo, immagine…).</Text>
             <View style={{ height: 10 }} />
             <TouchableOpacity onPress={applyAllTrustFixes} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
               <Text style={[styles.sheetBtnText, { color: "#fff" }]}>Applica adesso</Text>
@@ -1254,6 +1282,7 @@ const styles = StyleSheet.create({
   topPanel: { backgroundColor: "#F4F7FB", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   topTitle: { fontSize: 20, fontWeight: "900", color: theme.colors.boardingText },
+
   pillsRow: { flexDirection: "row", gap: 12, paddingTop: 8, paddingBottom: 6 },
   pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
   pillLight: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
@@ -1263,9 +1292,11 @@ const styles = StyleSheet.create({
 
   inputSurface: { backgroundColor: "#FBFDFF" },
 
-  // Micro progress
-  aiProgressWrap: { height: 4, backgroundColor: "#E5E7EB", borderRadius: 999, overflow: "hidden", marginTop: 4 },
-  aiProgressBar: { height: 4, backgroundColor: theme.colors.boardingText },
+  // Micro log + progress
+  microWrap: { marginTop: 6, marginBottom: 4 },
+  microLine: { fontSize: 12, color: "#374151", marginBottom: 2 },
+  progressBar: { height: 8, borderRadius: 6, backgroundColor: "#E5E7EB", overflow: "hidden", marginTop: 6 },
+  progressFill: { height: "100%", backgroundColor: theme.colors.boardingText },
 
   // --- slider ---
   sliderWrap: { flex: 1 },
@@ -1361,3 +1392,4 @@ const styles = StyleSheet.create({
   qrTitle: { fontWeight: "800", color: theme.colors.primary, alignSelf: "center" },
   qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "#E5E7EB" },
 });
+
