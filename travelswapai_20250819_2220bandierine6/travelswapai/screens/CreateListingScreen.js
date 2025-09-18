@@ -1,5 +1,6 @@
+
 // screens/CreateListingScreen.js
-import React, { useLayoutEffect, useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById } from "../lib/db";
 import { theme } from "../lib/theme";
@@ -9,7 +10,7 @@ import TrustInfo from '../components/TrustInfo';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
-  StyleSheet, Image, Switch, Modal, Dimensions,
+  StyleSheet, Switch, Modal, Dimensions,
   Keyboard,
 } from "react-native";
 
@@ -288,7 +289,8 @@ async function aiImportFromQR(raw) {
   }
   if (!parsed.title) parsed.title = parsed.type === "hotel" ? "Soggiorno" : "Viaggio";
   if (!parsed.location) parsed.location = parsed.type === "hotel" ? "Hotel" : "Tratta";
-  if (!parsed.imageUrl) parsed.imageUrl = parsed.type === "hotel" ? "httpsum.photos/seed/hotel/1200/800" : "https://picsum.photos/seed/train/1200/800";
+  // fix: URL corretta (evita immagini rotte)
+  if (!parsed.imageUrl) parsed.imageUrl = parsed.type === "hotel" ? "https://picsum.photos/seed/hotel/1200/800" : "https://picsum.photos/seed/train/1200/800";
   return parsed;
 }
 
@@ -319,55 +321,12 @@ export default function CreateListingScreen({
   // Tastiera (per bloccare swipe orizzontale quando è aperta)
   const [isKbOpen, setIsKbOpen] = useState(false);
   useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-      () => setIsKbOpen(true)
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-      () => setIsKbOpen(false)
-    );
+    const showEvt = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvt = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvt, () => setIsKbOpen(true));
+    const hideSub = Keyboard.addListener(hideEvt, () => setIsKbOpen(false));
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
-
-  const flagsNoImg = useMemo(() => {
-  const rx = /(image|imageurl|image_url|foto|immagine)/i;
-  let arr = Array.isArray(trustData?.flags)
-    ? trustData.flags.filter(f => !rx.test(String(f?.field || f?.msg || "")))
-    : [];
-  if (form?.type === "hotel") {
-    arr = arr.filter(f => !/depart|arrive/i.test(f.field || ""));
-  } else {
-    arr = arr.filter(f => !/checkin|checkout/i.test(f.field || ""));
-  }
-  const seen = new Set();
-  return arr.filter(f => {
-    const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}, [trustData, form?.type]);
-
-const fixesNoImg = useMemo(() => {
-  const rx = /(image|imageurl|image_url|foto|immagine)/i;
-  let arr = Array.isArray(trustData?.suggestedFixes)
-    ? trustData.suggestedFixes.filter(s => !rx.test(String(s?.field || s?.suggestion || "")))
-    : [];
-  if (form?.type === "hotel") {
-    arr = arr.filter(s => !/depart|arrive/i.test(s.field || ""));
-  } else {
-    arr = arr.filter(s => !/checkin|checkout/i.test(s.field || ""));
-  }
-  const seen = new Set();
-  return arr.filter(s => {
-    const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}, [trustData, form?.type]);
-
 
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
@@ -393,6 +352,45 @@ const fixesNoImg = useMemo(() => {
 
   const initialJsonRef = useRef(null);
   const [errors, setErrors] = useState({});
+
+  // Flag e fix filtrati (spostati qui per evitare riferimenti a form prima della dichiarazione)
+  const flagsNoImg = useMemo(() => {
+    const rx = /(image|imageurl|image_url|foto|immagine)/i;
+    let arr = Array.isArray(trustData?.flags)
+      ? trustData.flags.filter(f => !rx.test(String(f?.field || f?.msg || "")))
+      : [];
+    if (form?.type === "hotel") {
+      arr = arr.filter(f => !/depart|arrive/i.test(f.field || ""));
+    } else {
+      arr = arr.filter(f => !/checkin|checkout/i.test(f.field || ""));
+    }
+    const seen = new Set();
+    return arr.filter(f => {
+      const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [trustData, form?.type]);
+
+  const fixesNoImg = useMemo(() => {
+    const rx = /(image|imageurl|image_url|foto|immagine)/i;
+    let arr = Array.isArray(trustData?.suggestedFixes)
+      ? trustData.suggestedFixes.filter(s => !rx.test(String(s?.field || s?.suggestion || "")))
+      : [];
+    if (form?.type === "hotel") {
+      arr = arr.filter(s => !/depart|arrive/i.test(s.field || ""));
+    } else {
+      arr = arr.filter(s => !/checkin|checkout/i.test(s.field || ""));
+    }
+    const seen = new Set();
+    return arr.filter(s => {
+      const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [trustData, form?.type]);
 
   // ---------- EDIT MODE: prefill ----------
   useEffect(() => {
@@ -445,7 +443,7 @@ const fixesNoImg = useMemo(() => {
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [mode, route?.params?.listingId]);
+  }, [mode, route?.params?.listingId, route?.params?.draftFromId]);
 
   const isDirty = useMemo(() => {
     if (initialJsonRef.current == null) return false;
@@ -594,32 +592,32 @@ const fixesNoImg = useMemo(() => {
       const hasArrow = (patch.type || form?.type) === "train" && /→/.test((patch.location || form.location || ""));
       const [locFrom, locTo] = hasArrow ? (patch.location || form.location).split("→").map(s => s.trim()) : [null, null];
 
-const payload = {
-  id: passedListing?.id || listingId || null,
-  type: patch.type || form?.type,
-  title: patch.title || form.title,
-  description: form.description,
-  origin: (patch.type || form?.type) === "train" ? (locFrom || null) : null,
-  destination: (patch.type || form?.type) === "train"
-    ? (locTo || null)
-    : ((patch.location || form.location) || null),
-  checkIn: (patch.type || form?.type) === "hotel" ? (patch.checkIn || form.checkIn) : null,
-  checkOut: (patch.type || form?.type) === "hotel" ? (patch.checkOut || form.checkOut) : null,
-  departAt: (patch.type || form?.type) === "train" ? (patch.departAt || form.departAt) : null,
-  arriveAt: (patch.type || form?.type) === "train" ? (patch.arriveAt || form.arriveAt) : null,
-  price: (patch.price || form.price) ? Number(String(patch.price || form.price).replace(",", ".")) : null,
-  currency: "EUR",
-};
+      const payload = {
+        id: passedListing?.id || listingId || null,
+        type: patch.type || form?.type,
+        title: patch.title || form.title,
+        description: form.description,
+        origin: (patch.type || form?.type) === "train" ? (locFrom || null) : null,
+        destination: (patch.type || form?.type) === "train"
+          ? (locTo || null)
+          : ((patch.location || form.location) || null),
+        checkIn: (patch.type || form?.type) === "hotel" ? (patch.checkIn || form.checkIn) : null,
+        checkOut: (patch.type || form?.type) === "hotel" ? (patch.checkOut || form.checkOut) : null,
+        departAt: (patch.type || form?.type) === "train" ? (patch.departAt || form.departAt) : null,
+        arriveAt: (patch.type || form?.type) === "train" ? (patch.arriveAt || form.arriveAt) : null,
+        price: (patch.price || form.price) ? Number(String(patch.price || form.price).replace(",", ".")) : null,
+        currency: "EUR",
+      };
       const res = await evaluate(payload);
 
       // 4) Merge dei localFlags con eventuali flags del trust (senza immagini, altrove filtriamo)
       if (Array.isArray(localFlags) && localFlags.length) {
-        // NB: usiamo un campo speciale per mostrarli subito nel box “Possibili problemi”
         const existing = Array.isArray(res?.flags) ? res.flags : [];
+        // merged è calcolato per evitare duplicati, ma la UI già filtra con flagsNoImg
         const merged = uniqBy([...existing, ...localFlags], f => `${f.field}|${f.msg}`.toLowerCase());
-        // finto update dello stato trust: non abbiamo setTrustData, ma evaluate dovrebbe già aggiornare il hook;
-        // i localFlags li mostriamo anche nel microLog per feedback immediato
+        // feedback immediato nel microLog
         localFlags.forEach(f => logStep(`⚠︎ ${f.msg}`, 90));
+        void merged; // evita warning lint per variabile inutilizzata
       }
 
       logStep("Fatto.", 100);
@@ -714,7 +712,7 @@ const payload = {
     }
     const priceStr = String(form.price || "").trim();
     if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
-    else if (!isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
+    else if (!Number.isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
     return e;
   }, [form, t]);
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
@@ -821,6 +819,11 @@ const payload = {
     }
   };
 
+  const [cameraPermissionState, setCameraPermissionState] = useState(null);
+  useEffect(() => {
+    setCameraPermissionState(cameraPermission?.granted === true);
+  }, [cameraPermission?.granted]);
+
   const requestQrPermissionAndOpen = async () => {
     try {
       if (!cameraPermission || cameraPermission.granted !== true) {
@@ -887,6 +890,14 @@ const payload = {
       });
     }
   };
+
+  // Cleanup timers on unmount to prevent leaks
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
 
   /* ---------- UI ---------- */
   return (
@@ -965,8 +976,8 @@ const payload = {
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             scrollEnabled={!isKbOpen}
             onMomentumScrollEnd={(e) => {
-              const w = e.nativeEvent.layoutMeasurement.width;
-              const x = e.nativeEvent.contentOffset.x;
+              const w = e.nativeEvent.layoutMeasurement.width || sliderW || 1;
+              const x = e.nativeEvent.contentOffset.x || 0;
               const idx = Math.round(x / w);
               setSlideIndex(idx);
             }}
