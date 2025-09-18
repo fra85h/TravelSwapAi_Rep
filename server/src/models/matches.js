@@ -1,6 +1,5 @@
 // server/src/models/matches.js
 import { isUUID } from '../util/uuid.js';
-
 import { scoreWithAI } from '../ai/score.js';
 import {
   //fetchActiveListingsForMatching,
@@ -47,9 +46,6 @@ function snapshotsAreEqual(aItems, bItems) {
 
   // 1) profilo utente (per il prompt AI)
   const user = await getUserProfile(userId);
-//console.log(userid);
-console.log("user ricavato con getuserprofile");
-console.log(user);
   // 2) le TUE listing attive (sorgenti del match)
   const fromListings =
     (await listActiveListingsOfUser(user.id, { limit: 200 })) || [];
@@ -69,7 +65,6 @@ console.log(user);
   if (!candidates.length) {
     return { user, generatedAt: now, items: [] };
   }
-console.log("qui cancello i match precedenti");
   // 4) cancella i match precedenti per le tue sorgenti
   const fromIds = fromListings.map((l) => l.id);
 if (fromIds.length) {
@@ -103,43 +98,7 @@ const useCands = candidates
   .sort((a,b) => String(a.id).localeCompare(String(b.id)));
     console.log("fromListings:", fromListings.length);
 console.log("candidates:", useCands.length);
-  // 5) per OGNI tua listing, calcola punteggi contro i candidati e crea righe pairwise
-/*  for (const f of fromListings) {
-    // passa al modello anche un minimo di contesto della listing sorgente
-    const contextUser = { ...user, fromListing: f };
-
-    console.log("qui LANCIO AI per user ");
-     console.log(user);
-    const ai = await scoreWithAI(
-  { ...user, fromListing: f },
-  useCands,
-  { temperature: TEMP, top_p: TOP_P, seed: getSeed(userId) } // se supportato
-);
-  console.log("ai:", Array.isArray(ai) ? ai.length : ai); // per questa 'from' specifica
-
-    console.log("qui FINISCE AI");
-       
-    //const scored = Array.isArray(ai) && ai.length ? ai : heuristicScore(contextUser, candidates);
-const scored = (Array.isArray(ai) ? ai : [])
-  .map(s => ({ ...s, score: Math.round(Number(s.score || 0) * 1000) / 1000 }))
-  .sort((a,b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
-    console.log("scored:", scored.length);
-
-    for (const s of scored) { 
-           console.log(s.model);
-      if (!s?.id) continue; // serve l'id della listing candidata
-      rows.push({
-        from_listing_id: f.id,     // ⬅️ MAI NULL
-        to_listing_id: s.id,
-        score: Number(s.score) || 0,
-        bidirectional: !!s.bidirectional,
-        model: s.model || 'gpt-4.1-mini',
-        explanation: s.explanation || null,
-        generated_at: now,
-      });
-    }
-  }
-    */  // sostituito il 20250804_2043 per un codice che parallelizza x4
+   // sostituito il 20250804_2043 per un codice che parallelizza x4
 async function runPool(tasks, limit = 4) {
   const results = [];
   let i = 0;
@@ -230,61 +189,15 @@ if (rows.length) {
 
   return { user, generatedAt: now, items: rows };
  }
-
-
-
-/**
- * Ritorna l’ultimo snapshot matches salvato per l’utente.
- */
-/*export async function listMatches(userId) {
-  if (!isUUID(userId)) throw new Error('Invalid userId');
-  const snap = await getLatestMatches(userId);
-  return snap?.items || [];
-}+/
-/*
-export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTotal = 50 } = {}) {
-  if (!isUUID(userid)) throw new Error('Invalid userId');
-console.log("qui lancio listActiveListingsOfUser con user ");
-console.log(userid);
-  const myListings = await listActiveListingsOfUser(userid, { limit: 200 });
-console.log("qui costruisco let aggregated");
-  let aggregated = [];
-  for (const from of myListings) {
-    console.log("qui lancio  listMatchesForFrom");
-    const top = await listMatchesForFrom(from.id, { limit: topPerListing });
-     console.log("qui ho terminato  listMatchesForFrom");
-    aggregated = aggregated.concat(top);
-  }
-
-  // dedup opzionale per toId
-  const seen = new Set();
-  const dedup = [];
-  for (const it of aggregated) {
-    const k = it.toId;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    dedup.push(it);
-  }
-
-  dedup.sort((a, b) => (b.score - a.score) || String(a.toId).localeCompare(String(b.toId)));
-  const items = dedup.slice(0, maxTotal);
-
-  await insertUserSnapshot(userid, items);
-  return { userid, generatedAt: new Date().toISOString(), count: items.length };
-}*/
 //nuova versione che non scrive se lo snpashot è identico all'ultimo
 export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTotal = 50 } = {}) {
   if (!isUUID(userid)) throw new Error('Invalid userId');
 
-  console.log("qui lancio listActiveListingsOfUser con user ", userid);
   const myListings = await listActiveListingsOfUser(userid, { limit: 200 });
 
-  console.log("qui costruisco let aggregated");
   let aggregated = [];
   for (const from of myListings) {
-    console.log("qui lancio  listMatchesForFrom");
     const top = await listMatchesForFrom(from.id, { limit: topPerListing });
-    console.log("qui ho terminato  listMatchesForFrom");
     aggregated = aggregated.concat(top);
   }
 

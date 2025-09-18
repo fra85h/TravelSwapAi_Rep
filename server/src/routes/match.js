@@ -68,28 +68,17 @@ matchesRouter.post("/ai/recompute",async (req, res) => {
     if (!userId || !isUUID(userId)) {
       return res.status(400).json({ ok: false, error: "missing/invalid userId" });
     }
-    /* console.log("qui sono dentro routsmatches ai/recompute");
-    const userId =req.user.id;   // String(req.body?.userId || "");
-      console.log("qui ho costruito userId");
-    const topPerListing = req.body?.topPerListing ?? 3;
-          console.log("qui ho costruito userItopPerListingd");
-    const maxTotal = req.body?.maxTotal ?? 50;
-              console.log("qui ho costruito maxTotal");
-    console.log("ciao6");*/
-    //if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
+
 
     // 1) calcolo AI
     const ai = await recomputeMatches(userId); // { userId, generatedAt, items }
 console.log("QUi ho fatto la recompute match con user " );
-console.log(userId);
     // 2) aggiorna snapshot utente
     const _ = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
 console.log("QUi ho fatto lo snapshot per user ");
-console.log(userId);
     // 3) prendi lo snapshot aggiornato e restituiscilo
     const snap = await getUserSnapshot(userId); // { items, count, generatedAt }
      console.log("QUi leggo snapshot per user  ");
-     console.log(userId);
     return res.status(200).json({
       ai: { count: ai.items?.length ?? 0, generatedAt: ai.generatedAt },
       snapshot: snap,
