@@ -6,7 +6,7 @@ import { listPublicListings, getCurrentUser } from "../lib/db";
 import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
-
+import TrustScoreBadge from '../components/TrustScoreBadge';
 
 export default function HomeScreen() {
   const navigation = useNavigation();

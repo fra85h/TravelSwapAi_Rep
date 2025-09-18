@@ -331,30 +331,43 @@ export default function CreateListingScreen({
   }, []);
 
   const flagsNoImg = useMemo(() => {
-    const rx = /(image|imageurl|image_url|foto|immagine)/i;
-    const arr = Array.isArray(trustData?.flags) ? trustData.flags.filter(f =>
-      !rx.test(String(f?.field || f?.msg || ""))) : [];
-    const seen = new Set();
-    return arr.filter(f => {
-      const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [trustData]);
+  const rx = /(image|imageurl|image_url|foto|immagine)/i;
+  let arr = Array.isArray(trustData?.flags)
+    ? trustData.flags.filter(f => !rx.test(String(f?.field || f?.msg || "")))
+    : [];
+  if (form?.type === "hotel") {
+    arr = arr.filter(f => !/depart|arrive/i.test(f.field || ""));
+  } else {
+    arr = arr.filter(f => !/checkin|checkout/i.test(f.field || ""));
+  }
+  const seen = new Set();
+  return arr.filter(f => {
+    const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}, [trustData, form?.type]);
 
-  const fixesNoImg = useMemo(() => {
-    const rx = /(image|imageurl|image_url|foto|immagine)/i;
-    const arr = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes.filter(s =>
-      !rx.test(String(s?.field || s?.suggestion || ""))) : [];
-    const seen = new Set();
-    return arr.filter(s => {
-      const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [trustData]);
+const fixesNoImg = useMemo(() => {
+  const rx = /(image|imageurl|image_url|foto|immagine)/i;
+  let arr = Array.isArray(trustData?.suggestedFixes)
+    ? trustData.suggestedFixes.filter(s => !rx.test(String(s?.field || s?.suggestion || "")))
+    : [];
+  if (form?.type === "hotel") {
+    arr = arr.filter(s => !/depart|arrive/i.test(s.field || ""));
+  } else {
+    arr = arr.filter(s => !/checkin|checkout/i.test(s.field || ""));
+  }
+  const seen = new Set();
+  return arr.filter(s => {
+    const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}, [trustData, form?.type]);
+
 
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
@@ -464,7 +477,7 @@ export default function CreateListingScreen({
   }, [queueAutoSave]);
 
   const onChangeType = (nextType) => {
-    if (form.type === nextType) return;
+    if (form?.type === nextType) return;
     if (nextType === "hotel") {
       update({ type: "hotel", departAt: "", arriveAt: "", isNamedTicket: false, gender: "", pnr: "" });
     } else {
@@ -555,7 +568,7 @@ export default function CreateListingScreen({
       const localFlags = [];
       const nowDate = new Date();
 
-      if (form.type === "hotel") {
+      if (form?.type === "hotel") {
         const a = parseISODate(normalizeDateStr(patch.checkIn || form.checkIn));
         const b = parseISODate(normalizeDateStr(patch.checkOut || form.checkOut));
         if (a && b) {
@@ -578,20 +591,25 @@ export default function CreateListingScreen({
 
       // 3) TrustScore remoto
       logStep("Verifica affidabilità annuncio…", 80);
-      const hasArrow = (patch.type || form.type) === "train" && /→/.test((patch.location || form.location || ""));
+      const hasArrow = (patch.type || form?.type) === "train" && /→/.test((patch.location || form.location || ""));
       const [locFrom, locTo] = hasArrow ? (patch.location || form.location).split("→").map(s => s.trim()) : [null, null];
-      const payload = {
-        id: passedListing?.id || listingId || null,
-        type: patch.type || form.type,
-        title: patch.title || form.title,
-        description: form.description,
-        origin: (patch.type || form.type) === "train" ? (locFrom || null) : null,
-        destination: (patch.type || form.type) === "train" ? (locTo || null) : ((patch.location || form.location) || null),
-        startDate: (patch.type || form.type) === "hotel" ? (patch.checkIn || form.checkIn) : ((patch.departAt || form.departAt)?.split("T")[0] || null),
-        endDate: (patch.type || form.type) === "hotel" ? (patch.checkOut || form.checkOut) : ((patch.arriveAt || form.arriveAt)?.split("T")[0] || null),
-        price: (patch.price || form.price) ? Number(String(patch.price || form.price).replace(",", ".")) : null,
-        currency: "EUR",
-      };
+
+const payload = {
+  id: passedListing?.id || listingId || null,
+  type: patch.type || form?.type,
+  title: patch.title || form.title,
+  description: form.description,
+  origin: (patch.type || form?.type) === "train" ? (locFrom || null) : null,
+  destination: (patch.type || form?.type) === "train"
+    ? (locTo || null)
+    : ((patch.location || form.location) || null),
+  checkIn: (patch.type || form?.type) === "hotel" ? (patch.checkIn || form.checkIn) : null,
+  checkOut: (patch.type || form?.type) === "hotel" ? (patch.checkOut || form.checkOut) : null,
+  departAt: (patch.type || form?.type) === "train" ? (patch.departAt || form.departAt) : null,
+  arriveAt: (patch.type || form?.type) === "train" ? (patch.arriveAt || form.arriveAt) : null,
+  price: (patch.price || form.price) ? Number(String(patch.price || form.price).replace(",", ".")) : null,
+  currency: "EUR",
+};
       const res = await evaluate(payload);
 
       // 4) Merge dei localFlags con eventuali flags del trust (senza immagini, altrove filtriamo)
@@ -672,7 +690,7 @@ export default function CreateListingScreen({
     if (!form.title.trim()) e.title = t("createListing.errors.titleRequired", "Titolo obbligatorio.");
     if (!form.location.trim()) e.location = t("createListing.errors.locationRequired", "Località obbligatoria.");
 
-    if (form.type === "hotel") {
+    if (form?.type === "hotel") {
       if (!ciNorm) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
       if (!coNorm) e.checkOut = t("createListing.errors.checkOutRequired", "Check-out obbligatorio.");
       if (ciNorm && !parseISODate(ciNorm)) e.checkIn = t("createListing.errors.checkInInvalid", "Check-in non valido (YYYY-MM-DD).");
@@ -721,7 +739,7 @@ export default function CreateListingScreen({
       const priceNum = Number(String(form.price).replace(",", "."));
 
       const basePayload = {
-        type: form.type,
+        type: form?.type,
         title: form.title.trim(),
         location: form.location.trim(),
         description: form.description.trim() || null,
@@ -730,7 +748,7 @@ export default function CreateListingScreen({
         ...(mode !== "edit" ? { status: "active" } : {})
       };
 
-      const payload = form.type === "hotel"
+      const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
         : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
 
@@ -970,7 +988,7 @@ export default function CreateListingScreen({
                       <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
                       <View style={styles.segment}>
                         {TYPES.map((tt) => {
-                          const active = form.type === tt.key;
+                          const active = form?.type === tt.key;
                           return (
                             <TouchableOpacity key={tt.key} onPress={() => onChangeType(tt.key)} style={[styles.segBtn, active && styles.segBtnActive]}>
                               <Text style={[styles.segText, active && styles.segTextActive]}>{t(tt.labelKey, tt.key === "hotel" ? "Hotel" : "Treno")}</Text>
@@ -1000,7 +1018,7 @@ export default function CreateListingScreen({
                     value={form.title}
                     onChangeText={(v) => update({ title: v })}
                     placeholder={
-                      form.type === "hotel"
+                      form?.type === "hotel"
                         ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
                         : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
                     }
@@ -1008,14 +1026,17 @@ export default function CreateListingScreen({
                     placeholderTextColor="#9CA3AF"
                   />
                   {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
-
                   {/* Località / Rotta */}
-                  <Text style={styles.label}>{t("createListing.locationLabel", "Località *")}</Text>
+                  <Text style={styles.label}>{
+                   form?.type === "hotel" ? t("createListing.locationLabelhotel", "Località *") : t("createListing.locationLabeltrain", "Tratta *")
+                  
+                  
+                 }</Text>
                   <TextInput
                     value={form.location}
                     onChangeText={(v) => update({ location: v })}
                     placeholder={
-                      form.type === "hotel"
+                      form?.type === "hotel"
                         ? t("createListing.locationPlaceholderHotel", "Es. Milano, Navigli")
                         : t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")
                     }
@@ -1025,7 +1046,7 @@ export default function CreateListingScreen({
                   {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
 
                   {/* Date */}
-                  {form.type === "hotel" ? (
+                  {form?.type === "hotel" ? (
                     <>
                       <DateField
                         label={t("createListing.checkIn", "Check-in")}
@@ -1078,7 +1099,7 @@ export default function CreateListingScreen({
                   nestedScrollEnabled
                 >
                   {/* Particolari treno (se serve) */}
-                  {form.type === "train" && (
+                  {form?.type === "train" && (
                     <View style={styles.subCard}>
                       <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
 
@@ -1150,9 +1171,7 @@ export default function CreateListingScreen({
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
                       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                         <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
-                        <TouchableOpacity onPress={() => setShowFixesModal(true)} style={[styles.smallBtn, { backgroundColor: "#111827" }]}>
-                          <Text style={[styles.smallBtnText, { color: "#fff" }]}>Applica tutti</Text>
-                        </TouchableOpacity>
+                    
                       </View>
                       <View style={{ height: 6 }} />
                       {fixesNoImg.map((s, i) => (

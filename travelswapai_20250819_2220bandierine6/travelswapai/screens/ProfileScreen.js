@@ -24,6 +24,7 @@ import LanguageSwitcher from "./LanguageSwitcher"; // 🇮🇹🇬🇧🇺🇸 b
 import { useAuth } from "../lib/auth";
 import { theme } from "../lib/theme";
 import { supabase } from "../lib/supabase.js";
+import TrustScoreBadge from '../components/TrustScoreBadge';
 
 function StatItem({ label, icon, value, active, onPress }) {
   return (
