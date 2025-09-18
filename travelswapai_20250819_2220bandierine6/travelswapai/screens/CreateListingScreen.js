@@ -1028,7 +1028,7 @@ const payload = {
                   {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
                   {/* Località / Rotta */}
                   <Text style={styles.label}>{
-                   form?.type === "hotel" ? t("createListing.locationLabelhotel", "Località *") : t("createListing.locationLabeltrain", "Tratta *")
+                   form?.type === "hotel" ? t("createListing.locationLabelHotel", "Località *") : t("createListing.locationLabelTrain", "Tratta *")
                   
                   
                  }</Text>

@@ -121,7 +121,8 @@ export const translations = {
       locationLabel: "Località *",
       locationPlaceholderHotel: "Es. Milano, Navigli",
       locationPlaceholderTrain: "Es. Milano Centrale → Roma Termini",
-
+      locationLabelHotel: "Località *",
+      locationLabelTrain: "Tratta *",
       checkIn: "Check-in",
       checkOut: "Check-out",
       departAt: "Partenza (data e ora)",
@@ -521,7 +522,8 @@ listings: {
       locationLabel: "Location *",
       locationPlaceholderHotel: "e.g. Milan, Navigli",
       locationPlaceholderTrain: "e.g. Milano Centrale → Roma Termini",
-
+      locationLabelHotel: "Location *",
+      locationLabelTrain: "Train route *",
       checkIn: "Check-in",
       checkOut: "Check-out",
       departAt: "Departure (date & time)",
@@ -924,7 +926,8 @@ listings: {
       locationLabel: "Localidad *",
       locationPlaceholderHotel: "Ej. Milán, Navigli",
       locationPlaceholderTrain: "Ej. Milano Centrale → Roma Termini",
-
+      locationLabelHotel: "Localidad *",
+      locationLabelTrain: "Trata *",
       checkIn: "Check-in",
       checkOut: "Check-out",
       departAt: "Salida (fecha y hora)",
