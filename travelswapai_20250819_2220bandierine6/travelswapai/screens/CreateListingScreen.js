@@ -357,39 +357,41 @@ export default function CreateListingScreen({
   const flagsNoImg = useMemo(() => {
     const rx = /(image|imageurl|image_url|foto|immagine)/i;
     let arr = Array.isArray(trustData?.flags)
-      ? trustData.flags.filter(f => !rx.test(String(f?.field || f?.msg || "")))
-      : [];
+        ? trustData.flags.filter(f => !rx.test(String(f?.field || f?.msg || "")))
+        : [];
     if (form?.type === "hotel") {
-      arr = arr.filter(f => !/depart|arrive/i.test(f.field || ""));
+        arr = arr.filter(f => /checkin|checkout/i.test(f.field || ""));
     } else {
-      arr = arr.filter(f => !/checkin|checkout/i.test(f.field || ""));
+        arr = arr.filter(f => /depart|arrive/i.test(f.field || ""));
     }
     const seen = new Set();
     return arr.filter(f => {
-      const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+        const key = `${String(f?.field||'')}`.trim().toLowerCase() + '|' + `${String(f?.msg||'')}`.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
     });
+
   }, [trustData, form?.type]);
 
   const fixesNoImg = useMemo(() => {
     const rx = /(image|imageurl|image_url|foto|immagine)/i;
     let arr = Array.isArray(trustData?.suggestedFixes)
-      ? trustData.suggestedFixes.filter(s => !rx.test(String(s?.field || s?.suggestion || "")))
-      : [];
+        ? trustData.suggestedFixes.filter(s => !rx.test(String(s?.field || s?.suggestion || "")))
+        : [];
     if (form?.type === "hotel") {
-      arr = arr.filter(s => !/depart|arrive/i.test(s.field || ""));
+        arr = arr.filter(s => /checkin|checkout/i.test(s.field || ""));
     } else {
-      arr = arr.filter(s => !/checkin|checkout/i.test(s.field || ""));
+        arr = arr.filter(s => /depart|arrive/i.test(s.field || ""));
     }
     const seen = new Set();
     return arr.filter(s => {
-      const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+        const key = `${String(s?.field||'')}`.trim().toLowerCase() + '|' + `${String(s?.suggestion||'')}`.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
     });
+
   }, [trustData, form?.type]);
 
   // ---------- EDIT MODE: prefill ----------
@@ -632,6 +634,7 @@ export default function CreateListingScreen({
       Alert.alert("AI TrustScore", "Qualcosa è andato storto durante la verifica.");
     } finally {
       setLoadingAI(false);
+        await onSaveDraft();  // Salva in bozza al termine del Check AI
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, lastTrustRunAt, trustError, evaluate, update, logStep, clearLogSoon, passedListing?.id, listingId]);
