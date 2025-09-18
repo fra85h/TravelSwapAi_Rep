@@ -38,7 +38,7 @@ export async function insertListing(payload) {
     title: payload.title,
     description: payload.description ?? null,
     location: payload.location ?? null,
-
+    trustscore: payload.trustscore??null,
     // CERCO/VENDO flag
     cerco_vendo: (payload.cerco_vendo === "CERCO" ? "CERCO" : "VENDO"),
 
