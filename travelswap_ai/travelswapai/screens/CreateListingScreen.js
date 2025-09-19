@@ -1,6 +1,9 @@
 
 // screens/CreateListingScreen.js
+
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById } from "../lib/db";
 import { theme } from "../lib/theme";
@@ -39,6 +42,25 @@ function uniqBy(arr, keyFn) {
   } catch { return Array.isArray(arr) ? arr : []; }
 }
 
+function formatAutoTitle(cercoVendo, type, locFrom, locTo, checkIn, checkOut, departAt, price, currency) {
+  const action = (cercoVendo || '').toUpperCase() === 'CERCO' ? 'Cerco' : 'Vendo';
+  const priceStr = (price != null && price !== '') ? `${Number(String(price).replace(',', '.')).toFixed(0)} ${currency || '€'}` : '';
+  const fmtDate = (d) => { try { return new Date(d).toLocaleDateString('it-IT'); } catch { return d || '-'; } };
+  if ((type || '').toLowerCase() === 'train') {
+    const soloAndata = 'solo andata'; // non abbiamo flag andata/ritorno: default solo andata
+    const fromTo = (locFrom && locTo) ? `${locFrom}→${locTo}` : (locFrom || locTo || '');
+    const d = departAt ? fmtDate(departAt) : '';
+    return `${action} treno ${fromTo} ${d} ${soloAndata} ${priceStr}`.trim();
+  } else {
+    const loc = locTo || locFrom || ''; // per hotel usiamo location come "Località"
+    const d1 = checkIn ? fmtDate(checkIn) : '';
+    const d2 = checkOut ? fmtDate(checkOut) : '';
+    return `${action} hotel in ${loc} ${d1}/${d2} ${priceStr}`.trim();
+  }
+
+}
+
+
 /* Estrazione CERCO/VENDO dal testo descrizione (fallback locale se l'AI non lo imposta) */
 function guessCercoVendoFromText(text) {
   const s = String(text || "").toLowerCase();
@@ -67,12 +89,18 @@ function AIPill({ title, onPress, disabled, dark, loading }) {
       accessibilityRole="button"
       accessibilityLabel={title}
     >
-      {loading
-        ? <ActivityIndicator size="small" color={dark ? "#fff" : "#111827"} />
-        : <Text style={[styles.pillText, dark && styles.pillTextDark]} numberOfLines={1}>{title}</Text>}
+      {loading ? (
+        <ActivityIndicator size="small" color={dark ? "#fff" : "#111827"} />
+      ) : (
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <AntDesign name="star" size={16} style={{ marginRight: 6 }} color={dark ? "#fff" : theme.colors.boardingText} />
+          <Text style={[styles.pillText, dark && styles.pillTextDark]} numberOfLines={1}>{title}</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
+ 
 
 const TYPES = [
   { key: "hotel", labelKey: "listing.type.hotel" },
@@ -554,6 +582,24 @@ export default function CreateListingScreen({
       if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
       if (nextCercoVendo) patch.cercoVendo = nextCercoVendo;
 
+      // 1.3) Titolo auto-formattato in base al tipo
+      try {
+        const combinedLoc = (patch.location || form.location || "");
+        const hasArrow = /→/.test(combinedLoc);
+        const [locFrom, locTo] = hasArrow ? combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
+        const autoTitle = formatAutoTitle(
+          nextCercoVendo || form.cercoVendo,
+          patch.type || form.type,
+          locFrom, locTo,
+          patch.checkIn || form.checkIn,
+          patch.checkOut || form.checkOut,
+          patch.departAt || form.departAt,
+          patch.price ?? form.price,
+          patch.currency || form.currency
+        );
+        patch.title = autoTitle;
+      } catch {}
+
       if (Object.keys(patch).length) {
         update(patch);
         logStep("Suggerimenti AI applicati.", 40);
@@ -667,6 +713,24 @@ export default function CreateListingScreen({
         if (v == null) continue;
         patch[k] = String(v);
       }
+      // 1.3) Titolo auto-formattato in base al tipo
+      try {
+        const combinedLoc = (patch.location || form.location || "");
+        const hasArrow = /→/.test(combinedLoc);
+        const [locFrom, locTo] = hasArrow ? combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
+        const autoTitle = formatAutoTitle(
+          nextCercoVendo || form.cercoVendo,
+          patch.type || form.type,
+          locFrom, locTo,
+          patch.checkIn || form.checkIn,
+          patch.checkOut || form.checkOut,
+          patch.departAt || form.departAt,
+          patch.price ?? form.price,
+          patch.currency || form.currency
+        );
+        patch.title = autoTitle;
+      } catch {}
+
       if (Object.keys(patch).length) {
         update(patch);
         setShowFixesModal(false);
@@ -1422,4 +1486,3 @@ const styles = StyleSheet.create({
   qrTitle: { fontWeight: "800", color: theme.colors.primary, alignSelf: "center" },
   qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "#E5E7EB" },
 });
-

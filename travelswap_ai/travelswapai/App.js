@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
 import { theme } from './lib/theme';
 import { StatusBar } from 'expo-status-bar';
+import HeaderLogo from './components/HeaderLogo';
 import OfferFlow from './screens/OfferFlow';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';

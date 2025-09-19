@@ -44,6 +44,22 @@ export default function ListingDetailScreen() {
     <ScrollView contentContainerStyle={{ padding:16 }}
                 refreshControl={<RefreshControl refreshing={recomputing} onRefresh={doRecompute} />}>
       <Text style={{ fontSize:22, fontWeight:"800" }}>{listing?.title}</Text>
+
+      {/* CosaDoveQuandoQuanto */}
+      <View style={{ flexDirection:'row', flexWrap:'wrap', gap:8, marginTop:8 }}>
+        <View style={{ backgroundColor: theme.colors.surfaceMuted, paddingVertical:6, paddingHorizontal:10, borderRadius:999 }}>
+          <Text style={{ fontWeight: '700', color:'#374151' }}>{String(listing?.type||'-').toUpperCase()}</Text>
+        </View>
+        <View style={{ backgroundColor: theme.colors.surfaceMuted, paddingVertical:6, paddingHorizontal:10, borderRadius:999 }}>
+          <Text style={{ fontWeight: '700', color:'#374151' }}>{listing?.location || listing?.route_from || '-'}</Text>
+        </View>
+        <View style={{ backgroundColor: theme.colors.surfaceMuted, paddingVertical:6, paddingHorizontal:10, borderRadius:999 }}>
+          <Text style={{ fontWeight: '700', color:'#374151' }}>{(listing?.checkIn || listing?.departAt) ? new Date(listing.checkIn || listing.departAt).toLocaleDateString('it-IT') : '-'}</Text>
+        </View>
+        <View style={{ backgroundColor: theme.colors.surfaceMuted, paddingVertical:6, paddingHorizontal:10, borderRadius:999 }}>
+          <Text style={{ fontWeight: '700', color:'#374151' }}>{listing?.price != null ? `${Number(listing.price).toFixed(2)} ${listing.currency || '€'}` : '-'}</Text>
+        </View>
+      </View>
       <Text style={{ color:"#6B7280", marginTop:4 }}>{(listing?.location || "—") + " · " + (listing?.type || "—")}</Text>
       <Text style={{ marginTop:8, fontWeight:"700" }}>{listing?.price != null ? `€${listing.price}` : "—"}</Text>
       {listing?.description ? <Text style={{ marginTop:12 }}>{listing.description}</Text> : null}
@@ -70,6 +86,9 @@ export default function ListingDetailScreen() {
           ))}
         </View>
       )}
+          <TouchableOpacity style={{ marginTop:16, backgroundColor: theme.colors.primaryMuted, borderRadius: 12, paddingVertical: 14, alignItems:'center' }} onPress={() => {/* TODO: navigate to create offer */}}>
+        <Text style={{ color:'#fff', fontWeight:'800' }}>Invia proposta</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }

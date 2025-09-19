@@ -8,6 +8,11 @@ import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 
+function formatDatePub(d) {
+  if (!d) return "-";
+  try { const dt = new Date(d); return dt.toLocaleDateString("it-IT"); } catch { return "-"; }
+}
+
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { t, lang } = useI18n();
@@ -40,7 +45,9 @@ export default function HomeScreen() {
   // se vuoi che il titolo dell'header cambi lingua dinamicamente:
   useEffect(() => {
     // aggiorna l'header quando cambia lingua
-    navigation.setOptions?.({ title: t("listingsTitle") });
+    navigation.setOptions?.({ title: t("listingsTitle")   /* --- Published on footer text --- */
+  // (styles)
+});
   }, [navigation, t, lang]);
 
   const filtered = useMemo(() => {
@@ -175,4 +182,6 @@ const styles = StyleSheet.create({
   retryText: { fontWeight: "600", color: "#111827" },
   emptyWrap: { paddingVertical: 32, alignItems: "center" },
   emptyText: { color: "#6B7280" },
+  /* --- Published on footer text --- */
+  // (styles)
 });
