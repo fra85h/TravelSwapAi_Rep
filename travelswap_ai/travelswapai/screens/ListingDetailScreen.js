@@ -23,7 +23,7 @@ import OfferCTAs from "../components/OfferCTA";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
-/** "YYYY-MM-DD HH:MI:SS" */
+/** "YYYY-MM-DD HH:MI:SS" (24h) – lasciata per compatibilità dove già usata */
 function toYMDHMS(input) {
   if (!input) return "—";
   const s = String(input).trim();
@@ -45,8 +45,45 @@ function toYMDHMS(input) {
   return s;
 }
 
+/** "YYYY-MM-DD hh:mi:ss AM/PM" (12h) – per hotel/treno nei chip */
+function toYMDHMS_AMPM(input) {
+  if (!input) return "—";
+  const d = new Date(String(input));
+  if (isNaN(d.getTime())) {
+    const m = String(input).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return String(input);
+    let [, Y, M, D, hh, mm, ss = "00"] = m;
+    let hNum = parseInt(hh, 10);
+    const ampm = hNum >= 12 ? "PM" : "AM";
+    hNum = hNum % 12;
+    if (hNum === 0) hNum = 12;
+    return `${Y}-${M}-${D} ${String(hNum).padStart(2, "0")}:${mm}:${ss} ${ampm}`;
+  }
+  const Y = d.getFullYear();
+  const M = pad2(d.getMonth() + 1);
+  const D = pad2(d.getDate());
+  let h = d.getHours();
+  const m = pad2(d.getMinutes());
+  const s = pad2(d.getSeconds());
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if (h === 0) h = 12;
+  return `${Y}-${M}-${D} ${pad2(h)}:${m}:${s} ${ampm}`;
+}
+
 const safeStr = (v) => (v == null || v === "" ? "—" : String(v));
 const fmtMoney = (v, c) => (v == null || isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)} ${c || "€"}`);
+
+/** rimuove prezzi inseriti nel titolo (€, EUR, “prezzo: …”) */
+function stripPriceFromTitle(s) {
+  if (!s) return s;
+  let out = String(s);
+  // es. "… - 120€", "… 120 EUR", "… €120", "… 120,00 €"
+  out = out.replace(/\s*[-–—]?\s*(?:€|\bEUR\b)?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
+  // es. "… prezzo: 120€" / "… price 120 EUR"
+  out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
+  return out.trim();
+}
 
 /** time-ago (it) */
 function timeAgo(input) {
@@ -207,62 +244,79 @@ export default function ListingDetailScreen() {
     );
   }
 
+  // train-only extra fields
+  const tripType  = listing?.trip_type ?? listing?.tripType ?? null; // "oneway" | "roundtrip" | etc
+  const operator  = listing?.operator  ?? listing?.carrier  ?? null; // "Trenitalia" | "Italo" | "Trenord" | ...
+
   return (
     <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
                   refreshControl={<RefreshControl refreshing={recomputing} onRefresh={doRecompute} />}>
-        {/* Header con gradient dinamico + Ribbon "Nuovo" */}
-       {/* ===== Header con gradient dinamico + Ribbon "Nuovo" (NO PREZZO NEL TITOLO) ===== */}
-<View style={styles.headerCard}>
-  {isNewBadge ? (
-    <View style={styles.ribbonWrap} pointerEvents="none">
-      <View style={styles.ribbon}><Text style={styles.ribbonText}>NUOVO</Text></View>
-    </View>
-  ) : null}
+        {/* ===== Header con gradient dinamico + Ribbon "Nuovo" (NO PREZZO NEL TITOLO) ===== */}
+        <View style={styles.headerCard}>
+          {isNewBadge ? (
+            <View style={styles.ribbonWrap} pointerEvents="none">
+              <View style={styles.ribbon}><Text style={styles.ribbonText}>NUOVO</Text></View>
+            </View>
+          ) : null}
 
-  <LinearGradient colors={gradColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
-    {/* Titolo (senza prezzo) + meta + trustscore */}
-    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-      <View style={{ flex: 1, paddingRight: 12 }}>
-        <Text style={[styles.title, { color: textColor }]} numberOfLines={2}>
-          {safeStr(listing?.title)}
-        </Text>
-        <Text style={[styles.subtitle, { color: textColor }]}>
-          {safeStr(listing?.type)} • {safeStr(listing?.location || listing?.route_from)}
-          {publishedAgo ? <Text style={{ color: textColor }}>{`  •  pubblicato ${publishedAgo}`}</Text> : null}
-        </Text>
-      </View>
+          <LinearGradient colors={gradColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
+            {/* Riga alta: SOLO titolo + meta (niente Affidabilità qui) */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={[styles.title, { color: textColor }]} numberOfLines={2}>
+                  {stripPriceFromTitle(safeStr(listing?.title))}
+                </Text>
+                <Text style={[styles.subtitle, { color: textColor }]}>
+                  {safeStr(listing?.type)} • {safeStr(listing?.location || listing?.route_from)}
+                  {publishedAgo ? <Text style={{ color: textColor }}>{`  •  pubblicato ${publishedAgo}`}</Text> : null}
+                </Text>
+              </View>
+              {/* TrustScore spostato sotto */}
+            </View>
 
-      {typeof trustScore === "number" ? <TrustScoreBadge score={trustScore} /> : null}
-    </View>
+            {/* Separatore */}
+            <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#E5E7EB", marginTop: 12, marginBottom: 12 }} />
 
-    {/* Separatore */}
-    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#E5E7EB", marginTop: 12, marginBottom: 12 }} />
+            {/* Riga bassa: Affidabilità a SX, Prezzo a DX */}
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <View style={{ flexShrink: 1 }}>
+                {typeof trustScore === "number" ? <TrustScoreBadge score={trustScore} /> : <View />}
+              </View>
+              <Text style={[styles.price, { color: textColor }]}>{fmtMoney(listing?.price, listing?.currency)}</Text>
+            </View>
+          </LinearGradient>
+        </View>
 
-    {/* Prezzo SOLO qui, separato dal titolo */}
-    <View style={{ alignItems: "flex-end" }}>
-      <Text style={[styles.price, { color: textColor }]}>
-        {fmtMoney(listing?.price, listing?.currency)}
-      </Text>
-    </View>
-  </LinearGradient>
-</View>
-
-
-        {/* Info principali */}
+        {/* ===== Info principali ===== */}
         <SectionCard title="Informazioni" textColor={textColor}>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {/* HOTEL (AM/PM) */}
             {listing?.type === "hotel" ? (
               <>
-                <Chip icon="📅" label={`Check-in: ${toYMDHMS(checkIn)}`} textColor={textColor} />
-                <Chip icon="📅" label={`Check-out: ${toYMDHMS(checkOut)}`} textColor={textColor} />
+                <Chip icon="📅" label={`Check-in: ${toYMDHMS_AMPM(checkIn)}`} textColor={textColor} />
+                <Chip icon="📅" label={`Check-out: ${toYMDHMS_AMPM(checkOut)}`} textColor={textColor} />
                 {listing?.pnr ? <Chip icon="🎫" label={`PNR: ${String(listing.pnr)}`} textColor={textColor} /> : null}
               </>
             ) : null}
+
+            {/* TRAIN (AM/PM + nuovi campi) */}
             {listing?.type === "train" ? (
               <>
-                <Chip icon="🕒" label={`Partenza: ${toYMDHMS(departAt)}`} textColor={textColor} />
-                <Chip icon="🕒" label={`Arrivo: ${toYMDHMS(arriveAt)}`} textColor={textColor} />
+                <Chip icon="🕒" label={`Partenza: ${toYMDHMS_AMPM(departAt)}`} textColor={textColor} />
+                <Chip icon="🕒" label={`Arrivo: ${toYMDHMS_AMPM(arriveAt)}`} textColor={textColor} />
+                <Chip
+                  icon="🎟"
+                  label={`Viaggio: ${
+                    tripType
+                      ? /round|ar|a\/r/i.test(String(tripType)) ? "A/R"
+                        : /one|solo/i.test(String(tripType)) ? "Solo andata"
+                        : String(tripType)
+                      : "—"
+                  }`}
+                  textColor={textColor}
+                />
+                <Chip icon="🚄" label={`Operatore: ${operator || "—"}`} textColor={textColor} />
                 {listing?.is_named_ticket != null ? (
                   <Chip icon="👤" label={`Nominativo: ${listing.is_named_ticket ? "Sì" : "No"}`} textColor={textColor} />
                 ) : null}
