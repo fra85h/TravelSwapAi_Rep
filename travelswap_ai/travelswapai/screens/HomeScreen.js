@@ -8,10 +8,18 @@ import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 
-function formatDatePub(d) {
-  if (!d) return "-";
-  try { const dt = new Date(d); return dt.toLocaleDateString("it-IT"); } catch { return "-"; }
+
+// --- Helper: rimuove eventuali prezzi dal titolo (es. "... 120€, 120 EUR, €120, prezzo 120,00")
+function stripPriceFromTitle(s) {
+  if (!s) return s;
+  let out = String(s);
+  // pattern tipici a fine stringa: " - 120€", "120 EUR", "€120", "120,00 €"
+  out = out.replace(/\s*[-–—]?\s*(?:€|\bEUR\b)?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
+  // pattern tipo "prezzo: 120€" a fine stringa
+  out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
+  return out.trim();
 }
+
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -45,9 +53,7 @@ export default function HomeScreen() {
   // se vuoi che il titolo dell'header cambi lingua dinamicamente:
   useEffect(() => {
     // aggiorna l'header quando cambia lingua
-    navigation.setOptions?.({ title: t("listingsTitle")   /* --- Published on footer text --- */
-  // (styles)
-});
+    navigation.setOptions?.({ title: t("listingsTitle") });
   }, [navigation, t, lang]);
 
   const filtered = useMemo(() => {
@@ -91,7 +97,7 @@ const renderItem = ({ item }) => (
   >
     {/* Titolo + Trustscore allineato a destra */}
     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-      <Text style={styles.cardTitle}>{item.title || t("listing", "Annuncio")}</Text>
+      <Text style={styles.cardTitle}>{stripPriceFromTitle(item.title) || t("listing", "Annuncio")}</Text>
      
     </View>
 
@@ -105,7 +111,13 @@ const renderItem = ({ item }) => (
       </Text>
     )}
 
-    {/* CTA per comprare/scambiare (nascoste automaticamente sui miei) */}
+    {/* Pubblicato il */}
+    {item?.created_at ? (
+      <Text style={{ color: '#6B7280', marginTop: 8, fontSize: 12 }}>
+        Pubblicato il {new Date(item.created_at).toLocaleDateString('it-IT')}
+      </Text>
+    ) : null}
+        {/* CTA per comprare/scambiare (nascoste automaticamente sui miei) */}
     <OfferCTAs listing={item} me={me} />
     {/* Affidabilità in basso a destra */}
 {(() => {
@@ -182,6 +194,4 @@ const styles = StyleSheet.create({
   retryText: { fontWeight: "600", color: "#111827" },
   emptyWrap: { paddingVertical: 32, alignItems: "center" },
   emptyText: { color: "#6B7280" },
-  /* --- Published on footer text --- */
-  // (styles)
 });
