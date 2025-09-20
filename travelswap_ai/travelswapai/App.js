@@ -87,7 +87,10 @@ function RootNavigator() {
         headerTintColor: theme.colors.boardingText,
         headerTitleStyle: { fontWeight: "800", color: theme.colors.boardingText },
         contentStyle: { backgroundColor: theme.colors.background },
-        headerBackTitleVisible: false,
+        headerBackTitle: "Indietro",          // 👈 forza testo back
+    headerTruncatedBackTitle: "Indietro", // 👈 se lo deve accorciare
+    headerBackTitleVisible: true,         // 👈 così vedi sempre “Indietr
+        //headerBackTitleVisible: false,
       }}
     >
       {session ? (
