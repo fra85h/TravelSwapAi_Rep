@@ -22,7 +22,9 @@ import ListingDetailScreen from './screens/ListingDetailScreen';
 import { AuthProvider, useAuth } from './lib/auth';
 import { I18nProvider } from './lib/i18n';
 import Constants from "expo-constants";
+
 const Stack = createNativeStackNavigator();
+
 class ErrorBoundary extends React.Component {
   state = { error: null };
   componentDidCatch(error, info) {
@@ -34,6 +36,7 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
 const navTheme = {
   ...DefaultTheme,
   colors: {
@@ -50,7 +53,7 @@ const navTheme = {
 const linking = {
   prefixes: [
     Linking.createURL('/'),           // exp://... durante dev
-    'travelswap://',                // scheme nativo
+    'travelswap://',                  // scheme nativo
     ...(typeof window !== 'undefined' && window.location?.origin
       ? [window.location.origin + '/']
       : []),
@@ -78,12 +81,18 @@ function RootNavigator() {
       screenOptions={{
         headerShown: true,
         headerShadowVisible: false,
-        headerTitleStyle: { fontWeight: "800" },
+        // >>> LOGO IN ALTO A SX (usa il tuo componente che legge ../assets/logo.png)
+        headerTitle: () => <HeaderLogo />,
+        headerTitleAlign: 'left',
+        headerTintColor: theme.colors.boardingText,
+        headerTitleStyle: { fontWeight: "800", color: theme.colors.boardingText },
         contentStyle: { backgroundColor: theme.colors.background },
+        headerBackTitleVisible: false,
       }}
     >
       {session ? (
         <>
+          {/* NB: MainTabs tiene il suo header interno: qui rimane nascosto */}
           <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
           <Stack.Screen name="CreateListing" component={CreateListingScreen} options={{ title: "Nuovo annuncio" }} />
           <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "Profilo" }} />
@@ -105,19 +114,17 @@ function RootNavigator() {
 }
 
 export default function App() {
-  
-console.log("[WHOAMI] owner =", Constants.expoConfig?.owner, "slug =", Constants.expoConfig?.slug, "name =", Constants.expoConfig?.name);
-
+  console.log("[WHOAMI] owner =", Constants.expoConfig?.owner, "slug =", Constants.expoConfig?.slug, "name =", Constants.expoConfig?.name);
   return (
     <ErrorBoundary>
-    <AuthProvider>
-      <I18nProvider>
-        <NavigationContainer theme={navTheme} linking={linking}>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </NavigationContainer>
-      </I18nProvider>
-    </AuthProvider>
-        </ErrorBoundary>
+      <AuthProvider>
+        <I18nProvider>
+          <NavigationContainer theme={navTheme} linking={linking}>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </NavigationContainer>
+        </I18nProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

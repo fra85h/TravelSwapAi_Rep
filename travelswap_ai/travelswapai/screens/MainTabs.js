@@ -27,6 +27,7 @@ export default function MainTabs() {
           tabBarInactiveTintColor: theme.colors.textMuted,
           tabBarStyle: { height: TAB_BAR_HEIGHT },
           tabBarLabelStyle: { paddingBottom: 6, fontWeight: "700" },
+          
         }}
       >
         <Tab.Screen

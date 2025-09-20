@@ -1,23 +1,27 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { View, Text, Image } from "react-native";
 import { theme } from "../lib/theme";
 
 export default function HeaderLogo() {
   return (
     <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <View
+      <Image
+        source={require("../assets/logoheader.png")}
         style={{
-          width: 18,
-          height: 18,
-          borderRadius: 4,
-          borderWidth: 2,
-          borderColor: theme.colors.boardingText,
-          marginRight: 6,
-          transform: [{ rotate: "-10deg" }],
+          width: 40,
+          height: 40,
+          resizeMode: "contain",
+          marginRight: 8,
         }}
       />
-      <Text style={{ fontWeight: "800", fontSize: 16, color: theme.colors.boardingText }}>
-        TravelSwapAi
+      <Text
+        style={{
+          fontWeight: "800",
+          fontSize: 16,
+          color: theme.colors.boardingText,
+        }}
+      >
+        TravelSwapAI
       </Text>
     </View>
   );

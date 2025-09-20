@@ -7,7 +7,7 @@ import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
-
+import { Train, BedDouble } from "lucide-react-native"; // << aggiunto
 
 // --- Helper: rimuove eventuali prezzi dal titolo (es. "... 120€, 120 EUR, €120, prezzo 120,00")
 function stripPriceFromTitle(s) {
@@ -19,7 +19,6 @@ function stripPriceFromTitle(s) {
   out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
   return out.trim();
 }
-
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -62,80 +61,89 @@ export default function HomeScreen() {
     return items.filter((x) => String(x.type || "").toLowerCase() === ttype);
   }, [items, tab]);
 
-const renderTabs = () => (
-  <View style={styles.tabs}>
-    {["all", "hotel", "train", "flight"].map((tKey) => {
-      const label =
-        tKey === "all"
-          ? t("listings.filters.all", "Tutti")
-          : tKey === "hotel"
-          ? t("listings.filters.hotels", "Hotel")
-          : tKey === "train"
-          ? t("listings.filters.trains", "Treni")
-          : t("listings.filters.flights", "Voli");
+  const renderTabs = () => (
+    <View style={styles.tabs}>
+      {["all", "hotel", "train", "flight"].map((tKey) => {
+        const label =
+          tKey === "all"
+            ? t("listings.filters.all", "Tutti")
+            : tKey === "hotel"
+            ? t("listings.filters.hotels", "Hotel")
+            : tKey === "train"
+            ? t("listings.filters.trains", "Treni")
+            : t("listings.filters.flights", "Voli");
 
-      return (
-        <TouchableOpacity
-          key={tKey}
-          style={[styles.tab, tab === tKey && styles.tabActive]}
-          onPress={() => setTab(tKey)}
-        >
-          <Text style={[styles.tabText, tab === tKey && styles.tabTextActive]}>
-            {label}
+        return (
+          <TouchableOpacity
+            key={tKey}
+            style={[styles.tab, tab === tKey && styles.tabActive]}
+            onPress={() => setTab(tKey)}
+          >
+            <Text style={[styles.tabText, tab === tKey && styles.tabTextActive]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      onPress={() => navigation.navigate("ListingDetail", { id: item.id })}
+      activeOpacity={0.8}
+      style={styles.card}
+    >
+      {/* Titolo con icona tipo (in alto a sx) */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
+          {String(item.type).toLowerCase() === "train" ? (
+            <Train size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
+          ) : String(item.type).toLowerCase() === "hotel" ? (
+            <BedDouble size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
+          ) : null}
+          <Text style={styles.cardTitle} numberOfLines={1}>
+            {stripPriceFromTitle(item.title) || t("listing", "Annuncio")}
           </Text>
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-);
+        </View>
+      </View>
 
-const renderItem = ({ item }) => (
-  <TouchableOpacity
-    onPress={() => navigation.navigate("ListingDetail", { id: item.id })}
-    activeOpacity={0.8}
-    style={styles.card}
-  >
-    {/* Titolo + Trustscore allineato a destra */}
-    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-      <Text style={styles.cardTitle}>{stripPriceFromTitle(item.title) || t("listing", "Annuncio")}</Text>
-     
-    </View>
-
-    <Text style={styles.cardSub}>
-      {item.type} • {item.location || item.route_from || "-"}
-    </Text>
-
-    {item.price != null && (
-      <Text style={styles.cardMeta}>
-        {Number(item.price).toFixed(2)} {item.currency || "€"}
+      <Text style={styles.cardSub}>
+        {item.type} • {item.location || item.route_from || "-"}
       </Text>
-    )}
 
-    {/* Pubblicato il */}
-    {item?.created_at ? (
-      <Text style={{ color: '#6B7280', marginTop: 8, fontSize: 12 }}>
-        Pubblicato il {new Date(item.created_at).toLocaleDateString('it-IT')}
-      </Text>
-    ) : null}
-        {/* CTA per comprare/scambiare (nascoste automaticamente sui miei) */}
-    <OfferCTAs listing={item} me={me} />
-    {/* Affidabilità in basso a destra */}
-{(() => {
-  const score =
-    typeof item.trustscore === "number"
-      ? item.trustscore
-      : typeof item.trust_score === "number"
-      ? item.trust_score
-      : null;
-  return score != null ? (
-    <View style={{ alignItems: "flex-end", marginTop: 8 }}>
-      <TrustScoreBadge score={Number(score)} />
-    </View>
-  ) : null;
-})()}
-  </TouchableOpacity>
-);
+      {item.price != null && (
+        <Text style={styles.cardMeta}>
+          {Number(item.price).toFixed(2)} {item.currency || "€"}
+        </Text>
+      )}
 
+      {/* Pubblicato il */}
+      {item?.created_at ? (
+        <Text style={{ color: '#6B7280', marginTop: 8, fontSize: 12 }}>
+          Pubblicato il {new Date(item.created_at).toLocaleDateString('it-IT')}
+        </Text>
+      ) : null}
+
+      {/* CTA per comprare/scambiare (nascoste automaticamente sui miei) */}
+      <OfferCTAs listing={item} me={me} />
+
+      {/* Affidabilità in basso a destra */}
+      {(() => {
+        const score =
+          typeof item.trustscore === "number"
+            ? item.trustscore
+            : typeof item.trust_score === "number"
+            ? item.trust_score
+            : null;
+        return score != null ? (
+          <View style={{ alignItems: "flex-end", marginTop: 8 }}>
+            <TrustScoreBadge score={Number(score)} />
+          </View>
+        ) : null;
+      })()}
+    </TouchableOpacity>
+  );
 
   if (loading) {
     return (
@@ -185,7 +193,7 @@ const styles = StyleSheet.create({
   tabText: { fontWeight: "700", color: theme.colors.boardingText },
   tabTextActive: { color: theme.colors.boardingText },
   card: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12, backgroundColor: "#fff" },
-  cardTitle: { fontWeight: "800" },
+  cardTitle: { fontWeight: "800", color: theme.colors.boardingText },
   cardSub: { color: "#6B7280", marginTop: 4 },
   cardMeta: { color: "#111827", marginTop: 6, fontWeight: "600" },
   errorBox: { flex: 1, alignItems: "center", justifyContent: "center", padding: 16 },
