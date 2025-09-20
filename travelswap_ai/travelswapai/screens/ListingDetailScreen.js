@@ -78,9 +78,7 @@ const fmtMoney = (v, c) => (v == null || isNaN(Number(v)) ? "—" : `${Number(v)
 function stripPriceFromTitle(s) {
   if (!s) return s;
   let out = String(s);
-  // es. "… - 120€", "… 120 EUR", "… €120", "… 120,00 €"
   out = out.replace(/\s*[-–—]?\s*(?:€|\bEUR\b)?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  // es. "… prezzo: 120€" / "… price 120 EUR"
   out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
   return out.trim();
 }
@@ -168,6 +166,7 @@ export default function ListingDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
+  const [showPriceInfo, setShowPriceInfo] = useState(false); // << nuovo
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -179,6 +178,7 @@ export default function ListingDetailScreen() {
   }, [listingId]);
 
   const loadMatches = useCallback(async () => {
+    // lasciato per compatibilità ma non più usato a UI
     setLoadingMatches(true);
     try {
       setMatches(await getListingMatches(listingId, 100));
@@ -198,6 +198,12 @@ export default function ListingDetailScreen() {
     } finally {
       setRecomputing(false);
     }
+  };
+
+  const handleAIPrice = () => {
+    // TODO: collega alla tua funzione di analisi prezzo AI o a una screen dedicata
+    // es: navigation.navigate("AIPriceEvaluation", { id: listingId })
+    console.log("AI price evaluation for", listingId);
   };
 
   const textColor = theme?.colors?.boardingText || "#111827";
@@ -261,7 +267,7 @@ export default function ListingDetailScreen() {
           ) : null}
 
           <LinearGradient colors={gradColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
-            {/* Riga alta: SOLO titolo + meta (niente Affidabilità qui) */}
+            {/* Riga alta: SOLO titolo + meta */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={[styles.title, { color: textColor }]} numberOfLines={2}>
@@ -272,7 +278,6 @@ export default function ListingDetailScreen() {
                   {publishedAgo ? <Text style={{ color: textColor }}>{`  •  pubblicato ${publishedAgo}`}</Text> : null}
                 </Text>
               </View>
-              {/* TrustScore spostato sotto */}
             </View>
 
             {/* Separatore */}
@@ -343,28 +348,61 @@ export default function ListingDetailScreen() {
           </SectionCard>
         ) : null}
 
-        {/* Match */}
-        <View style={{ marginTop: 8, marginBottom: 2, paddingHorizontal: 2 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: textColor }}>Match per questo annuncio</Text>
-            <TouchableOpacity onPress={doRecompute} disabled={recomputing} style={styles.recomputeBtn}>
-              <Text style={styles.recomputeText}>{recomputing ? "Aggiorno…" : "⟳ Ricalcola"}</Text>
-            </TouchableOpacity>
-          </View>
+        {/* ======= NUOVO: Analisi Prezzo AI ======= */}
+     {/* ======= Analisi Prezzo AI ======= */}
+<View style={{ marginTop: 24, alignItems: "center" }}>
+  {/* Info "i" sopra il pulsante, centrata */}
+  <TouchableOpacity
+    onPress={() => setShowPriceInfo((v) => !v)}
+    accessibilityLabel="Informazioni sull'analisi prezzo AI"
+    style={{
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      borderWidth: 1,
+      borderColor: theme.colors.boardingText,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 8,
+    }}
+    activeOpacity={0.7}
+  >
+    <Text style={{ color: theme.colors.boardingText, fontWeight: "800", fontSize: 13 }}>i</Text>
+  </TouchableOpacity>
 
-          {loadingMatches ? (
-            <View style={{ marginTop: 16, alignItems: "center" }}>
-              <ActivityIndicator />
-              <Text style={{ marginTop: 8, color: textColor }}>Caricamento match…</Text>
-            </View>
-          ) : !matches?.items?.length ? (
-            <Text style={{ marginTop: 12, color: textColor }}>Nessun match</Text>
-          ) : (
-            <View style={{ marginTop: 12, gap: 8 }}>
-              {matches.items.map((it) => (<MatchCard key={it.id} item={it} onPress={() => {}} />))}
-            </View>
-          )}
-        </View>
+  {/* Pulsante AI */}
+  <TouchableOpacity
+    onPress={handleAIPrice}
+    style={{
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 14,
+      paddingHorizontal: 24,
+      borderRadius: 12,
+      alignItems: "center",
+      minWidth: "70%",
+    }}
+    activeOpacity={0.85}
+  >
+    <Text style={{ color: theme.colors.boardingText, fontWeight: "700", fontSize: 16 }}>
+      Analisi prezzo con AI
+    </Text>
+  </TouchableOpacity>
+
+  {/* Box info a scomparsa */}
+  {showPriceInfo ? (
+    <View style={{ marginTop: 12, paddingHorizontal: 4 }}>
+      <Text style={{ color: theme.colors.boardingText, fontSize: 14, lineHeight: 20, textAlign: "center" }}>
+        L’AI valuta la congruità del prezzo considerando:
+        {"\n"}• data/ora del viaggio o del soggiorno (AM/PM)
+        {"\n"}• tratta e distanza / località
+        {"\n"}• operatore (Trenitalia, Italo, …) o struttura
+        {"\n"}• periodo/stagionalità ed eventi
+        {"\n"}• storico prezzi e vincoli del titolo
+      </Text>
+    </View>
+  ) : null}
+</View>
+
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -420,5 +458,32 @@ const styles = StyleSheet.create({
   footer: {
     position: "absolute", left: 0, right: 0, bottom: 0, padding: 12, backgroundColor: "#FFFFFF",
     borderTopWidth: 1, borderTopColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, elevation: 8,
+  },
+
+  /* === Nuovi per AI === */
+  aiBtn: {
+    flex: 1,
+    backgroundColor: theme.colors?.primary || "#111827",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  aiBtnText: {
+    color: theme.colors?.boardingText || "#fff",
+    fontWeight: "800",
+    fontSize: 14,
+  },
+  infoBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F8FAFC",
   },
 });
