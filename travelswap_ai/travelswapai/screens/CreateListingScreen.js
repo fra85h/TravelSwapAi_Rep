@@ -1,6 +1,4 @@
-
 // screens/CreateListingScreen.js
-
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AntDesign } from "@expo/vector-icons";
@@ -65,13 +63,10 @@ function formatAutoTitle(cercoVendo, type, locFrom, locTo, checkIn, checkOut, de
 function guessCercoVendoFromText(text) {
   const s = String(text || "").toLowerCase();
   if (!s) return null;
-  // segnali di "cerco"
-  const cercoRx = /\b(cerco|cercasi|compro|acquisto|mi\s+serve|sto\s+cercando)\b/;
-  // segnali di "vendo"
-  const vendoRx = /\b(vendo|cedo|rivendo|offro|metto\s+in\s+vendita|scambio)\b/;
+  const cercoRx = /\\b(cerco|cercasi|compro|acquisto|mi\\s+serve|sto\\s+cercando)\\b/;
+  const vendoRx = /\\b(vendo|cedo|rivendo|offro|metto\\s+in\\s+vendita|scambio)\\b/;
   if (cercoRx.test(s) && !vendoRx.test(s)) return "CERCO";
   if (vendoRx.test(s) && !cercoRx.test(s)) return "VENDO";
-  // priorità al "cerco" se sono presenti entrambi (annunci tipicamente dichiarano "cerco" esplicitamente)
   if (cercoRx.test(s) && vendoRx.test(s)) return "CERCO";
   return null;
 }
@@ -100,7 +95,6 @@ function AIPill({ title, onPress, disabled, dark, loading }) {
     </TouchableOpacity>
   );
 }
- 
 
 const TYPES = [
   { key: "hotel", labelKey: "listing.type.hotel" },
@@ -112,14 +106,14 @@ function normalizeDateStr(s) {
   const v = String(s || "").trim();
   if (!v) return "";
   let m;
-  m = v.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/); // YYYY-M-D
+  m = v.match(/^(\\d{4})[\\/-](\\d{1,2})[\\/-](\\d{1,2})$/); // YYYY-M-D
   if (m) {
     const y = parseInt(m[1], 10);
     const mo = pad2(parseInt(m[2], 10));
     const d = pad2(parseInt(m[3], 10));
     return `${y}-${mo}-${d}`;
   }
-  m = v.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/); // D-M-YYYY
+  m = v.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/); // D-M-YYYY
   if (m) {
     const d = pad2(parseInt(m[1], 10));
     const mo = pad2(parseInt(m[2], 10));
@@ -140,14 +134,14 @@ const toISOTime = (d) => {
 };
 const parseISODate = (s) => {
   const norm = normalizeDateStr(s);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(norm))) return null;
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(norm))) return null;
   const [y, m, d] = norm.split("-").map((x) => parseInt(x, 10));
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
   return dt;
 };
 const parseISODateTime = (s) => {
-  if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(String(s))) return null;
+  if (!/^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}$/.test(String(s))) return null;
   const [date, time] = s.replace("T", " ").split(" ");
   const [y, m, d] = date.split("-").map((x) => parseInt(x, 10));
   const [H, M] = time.split(":").map((x) => parseInt(x, 10));
@@ -158,15 +152,15 @@ const parseISODateTime = (s) => {
 /* ---------- AI PARSER helpers (semplificati) ---------- */
 const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa", LIN:"Milano Linate", BGY:"Bergamo Orio", VCE:"Venezia", BLQ:"Bologna", NAP:"Napoli", CTA:"Catania", PMO:"Palermo", CAG:"Cagliari", PSA:"Pisa", TRN:"Torino", VRN:"Verona", BRI:"Bari", OLB:"Olbia" };
 const MONTHS_IT = { GENNAIO:0, FEBBRAIO:1, MARZO:2, APRILE:3, MAGGIO:4, GIUGNO:5, LUGLIO:6, AGOSTO:7, SETTEMBRE:8, OTTOBRE:9, NOVEMBRE:10, DICEMBRE:11 };
-const DATE_ANY_RE = /\b(?:(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})|(\d{4})[\/-](\d{1,2})[\/-](\d{1,2}))\b/;
-const DATE_TEXT_RE = new RegExp(String.raw`\b(\d{1,2})\s([A-Za-zÀ-ÿ]{3,})\s(\d{4})\b`, "i");
-const TIME_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
-const FLIGHT_NO_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
-const IATA_PAIR_RE = /\b([A-Z]{3})\s*(?:-|–|—|>|→|to|verso)\s*([A-Z]{3})\b/;
-const TRAIN_KEYWORDS_RE = /\b(Trenitalia|Frecciarossa|FR\s?\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\b/i;
-const ROUTE_TEXT_RE = /\b(?:da|from)\s([A-Za-zÀ-ÿ .'\-]+)\s(?:a|to)\s([A-Za-zÀ-ÿ .'\-]+)\b/i;
-const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\-]{3,})\s*(?:-|–|—|>|→)\s*([A-Za-zÀ-ÿ .'\-]{3,})/;
-const PNR_RE = /\b(?:PNR|booking\s*reference|codice\s*(?:prenotazione|biglietto)|record\s*locator)\s*[:=]?\s([A-Z0-9]{5,8})\b/i;
+const DATE_ANY_RE = /\\b(?:(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})|(\\d{4})[\\/-](\\d{1,2})[\\/-](\\d{1,2}))\\b/;
+const DATE_TEXT_RE = new RegExp(String.raw`\\b(\\d{1,2})\\s([A-Za-zÀ-ÿ]{3,})\\s(\\d{4})\\b`, "i");
+const TIME_RE = /\\b([01]?\\d|2[0-3]):([0-5]\\d)\\b/;
+const FLIGHT_NO_RE = /\\b([A-Z]{2})\\s?(\\d{2,4})\\b/;
+const IATA_PAIR_RE = /\\b([A-Z]{3})\\s*(?:-|–|—|>|→|to|verso)\\s*([A-Z]{3})\\b/;
+const TRAIN_KEYWORDS_RE = /\\b(Trenitalia|Frecciarossa|FR\\s?\\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\\b/i;
+const ROUTE_TEXT_RE = /\\b(?:da|from)\\s([A-Za-zÀ-ÿ .'\\-]+)\\s(?:a|to)\\s([A-Za-zÀ-ÿ .'\\-]+)\\b/i;
+const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\\-]{3,})\\s*(?:-|–|—|>|→)\\s*([A-Za-zÀ-ÿ .'\\-]{3,})/;
+const PNR_RE = /\\b(?:PNR|booking\\s*reference|codice\\s*(?:prenotazione|biglietto)|record\\s*locator)\\s*[:=]?\\s([A-Z0-9]{5,8})\\b/i;
 
 function parseAnyDate(text) {
   if (!text) return null;
@@ -216,13 +210,13 @@ function normalizeTitleFromRoute(from, to, carrierHint) {
   return null;
 }
 function smartParseTicket(text) {
-  const src = String(text || "").replace(/\s/g, " ").trim();
+  const src = String(text || "").replace(/\\s/g, " ").trim();
   const out = { status: "active" };
   const pnr = (src.match(PNR_RE) || [])[1];
   if (pnr) out.pnr = pnr.toUpperCase();
   const hasTrain = TRAIN_KEYWORDS_RE.test(src);
   const flMatch = src.match(FLIGHT_NO_RE);
-  const mentionsRyanair = /Ryanair|FR\s?\d{1,4}\b/i.test(src);
+  const mentionsRyanair = /Ryanair|FR\\s?\\d{1,4}\\b/i.test(src);
   let routeFrom = null, routeTo = null;
   const iata = src.match(IATA_PAIR_RE);
   if (iata) {
@@ -253,7 +247,7 @@ function smartParseTicket(text) {
     const plus = new Date(dt.getTime() + 90 * 60000);
     timeArrive = `${pad2(plus.getHours())}:${pad2(plus.getMinutes())}`;
   }
-  const isHotelish = /\b(hotel|albergo|check[-\s]?in|check[-\s]?out|notti|night)\b/i.test(src);
+  const isHotelish = /\\b(hotel|albergo|check[-\\s]?in|check[-\\s]?out|notti|night)\\b/i.test(src);
   const twoPlainDatesOnly = (dateMatches.length >= 2 || dateTextMatch) && times.length === 0;
   const isRyanair = mentionsRyanair || (flMatch && flMatch[1] === "FR");
   if (isHotelish || (twoPlainDatesOnly && !hasTrain && !isRyanair)) {
@@ -276,7 +270,7 @@ function smartParseTicket(text) {
   const carrierHint = isRyanair ? "Ryanair" : hasTrain ? "Trenitalia/Italo" : "";
   out.title = normalizeTitleFromRoute(routeFrom, routeTo, carrierHint) || (isRyanair ? `Volo Ryanair ${flMatch ? flMatch[1] + flMatch[2] : ""}` : "Viaggio");
   out.location = routeFrom && routeTo ? `${routeFrom} → ${routeTo}` : isRyanair ? "Volo Ryanair" : "Treno";
-  const pm = src.match(/(?:€|\beur\b|\beuro\b)\s*([0-9](?:[\,\.][0-9]{1,2})?)/i);
+  const pm = src.match(/(?:€|\\beur\\b|\\beuro\\b)\\s*([0-9](?:[\\,\\.][0-9]{1,2})?)/i);
   if (pm) out.price = String(pm[1]).replace(",", ".");
   if (isRyanair) out.imageUrl = "https://picsum.photos/seed/ryanair/1200/800";
   else if (hasTrain) out.imageUrl = "https://picsum.photos/seed/train/1200/800";
@@ -317,7 +311,6 @@ async function aiImportFromQR(raw) {
   }
   if (!parsed.title) parsed.title = parsed.type === "hotel" ? "Soggiorno" : "Viaggio";
   if (!parsed.location) parsed.location = parsed.type === "hotel" ? "Hotel" : "Tratta";
-  // fix: URL corretta (evita immagini rotte)
   if (!parsed.imageUrl) parsed.imageUrl = parsed.type === "hotel" ? "https://picsum.photos/seed/hotel/1200/800" : "https://picsum.photos/seed/train/1200/800";
   return parsed;
 }
@@ -331,7 +324,7 @@ export default function CreateListingScreen({
   const { t } = useI18n();
   const navigation = useNavigation();
   const p = route?.params ?? {};
-  const passedListing = p.listing ?? null;
+  const passedListing = p.listing ?? null; // <-- keep same API
   const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null;
   const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
 
@@ -341,9 +334,9 @@ export default function CreateListingScreen({
   const [showFixesModal, setShowFixesModal] = useState(false);
 
   // Micro log + progress per Check AI
-  const [microLog, setMicroLog] = useState([]);             // array di stringhe
-  const [showMicroLog, setShowMicroLog] = useState(false);  // pannello visibile
-  const [progress, setProgress] = useState(0);              // 0–100
+  const [microLog, setMicroLog] = useState([]);
+  const [showMicroLog, setShowMicroLog] = useState(false);
+  const [progress, setProgress] = useState(0);
   const hideTimerRef = useRef(null);
 
   // Tastiera (per bloccare swipe orizzontale quando è aperta)
@@ -358,6 +351,8 @@ export default function CreateListingScreen({
 
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
+  const scrollRef = useRef(null); // <--- NEW: ref for horizontal ScrollView
+
   const [insightsOpen, setInsightsOpen] = useState(false);
   const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
 
@@ -381,7 +376,6 @@ export default function CreateListingScreen({
   const initialJsonRef = useRef(null);
   const [errors, setErrors] = useState({});
 
-  // Flag e fix filtrati (spostati qui per evitare riferimenti a form prima della dichiarazione)
   const flagsNoImg = useMemo(() => {
     const rx = /(image|imageurl|image_url|foto|immagine)/i;
     let arr = Array.isArray(trustData?.flags)
@@ -442,9 +436,8 @@ export default function CreateListingScreen({
               arriveAt: l.arrive_at || "",
             }));
           }
-          return; // in edit non caricare bozze
+          return;
         }
-        // --- CREAZIONE: eventuale bozza ---
         if (route?.params?.draftFromId && typeof getListingById === "function") {
           const l = await getListingById(route.params.draftFromId);
           if (!cancelled && l) {
@@ -582,7 +575,6 @@ export default function CreateListingScreen({
       if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
       if (nextCercoVendo) patch.cercoVendo = nextCercoVendo;
 
-      // 1.3) Titolo auto-formattato in base al tipo
       try {
         const combinedLoc = (patch.location || form.location || "");
         const hasArrow = /→/.test(combinedLoc);
@@ -656,18 +648,15 @@ export default function CreateListingScreen({
       };
       const res = await evaluate(payload);
 
-      // 4) Merge dei localFlags con eventuali flags del trust (senza immagini, altrove filtriamo)
       if (Array.isArray(localFlags) && localFlags.length) {
         const existing = Array.isArray(res?.flags) ? res.flags : [];
-        // merged è calcolato per evitare duplicati, ma la UI già filtra con flagsNoImg
         const merged = uniqBy([...existing, ...localFlags], f => `${f.field}|${f.msg}`.toLowerCase());
-        // feedback immediato nel microLog
         localFlags.forEach(f => logStep(`⚠︎ ${f.msg}`, 90));
-        void merged; // evita warning lint per variabile inutilizzata
+        void merged;
       }
 
       logStep("Fatto.", 100);
-      setLastTrustRunAt(Date.now());
+      setLastTrustRunAt(Date.now()); // <-- mark that Check AI has been run
       clearLogSoon();
       if (!res && trustError) {
         Alert.alert("AI TrustScore", trustError);
@@ -682,7 +671,6 @@ export default function CreateListingScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, lastTrustRunAt, trustError, evaluate, update, logStep, clearLogSoon, passedListing?.id, listingId]);
 
-  // Applica tutti i fix proposti dall’AI (solo campi noti)
   const applyAllTrustFixes = () => {
     try {
       const fixes = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes : [];
@@ -695,8 +683,8 @@ export default function CreateListingScreen({
         const key = String(k || "").toLowerCase();
         if (["title","titolo"].includes(key)) return "title";
         if (["location","località","destinazione","destination"].includes(key)) return "location";
-        if (["checkin","check_in","check-in"].includes(key)) return "checkIn";
-        if (["checkout","check_out","check-out"].includes(key)) return "checkOut";
+        if (["checkin","check_in","check-out","check-in"].includes(key)) return "checkIn";
+        if (["checkout","check_out"].includes(key)) return "checkOut";
         if (["departat","depart_at","departure","partenza"].includes(key)) return "departAt";
         if (["arriveat","arrive_at","arrival","arrivo"].includes(key)) return "arriveAt";
         if (["price","prezzo"].includes(key)) return "price";
@@ -713,13 +701,12 @@ export default function CreateListingScreen({
         if (v == null) continue;
         patch[k] = String(v);
       }
-      // 1.3) Titolo auto-formattato in base al tipo
       try {
         const combinedLoc = (patch.location || form.location || "");
         const hasArrow = /→/.test(combinedLoc);
         const [locFrom, locTo] = hasArrow ? combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
         const autoTitle = formatAutoTitle(
-          nextCercoVendo || form.cercoVendo,
+          patch.cercoVendo || form.cercoVendo,
           patch.type || form.type,
           locFrom, locTo,
           patch.checkIn || form.checkIn,
@@ -782,8 +769,29 @@ export default function CreateListingScreen({
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
   const validate = () => { const e = computeErrors(); setErrors(e); return Object.keys(e).length === 0; };
 
+  // --- Helpers to go to slides programmatically
+  const goToSlide = (idx) => {
+    const x = (idx || 0) * (sliderW || 0);
+    if (scrollRef.current && typeof scrollRef.current.scrollTo === "function") {
+      scrollRef.current.scrollTo({ x, animated: true });
+    }
+    setSlideIndex(idx);
+  };
+  const onNextPress = () => goToSlide(1);
+  const onBackPress = () => goToSlide(0);
+
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
+    // NEW RULE: require Check AI first when creating
+    const hasRunCheckAI = lastTrustRunAt > 0;
+    if (mode !== "edit" && !hasRunCheckAI) {
+      Alert.alert(
+        "Esegui prima il Check AI",
+        "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati."
+      );
+      return;
+    }
+
     if (!validate()) { return; }
     try {
       setPublishing(true);
@@ -875,7 +883,7 @@ export default function CreateListingScreen({
       applyImportedData(data);
       closeImport();
       Alert.alert("AI Import", t("createListing.aiImportSuccess", "Dati importati correttamente."));
-      setSlideIndex(1);
+      goToSlide(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.aiImportError", "Impossibile importare dal PNR."));
     } finally {
@@ -911,7 +919,7 @@ export default function CreateListingScreen({
       setQrVisible(false);
       closeImport();
       Alert.alert("AI Import", t("createListing.aiImportFromQr", "Dati importati dal QR."));
-      setSlideIndex(1);
+      goToSlide(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.qrImportError", "Import da QR non riuscito."));
     } finally {
@@ -955,7 +963,6 @@ export default function CreateListingScreen({
     }
   };
 
-  // Cleanup timers on unmount to prevent leaks
   useEffect(() => {
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -989,7 +996,7 @@ export default function CreateListingScreen({
           textAlignVertical="top"
         />
 
-        {/* Azioni (niente più “Magia IA ✨”, tutto in Check AI) */}
+        {/* Azioni */}
         <View style={styles.pillsRow}>
           <AIPill
             title={t("createListing.aiImport", "AI Import 1-click")}
@@ -1033,6 +1040,7 @@ export default function CreateListingScreen({
 
           {/* Pagine orizzontali */}
           <ScrollView
+            ref={scrollRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -1045,14 +1053,13 @@ export default function CreateListingScreen({
               const idx = Math.round(x / w);
               setSlideIndex(idx);
             }}
-            contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
           >
             {/* ===== SLIDE 1 ===== */}
             <View style={[styles.slide, { width: sliderW }]}>
               <View style={styles.slideCard}>
                 <ScrollView
-                  style={{ maxHeight: 420 }}
-                  contentContainerStyle={{ paddingBottom: FOOTER_H + 20 }}
+                  contentContainerStyle={{ paddingBottom: FOOTER_H + 40 }}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
@@ -1101,12 +1108,14 @@ export default function CreateListingScreen({
                     placeholderTextColor="#9CA3AF"
                   />
                   {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+
                   {/* Località / Rotta */}
-                  <Text style={styles.label}>{
-                   form?.type === "hotel" ? t("createListing.locationLabelHotel", "Località *") : t("createListing.locationLabelTrain", "Tratta *")
-                  
-                  
-                 }</Text>
+                  <Text style={styles.label}>
+                    { form?.type === "hotel"
+                      ? t("createListing.locationLabelHotel", "Località *")
+                      : t("createListing.locationLabelTrain", "Tratta *")
+                    }
+                  </Text>
                   <TextInput
                     value={form.location}
                     onChangeText={(v) => update({ location: v })}
@@ -1157,7 +1166,6 @@ export default function CreateListingScreen({
                     </>
                   )}
 
-                  {/* Spacer */}
                   <View style={{ height: 2 }} />
                 </ScrollView>
               </View>
@@ -1167,8 +1175,7 @@ export default function CreateListingScreen({
             <View style={[styles.slide, { width: sliderW }]}>
               <View style={styles.slideCard}>
                 <ScrollView
-                  style={{ maxHeight: 420 }}
-                  contentContainerStyle={{ paddingBottom: FOOTER_H + 20 }}
+                  contentContainerStyle={{ paddingBottom: FOOTER_H + 40 }}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
@@ -1246,7 +1253,6 @@ export default function CreateListingScreen({
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
                       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                         <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
-                    
                       </View>
                       <View style={{ height: 6 }} />
                       {fixesNoImg.map((s, i) => (
@@ -1265,7 +1271,7 @@ export default function CreateListingScreen({
           {/* Footer azioni */}
           <View style={styles.footer}>
             {slideIndex > 0 ? (
-              <TouchableOpacity onPress={() => setSlideIndex((i) => i - 1)} style={[styles.footerBtn, styles.footerGhost]}>
+              <TouchableOpacity onPress={onBackPress} style={[styles.footerBtn, styles.footerGhost]}>
                 <Text style={[styles.footerText, { color: "#111827" }]}>{t("common.back", "Indietro")}</Text>
               </TouchableOpacity>
             ) : (
@@ -1275,7 +1281,7 @@ export default function CreateListingScreen({
             )}
 
             {slideIndex === 0 ? (
-              <TouchableOpacity onPress={() => setSlideIndex(1)} style={[styles.footerBtn, styles.footerPrimary]}>
+              <TouchableOpacity onPress={onNextPress} style={[styles.footerBtn, styles.footerPrimary]}>
                 <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{t("common.next", "Avanti")}</Text>
               </TouchableOpacity>
             ) : (
@@ -1402,7 +1408,7 @@ const styles = StyleSheet.create({
 
   slide: {
     paddingHorizontal: 16,
-    marginBottom: 180,   // spazio sopra i pulsanti
+    marginBottom: FOOTER_H - 20 // spazio sopra i pulsanti
   },
   slideCard: {
     backgroundColor: "#fff",
@@ -1416,8 +1422,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
     minHeight: 120,
-    paddingBottom: 12,
-    maxHeight: 420
+    paddingBottom: 16,
   },
 
   // row with two equal columns

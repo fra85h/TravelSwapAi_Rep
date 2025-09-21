@@ -9,7 +9,6 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
-  Image,
   ScrollView,
   StyleSheet,
   Platform,
@@ -20,11 +19,21 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { listMyListings, updateListing, deleteMyListing } from "../lib/db";
 import { useI18n } from "../lib/i18n";
-import LanguageSwitcher from "./LanguageSwitcher"; // 🇮🇹🇬🇧🇺🇸 bandierine condivise
+import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "../lib/auth";
 import { theme } from "../lib/theme";
 import { supabase } from "../lib/supabase.js";
 import TrustScoreBadge from '../components/TrustScoreBadge';
+import { Train, BedDouble } from "lucide-react-native";
+
+// --- Helper: rimuove eventuali prezzi dal titolo (come in HomeScreen)
+function stripPriceFromTitle(s) {
+  if (!s) return s;
+  let out = String(s);
+  out = out.replace(/\s*[-–—]?\s*(?:€|\bEUR\b)?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
+  out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
+  return out.trim();
+}
 
 function StatItem({ label, icon, value, active, onPress }) {
   return (
@@ -38,9 +47,8 @@ function StatItem({ label, icon, value, active, onPress }) {
 
 function SkeletonRow() {
   return (
-    <View style={styles.row}>
-      <View style={[styles.skel, { width: 72, height: 72, borderRadius: 10 }]} />
-      <View style={{ flex: 1, marginLeft: 12 }}>
+    <View style={styles.listCard}>
+      <View style={{ flex: 1 }}>
         <View style={[styles.skel, { width: "60%", height: 14, borderRadius: 6 }]} />
         <View style={{ height: 8 }} />
         <View style={[styles.skel, { width: "40%", height: 12, borderRadius: 6 }]} />
@@ -196,54 +204,87 @@ export default function ProfileScreen() {
     return myListings.filter(match);
   }, [myListings, statusFilter]);
 
+  // === CARD ANNUNCIO (stile HomeScreen, senza immagine, icona + titolo senza prezzo)
   const renderMine = ({ item }) => (
     <TouchableOpacity
       onPress={() => navigation.navigate("OfferDetail", { listingId: item.id, type: item.type || "hotel" })}
-      style={styles.row}
+      activeOpacity={0.8}
+      style={styles.listCard}
     >
-      <Image source={{ uri: item.image_url || "https://picsum.photos/200/120" }} style={styles.thumb} />
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text numberOfLines={1} style={styles.title}>{item.title || t("listing.untitled", "Senza titolo")}</Text>
+      {/* Titolo con icona tipo (in alto a sx) */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
+          {String(item.type).toLowerCase() === "train" ? (
+            <Train size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
+          ) : String(item.type).toLowerCase() === "hotel" ? (
+            <BedDouble size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
+          ) : null}
+          <Text style={styles.listCardTitle} numberOfLines={1}>
+            {stripPriceFromTitle(item.title) || t("listing.untitled", "Senza titolo")}
+          </Text>
+        </View>
+
+        {/* Stato + overflow */}
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
           {!!item.status && (
             <View style={styles.stateBadge}>
               <Text style={styles.stateBadgeText}>
                 {String(item.status).toLowerCase() === "sold" ? t("listing.state.sold", "Venduto")
                   : ["swapped","traded","exchanged"].includes(String(item.status).toLowerCase()) ? t("listing.state.swapped", "Scambiato")
                   : ["pending","review"].includes(String(item.status).toLowerCase()) ? t("listing.state.pending", "In revisione")
-                  : String(item.status).toLowerCase() === "expired" ? t("listing.state.expired", "Scaduto") : t("listing.state.active", "Attivo")}
+                  : String(item.status).toLowerCase() === "expired" ? t("listing.state.expired", "Scaduto")
+                  : t("listing.state.active", "Attivo")}
               </Text>
             </View>
           )}
-
           <TouchableOpacity onPress={() => onOverflow(item)} style={styles.overflowBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.overflowIcon}>⋯</Text>
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.metaText}>{item.location || "—"}</Text>
-        {"price" in item && <Text style={styles.price}>€ {item.price}</Text>}
-
-        {item.created_at && (
-          <Text style={styles.pubDate}>
-            {t("listing.publishedOn", "Pubblicato il")} {fmtPubDate(item.created_at)}
-          </Text>
-        )}
       </View>
+
+      {/* Sottotitolo */}
+      <Text style={styles.listCardSub}>
+        {item.type} • {item.location || item.route_from || "—"}
+      </Text>
+
+      {/* Prezzo su riga separata */}
+      {"price" in item && item.price != null && (
+        <Text style={styles.listCardMeta}>
+          {Number(item.price).toFixed(2)} {item.currency || "€"}
+        </Text>
+      )}
+
+      {/* Pubblicato il */}
+      {item.created_at && (
+        <Text style={{ color: '#6B7280', marginTop: 8, fontSize: 12 }}>
+          {t("listing.publishedOn", "Pubblicato il")} {fmtPubDate(item.created_at)}
+        </Text>
+      )}
+
+      {/* Affidabilità in basso a destra */}
+      {(() => {
+        const score =
+          typeof item.trustscore === "number"
+            ? item.trustscore
+            : typeof item.trust_score === "number"
+            ? item.trust_score
+            : null;
+        return score != null ? (
+          <View style={{ alignItems: "flex-end", marginTop: 8 }}>
+            <TrustScoreBadge score={Number(score)} />
+          </View>
+        ) : null;
+      })()}
     </TouchableOpacity>
   );
 
-  // 🔐 Logout → signOut() + reset verso Login
+  // 🔐 Logout
   const handleLogout = async () => {
     try {
-          console.log("[Auth] signOut start");
-    const { error } = await supabase.auth.signOut(); // <-- questo è il metodo corretto
-    if (error) throw error;
-    console.log("[Auth] signOut OK");
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Login" }],
-      });
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e?.message || t("errors.logout", "Impossibile uscire dall’account."));
     }
@@ -261,10 +302,8 @@ export default function ProfileScreen() {
             <Text style={styles.metaText}>{profile?.phone || "—"}</Text>
           </View>
 
-          {/* selettore lingua + Modifica + Esci */}
           <View style={{ alignItems: "flex-end" }}>
-           <LanguageSwitcher />
-
+            <LanguageSwitcher />
             <TouchableOpacity
               style={[styles.editBtn, { marginTop: 8 }]}
               onPress={() => {
@@ -421,6 +460,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  // card contenitori header/sezioni profilo
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
@@ -435,10 +475,10 @@ const styles = StyleSheet.create({
   avatarText: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
   name: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText},
   metaText: { color: "#6B7280" },
-  editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.primary
-, borderWidth: 1, borderColor: "#E5E7EB" },
+  editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.primary, borderWidth: 1, borderColor: "#E5E7EB" },
   editBtnText: { fontWeight: "700", color: theme.colors.boardingText},
 
+  // stats
   statsCard: { marginTop: 12 },
   statsRow: { paddingRight: 6, gap: 10, flexDirection: "row", alignItems: "center" },
   statBox: {
@@ -467,37 +507,17 @@ const styles = StyleSheet.create({
   sectionHeader: { marginTop: 4, marginBottom: 8, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
 
-  row: {
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-  },
-  thumb: { width: 72, height: 72, borderRadius: 10, backgroundColor: "#E5E7EB" },
-  title: { fontWeight: "800", color: "#111827", maxWidth: 180 },
-  price: { marginTop: 2, fontWeight: "800", color: "#111827" },
+  // === CARDS LISTA ANNUNCI (stile HomeScreen)
+  listCard: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12, backgroundColor: "#fff" },
+  listCardTitle: { fontWeight: "800", color: theme.colors.boardingText },
+  listCardSub: { color: "#6B7280", marginTop: 4 },
+  listCardMeta: { color: "#111827", marginTop: 6, fontWeight: "600" },
 
-  stateBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
+  stateBadge: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
   stateBadgeText: { fontSize: 12, fontWeight: "800", color: "#374151" },
 
-  overflowBtn: {
-    marginLeft: "auto",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  overflowIcon: {
-    fontSize: 20,
-    color: "#6B7280",
-    fontWeight: "800",
-    marginTop: -2,
-  },
+  overflowBtn: { marginLeft: 6, paddingHorizontal: 6, paddingVertical: 2, alignItems: "center", justifyContent: "center" },
+  overflowIcon: { fontSize: 20, color: "#6B7280", fontWeight: "800", marginTop: -2 },
 
   pubDate: { marginTop: 2, color: "#6B7280", fontSize: 12 },
 
