@@ -1,5 +1,5 @@
 // screens/ProfileScreen.js
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useLayoutEffect } from "react";
 import { getMyProfile } from "../lib/db";
 import {
   View,
@@ -176,7 +176,21 @@ export default function ProfileScreen() {
       ]);
     }
   };
+/*useLayoutEffect(() => {
+  navigation.setOptions({
+    // titolo centrato
+    headerTitle: "I miei annunci",
+    headerTitleAlign: "center",
 
+    // importantissimo per rimuovere lo spazio grande su iOS
+    headerLargeTitle: false,       // disattiva il titolo grande
+    headerTransparent: false,
+
+    // opzionale: neutralizza eventuali componenti personalizzati del logo
+    headerLeft: () => null,
+    headerRight: () => null,
+  });
+}, [navigation]);*/
   const stats = useMemo(() => {
     const s = { active: 0, swapped: 0, sold: 0, pending: 0, expired: 0 };
     for (const it of myListings) {
@@ -292,6 +306,11 @@ export default function ProfileScreen() {
 
   const ListHeader = (
     <>
+    <View style={{ alignItems: "center", marginBottom: 12 }}>
+  <Text style={{ fontSize: 18, fontWeight: "800", color: theme.colors.boardingText }}>
+    I miei annunci
+  </Text>
+</View>
       {/* Dati personali + bandierine */}
       <View style={[styles.card, { marginTop: 0, paddingTop: 16 }]}>
         <View style={styles.profileRow}>
@@ -385,9 +404,7 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      <View style={[styles.sectionHeader]}>
-        <Text style={styles.sectionTitle}>{t("profile.myListings", "I miei annunci")}</Text>
-      </View>
+   
 
       {error && (
         <View style={styles.errorBox}>
@@ -433,7 +450,7 @@ export default function ProfileScreen() {
             ListHeaderComponent={ListHeader}
             ListEmptyComponent={ListEmpty}
             contentContainerStyle={{
-              paddingTop: 8,
+              paddingTop: 0,
               paddingBottom: (tabBarHeight || 0) + 24 + 72,
               paddingHorizontal: 16,
             }}
@@ -504,7 +521,7 @@ const styles = StyleSheet.create({
   clearBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: "#111827" },
   clearBtnText: { color: "#fff", fontWeight: "700" },
 
-  sectionHeader: { marginTop: 4, marginBottom: 8, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sectionHeader: { marginTop: 0, marginBottom: 8, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
 
   // === CARDS LISTA ANNUNCI (stile HomeScreen)
