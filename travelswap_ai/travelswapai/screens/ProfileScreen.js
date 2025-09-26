@@ -221,7 +221,7 @@ export default function ProfileScreen() {
   // === CARD ANNUNCIO (stile HomeScreen, senza immagine, icona + titolo senza prezzo)
   const renderMine = ({ item }) => (
     <TouchableOpacity
-      onPress={() => navigation.navigate("OfferDetail", { listingId: item.id, type: item.type || "hotel" })}
+      onPress={() => navigation.navigate("ListingDetail", { listingId: item.id, type: item.type || "hotel" })}
       activeOpacity={0.8}
       style={styles.listCard}
     >
