@@ -16,6 +16,7 @@ import { sendFbText, sendFbQuickReplies } from './lib/fbSend.js'; // quick repli
 import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.js';
 import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
 import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
+import { translateListingsRouter } from "./routes/translateListings.js";
 
 const app = express();
 
@@ -29,7 +30,7 @@ const requireAuth = (req, _res, next) => next();
 app.use('/ai', trustscoreRouter);
 app.use('/', listingsRouter);
 app.use('/api/matches', matchesRouter);
-
+app.use("/", translateListingsRouter);
 mountParseDescriptionRoute(app, requireAuth);
 
 // ========== Helpers Messenger (TTL + riepilogo) ==========

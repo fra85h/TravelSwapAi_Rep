@@ -19,6 +19,10 @@ import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
 import OfferCTAs from "../components/OfferCTA";
 
+// 🆕 i18n & auto-translate
+import { useI18n } from "../lib/i18n";
+import { useListingTranslation } from "../lib/useListingTranslation";
+
 /* ========= Utils ========= */
 
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -161,12 +165,25 @@ export default function ListingDetailScreen() {
   const route = useRoute();
   const listingId = route.params?.listingId ?? route.params?.id;
 
+  const { t, locale } = (typeof useI18n === "function" ? useI18n() : { t: (s)=>s, locale: "it" });
+
   const [listing, setListing] = useState(null);
   const [matches, setMatches] = useState({ items: [], count: 0 });
   const [loading, setLoading] = useState(true);
   const [loadingMatches, setLoadingMatches] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
-  const [showPriceInfo, setShowPriceInfo] = useState(false); // << nuovo
+  const [showPriceInfo, setShowPriceInfo] = useState(false);
+
+  // 🆕 stato traduzione
+  const { getTranslated, loading: translating, error: translateError } = useListingTranslation();
+  const [translated, setTranslated] = useState({
+    title: null,
+    description: null,
+    translated: false,
+    originalLang: null,
+    lang: null,
+  });
+  const [showOriginal, setShowOriginal] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,7 +195,6 @@ export default function ListingDetailScreen() {
   }, [listingId]);
 
   const loadMatches = useCallback(async () => {
-    // lasciato per compatibilità ma non più usato a UI
     setLoadingMatches(true);
     try {
       setMatches(await getListingMatches(listingId, 100));
@@ -189,6 +205,26 @@ export default function ListingDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadMatches(); }, [loadMatches]);
+
+  // 🆕 invoca traduzione quando cambia lingua o annuncio
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!listingId || !locale) return;
+      const res = await getTranslated(listingId, locale);
+      if (cancelled || !res) return;
+      setTranslated({
+        title: res.title ?? null,
+        description: res.description ?? null,
+        translated: !!res.translated,
+        originalLang: res.originalLang ?? null,
+        lang: res.lang ?? null,
+      });
+      // se appena tradotto, mostra tradotto di default
+      setShowOriginal(false);
+    })();
+    return () => { cancelled = true; };
+  }, [listingId, locale, getTranslated]);
 
   const doRecompute = async () => {
     setRecomputing(true);
@@ -201,8 +237,6 @@ export default function ListingDetailScreen() {
   };
 
   const handleAIPrice = () => {
-    // TODO: collega alla tua funzione di analisi prezzo AI o a una screen dedicata
-    // es: navigation.navigate("AIPriceEvaluation", { id: listingId })
     console.log("AI price evaluation for", listingId);
   };
 
@@ -254,11 +288,19 @@ export default function ListingDetailScreen() {
   const tripType  = listing?.trip_type ?? listing?.tripType ?? null; // "oneway" | "roundtrip" | etc
   const operator  = listing?.operator  ?? listing?.carrier  ?? null; // "Trenitalia" | "Italo" | "Trenord" | ...
 
+  // 🆕 decide cosa mostrare (originale vs tradotto)
+  const titleOriginal = stripPriceFromTitle(safeStr(listing?.title));
+  const descOriginal  = listing?.description || "";
+  const titleShown = translated.translated && !showOriginal ? (translated.title || titleOriginal) : titleOriginal;
+  const descShown  = translated.translated && !showOriginal ? (translated.description || descOriginal) : descOriginal;
+
   return (
     <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 110 }}
-                  refreshControl={<RefreshControl refreshing={recomputing} onRefresh={doRecompute} />}>
-        {/* ===== Header con gradient dinamico + Ribbon "Nuovo" (NO PREZZO NEL TITOLO) ===== */}
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+        refreshControl={<RefreshControl refreshing={recomputing} onRefresh={doRecompute} />}
+      >
+        {/* ===== Header con gradient dinamico + Ribbon "Nuovo" ===== */}
         <View style={styles.headerCard}>
           {isNewBadge ? (
             <View style={styles.ribbonWrap} pointerEvents="none">
@@ -267,18 +309,38 @@ export default function ListingDetailScreen() {
           ) : null}
 
           <LinearGradient colors={gradColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
-            {/* Riga alta: SOLO titolo + meta */}
+            {/* Riga alta: titolo + meta */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={[styles.title, { color: textColor }]} numberOfLines={2}>
-                  {stripPriceFromTitle(safeStr(listing?.title))}
+                  {titleShown}
                 </Text>
                 <Text style={[styles.subtitle, { color: textColor }]}>
                   {safeStr(listing?.type)} • {safeStr(listing?.location || listing?.route_from)}
                   {publishedAgo ? <Text style={{ color: textColor }}>{`  •  pubblicato ${publishedAgo}`}</Text> : null}
                 </Text>
               </View>
+
+              {/* 🆕 Toggle Originale/Tradotto */}
+              {translated.translated ? (
+                <TouchableOpacity
+                  onPress={() => setShowOriginal(v => !v)}
+                  style={styles.toggleBtn}
+                  accessibilityLabel="Mostra originale / Tradotto"
+                >
+                  <Text style={styles.toggleText}>{showOriginal ? "Mostra tradotto" : "Vedi originale"}</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
+
+            {/* Info traduzione / stato */}
+            {translating ? (
+              <Text style={{ marginTop: 8, color: textColor, opacity: 0.7 }}>Traduzione in corso…</Text>
+            ) : translated.translated ? (
+              <Text style={{ marginTop: 8, color: textColor, opacity: 0.7 }}>
+                Tradotto automaticamente {translated.lang ? `in ${translated.lang}` : ""}{translated.originalLang ? ` (origine: ${translated.originalLang})` : ""}
+              </Text>
+            ) : null}
 
             {/* Separatore */}
             <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#E5E7EB", marginTop: 12, marginBottom: 12 }} />
@@ -296,7 +358,7 @@ export default function ListingDetailScreen() {
         {/* ===== Info principali ===== */}
         <SectionCard title="Informazioni" textColor={textColor}>
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-            {/* HOTEL (AM/PM) */}
+            {/* HOTEL */}
             {listing?.type === "hotel" ? (
               <>
                 <Chip icon="📅" label={`Check-in: ${toYMDHMS_AMPM(checkIn)}`} textColor={textColor} />
@@ -305,7 +367,7 @@ export default function ListingDetailScreen() {
               </>
             ) : null}
 
-            {/* TRAIN (AM/PM + nuovi campi) */}
+            {/* TRAIN */}
             {listing?.type === "train" ? (
               <>
                 <Chip icon="🕒" label={`Partenza: ${toYMDHMS_AMPM(departAt)}`} textColor={textColor} />
@@ -339,70 +401,65 @@ export default function ListingDetailScreen() {
           </SectionCard>
         ) : null}
 
-        {/* Descrizione */}
-        {listing?.description ? (
+        {/* Descrizione (con traduzione) */}
+        {(descShown && descShown.trim()) ? (
           <SectionCard title="Descrizione" textColor={textColor}>
             <ExpandableText numberOfLines={5} textColor={textColor}>
-              {listing.description}
+              {descShown}
             </ExpandableText>
           </SectionCard>
         ) : null}
 
-        {/* ======= NUOVO: Analisi Prezzo AI ======= */}
-     {/* ======= Analisi Prezzo AI ======= */}
-<View style={{ marginTop: 24, alignItems: "center" }}>
-  {/* Info "i" sopra il pulsante, centrata */}
-  <TouchableOpacity
-    onPress={() => setShowPriceInfo((v) => !v)}
-    accessibilityLabel="Informazioni sull'analisi prezzo AI"
-    style={{
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      borderWidth: 1,
-      borderColor: theme.colors.boardingText,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 8,
-    }}
-    activeOpacity={0.7}
-  >
-    <Text style={{ color: theme.colors.boardingText, fontWeight: "800", fontSize: 13 }}>i</Text>
-  </TouchableOpacity>
+        {/* ===== Analisi Prezzo AI ===== */}
+        <View style={{ marginTop: 24, alignItems: "center" }}>
+          <TouchableOpacity
+            onPress={() => setShowPriceInfo((v) => !v)}
+            accessibilityLabel="Informazioni sull'analisi prezzo AI"
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              borderWidth: 1,
+              borderColor: theme.colors.boardingText,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 8,
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ color: theme.colors.boardingText, fontWeight: "800", fontSize: 13 }}>i</Text>
+          </TouchableOpacity>
 
-  {/* Pulsante AI */}
-  <TouchableOpacity
-    onPress={handleAIPrice}
-    style={{
-      backgroundColor: theme.colors.primary,
-      paddingVertical: 14,
-      paddingHorizontal: 24,
-      borderRadius: 12,
-      alignItems: "center",
-      minWidth: "70%",
-    }}
-    activeOpacity={0.85}
-  >
-    <Text style={{ color: theme.colors.boardingText, fontWeight: "700", fontSize: 16 }}>
-      Analisi prezzo con AI
-    </Text>
-  </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleAIPrice}
+            style={{
+              backgroundColor: theme.colors.primary,
+              paddingVertical: 14,
+              paddingHorizontal: 24,
+              borderRadius: 12,
+              alignItems: "center",
+              minWidth: "70%",
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ color: theme.colors.boardingText, fontWeight: "700", fontSize: 16 }}>
+              Analisi prezzo con AI
+            </Text>
+          </TouchableOpacity>
 
-  {/* Box info a scomparsa */}
-  {showPriceInfo ? (
-    <View style={{ marginTop: 12, paddingHorizontal: 4 }}>
-      <Text style={{ color: theme.colors.boardingText, fontSize: 14, lineHeight: 20, textAlign: "center" }}>
-        L’AI valuta la congruità del prezzo considerando:
-        {"\n"}• data/ora del viaggio o del soggiorno (AM/PM)
-        {"\n"}• tratta e distanza / località
-        {"\n"}• operatore (Trenitalia, Italo, …) o struttura
-        {"\n"}• periodo/stagionalità ed eventi
-        {"\n"}• storico prezzi e vincoli del titolo
-      </Text>
-    </View>
-  ) : null}
-</View>
-
+          {showPriceInfo ? (
+            <View style={{ marginTop: 12, paddingHorizontal: 4 }}>
+              <Text style={{ color: theme.colors.boardingText, fontSize: 14, lineHeight: 20, textAlign: "center" }}>
+                L’AI valuta la congruità del prezzo considerando:
+                {"\n"}• data/ora del viaggio o del soggiorno (AM/PM)
+                {"\n"}• tratta e distanza / località
+                {"\n"}• operatore (Trenitalia, Italo, …) o struttura
+                {"\n"}• periodo/stagionalità ed eventi
+                {"\n"}• storico prezzi e vincoli del titolo
+              </Text>
+            </View>
+          ) : null}
+        </View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -458,6 +515,20 @@ const styles = StyleSheet.create({
   footer: {
     position: "absolute", left: 0, right: 0, bottom: 0, padding: 12, backgroundColor: "#FFFFFF",
     borderTopWidth: 1, borderTopColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, elevation: 8,
+  },
+
+  /* Toggle traduzione */
+  toggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F8FAFC",
+  },
+  toggleText: {
+    fontWeight: "700",
+    color: "#111827",
   },
 
   /* === Nuovi per AI === */
