@@ -27,6 +27,9 @@ export const translations = {
       start: "Inizia",
       skip: "Salta"
     },
+    trust: {
+      scoreLabel: "Affidabilità",   // it
+    },
 
     // --- Tab bar / Sezioni ---
     tabs: {
@@ -45,15 +48,16 @@ export const translations = {
     profile: "Profilo",
     receivedOffers: "Offerte ricevute",
 
-   listings: {
-  // filtri barra annunci
-  filters: {
-    all: "Tutti",      // it
-    trains: "Treni",
-    hotels: "Hotel",
-    flights: "Voli",
-  },
-},
+    listings: {
+      // filtri barra annunci
+      filters: {
+        all: "Tutti",      // it
+        trains: "Treni",
+        hotels: "Hotel",
+        flights: "Voli",
+      },
+    },
+
     // --- Profilo ---
     profile: {
       title: "Profilo",
@@ -251,7 +255,7 @@ export const translations = {
       receivedOffers: "Offerte ricevute",
       sentOffers: "Offerte inviate",
       proposePurchase: "Proponi acquisto",   // IT
-      proposeSwap: "Proponi scambio",        // IT  
+      proposeSwap: "Proponi scambio",        // IT
     },
 
     // --- Dettaglio offerta ---
@@ -287,33 +291,57 @@ export const translations = {
       title: "Dettaglio annuncio",
       description: "Descrizione",
       price: "Prezzo",
+
+      // 🔻 NUOVE CHIAVI
+      info: "Informazioni",
+      publishedAgo: "pubblicato {ago}",
+      toggleOriginal: "Vedi originale",
+      toggleTranslated: "Mostra tradotto",
+      toggleA11y: "Mostra originale / Tradotto",
+      translating: "Traduzione in corso…",
+      translatedAuto: "Tradotto automaticamente{lang}{orig}",
+
+      tripLabel: "Viaggio",
+      roundtrip: "A/R",
+      oneway: "Solo andata",
+      operator: "Operatore",
+      namedTicket: "Nominativo",
+
+      aiPriceCta: "Analisi prezzo con AI",
+      aiPriceInfoA11y: "Informazioni sull'analisi prezzo AI",
+      aiPriceInfo1: "L’AI valuta la congruità del prezzo considerando:",
+      aiPriceInfoBullet1: "• data/ora del viaggio o del soggiorno (AM/PM)",
+      aiPriceInfoBullet2: "• tratta e distanza / località",
+      aiPriceInfoBullet3: "• operatore (Trenitalia, Italo, …) o struttura",
+      aiPriceInfoBullet4: "• periodo/stagionalità ed eventi",
+      aiPriceInfoBullet5: "• storico prezzi e vincoli del titolo",
     },
 
     matching: {
-  title: "AI Matching",
-aiMatching: "My AI Matches",
-    new: "Nuovo",
-    noResults: "Nessun risultato.",
-    legendTitle: "Cosa significano 60 / 70 / 80?",
-    legend60: "60–69 = compatibilità di base",
-    legend70: "70–79 = buona compatibilità",
-    legend80: "80–100 = affinità eccellente",
-    legendExplanation:
-      "Il punteggio è una stima (0–100) calcolata da TravelSwap AI combinando: preferenze e cronologia, allineamento prezzo, prossimità/località, sovrapposizione date, categoria/tipo annuncio e segnali di interesse reciproco. I “match perfetti” sono bidirezionali.",
-    legendShow: "Mostra spiegazione",
-    legendHide: "Nascondi spiegazione",
-    legendShowScores: "Mostra spiegazione punteggi",
-    legendHideScores: "Nascondi spiegazione punteggi",
-    perfectMatches: "Match perfetti",
-    perfectSubtitle:
-      "Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.",
-    compatibleMatches: "Match compatibili",
-    compatibleSubtitle:
-      "I numeri (60/70/80) sono la percentuale stimata di compatibilità: 60=base, 70=buona, 80+=eccellente.",
-    statusQueued: "Ricalcolo AI in coda…",
-    statusRunning: "Ricalcolo AI in corso…",
-    statusDone: "Ricalcolo completato ✓",
-    recomputeAI: "Ricalcola AI",
+      title: "AI Matching",
+      aiMatching: "My AI Matches",
+      new: "Nuovo",
+      noResults: "Nessun risultato.",
+      legendTitle: "Cosa significano 60 / 70 / 80?",
+      legend60: "60–69 = compatibilità di base",
+      legend70: "70–79 = buona compatibilità",
+      legend80: "80–100 = affinità eccellente",
+      legendExplanation:
+        "Il punteggio è una stima (0–100) calcolata da TravelSwap AI combinando: preferenze e cronologia, allineamento prezzo, prossimità/località, sovrapposizione date, categoria/tipo annuncio e segnali di interesse reciproco. I “match perfetti” sono bidirezionali.",
+      legendShow: "Mostra spiegazione",
+      legendHide: "Nascondi spiegazione",
+      legendShowScores: "Mostra spiegazione punteggi",
+      legendHideScores: "Nascondi spiegazione punteggi",
+      perfectMatches: "Match perfetti",
+      perfectSubtitle:
+        "Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.",
+      compatibleMatches: "Match compatibili",
+      compatibleSubtitle:
+        "I numeri (60/70/80) sono la percentuale stimata di compatibilità: 60=base, 70=buona, 80+=eccellente.",
+      statusQueued: "Ricalcolo AI in coda…",
+      statusRunning: "Ricalcolo AI in corso…",
+      statusDone: "Ricalcolo completato ✓",
+      recomputeAI: "Ricalcola AI",
       matchFound: "Abbiamo trovato un match!",
       noOffers: "Nessuna offerta trovata",
       accept: "Accetta",
@@ -394,14 +422,15 @@ aiMatching: "My AI Matches",
       pnr: "PNR",
     },
 
-    // --- Errori globali (usati da ProfileScreen) ---
+    // --- Errori globali ---
     errors: {
       loadMyListings: "Impossibile caricare i tuoi annunci",
       updateStatus: "Impossibile aggiornare lo stato",
       delete: "Impossibile eliminare",
       logout: "Impossibile uscire dall’account.",
       invalidIdTitle: "Anteprima non disponibile",
-  invalidIdMsg: "Questo elemento è un esempio (ID non valido). Esegui un ricalcolo o apri un annuncio reale.",
+      invalidIdMsg:
+        "Questo elemento è un esempio (ID non valido). Esegui un ricalcolo o apri un annuncio reale.",
     },
 
     // --- Stack titles opzionali ---
@@ -441,6 +470,9 @@ aiMatching: "My AI Matches",
       start: "Start",
       skip: "Skip"
     },
+    trust: {
+      scoreLabel: "Reliability",
+    },
 
     tabs: {
       home: "All",
@@ -449,14 +481,16 @@ aiMatching: "My AI Matches",
       messages: "Messages",
       profile: "My Profile",
     },
-listings: {
-  filters: {
-    all: "All",        // en
-    trains: "Trains",
-    hotels: "Hotels",
-    flights: "Flights",
-  },
-},
+
+    listings: {
+      filters: {
+        all: "All",        // en
+        trains: "Trains",
+        hotels: "Hotels",
+        flights: "Flights",
+      },
+    },
+
     listingsTitle: "Listings",
     offers: "Offers",
     aiMatching: "My AI Matches",
@@ -683,39 +717,63 @@ listings: {
       title: "Listing detail",
       description: "Description",
       price: "Price",
+
+      // 🔻 NEW KEYS
+      info: "Information",
+      publishedAgo: "published {ago} ago",
+      toggleOriginal: "See original",
+      toggleTranslated: "Show translated",
+      toggleA11y: "Show original / Translated",
+      translating: "Translating…",
+      translatedAuto: "Automatically translated{lang}{orig}",
+
+      tripLabel: "Trip",
+      roundtrip: "Round trip",
+      oneway: "One-way",
+      operator: "Operator",
+      namedTicket: "Named ticket",
+
+      aiPriceCta: "AI price analysis",
+      aiPriceInfoA11y: "About AI price analysis",
+      aiPriceInfo1: "AI evaluates price fairness considering:",
+      aiPriceInfoBullet1: "• date/time of trip or stay (AM/PM)",
+      aiPriceInfoBullet2: "• route & distance / location",
+      aiPriceInfoBullet3: "• operator (Trenitalia, Italo, …) or property",
+      aiPriceInfoBullet4: "• seasonality & events",
+      aiPriceInfoBullet5: "• price history & ticket constraints",
     },
 
     matching: {
       title: "Matching",
-       pill: { new: "New" },
-    legend: {
-      title: "What do 60 / 70 / 80 mean?",
-      base: "60–69 = basic compatibility",
-      good: "70–79 = good compatibility",
-      excellent: "80–100 = excellent affinity",
-      long:
-        "The score is an estimate (0–100) calculated by TravelSwap AI by combining: preferences and history, price alignment, proximity/location, date overlap, listing category/type, and signals of mutual interest. “Perfect matches” are bidirectional.",
-      show: "Show explanation",
-      hide: "Hide explanation",
-      showA11y: "Show score explanation",
-      hideA11y: "Hide score explanation",
-    },
-    status: {
-      queued: "AI recompute queued…",
-      running: "AI recompute in progress…",
-      done: "Recompute completed ✓",
-    },
-    sections: {
-      perfectTitle: "Perfect matches",
-      perfectSubtitle:
-        "Bidirectional matches: you like them and they like you. 80+ = very high affinity.",
-      compatibleTitle: "Compatible matches",
-      compatibleSubtitle:
-        "The numbers (60/70/80) are the estimated compatibility percentage: 60=basic, 70=good, 80+=excellent.",
-    },
-    list: { empty: "No results." },
-    fab: { recompute: "Recompute AI" },
-    toasts: { queued: "AI recompute queued…", done: "Recompute completed ✓" },
+      pill: { new: "New" },
+      legend: {
+        title: "What do 60 / 70 / 80 mean?",
+        base: "60–69 = basic compatibility",
+        good: "70–79 = good compatibility",
+        excellent: "80–100 = excellent affinity",
+        long:
+          "The score is an estimate (0–100) calculated by TravelSwap AI by combining: preferences and history, price alignment, proximity/location, date overlap, listing category/type, and signals of mutual interest. “Perfect matches” are bidirectional.",
+        show: "Show explanation",
+        hide: "Hide explanation",
+        showA11y: "Show score explanation",
+        hideA11y: "Hide score explanation",
+      },
+      status: {
+        queued: "AI recompute queued…",
+        running: "AI recompute in progress…",
+        done: "Recompute completed ✓",
+      },
+      sections: {
+        perfectTitle: "Perfect matches",
+        perfectSubtitle:
+          "Bidirectional matches: you like them and they like you. 80+ = very high affinity.",
+        compatibleTitle: "Compatible matches",
+        compatibleSubtitle:
+          "The numbers (60/70/80) are the estimated compatibility percentage: 60=basic, 70=good, 80+=excellent.",
+      },
+      list: { empty: "No results." },
+      fab: { recompute: "Recompute AI" },
+      toasts: { queued: "AI recompute queued…", done: "Recompute completed ✓" },
       matchFound: "We found a match!",
       noOffers: "No offers found",
       accept: "Accept",
@@ -801,7 +859,8 @@ listings: {
       delete: "Unable to delete",
       logout: "Unable to sign out.",
       invalidIdTitle: "Preview not available",
-  invalidIdMsg: "This item is a sample (invalid ID). Recompute or open a real listing.",
+      invalidIdMsg:
+        "This item is a sample (invalid ID). Recompute or open a real listing.",
     },
 
     stack: {
@@ -837,9 +896,8 @@ listings: {
       retry: "Reintentar",
       confirm: "Confirmar",
       clear: "Limpiar",
-      start: "come si dice in sp",
-      skip: "come si dice"
-
+      start: "Empezar",
+      skip: "Saltar"
     },
 
     tabs: {
@@ -849,15 +907,16 @@ listings: {
       messages: "Mensajes",
       profile: "Perfil",
     },
-    
-listings: {
-  filters: {
-    all: "Todos",      // es
-    trains: "Trenes",
-    hotels: "Hoteles",
-    flights: "Vuelos",
-  },
-},
+
+    listings: {
+      filters: {
+        all: "Todos",      // es
+        trains: "Trenes",
+        hotels: "Hoteles",
+        flights: "Vuelos",
+      },
+    },
+
     listingsTitle: "Anuncios",
     offers: "Ofertas",
     aiMatching: "AI Matching",
@@ -1096,39 +1155,63 @@ listings: {
       title: "Detalle del anuncio",
       description: "Descripción",
       price: "Precio",
+
+      // 🔻 CLAVES NUEVAS
+      info: "Información",
+      publishedAgo: "publicado hace {ago}",
+      toggleOriginal: "Ver original",
+      toggleTranslated: "Mostrar traducido",
+      toggleA11y: "Mostrar original / Traducido",
+      translating: "Traduciendo…",
+      translatedAuto: "Traducido automáticamente{lang}{orig}",
+
+      tripLabel: "Viaje",
+      roundtrip: "Ida y vuelta",
+      oneway: "Solo ida",
+      operator: "Operador",
+      namedTicket: "Nominativo",
+
+      aiPriceCta: "Análisis de precio con IA",
+      aiPriceInfoA11y: "Información sobre análisis de precio IA",
+      aiPriceInfo1: "La IA evalúa la idoneidad del precio considerando:",
+      aiPriceInfoBullet1: "• fecha/hora del viaje o estancia (AM/PM)",
+      aiPriceInfoBullet2: "• ruta y distancia / localidad",
+      aiPriceInfoBullet3: "• operador (Trenitalia, Italo, …) o alojamiento",
+      aiPriceInfoBullet4: "• estacionalidad y eventos",
+      aiPriceInfoBullet5: "• historial de precios y restricciones del billete",
     },
 
     matching: {
       title: "Matching",
-     pill: { new: "Nuevo" },
-    legend: {
-      title: "¿Qué significan 60 / 70 / 80?",
-      base: "60–69 = compatibilidad básica",
-      good: "70–79 = buena compatibilidad",
-      excellent: "80–100 = afinidad excelente",
-      long:
-        "La puntuación es una estimación (0–100) calculada por TravelSwap AI combinando: preferencias e historial, alineación de precios, proximidad/ubicación, solapamiento de fechas, categoría/tipo de anuncio y señales de interés mutuo. Las “coincidencias perfectas” son bidireccionales.",
-      show: "Mostrar explicación",
-      hide: "Ocultar explicación",
-      showA11y: "Mostrar explicación de puntajes",
-      hideA11y: "Ocultar explicación de puntajes",
-    },
-    status: {
-      queued: "Recalculo de AI en cola…",
-      running: "Recalculo de AI en curso…",
-      done: "Recalculo completado ✓",
-    },
-    sections: {
-      perfectTitle: "Coincidencias perfectas",
-      perfectSubtitle:
-        "Cruces bidireccionales: te gustan y tú les gustas a ellos. 80+ = afinidad muy alta.",
-      compatibleTitle: "Coincidencias compatibles",
-      compatibleSubtitle:
-        "Los números (60/70/80) son el porcentaje estimado de compatibilidad: 60=básica, 70=buena, 80+=excelente.",
-    },
-    list: { empty: "Sin resultados." },
-    fab: { recompute: "Recalcular AI" },
-    toasts: { queued: "Recalculo de AI en cola…", done: "Recalculo completado ✓" },
+      pill: { new: "Nuevo" },
+      legend: {
+        title: "¿Qué significan 60 / 70 / 80?",
+        base: "60–69 = compatibilidad básica",
+        good: "70–79 = buena compatibilidad",
+        excellent: "80–100 = afinidad excelente",
+        long:
+          "La puntuación es una estimación (0–100) calculada por TravelSwap AI combinando: preferencias e historial, alineación de precios, proximidad/ubicación, solapamiento de fechas, categoría/tipo de anuncio y señales de interés mutuo. Las “coincidencias perfectas” son bidireccionales.",
+        show: "Mostrar explicación",
+        hide: "Ocultar explicación",
+        showA11y: "Mostrar explicación de puntajes",
+        hideA11y: "Ocultar explicación de puntajes",
+      },
+      status: {
+        queued: "Recalculo de AI en cola…",
+        running: "Recalculo de AI en curso…",
+        done: "Recalculo completado ✓",
+      },
+      sections: {
+        perfectTitle: "Coincidencias perfectas",
+        perfectSubtitle:
+          "Cruces bidireccionales: te gustan y tú les gustas a ellos. 80+ = afinidad muy alta.",
+        compatibleTitle: "Coincidencias compatibles",
+        compatibleSubtitle:
+          "Los números (60/70/80) son el porcentaje estimado de compatibilidad: 60=básica, 70=buena, 80+=excelente.",
+      },
+      list: { empty: "Sin resultados." },
+      fab: { recompute: "Recalcular AI" },
+      toasts: { queued: "Recalculo de AI en cola…", done: "Recalculo completado ✓" },
       matchFound: "¡Hemos encontrado un match!",
       noOffers: "No se encontraron ofertas",
       accept: "Aceptar",
@@ -1210,13 +1293,18 @@ listings: {
       pnr: "PNR",
     },
 
+    trust: {
+      scoreLabel: "Fiabilidad",
+    },
+
     errors: {
       loadMyListings: "No se pueden cargar tus anuncios",
       updateStatus: "No se puede actualizar el estado",
       delete: "No se puede eliminar",
       logout: "No se puede cerrar la sesión.",
-        invalidIdTitle: "Vista previa no disponible",
-  invalidIdMsg: "Este elemento es un ejemplo (ID no válido). Recalcula o abre un anuncio real.",
+      invalidIdTitle: "Vista previa no disponible",
+      invalidIdMsg:
+        "Este elemento es un ejemplo (ID no válido). Recalcula o abre un anuncio real.",
     },
 
     stack: {

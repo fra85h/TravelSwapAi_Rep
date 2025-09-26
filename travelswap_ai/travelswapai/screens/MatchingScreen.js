@@ -681,16 +681,28 @@ const compatible = useMemo(
         keyExtractor={(i) => i.key}
         renderItem={() => (
           <View style={{ padding: 16, paddingBottom: (tabBarHeight || 0) + (insets.bottom || 0) + 96 }}>
-            <View style={styles.legendHeaderRow}>
+                        <View style={styles.legendHeaderRow}>
               <Text style={styles.legendHeaderTitle}>{t("matching.title", "AI Matching")}</Text>
               <TouchableOpacity
                 onPress={() => setShowLegend((v) => !v)}
                 style={styles.legendToggle}
                 accessibilityRole="button"
-                accessibilityLabel={showLegend ? "Nascondi spiegazione punteggi" : "Mostra spiegazione punteggi"}
+                accessibilityLabel={
+                  showLegend
+                    ? t("matching.legend.hideA11y", "Nascondi spiegazione punteggi")
+                    : t("matching.legend.showA11y", "Mostra spiegazione punteggi")
+                }
               >
-                <Ionicons name={showLegend ? "chevron-up" : "information-circle-outline"} size={18} color={theme.colors.boardingText} />
-                <Text style={styles.legendToggleText}>{showLegend ? "Nascondi spiegazione" : "Mostra spiegazione"}</Text>
+                <Ionicons
+                  name={showLegend ? "chevron-up" : "information-circle-outline"}
+                  size={18}
+                  color={theme.colors.boardingText}
+                />
+                <Text style={styles.legendToggleText}>
+                  {showLegend
+                    ? t("matching.legend.hide", "Nascondi spiegazione")
+                    : t("matching.legend.show", "Mostra spiegazione")}
+                </Text>
               </TouchableOpacity>
             </View>
 
