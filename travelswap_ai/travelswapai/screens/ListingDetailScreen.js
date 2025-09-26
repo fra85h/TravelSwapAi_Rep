@@ -195,6 +195,7 @@ export default function ListingDetailScreen() {
   }, [listingId]);
 
   const loadMatches = useCallback(async () => {
+    // lasciato per compatibilità ma non più usato a UI
     setLoadingMatches(true);
     try {
       setMatches(await getListingMatches(listingId, 100));
@@ -275,6 +276,12 @@ export default function ListingDetailScreen() {
 
   const gradColors = paletteByTrust(trustScore, listing?.type);
 
+  // 🆕 decide cosa mostrare (originale vs tradotto)
+  const titleOriginal = stripPriceFromTitle(safeStr(listing?.title));
+  const descOriginal  = listing?.description || "";
+  const titleShown = translated.translated && !showOriginal ? (translated.title || titleOriginal) : titleOriginal;
+  const descShown  = translated.translated && !showOriginal ? (translated.description || descOriginal) : descOriginal;
+
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -287,12 +294,6 @@ export default function ListingDetailScreen() {
   // train-only extra fields
   const tripType  = listing?.trip_type ?? listing?.tripType ?? null; // "oneway" | "roundtrip" | etc
   const operator  = listing?.operator  ?? listing?.carrier  ?? null; // "Trenitalia" | "Italo" | "Trenord" | ...
-
-  // 🆕 decide cosa mostrare (originale vs tradotto)
-  const titleOriginal = stripPriceFromTitle(safeStr(listing?.title));
-  const descOriginal  = listing?.description || "";
-  const titleShown = translated.translated && !showOriginal ? (translated.title || titleOriginal) : titleOriginal;
-  const descShown  = translated.translated && !showOriginal ? (translated.description || descOriginal) : descOriginal;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>

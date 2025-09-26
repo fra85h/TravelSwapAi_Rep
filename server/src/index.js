@@ -31,6 +31,7 @@ app.use('/ai', trustscoreRouter);
 app.use('/', listingsRouter);
 app.use('/api/matches', matchesRouter);
 app.use("/", translateListingsRouter);
+
 mountParseDescriptionRoute(app, requireAuth);
 
 // ========== Helpers Messenger (TTL + riepilogo) ==========
