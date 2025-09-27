@@ -38,7 +38,7 @@ export async function insertListing(payload) {
     title: payload.title,
     description: payload.description ?? null,
     location: payload.location ?? null,
-    trustscore: payload.trustscore??null,
+    trust_score: payload.trustScore??null,
     // CERCO/VENDO flag
     cerco_vendo: (payload.cerco_vendo === "CERCO" ? "CERCO" : "VENDO"),
 
@@ -50,18 +50,21 @@ export async function insertListing(payload) {
     route_from: payload.type !== "hotel" ? (payload.route_from ?? null) : null,
     route_to: payload.type !== "hotel" ? (payload.route_to ?? null) : null,
     depart_at: payload.type !== "hotel" ? normDate(payload.depart_at) : null,
+    arrive_at: payload.type !== "hotel" ? normDate(payload.arrive_at) : null,
 
     price: payload.price ?? null,
     currency: payload.currency ?? "EUR",
     status: payload.status || "active", // listing_status
   };
+        console.log("BODY CHE ricevo:", JSON.stringify(body, null, 2));
 
   const { data, error } = await supabase
     .from("listings")
     .insert([body])
     .select()
     .single();
-  if (error) throw error;
+  if (error)       
+ throw error;
   return data;
 }
 export async function updateListing(id, patch) {

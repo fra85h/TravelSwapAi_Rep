@@ -636,8 +636,10 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
       // 3) TrustScore remoto
       logStep("Verifica affidabilità annuncio…", 80);
-      const hasArrow = (patch.type || form?.type) === "train" && /→/.test((patch.location || form.location || ""));
-      const [locFrom, locTo] = hasArrow ? (patch.location || form.location).split("→").map(s => s.trim()) : [null, null];
+      const hasArrow = (patch.type || form?.type) === "train" && ((patch.location || form.location || "").includes("-->") || /→/.test((patch.location || form.location || "")));
+      const [locFrom, locTo] = hasArrow ? ((patch.location || form.location).includes("-->")
+  ? (patch.location || form.location).split("-->").map(s => s.trim())
+  : (patch.location || form.location).split("→").map(s => s.trim())) : [null, null];
 
       const payload = {
         id: passedListing?.id || listingId || null,
@@ -654,6 +656,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
         arriveAt: (patch.type || form?.type) === "train" ? (patch.arriveAt || form.arriveAt) : null,
         price: (patch.price || form.price) ? Number(String(patch.price || form.price).replace(",", ".")) : null,
         currency: "EUR",
+        trustscore:trustData?.trustScore,
       };
       const res = await evaluate(payload);
 
@@ -765,8 +768,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
       }
     }
     const priceStr = String(form.price || "").trim();
-    if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
-    else if (!Number.isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
+if (priceStr && !Number.isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
     return e;
   }, [form, t]);
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
@@ -873,14 +875,22 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
-        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
-
+        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt,
+            route_from: (form.location && (form.location.includes("-->") ? form.location.split("-->")[0].trim() : (form.location.includes("→") ? form.location.split("→")[0].trim() : null))),
+            route_to: (form.location && (form.location.includes("-->") ? form.location.split("-->")[1].trim() : (form.location.includes("→") ? form.location.split("→")[1].trim() : null)))
+          };
+const toServerDt = s => s ? s.replace("T", " ") : s;
+payload.depart_at = toServerDt(form.departAt);
+payload.arrive_at = toServerDt(form.arriveAt);
       if (mode === "edit") {
         const res = await updateListing(idForUpdate, payload);
         if (res?.error) throw res.error;
         Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
       } else {
+        console.log("PAYLOAD CHE INVIO:", JSON.stringify(payload, null, 2));
         const res = await insertListing(payload);
+                console.log("PAYLOAD CHE INVIO2:", JSON.stringify(payload, null, 2));
+
         if (res?.error) throw res.error;
         await AsyncStorage.removeItem(DRAFT_KEY);
         Alert.alert(t("createListing.publishedTitle", "Pubblicato 🎉"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
