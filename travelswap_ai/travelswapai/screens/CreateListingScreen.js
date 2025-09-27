@@ -334,7 +334,49 @@ export default function CreateListingScreen({
 
   // TrustScore hook + UI state
   const { loading: trustLoading, data: trustData, error: trustError, evaluate } = useTrustScore();
+  const [splitDetected, setSplitDetected] = useState(false);
+  const [splitReason, setSplitReason] = useState("");
+
+  // Rilevamento "due annunci" basato su descrizione e tipo
+  const detectTwoListings = useCallback((desc, type) => {
+    try {
+      const text = String(desc || "").toLowerCase();
+      if (!text || text.length < 10) return { two: false, reason: "" };
+
+      const routeArrowRx = /([A-Za-zÀ-ÿ .'\-]{3,})\s*(?:\-+|—+|–+|>|→|a|to|verso)\s*([A-Za-zÀ-ÿ .'\-]{3,})/gi;
+      const timeRx = /\b([01]?\d|2[0-3]):([0-5]\d)\b/g;
+      const dateRx = /\b(\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{2,4}|\d{4}[\/\.\-]\d{1,2}[\/\.\-]\d{1,2})\b/g;
+      const hotelWordRx = /\b(hotel|albergo|b&b|bb|bnb|ostello|resort|guesthouse)\b/gi;
+
+      const routes = Array.from(text.matchAll(routeArrowRx));
+      const times = Array.from(text.matchAll(timeRx));
+      const dates = Array.from(text.matchAll(dateRx));
+      const hotels = Array.from(text.matchAll(hotelWordRx));
+
+      const t = String(type || "").toLowerCase();
+      if (t === "train") {
+        if (routes.length >= 2) return { two: true, reason: `Rilevate ${routes.length} tratte nel testo.` };
+        if (routes.length === 1 && times.length >= 3) return { two: true, reason: `Rilevati più orari (${times.length}).` };
+      } else if (t === "hotel") {
+        if (dates.length >= 4) return { two: true, reason: `Rilevate più date (${dates.length}).` };
+        if (hotels.length >= 2) return { two: true, reason: `Rilevate più strutture (${hotels.length}).` };
+      } else {
+        if (routes.length >= 2 || dates.length >= 4) return { two: true, reason: `Rilevati elementi multipli (tratte/date).` };
+      }
+      if (/\b(2|due)\s+bigliett/i.test(text)) return { two: true, reason: `La descrizione cita due biglietti.` };
+      return { two: false, reason: "" };
+    } catch { return { two: false, reason: "" }; }
+  }, []);
+
   const [lastTrustRunAt, setLastTrustRunAt] = useState(0);
+  useEffect(() => {
+    // Mostra il box solo dopo un Check AI (per coerenza con il flusso richiesto)
+    if (lastTrustRunAt <= 0) return;
+    const info = detectTwoListings(form?.description, form?.type);
+    setSplitDetected(!!info.two);
+    setSplitReason(info.two ? info.reason : "");
+  }, [lastTrustRunAt, form?.description, form?.type, detectTwoListings]);
+
   const [showFixesModal, setShowFixesModal] = useState(false);
 
   // Micro log + progress per Check AI
@@ -636,10 +678,8 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
       // 3) TrustScore remoto
       logStep("Verifica affidabilità annuncio…", 80);
-      const hasArrow = (patch.type || form?.type) === "train" && ((patch.location || form.location || "").includes("-->") || /→/.test((patch.location || form.location || "")));
-      const [locFrom, locTo] = hasArrow ? ((patch.location || form.location).includes("-->")
-  ? (patch.location || form.location).split("-->").map(s => s.trim())
-  : (patch.location || form.location).split("→").map(s => s.trim())) : [null, null];
+      const hasArrow = (patch.type || form?.type) === "train" && /→/.test((patch.location || form.location || ""));
+      const [locFrom, locTo] = hasArrow ? (patch.location || form.location).split("→").map(s => s.trim()) : [null, null];
 
       const payload = {
         id: passedListing?.id || listingId || null,
@@ -656,7 +696,6 @@ if ((patch.type || form.type) === "train" && routeStr) {
         arriveAt: (patch.type || form?.type) === "train" ? (patch.arriveAt || form.arriveAt) : null,
         price: (patch.price || form.price) ? Number(String(patch.price || form.price).replace(",", ".")) : null,
         currency: "EUR",
-        trustscore:trustData?.trustScore,
       };
       const res = await evaluate(payload);
 
@@ -768,7 +807,8 @@ if ((patch.type || form.type) === "train" && routeStr) {
       }
     }
     const priceStr = String(form.price || "").trim();
-if (priceStr && !Number.isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
+    if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
+    else if (!Number.isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
     return e;
   }, [form, t]);
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
@@ -875,25 +915,29 @@ if (priceStr && !Number.isFinite(Number(priceStr.replace(",", ".")))) e.price = 
 
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
-        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt,
-            route_from: (form.location && (form.location.includes("-->") ? form.location.split("-->")[0].trim() : (form.location.includes("→") ? form.location.split("→")[0].trim() : null))),
-            route_to: (form.location && (form.location.includes("-->") ? form.location.split("-->")[1].trim() : (form.location.includes("→") ? form.location.split("→")[1].trim() : null)))
-          };
-const toServerDt = s => s ? s.replace("T", " ") : s;
-payload.depart_at = toServerDt(form.departAt);
-payload.arrive_at = toServerDt(form.arriveAt);
+        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
+
       if (mode === "edit") {
         const res = await updateListing(idForUpdate, payload);
         if (res?.error) throw res.error;
         Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
       } else {
-        console.log("PAYLOAD CHE INVIO:", JSON.stringify(payload, null, 2));
-        const res = await insertListing(payload);
-                console.log("PAYLOAD CHE INVIO2:", JSON.stringify(payload, null, 2));
-
-        if (res?.error) throw res.error;
-        await AsyncStorage.removeItem(DRAFT_KEY);
-        Alert.alert(t("createListing.publishedTitle", "Pubblicato 🎉"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
+        if (splitDetected) {
+          const baseTitle = String(payload.title || '').trim();
+          const p1 = { ...payload, title: baseTitle ? `${baseTitle} (1 di 2)` : baseTitle };
+          const p2 = { ...payload, title: baseTitle ? `${baseTitle} (2 di 2)` : baseTitle };
+          const r1 = await insertListing(p1);
+          const r2 = await insertListing(p2);
+          if (r1?.error) throw r1.error;
+          if (r2?.error) throw r2.error;
+          await AsyncStorage.removeItem(DRAFT_KEY);
+          Alert.alert('Pubblicati 2 annunci', 'Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito.');
+        } else {
+          const res = await insertListing(payload);
+          if (res?.error) throw res.error;
+          await AsyncStorage.removeItem(DRAFT_KEY);
+          Alert.alert(t("createListing.publishedTitle", "Pubblicato!"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
+        }
       }
 
       initialJsonRef.current = JSON.stringify(form);
@@ -1326,6 +1370,13 @@ payload.arrive_at = toServerDt(form.arriveAt);
                   )}
 
                   {/* Box Trust */}
+                  {splitDetected && (
+                    <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#DBEAFE', borderWidth: 1, borderColor: '#60A5FA' }}>
+                      <Text style={{ fontWeight: '800', marginBottom: 6 }}>Rilevati 2 annunci distinti</Text>
+                      <Text>In base alla descrizione: {splitReason || 'sono stati rilevati due elementi distinti (tratte/orari/hotel).'}</Text>
+                      <Text style={{ marginTop: 6 }}>Al momento della pubblicazione verranno creati <Text style={{ fontWeight: '700' }}>due annunci separati</Text> con lo stesso prezzo. Potrai modificare i prezzi in seguito.</Text>
+                    </View>
+                  )}
                   {!!flagsNoImg?.length && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
                       <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
