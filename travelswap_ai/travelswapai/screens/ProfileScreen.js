@@ -176,21 +176,7 @@ export default function ProfileScreen() {
       ]);
     }
   };
-/*useLayoutEffect(() => {
-  navigation.setOptions({
-    // titolo centrato
-    headerTitle: "I miei annunci",
-    headerTitleAlign: "center",
 
-    // importantissimo per rimuovere lo spazio grande su iOS
-    headerLargeTitle: false,       // disattiva il titolo grande
-    headerTransparent: false,
-
-    // opzionale: neutralizza eventuali componenti personalizzati del logo
-    headerLeft: () => null,
-    headerRight: () => null,
-  });
-}, [navigation]);*/
   const stats = useMemo(() => {
     const s = { active: 0, swapped: 0, sold: 0, pending: 0, expired: 0 };
     for (const it of myListings) {
@@ -306,11 +292,13 @@ export default function ProfileScreen() {
 
   const ListHeader = (
     <>
-    <View style={{ alignItems: "center", marginBottom: 12 }}>
-  <Text style={{ fontSize: 18, fontWeight: "800", color: theme.colors.boardingText }}>
-    I miei annunci
-  </Text>
-</View>
+      {/* ✅ TITOLO: niente spazio extra + localizzato */}
+      <View style={{ alignItems: "center", marginBottom: 8, marginTop: 0, paddingVertical: 0 }}>
+        <Text style={styles.myListingsTitle}>
+          {t("profile.myListings", "I miei annunci")}
+        </Text>
+      </View>
+
       {/* Dati personali + bandierine */}
       <View style={[styles.card, { marginTop: 0, paddingTop: 16 }]}>
         <View style={styles.profileRow}>
@@ -404,8 +392,6 @@ export default function ProfileScreen() {
         )}
       </View>
 
-   
-
       {error && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
@@ -485,6 +471,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
     marginBottom: 12,
+  },
+
+  // ✅ stile titolo localizzato "I miei annunci"
+  myListingsTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: theme.colors.boardingText,
   },
 
   profileRow: { flexDirection: "row", alignItems: "center", gap: 12 },
