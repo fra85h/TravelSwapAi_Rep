@@ -566,7 +566,7 @@ export default function CreateListingScreen({
 
       // 1.2) Costruisci patch dai suggerimenti AI
       const patch = {};
-      if (parsed?.type) patch.type = parsed.type;
+if (parsed?.type) patch.type = parsed.type;
       if (parsed?.title) patch.title = parsed.title;
       if (parsed?.location) patch.location = parsed.location;
       if (parsed?.checkIn) patch.checkIn = normalizeDateStr(parsed.checkIn);
@@ -576,24 +576,29 @@ export default function CreateListingScreen({
       if (typeof parsed?.isNamedTicket === "boolean") patch.isNamedTicket = parsed.isNamedTicket;
       if (parsed?.gender) patch.gender = parsed.gender;
       if (parsed?.pnr) patch.pnr = parsed.pnr;
-      if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
+      
+      // Build route and title from parsed origin/destination when available
+      if (parsed?.origin || parsed?.destination) {
+        const a = String(parsed.origin || "").trim();
+        const b = String(parsed.destination || "").trim();
+        const routeStr = (a && b) ? `${a}-->${b}` : (a || b);
+        if (routeStr) {
+          patch.location = routeStr;
+          patch.title = `Vendo treno ${routeStr} solo andata`;
+        }
+      }
+if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
       if (nextCercoVendo) patch.cercoVendo = nextCercoVendo;
 
       try {
         const combinedLoc = (patch.location || form.location || "");
-        const hasArrow = /→/.test(combinedLoc);
-        const [locFrom, locTo] = hasArrow ? combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
-        const autoTitle = formatAutoTitle(
-          nextCercoVendo || form.cercoVendo,
-          patch.type || form.type,
-          locFrom, locTo,
-          patch.checkIn || form.checkIn,
-          patch.checkOut || form.checkOut,
-          patch.departAt || form.departAt,
-          patch.price ?? form.price,
-          patch.currency || form.currency
-        );
-        patch.title = autoTitle;
+        const hasArrow = /-->/.test(combinedLoc) || /→/.test(combinedLoc);
+        const [locFrom, locTo] = hasArrow ? combinedLoc.split("-->").length>1?combinedLoc.split("-->"):combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
+        const routeStr = (locFrom && locTo) ? `${locFrom}-->${locTo}` : (locFrom || locTo || "");
+if ((patch.type || form.type) === "train" && routeStr) {
+  patch.location = routeStr;
+  patch.title = `Vendo treno ${routeStr} solo andata`;
+}
       } catch {}
 
       if (Object.keys(patch).length) {
@@ -707,19 +712,13 @@ export default function CreateListingScreen({
       }
       try {
         const combinedLoc = (patch.location || form.location || "");
-        const hasArrow = /→/.test(combinedLoc);
-        const [locFrom, locTo] = hasArrow ? combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
-        const autoTitle = formatAutoTitle(
-          patch.cercoVendo || form.cercoVendo,
-          patch.type || form.type,
-          locFrom, locTo,
-          patch.checkIn || form.checkIn,
-          patch.checkOut || form.checkOut,
-          patch.departAt || form.departAt,
-          patch.price ?? form.price,
-          patch.currency || form.currency
-        );
-        patch.title = autoTitle;
+        const hasArrow = /-->/.test(combinedLoc) || /→/.test(combinedLoc);
+        const [locFrom, locTo] = hasArrow ? combinedLoc.split("-->").length>1?combinedLoc.split("-->"):combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
+        const routeStr = (locFrom && locTo) ? `${locFrom}-->${locTo}` : (locFrom || locTo || "");
+if ((patch.type || form.type) === "train" && routeStr) {
+  patch.location = routeStr;
+  patch.title = `Vendo treno ${routeStr} solo andata`;
+}
       } catch {}
 
       if (Object.keys(patch).length) {
@@ -783,6 +782,21 @@ export default function CreateListingScreen({
   };
   const onNextPress = () => goToSlide(1);
   const onBackPress = () => goToSlide(0);
+  const clearAll = useCallback(() => {
+    setMicroLog([]); setProgress(0); setShowMicroLog(false);
+    update({
+      title: "",
+      location: "",
+      description: "",
+      type: "train",
+      checkIn: "", checkOut: "",
+      departAt: "", arriveAt: "",
+      price: "", currency: "EUR",
+      pnr: "", gender: "", isNamedTicket: false,
+      imageUrl: "",
+    });
+  }, [update]);
+
 
   /* ---------- Analisi prezzo con AI (locale) ---------- */
   const [priceInfoOpen, setPriceInfoOpen] = useState(false);
@@ -1048,6 +1062,12 @@ export default function CreateListingScreen({
             disabled={trustLoading || loadingAI}
             loading={loadingAI}
           />
+          <AIPill
+            title={"Clear all"}
+            onPress={clearAll}
+            disabled={loadingAI || publishing || saving}
+          />
+
         </View>
 
         {/* Micro log + progress bar */}
