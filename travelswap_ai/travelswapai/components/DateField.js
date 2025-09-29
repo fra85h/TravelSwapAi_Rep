@@ -17,7 +17,7 @@ const parseISODate = (s) => {
   return dt;
 };
 
-export default function DateField({ label, value, onChange, required, error }) {
+export default function DateField({ label, value, onChange, required, error, disabled }) {
   const { t } = useI18n();
   const [showPicker, setShowPicker] = useState(false);
   const [hasPickerLib, setHasPickerLib] = useState(null);
@@ -41,7 +41,7 @@ export default function DateField({ label, value, onChange, required, error }) {
         <Text style={styles.label}>
           {label} {required ? "*" : ""}
         </Text>
-        <TextInput
+        <TextInput editable={!disabled}
           value={value}
           onChangeText={onChange}
           placeholder="YYYY-MM-DD"
@@ -61,7 +61,7 @@ export default function DateField({ label, value, onChange, required, error }) {
         {label} {required ? "*" : ""}
       </Text>
 
-      <TouchableOpacity onPress={() => setShowPicker(true)} activeOpacity={0.8}>
+      <TouchableOpacity onPress={!disabled ? () => setShowPicker(true) : undefined} activeOpacity={0.8}>
         <View style={[styles.input, styles.inputRow, error && styles.inputError]}>
           <Text style={{ color: value ? "#111827" : "#9CA3AF" }}>{value || "YYYY-MM-DD"}</Text>
           <Text style={{ color: "#6B7280" }}>📅</Text>
@@ -118,4 +118,5 @@ const styles = StyleSheet.create({
   errorText: { color: "#B91C1C", marginTop: 4 },
   smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: "#111827" },
   smallBtnText: { color: "#fff", fontWeight: "800" },
+  inputDisabled: { backgroundColor: "#F3F4F6", color: "#6B7280" },
 });

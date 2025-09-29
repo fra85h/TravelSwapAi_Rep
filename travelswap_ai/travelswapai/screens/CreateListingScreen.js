@@ -1,3 +1,4 @@
+
 // screens/CreateListingScreen.js
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -419,7 +420,45 @@ export default function CreateListingScreen({
     price: "",
   });
 
-  const initialJsonRef = useRef(null);
+  
+  // Campi disabilitati di default + matita per abilitare
+  // Campi disabilitati di default + matita per abilitare
+  const [editableFields, setEditableFields] = useState({
+    title: false,
+    checkIn: false,
+    checkOut: false,
+    departAt: false,
+    arriveAt: false,
+    location: false,
+  });
+
+  // Helper: località non vuota (per lock hotel Località)
+  const isFilledLocation = useCallback((s) => !!String(s || "").trim(), []);
+
+  // Helper: data completa YYYY-MM-DD (per lock hotel date)
+  const isFullDate = useCallback((s) => {
+    if (!s || typeof s !== "string") return false;
+    return /^\d{4}-\d{2}-\d{2}$/.test(s);
+  }, []);
+
+  // Helper: datetime completo YYYY-MM-DDTHH:MM (per lock treno)
+  const isFullDateTime = useCallback((s) => {
+    if (!s || typeof s !== "string") return false;
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s);
+  }, []);
+
+  const toggleEditable = useCallback((key) => {
+    setEditableFields((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  // ---- Auto-lock flags ----
+  const departLocked = isFullDateTime(form?.departAt) && !editableFields.departAt;
+  const arriveLocked = isFullDateTime(form?.arriveAt) && !editableFields.arriveAt;
+  const checkInLocked = isFullDate(form?.checkIn) && !editableFields.checkIn;
+  const checkOutLocked = isFullDate(form?.checkOut) && !editableFields.checkOut;
+  const hotelLocLocked = form?.type === "hotel" && !!String(form?.location || "").trim() && !editableFields.location;
+
+const initialJsonRef = useRef(null);
   const [errors, setErrors] = useState({});
 
   const flagsNoImg = useMemo(() => {
@@ -775,7 +814,14 @@ if ((patch.type || form.type) === "train" && routeStr) {
     }
   };
 
-  /* ---------- VALIDAZIONI ---------- */
+  
+  // Lock flags (auto-lock when complete)
+    //const departLocked = isFullDateTime(form?.departAt) && !editableFields.departAt;
+   // const arriveLocked = isFullDateTime(form?.arriveAt) && !editableFields.arriveAt;
+    //const checkInLocked = isFullDate(form?.checkIn) && !editableFields.checkIn;
+    //const checkOutLocked = isFullDate(form?.checkOut) && !editableFields.checkOut;
+   // const hotelLocLocked = form?.type === "hotel" && isFilledLocation(form?.location) && !editableFields.location;
+/* ---------- VALIDAZIONI ---------- */
   const computeErrors = useCallback(() => {
     const ciNorm = normalizeDateStr(form.checkIn);
     const coNorm = normalizeDateStr(form.checkOut);
@@ -1191,6 +1237,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
                           );
                         })}
                       </View>
+                      
                     </View>
                     <View style={styles.col}>
                       <Text style={styles.label}>{t("createListing.cercoVendoLabel", "Tipo annuncio")}</Text>
@@ -1208,8 +1255,16 @@ if ((patch.type || form.type) === "train" && routeStr) {
                   </View>
 
                   {/* Titolo */}
-                  <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
+                  {/* Titolo (bloccato di default con matita) */}
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
+                    <TouchableOpacity accessibilityLabel="Modifica titolo" onPress={() => toggleEditable("title")} style={styles.iconBtn}>
+                      <AntDesign name={editableFields.title ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
+                    </TouchableOpacity>
+                  </View>
                   <TextInput
+                    editable={editableFields.title}
+                    selectTextOnFocus={editableFields.title}
                     value={form.title}
                     onChangeText={(v) => update({ title: v })}
                     placeholder={
@@ -1217,65 +1272,94 @@ if ((patch.type || form.type) === "train" && routeStr) {
                         ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
                         : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
                     }
-                    style={[styles.input, errors.title && styles.inputError]}
+                    style={[styles.input, !editableFields.title && styles.inputDisabled, errors.title && styles.inputError]}
                     placeholderTextColor="#9CA3AF"
                   />
                   {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
                   {/* Località / Rotta */}
-                  <Text style={styles.label}>
-                    { form?.type === "hotel"
-                      ? t("createListing.locationLabelHotel", "Località *")
-                      : t("createListing.locationLabelTrain", "Tratta *")
-                    }
-                  </Text>
-                  <TextInput
-                    value={form.location}
-                    onChangeText={(v) => update({ location: v })}
-                    placeholder={
-                      form?.type === "hotel"
-                        ? t("createListing.locationPlaceholderHotel", "Es. Milano, Navigli")
-                        : t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")
-                    }
-                    style={[styles.input, errors.location && styles.inputError]}
-                    placeholderTextColor="#9CA3AF"
-                  />
-                  {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+                  {form?.type === "train" ? (
+                    <>
+                      <View style={styles.labelRow}>
+                        <Text style={styles.label}>{t("createListing.locationLabelTrain", "Tratta *")}</Text>
+                        <TouchableOpacity accessibilityLabel="Modifica tratta" onPress={() => toggleEditable("location")} style={styles.iconBtn}>
+                          <AntDesign name={editableFields.location ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
+                        </TouchableOpacity>
+                      </View>
+                      <TextInput
+                        editable={editableFields.location}
+                        selectTextOnFocus={!hotelLocLocked && editableFields.location}
+                        value={form.location}
+                        onChangeText={(v) => update({ location: v })}
+                        placeholder={t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")}
+                        style={[styles.input, !editableFields.location && styles.inputDisabled, errors.location && styles.inputError]}
+                        placeholderTextColor="#9CA3AF"
+                      />
+                      {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.label}>{t("createListing.locationLabelHotel", "Località *")}</Text>
+                      <TextInput
+                        value={form.location}
+                        onChangeText={(v) => update({ location: v })}
+                        placeholder={t("createListing.locationPlaceholderHotel", "Es. Milano, Navigli")}
+                        editable={!hotelLocLocked}
+                        selectTextOnFocus={!hotelLocLocked && editableFields.location}
+                        style={[styles.input, hotelLocLocked && styles.inputDisabled, errors.location && styles.inputError]}
+                        placeholderTextColor="#9CA3AF"
+                      />
+                      {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+                    </>
+                  )}
 
                   {/* Date */}
                   {form?.type === "hotel" ? (
                     <>
-                      <DateField
-                        label={t("createListing.checkIn", "Check-in")}
-                        required
-                        value={form.checkIn}
-                        onChange={(v) => update({ checkIn: normalizeDateStr(v) })}
-                        error={errors.checkIn}
-                      />
-                      <DateField
-                        label={t("createListing.checkOut", "Check-out")}
-                        required
-                        value={form.checkOut}
-                        onChange={(v) => update({ checkOut: normalizeDateStr(v) })}
-                        error={errors.checkOut}
-                      />
+                      <View style={styles.labelRow}>
+                        <Text style={styles.label}>{t("createListing.checkIn", "Check-in")}</Text>
+                        <TouchableOpacity accessibilityLabel="Modifica check-in" onPress={() => toggleEditable("checkIn")} style={styles.iconBtn}>
+                          <AntDesign name={editableFields.checkIn ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={[styles.fieldContainer, { opacity: checkInLocked ? 0.7 : 1 }]}>
+                        <DateField label="" required value={form.checkIn} onChange={(v) => update({ checkIn: normalizeDateStr(v) })} error={errors.checkIn} disabled={checkInLocked} />
+                        {checkInLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
+                      </View>
+                      <View style={styles.labelRow}>
+                        <Text style={styles.label}>{t("createListing.checkOut", "Check-out")}</Text>
+                        <TouchableOpacity accessibilityLabel="Modifica check-out" onPress={() => toggleEditable("checkOut")} style={styles.iconBtn}>
+                          <AntDesign name={editableFields.checkOut ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={[styles.fieldContainer, { opacity: checkOutLocked ? 0.7 : 1 }]}>
+                        <DateField label="" required value={form.checkOut} onChange={(v) => update({ checkOut: normalizeDateStr(v) })} error={errors.checkOut} disabled={checkOutLocked} />
+                        {checkOutLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
+                      </View>
                     </>
                   ) : (
                     <>
-                      <DateTimeField
-                        label={t("createListing.departAt", "Partenza (data e ora)")}
-                        required
-                        value={form.departAt}
-                        onChange={(v) => update({ departAt: v })}
-                        error={errors.departAt}
-                      />
-                      <DateTimeField
-                        label={t("createListing.arriveAt", "Arrivo (data e ora)")}
-                        required
-                        value={form.arriveAt}
-                        onChange={(v) => update({ arriveAt: v })}
-                        error={errors.arriveAt}
-                      />
+                      { /* START */} = isFullDateTime(form?.departAt) && !editableFields.departAt; const arriveLocked = isFullDateTime(form?.arriveAt) && !editableFields.arriveAt; return (
+                      <View style={styles.labelRow}>
+                        <Text style={styles.label}>{t("createListing.departAt", "Partenza (data e ora)")}</Text>
+                        <TouchableOpacity accessibilityLabel="Modifica partenza" onPress={() => toggleEditable("departAt")} style={styles.iconBtn}>
+                          <AntDesign name={editableFields.departAt ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={[styles.fieldContainer, { opacity: departLocked ? 0.7 : 1 }]}>
+                        <DateTimeField label="" required value={form.departAt} onChange={(v) => update({ departAt: v })} error={errors.departAt} disabled={departLocked} />
+                        {departLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
+                      </View>
+                      <View style={styles.labelRow}>
+                        <Text style={styles.label}>{t("createListing.arriveAt", "Arrivo (data e ora)")}</Text>
+                        <TouchableOpacity accessibilityLabel="Modifica arrivo" onPress={() => toggleEditable("arriveAt")} style={styles.iconBtn}>
+                          <AntDesign name={editableFields.arriveAt ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
+                        </TouchableOpacity>
+                      </View>
+                      <View style={[styles.fieldContainer, { opacity: arriveLocked ? 0.7 : 1 }]}>
+                        <DateTimeField label="" required value={form.arriveAt} onChange={(v) => update({ arriveAt: v })} error={errors.arriveAt} disabled={arriveLocked} />
+                        {arriveLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
+                      </View>
                     </>
                   )}
 
@@ -1515,6 +1599,11 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
 /* ---------- STYLES ---------- */
 const styles = StyleSheet.create({
+    labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    iconBtn: { padding: 6, marginLeft: 8 },
+    inputDisabled: { backgroundColor: "#F3F4F6", color: "#6B7280" },
+    fieldContainer: { position: "relative" },
+    disabledOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   // --- top ---
   topPanel: { backgroundColor: "#F4F7FB", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
