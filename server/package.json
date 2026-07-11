@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "NODE_ENV=development nodemon --watch src --ext js --exec node src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.55.0",
