@@ -1,6 +1,12 @@
 // lib/db.js
 import { supabase } from "./supabase";
-const API_URL = "http://0.0.0.0:8080"; // oppure l’URL del tuo server
+
+// Colonne "pubbliche" di listings: MAI includere pnr o altri dati riservati
+// (i segreti vivono in listing_secrets, lato server)
+const LISTING_PUBLIC_COLUMNS =
+  "id, user_id, title, description, type, location, price, currency, status, created_at, " +
+  "cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, " +
+  "image_url, published_at, trust_score, is_named_ticket, contact_url";
 
 /** Utente corrente (o null) */
 export async function getCurrentUser() {
@@ -123,7 +129,7 @@ export async function listPublicListings({ limit = 50, excludeMine = true } = {}
   const me = await getCurrentUser().catch(() => null);
   let q = supabase
     .from("listings")
-    .select("*")
+    .select(LISTING_PUBLIC_COLUMNS)
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -166,7 +172,7 @@ export async function getListingById(id) {
   if (!id) throw new Error("Missing listing id");
   const { data, error } = await supabase
     .from("listings")
-    .select("*")
+    .select(LISTING_PUBLIC_COLUMNS)
     .eq("id", id)
     .single();
 

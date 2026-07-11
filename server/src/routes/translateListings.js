@@ -2,11 +2,13 @@
 import express from "express";
 import { supabase } from "../db.js";
 import { openaiTranslate } from "../services/trust/translate/openaiProvider.js";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { rateLimitTranslate } from "../middleware/rateLimit.js";
 
 export const translateListingsRouter = express.Router();
 
 // GET /api/listings/:id/translate?lang=xx
-translateListingsRouter.get("/api/listings/:id/translate", async (req, res) => {
+translateListingsRouter.get("/api/listings/:id/translate", requireAuth, rateLimitTranslate, async (req, res) => {
   try {
     const id = String(req.params.id || "");
     const lang = String(req.query.lang || "").toLowerCase().split("-")[0];

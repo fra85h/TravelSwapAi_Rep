@@ -143,7 +143,7 @@ const tasks = fromListings.map((f) => async () => {
       to_listing_id: s.id,
       score: Number(s.score) || 0,
       bidirectional: !!s.bidirectional,
-      model: s.model || MODEL || 'gpt-4o-mini',
+      model: s.model || process.env.MATCH_AI_MODEL || 'gpt-4o-mini',
       explanation: s.explanation || null,
       generated_at: nowLocal,
     }));

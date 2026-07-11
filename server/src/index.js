@@ -17,22 +17,31 @@ import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.j
 import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
 import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
 import { translateListingsRouter } from "./routes/translateListings.js";
+import { requireAuth } from './middleware/requireAuth.js';
+import { rateLimitParse } from './middleware/rateLimit.js';
 
 const app = express();
 
 // --- CORS ---
-app.use(cors({ origin: true, credentials: true }));
+// CORS_ORIGINS: lista separata da virgole degli origin ammessi (es. "https://app.travelswap.it,https://travelswap.it").
+// Se non impostata, resta permissivo (utile in dev; il traffico nativo mobile non è soggetto a CORS).
+const corsOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+app.use(cors({ origin: corsOrigins.length ? corsOrigins : true, credentials: true }));
 const rawBodySaver = (req, _res, buf) => { req.rawBody = buf; };
 app.use(express.json({ limit: '2mb', verify: rawBodySaver }));
 app.use(express.urlencoded({ extended: false }));
-const requireAuth = (req, _res, next) => next();
 
+// Ogni router è montato UNA volta, su prefisso esplicito.
+// (translateListingsRouter definisce internamente il path completo /api/listings/:id/translate)
 app.use('/ai', trustscoreRouter);
-app.use('/', listingsRouter);
+app.use('/api/listings', listingsRouter);
 app.use('/api/matches', matchesRouter);
-app.use("/", translateListingsRouter);
+app.use('/', translateListingsRouter);
 
-mountParseDescriptionRoute(app, requireAuth);
+mountParseDescriptionRoute(app, [requireAuth, rateLimitParse]);
 
 // ========== Helpers Messenger (TTL + riepilogo) ==========
 const SESSION_TTL_HOURS = 24;
@@ -87,7 +96,12 @@ function summaryText(s) {
 // =========================================================
 
 // --- Healthcheck / Debug ---
+const isDev = process.env.NODE_ENV === 'development';
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// Endpoint di debug: SOLO in dev (rivelano stato di configurazione/ambiente)
+if (isDev) {
 app.get('/debug/env', (_req, res) => {
   res.json({
     NODE_ENV: process.env.NODE_ENV,
@@ -142,9 +156,9 @@ app.get('/debug/supabase', async (_req, res) => {
 app.get('/dev/ping', (_req, res) => {
   res.json({ ok: true, env: process.env.NODE_ENV || null });
 });
+}
 
 // --- Mini-logger in dev ---
-const isDev = process.env.NODE_ENV === 'development';
 if (isDev) {
   app.use((req, _res, next) => {
     console.log('[DEV]', req.method, req.path);
@@ -160,10 +174,6 @@ if (isDev) {
     });
   });
 }
-
-// --- Routers esistenti ---
-app.use('/api/listings', listingsRouter);
-app.use('/api/matches', matchesRouter);
 
 // --- Firma FB ---
 const FB_VERIFY_TOKEN = (process.env.FB_VERIFY_TOKEN || '').trim();
@@ -200,7 +210,9 @@ app.get('/webhooks/facebook', (req, res) => {
 
 // --- Webhook receiver (POST) ---
 app.post('/webhooks/facebook', async (req, res) => {
-  const allow = process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true';
+  // Il bypass della firma è consentito SOLO fuori da produzione
+  const allow = process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true'
+    && process.env.NODE_ENV !== 'production';
   if (!allow && !isDev && !verifyFacebookSignature(req)) {
     return res.sendStatus(403);
   }
