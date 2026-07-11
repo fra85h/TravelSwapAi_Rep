@@ -62,7 +62,6 @@ export async function insertListing(payload) {
     currency: payload.currency ?? "EUR",
     status: payload.status || "active", // listing_status
   };
-        console.log("BODY CHE ricevo:", JSON.stringify(body, null, 2));
 
   const { data, error } = await supabase
     .from("listings")

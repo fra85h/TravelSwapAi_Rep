@@ -1,8 +1,7 @@
 // screens/OffersScreen.js — Tab "Proposte" con due sezioni: Ricevute & Inviate
 import React, { useCallback, useEffect, useState, useLayoutEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, FlatList } from "react-native";
-import { acceptOffer, declineOffer, cancelOffer } from "../lib/offers";
-import { listIncomingOffersAny, listOutgoingOffersAny } from "../lib/offers_lists_rpc";
+import { acceptOffer, declineOffer, cancelOffer, listIncomingOffersAny, listOutgoingOffersAny } from "../lib/offers";
 import { useNavigation } from "@react-navigation/native";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";

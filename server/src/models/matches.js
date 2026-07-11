@@ -1,6 +1,6 @@
 // server/src/models/matches.js
 import { isUUID } from '../util/uuid.js';
-import { scoreWithAI } from '../ai/score.js';
+import { scoreWithAI, heuristicScore } from '../ai/score.js';
 import {
   //fetchActiveListingsForMatching,
   //insertMatchesSnapshot,
@@ -124,9 +124,11 @@ const tasks = fromListings.map((f) => async () => {
   const ai = await scoreWithAI(contextUser, useCands);
   console.log(`[from ${f.id}] ai:`, Array.isArray(ai) ? ai.length : ai);
 
+  // Se l'AI non risponde (timeout/chiave mancante/schema invalido),
+  // usa il fallback euristico deterministico invece di lasciare l'utente senza match
   const base = (Array.isArray(ai) && ai.length)
     ? ai
-    : []; // se vuoi *solo* AI, niente fallback qui
+    : heuristicScore(contextUser, useCands);
 
   const scored = base
     .map(s => ({ ...s, score: Math.round(Number(s.score || 0) * 1000) / 1000 }))

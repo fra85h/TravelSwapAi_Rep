@@ -74,39 +74,36 @@ export async function cancelOffer(offerId) {
   return data;
 }
 
-/** Offerte in entrata (verso i MIEI listing) - versione base (potrebbe soffrire mismatch tipi) */
-export async function listIncomingOffers({ status } = {}) {
-  const me = await getMe();
-  if (!me) throw new Error("Non autenticato");
-  let q = supabase
-    .from("offers")
-    .select(`
-      id,type,status,message,amount,currency,created_at,updated_at,
-      from_listing:from_listing_id ( id,title,user_id ),
-      to_listing:to_listing_id ( id,title,user_id )
-    `)
-    .order("created_at", { ascending: false });
-
-  q = q.eq("to_listing.user_id", me.id);
-  if (status) q = q.eq("status", status);
-  const { data, error } = await q;
-  if (error) throw new Error(error.message || "Impossibile caricare le offerte");
-  return data || [];
+/** Normalizza le righe delle RPC di lista in un formato coerente per la UI */
+function normalizeOfferRow(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    status: row.status,
+    message: row.message,
+    amount: row.amount,
+    currency: row.currency,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    to_listing: { id: row.to_listing_id, title: row.to_listing_title },
+    from_listing: row.from_listing_id
+      ? { id: row.from_listing_id, title: row.from_listing_title }
+      : null,
+  };
 }
 
-/** Offerte collegate a un singolo listing (entrata/uscita) */
-export async function listOffersForListing(listingId) {
-  const { data, error } = await supabase
-    .from("offers")
-    .select(`
-      id,type,status,message,amount,currency,created_at,
-      from_listing:from_listing_id ( id,title,user_id ),
-      to_listing:to_listing_id ( id,title,user_id )
-    `)
-    .or(`from_listing_id.eq.${listingId},to_listing_id.eq.${listingId}`)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message || "Impossibile caricare le offerte");
-  return data || [];
+/** Offerte ricevute (inbox) via RPC tollerante uuid/int */
+export async function listIncomingOffersAny() {
+  const { data, error } = await supabase.rpc("list_incoming_offers_any");
+  if (error) throw new Error(error.message || "Impossibile caricare proposte ricevute");
+  return (data || []).map(normalizeOfferRow);
+}
+
+/** Offerte inviate (outbox) via RPC tollerante uuid/int */
+export async function listOutgoingOffersAny() {
+  const { data, error } = await supabase.rpc("list_outgoing_offers_any");
+  if (error) throw new Error(error.message || "Impossibile caricare proposte inviate");
+  return (data || []).map(normalizeOfferRow);
 }
 
 /** Helper RPC: pending personale verso un listing (evita mismatch uuid/int) */
@@ -132,35 +129,5 @@ listing_id_text: String(listingId)
 export async function listMyActiveListings() {
   const { data, error } = await supabase.rpc("list_my_active_listings");
   if (error) throw new Error(error.message || "Impossibile caricare i tuoi annunci");
-  return data || [];
-}
-export async function listOffersForListingOwner(listingId) {
-  const { data, error } = await supabase
-    .from("offers")
-    .select(`
-      id,type,status,message,amount,currency,created_at,proposer_id,
-      from_listing:from_listing_id ( id,title,user_id ),
-      to_listing:to_listing_id   ( id,title,user_id )
-    `)
-    .eq("to_listing_id", listingId)              // 👈 ricevute
-    .order("created_at", { ascending: false });
-
-  if (error) throw new Error(error.message || "Impossibile caricare le offerte ricevute");
-  return data || [];
-}
-
-// (facoltativo) Funzione “all around” per non-owner (mostra sia da/verso)
-export async function listOffersForListingAround(listingId) {
-  const { data, error } = await supabase
-    .from("offers")
-    .select(`
-      id,type,status,message,amount,currency,created_at,proposer_id,
-      from_listing:from_listing_id ( id,title,user_id ),
-      to_listing:to_listing_id   ( id,title,user_id )
-    `)
-    .or(`from_listing_id.eq.${listingId},to_listing_id.eq.${listingId}`)
-    .order("created_at", { ascending: false });
-
-  if (error) throw new Error(error.message || "Impossibile caricare le offerte");
   return data || [];
 }
