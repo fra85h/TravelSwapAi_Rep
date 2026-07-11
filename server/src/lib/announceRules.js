@@ -58,20 +58,23 @@ export function missingFields(s) {
 }
 
 
+// NB: le etichette qui sotto DEVONO coincidere con quelle prodotte da missingFields
 export function nextPromptFor(missing, t) {
-  if (missing.includes('CERCO/VENDO')) return 'Stai CERCANDO o VENDENDO? Scrivi "CERCO" oppure "VENDO".';
-  if (missing.includes('TIPO (treno/hotel)')) return 'È per treno o hotel? Scrivi "treno" oppure "hotel".';
+  if (missing.includes('azione (CERCO/VENDO)')) return 'Stai CERCANDO o VENDENDO? Scrivi "CERCO" oppure "VENDO".';
+  if (missing.includes('tipo (treno/hotel)')) return 'È per treno o hotel? Scrivi "treno" oppure "hotel".';
 
-  if (t === 'train') {
-    if (missing.includes('DATA PARTENZA')) return 'Indica la data di PARTENZA (es. 2025-10-15).';
-    if (missing.includes('DATA ARRIVO'))   return 'Indica la data di ARRIVO (es. 2025-10-15).';
+  if (t === 'train' || t === 'treno') {
+    if (missing.includes('partenza (città di origine)'))     return 'Da quale città parti? (es. Roma)';
+    if (missing.includes('arrivo (città di destinazione)'))  return 'In quale città arrivi? (es. Milano)';
+    if (missing.includes('data di partenza')) return 'Indica la data di PARTENZA (es. 2025-10-15).';
   }
-  if (t === 'hotel') {
-    if (missing.includes('CHECK-IN'))  return 'Indica il CHECK-IN (es. 2025-10-20).';
-    if (missing.includes('CHECK-OUT')) return 'Indica il CHECK-OUT (es. 2025-10-22).';
+  if (t === 'hotel' || t === 'albergo') {
+    if (missing.includes('città (hotel)')) return 'In quale città si trova l’hotel?';
+    if (missing.includes('check-in'))  return 'Indica il CHECK-IN (es. 2025-10-20).';
+    if (missing.includes('check-out')) return 'Indica il CHECK-OUT (es. 2025-10-22).';
   }
 
-  if (missing.includes('PREZZO')) return 'Qual è il prezzo? (numero in euro)';
+  if (missing.includes('prezzo')) return 'Qual è il prezzo? (numero in euro)';
 
   return 'Ok, dammi la prossima informazione mancante.';
 }
