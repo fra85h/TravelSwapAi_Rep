@@ -180,7 +180,7 @@ export async function fetchListings({ minTrust, sort } = {}) {
   if (minTrust != null) qs.set("minTrust", String(minTrust));
   if (sort) qs.set("sort", sort);
   const q = qs.toString();
-  return fetchJson(`/listings${q ? `?${q}` : ""}`);
+  return fetchJson(`/api/listings${q ? `?${q}` : ""}`);
 }
 
 // debug: stampa BASE una volta

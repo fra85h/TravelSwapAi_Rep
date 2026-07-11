@@ -127,7 +127,6 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
     arrive_at: parsed?.arrive_at || null,
     is_named_ticket: parsed?.is_named_ticket ?? null,
     gender: parsed?.gender ?? null,
-    pnr: parsed?.pnr ?? null,
     description: pres.description || rawText || null,  // preferisci descrizione formattata
     price: pres.price,                        // NOT NULL
     image_url: parsed?.image_url || null,
@@ -150,6 +149,16 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
     .single();
 
   if (error) throw error;
+
+  // Il PNR è un dato riservato: va nella tabella segregata, mai in `listings`
+  if (parsed?.pnr) {
+    const { error: errSecret } = await supabase
+      .from('listing_secrets')
+      .upsert({ listing_id: data.id, pnr: parsed.pnr });
+    if (errSecret) {
+      console.error('[fbIngest] listing_secrets upsert failed:', errSecret.message);
+    }
+  }
 
   return { id: data.id };
 }
