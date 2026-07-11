@@ -286,7 +286,6 @@ useEffect(() => {
               <>
                 <Chip icon="📅" label={`${L.checkIn}: ${toYMDHMS_AMPM(checkIn)}`} textColor={textColor} />
                 <Chip icon="📅" label={`${L.checkOut}: ${toYMDHMS_AMPM(checkOut)}`} textColor={textColor} />
-                {listing?.pnr ? <Chip icon="🎫" label={`PNR: ${String(listing.pnr)}`} textColor={textColor} /> : null}
               </>
             ) : null}
 
