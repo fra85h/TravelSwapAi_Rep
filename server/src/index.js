@@ -227,7 +227,8 @@ app.post('/webhooks/facebook', async (req, res) => {
         for (const change of entry.changes) {
           if (change.field !== 'feed') continue;
 
-          console.log('[FB FEED RAW]', JSON.stringify(change, null, 2));
+          // Il payload contiene testo e id di utenti FB: log completo solo in dev
+          if (isDev) console.log('[FB FEED RAW]', JSON.stringify(change, null, 2));
           const v = change.value || {};
           const attachments = Array.isArray(v.attachments?.data) ? v.attachments.data : [];
           const firstAtt = attachments[0] || {};

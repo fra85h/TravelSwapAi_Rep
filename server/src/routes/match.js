@@ -24,9 +24,7 @@ matchesRouter.get("/snapshot/ping", (req, res) => {
  */
 matchesRouter.get("/snapshot", async (req, res) => {
   try {
-        console.log("GET /snapshot query=", req.query);           // 👈 debug
     const userId = String(req.query?.userId || "");
-        console.log("GET /snapshot userId=", userId);             // 👈 debug
     if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
     const out = await getUserSnapshot(userId);
     return res.json(out);
@@ -59,33 +57,25 @@ matchesRouter.post("/snapshot/recompute", async (req, res) => {
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });
-matchesRouter.post("/ai/recompute",async (req, res) => {
+matchesRouter.post("/ai/recompute", async (req, res) => {
   try {
-
-        console.log("POST /ai/recompute CT=", req.headers["content-type"]);
-    console.log("POST /ai/recompute BODY=", req.body);
-        const { userId, topPerListing = 3, maxTotal = 50 } = req.body || {};
+    const { userId, topPerListing = 3, maxTotal = 50 } = req.body || {};
     if (!userId || !isUUID(userId)) {
       return res.status(400).json({ ok: false, error: "missing/invalid userId" });
     }
 
-
     // 1) calcolo AI
     const ai = await recomputeMatches(userId); // { userId, generatedAt, items }
-console.log("QUi ho fatto la recompute match con user " );
     // 2) aggiorna snapshot utente
-    const _ = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
-console.log("QUi ho fatto lo snapshot per user ");
+    await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
     // 3) prendi lo snapshot aggiornato e restituiscilo
     const snap = await getUserSnapshot(userId); // { items, count, generatedAt }
-     console.log("QUi leggo snapshot per user  ");
     return res.status(200).json({
       ai: { count: ai.items?.length ?? 0, generatedAt: ai.generatedAt },
       snapshot: snap,
     });
   } catch (e) {
-    console.error(e);
-         console.log("errore sulla recomputesnapshot "||e);
+    console.error('[matches/ai/recompute] error:', e);
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });
