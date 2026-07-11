@@ -5,6 +5,11 @@
 -- Prerequisito: estensione pgvector (Dashboard → Database → Extensions → vector)
 -- ============================================================
 
+-- Impostazioni di sessione (come nel dump pg_dump originale):
+-- le funzioni possono referenziare tabelle create piu' avanti nel file
+set check_function_bodies = off;
+set client_min_messages = warning;
+
 create extension if not exists vector with schema public;
 
 --
