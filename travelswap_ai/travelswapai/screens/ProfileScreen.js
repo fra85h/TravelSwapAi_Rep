@@ -342,6 +342,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={[styles.editBtn, { marginTop: 8 }]}
+              onPress={() => {
+                navigation.navigate?.("ChainProposals");
+                navigation.getParent?.()?.navigate?.("ChainProposals");
+              }}
+            >
+              <Text style={styles.editBtnText}>🔗 {t("profile.chainProposals", "Proposte di scambio a 3")}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.editBtn, { marginTop: 8, backgroundColor: theme.colors.primary, borderColor: "#111827" }]}
               onPress={handleLogout}
             >
