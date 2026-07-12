@@ -112,45 +112,17 @@ function LegendCard({ t }) {
   return (
     <View style={styles.legendCard}>
       <Text style={styles.legendTitle}>
-        {t("matching.legend.title", "Come leggere i punteggi")}
+        {t("matching.legend.title", "Come funziona")}
       </Text>
-
-      {/* Fasce punteggio */}
-      <View style={styles.legendRow}>
-        <View style={[styles.legendDot, { backgroundColor: "#FEF9C3", borderColor: "#FDE68A" }]} />
-        <Text style={styles.legendText}>
-          {t("matching.legend.base", "60–69 = compatibilità di base")}
-        </Text>
-      </View>
-
-      <View style={styles.legendRow}>
-        <View style={[styles.legendDot, { backgroundColor: "#ECFCCB", borderColor: "#BEF264" }]} />
-        <Text style={styles.legendText}>
-          {t("matching.legend.good", "70–79 = buona compatibilità")}
-        </Text>
-      </View>
-
-      <View style={styles.legendRow}>
-        <View style={[styles.legendDot, { backgroundColor: "#DCFCE7", borderColor: "#86EFAC" }]} />
-        <Text style={styles.legendText}>
-          {t("matching.legend.verygood", "80–89 = affinità alta (perfetto solo se bidirezionale)")}
-        </Text>
-      </View>
-
-      <View style={styles.legendRow}>
-        <View style={[styles.legendDot, { backgroundColor: "#EAF7FF", borderColor: "#BAE6FD" }]} />
-        <Text style={styles.legendText}>
-          {t("matching.legend.excellent", "90–100 = affinità eccellente (perfetto anche se non bidirezionale)")}
-        </Text>
-      </View>
-
-      {/* Regola sintetica */}
-      <Text style={[styles.legendText, { marginTop: 8 }]}>
-        {t(
-          "matching.legend.rule",
-          "Un match è PERFETTO se: (bidirezionale && punteggio ≥ 80) oppure (!bidirezionale && punteggio ≥ 90). Altrimenti è COMPATIBILE."
-        )}
+      <Text style={styles.legendText}>
+        {t("matching.scoreHint", "Più il numero è alto, più l'annuncio è vicino a ciò che cerchi.")}
       </Text>
+      <View style={styles.legendAiRow}>
+        <Ionicons name="sparkles-outline" size={15} color={theme.colors.accent} />
+        <Text style={[styles.legendText, { flex: 1 }]}>
+          {t("matching.poweredBy", "Suggerimenti generati dalla nostra AI in base a ciò che cerchi e pubblichi.")}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -179,8 +151,8 @@ function StatusBanner({
         <Ionicons name="checkmark-circle-outline" size={16} color="#065F46" />
         <View style={{ flex: 1 }}>
           <Text style={[styles.bannerText, { color: "#065F46" }]}>
-            {`✅ ${perfectCount} perfetti, ${compatibleCount} compatibili. `}
-            {t("matching.status.tip", "Suggerimento: invia una proposta ai perfetti.")}
+            {t("matching.status.summary", "✨ {perfect} migliori, {compatible} in linea con te. ", { perfect: perfectCount, compatible: compatibleCount })}
+            {t("matching.status.tip", "Suggerimento: invia una proposta ai migliori.")}
           </Text>
 
           {/* CTA inline */}
@@ -685,15 +657,26 @@ const compatible = useMemo(
         renderItem={() => (
           <View style={{ padding: 16, paddingBottom: (tabBarHeight || 0) + (insets.bottom || 0) + 96 }}>
                         <View style={styles.legendHeaderRow}>
-              <Text style={styles.legendHeaderTitle}>{t("matching.title", "AI Matching")}</Text>
+              <View style={{ flexShrink: 1, paddingRight: 10 }}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.legendHeaderTitle}>{t("matching.title", "Suggeriti dall'AI")}</Text>
+                  <View style={styles.aiTag}>
+                    <Ionicons name="sparkles" size={11} color={theme.colors.accentOn} />
+                    <Text style={styles.aiTagText}>{t("matching.aiTag", "AI")}</Text>
+                  </View>
+                </View>
+                <Text style={styles.poweredBy}>
+                  {t("matching.poweredBy", "Suggerimenti generati dalla nostra AI in base a ciò che cerchi e pubblichi.")}
+                </Text>
+              </View>
               <TouchableOpacity
                 onPress={() => setShowLegend((v) => !v)}
                 style={styles.legendToggle}
                 accessibilityRole="button"
                 accessibilityLabel={
                   showLegend
-                    ? t("matching.legend.hideA11y", "Nascondi spiegazione punteggi")
-                    : t("matching.legend.showA11y", "Mostra spiegazione punteggi")
+                    ? t("matching.legend.hideA11y", "Nascondi come funzionano i suggerimenti")
+                    : t("matching.legend.showA11y", "Mostra come funzionano i suggerimenti")
                 }
               >
                 <Ionicons
@@ -703,8 +686,8 @@ const compatible = useMemo(
                 />
                 <Text style={styles.legendToggleText}>
                   {showLegend
-                    ? t("matching.legend.hide", "Nascondi spiegazione")
-                    : t("matching.legend.show", "Mostra spiegazione")}
+                    ? t("matching.legend.hide", "Nascondi")
+                    : t("matching.legend.show", "Come funziona")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -713,12 +696,11 @@ const compatible = useMemo(
 
             <View style={{ height: 12 }} />
            <Section
-  title={t("matching.sections.perfectTitle", "Match perfetti")}
-  icon="🍀"
-  //subtitle={t("matching.sections.perfectSubtitle","Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.")}
-   subtitle={t(
+  title={t("matching.sections.perfectTitle", "I migliori per te")}
+  icon="✨"
+  subtitle={t(
    "matching.sections.perfectSubtitle",
-   "Perfetto se (bidirezionale e ≥80) oppure (non bidirezionale ma ≥90)."
+   "Scambi che funzionano in entrambi i sensi: interessano a te e a chi li ha pubblicati."
 )}
   items={perfect}
   generatedAt={rows?.[0]?.updatedAt || null}
@@ -728,9 +710,9 @@ const compatible = useMemo(
   <>
     <View style={{ height: 12 }} />
     <Section
-      title={t("matching.sections.compatibleTitle", "Match compatibili")}
+      title={t("matching.sections.compatibleTitle", "Altri in linea con te")}
       icon="🤝"
-      subtitle={t("matching.sections.compatibleSubtitle","I numeri (60/70/80) sono la percentuale stimata di compatibilità: 60=base, 70=buona, 80+=eccellente.")}
+      subtitle={t("matching.sections.compatibleSubtitle","Annunci vicini a ciò che cerchi. Più alto è il numero, più sono in linea.")}
       items={compatible}
       generatedAt={rows?.[0]?.updatedAt || null}
     />
@@ -742,15 +724,22 @@ const compatible = useMemo(
 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
 />                    
 
-      {/* FAB rotondo ⚡ */}
+      {/* Pulsante "Aggiorna suggerimenti" con etichetta esplicita */}
       <TouchableOpacity
-        onPress={onPressRicalcolaAI} //{onRecompute}-->cosa faceva questa?        
+        onPress={onPressRicalcolaAI}
         activeOpacity={0.92}
         accessibilityRole="button"
-        accessibilityLabel="Ricalcola AI"
+        accessibilityLabel={t("matching.refresh", "Aggiorna suggerimenti")}
         style={[styles.fab, { bottom: (tabBarHeight || 0) + (insets.bottom || 0) + 18 }]}
       >
-        {recomputing ? <ActivityIndicator color={theme.colors.accentOn} /> : <Ionicons name="flash" size={26} color={theme.colors.accentOn} />}
+        {recomputing ? (
+          <ActivityIndicator color={theme.colors.accentOn} />
+        ) : (
+          <>
+            <Ionicons name="sparkles" size={18} color={theme.colors.accentOn} />
+            <Text style={styles.fabText}>{t("matching.refresh", "Aggiorna suggerimenti")}</Text>
+          </>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -870,19 +859,44 @@ const styles = StyleSheet.create({
   /* Skeleton */
   skel: { backgroundColor: "#E5E7EB" },
 
-  /* FAB */
+  /* Pulsante "Aggiorna suggerimenti" (pill con etichetta) */
   fab: {
     position: "absolute",
     right: 16,
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: theme.colors.accent,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    height: 52,
+    paddingHorizontal: 18,
+    borderRadius: 26,
+    backgroundColor: theme.colors.accent,
     justifyContent: "center",
     ...Platform.select({
       ios: { shadowColor: theme.colors.accent, shadowOpacity: 0.55, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } },
       android: { elevation: 8 },
     }),
   },
+  fabText: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
+
+  /* Card "Come funziona" + tag AI */
+  legendCard: {
+    backgroundColor: theme.colors.surfaceMuted,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: 14,
+    gap: 8,
+  },
+  legendTitle: { fontWeight: "800", color: theme.colors.text, fontSize: 15 },
+  legendText: { color: theme.colors.textMuted, lineHeight: 19 },
+  legendAiRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  aiTag: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: theme.colors.accentSoft,
+    borderWidth: 1, borderColor: theme.colors.accent,
+    borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2,
+  },
+  aiTagText: { fontSize: 10, fontWeight: "800", color: theme.colors.accentOn, letterSpacing: 0.4 },
+  poweredBy: { color: theme.colors.textMuted, fontSize: 12, marginTop: 3, lineHeight: 16 },
 });

@@ -52,11 +52,11 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   btnGhost: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: theme.colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: theme.colors.border,
   },
   btnGhostText: {
-    color: "#111827",
+    color: theme.colors.text,
   },
 });
