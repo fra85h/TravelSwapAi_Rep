@@ -528,7 +528,10 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
 
   // === CARDS LISTA ANNUNCI (stile HomeScreen)
-  listCard: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12, backgroundColor: "#fff" },
+  listCard: {
+    borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
+    padding: 14, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
+  },
   listCardTitle: { fontWeight: "800", color: theme.colors.boardingText },
   listCardSub: { color: "#6B7280", marginTop: 4 },
   listCardMeta: { color: "#111827", marginTop: 6, fontWeight: "600" },

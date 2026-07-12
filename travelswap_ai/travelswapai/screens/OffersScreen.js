@@ -224,7 +224,10 @@ const s = StyleSheet.create({
   segmActive: { backgroundColor: theme.colors.primary, borderColor: "#111827" },
   segmTxt: { fontWeight: "800", color: theme.colors.boardingText },
   segmTxtActive: { color: theme.colors.boardingText },
-  card: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12, backgroundColor: "#fff" },
+  card: {
+    borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
+    padding: 14, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
+  },
   title: { fontWeight: "800" },
   sub: { color: "#6B7280", marginTop: 4 },
   meta: { color: "#111827", marginTop: 4, fontWeight: "600" },

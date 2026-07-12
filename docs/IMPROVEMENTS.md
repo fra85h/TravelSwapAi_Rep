@@ -57,6 +57,22 @@ Raccogliere tratte/città preferite in onboarding per alimentare da subito il ma
 
 ---
 
+## F. Restyling "Swap Gold" — ✅ prima tranche applicata
+
+Direzione scelta dopo confronto visivo di 3 varianti (indigo raffinato / indigo saturo / **indigo + oro**): oro come accento dei CTA principali — richiama la moneta 3D dell'onboarding e il concetto di scambio di valore del nome "Swap".
+
+- `lib/theme.js`: nuovi token `accent`/`accentSoft`/`accentOn` (oro + inchiostro indigo abbinato); `primary` raffinato ma **ruolo invariato** (resta lo sfondo chiaro di badge/pill, per non rompere i ~25 punti che lo usano già); aggiunta `shadow.lg` e tipografia con letter-spacing.
+- `components/ui/Button.js`: CTA primario ora oro con testo indigo e ombra dorata; variante `outline` corretta (prima aveva un bug di contrasto: testo/bordo quasi invisibili).
+- `components/ui/Input.js`: bordo dorato al focus.
+- `components/SaveButton.js`, `components/ImageCarousel.js`, `screens/ManageImagesScreen.js`: allineati allo stesso oro (prima usavano tonalità scollegate o poco leggibili).
+- Pulsante "Pubblica/Modifica annuncio" (`CreateListingScreen`): oro con ombra dedicata — è il CTA più importante dell'app.
+- `MatchCard`: badge "💫 reciproco" passato da un blu generico all'oro (è un momento "premium" della UI, i match forti).
+- Card di Home/Offerte/Profilo: da bordo piatto grigio a ombra morbida coerente col tema (stesso ~1 riga di stile per file).
+
+Non ancora fatto (prossimi passi naturali): font custom (Sora/Plus Jakarta Sans — richiede installare `expo-font`, rimandato per non sommare un altro giro di installazione dopo quello di `expo-image-picker`), estensione dell'ombra morbida alle card rimanenti, unificazione delle 3 librerie di icone su una sola.
+
+---
+
 ## E. Qualità del codice / infrastruttura
 
 - **i18n incompleto**: molte stringhe sono hardcoded in italiano fuori dal dizionario (es. schermata login, alert). Completarle abilita davvero EN/ES.

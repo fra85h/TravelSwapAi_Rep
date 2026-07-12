@@ -105,7 +105,7 @@ export default function ManageImagesScreen() {
         ListHeaderComponent={
           <TouchableOpacity style={styles.addBtn} onPress={onAdd} disabled={busy}>
             {busy ? (
-              <ActivityIndicator color={theme.colors.primary} />
+              <ActivityIndicator color={theme.colors.accent} />
             ) : (
               <Text style={styles.addText}>＋ Aggiungi foto</Text>
             )}
@@ -136,10 +136,10 @@ const GAP = 6;
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
   addBtn: {
-    borderWidth: 1, borderColor: theme.colors.primary, borderRadius: 12,
+    borderWidth: 1.4, borderColor: theme.colors.accent, borderStyle: "dashed", borderRadius: 12,
     paddingVertical: 14, alignItems: "center", marginBottom: 12,
   },
-  addText: { color: theme.colors.primary, fontWeight: "800" },
+  addText: { color: theme.colors.accentOn, fontWeight: "800" },
   empty: { color: theme.colors.textMuted, textAlign: "center", marginTop: 24 },
   cell: { flex: 1 / 3, aspectRatio: 1, padding: GAP },
   thumb: { flex: 1, borderRadius: 10, backgroundColor: theme.colors.surface },

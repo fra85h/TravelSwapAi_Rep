@@ -1650,11 +1650,11 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
             {slideIndex === 0 ? (
               <TouchableOpacity onPress={onNextPress} style={[styles.footerBtn, styles.footerPrimary]}>
-                <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{t("common.next", "Avanti")}</Text>
+                <Text style={[styles.footerText, { color: theme.colors.accentOn }]}>{t("common.next", "Avanti")}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={onPublishOrSave} disabled={publishing} style={[styles.footerBtn, styles.footerPrimary]}>
-                {publishing ? <ActivityIndicator color={theme.colors.boardingText} /> : <Text style={[styles.footerText, { color: theme.colors.boardingText }]}>{mode === "edit" ? "Modifica" : t("createListing.publish", "Pubblica")}</Text>}
+                {publishing ? <ActivityIndicator color={theme.colors.accentOn} /> : <Text style={[styles.footerText, { color: theme.colors.accentOn }]}>{mode === "edit" ? "Modifica" : t("createListing.publish", "Pubblica")}</Text>}
               </TouchableOpacity>
             )}
           </View>
@@ -1847,9 +1847,9 @@ const styles = StyleSheet.create({
   },
   footerBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 16, borderRadius: 14 },
   footerPrimary: {
-    backgroundColor: theme.colors.primary,
-    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: {width:0, height:4},
-    elevation: 3
+    backgroundColor: theme.colors.accent,
+    shadowColor: theme.colors.accent, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: {width:0, height:5},
+    elevation: 4
   },
   footerGhost: {
     backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB",

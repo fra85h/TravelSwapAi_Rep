@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.5)",
   },
   dotActive: {
-    backgroundColor: theme.colors.primary || "#fff",
+    backgroundColor: theme.colors.accent,
     width: 9,
     height: 9,
     borderRadius: 5,

@@ -1,33 +1,51 @@
+// Palette "Swap Gold": indigo profondo come inchiostro/brand, oro come
+// accento delle azioni principali (richiama la moneta 3D dell'onboarding
+// e il concetto di scambio di valore alla base di TravelSwap).
 export const theme = {
   colors: {
-    background: "#F8FAFC",
+    background: "#F9F8FC",
     surface: "#FFFFFF",
-    surfaceMuted: "#F3F4F6",
-    border: "#E5E7EB",
-    text: "#1D2B6B",
-    textMuted: "#6B7280",
-   primary: "#E7EEFF",      // Indigo 600
-   primaryMuted: "#6366F1", // Indigo 500/400 per hover/pressed
+    surfaceMuted: "#F4F1F8",
+    border: "#E6E2EE",
+    text: "#1B2159",
+    textMuted: "#6B6F92",
+
+    // "primary" resta il token storico: sfondo chiaro lavanda per badge,
+    // pill di selezione, avatar — sempre abbinato a testo scuro sopra
+    // (boardingText/text). Ruolo invariato, solo la tinta è raffinata.
+    primary: "#E4E1F7",
+    primaryMuted: "#C9C4EE", // variante più marcata per stati pressed/selected
+
+    // Accento oro: riservato ai CTA principali e ai momenti "premium".
+    // Non va mai usato come colore di testo su sfondo chiaro (contrasto
+    // insufficiente) — per il testo sopra un riempimento oro usare accentOn.
+    accent: "#C99A2E",
+    accentSoft: "#FBF0D9",
+    accentOn: "#1B2159",
+
     success: "#16A34A",
     danger: "#DC2626",
     warning: "#F59E0B",
     info: "#2563EB",
-    // UI CTA color inspired by screenshot "Boarding passes"
-    boardingBg: "#E7EEFF",
-    boardingText: "#1D2B6B",
-    boardingBgPressed: "#D6E0FF",
+
+    // UI CTA color "Boarding pass" (sfondi lavanda tenue per badge/pill secondarie)
+    boardingBg: "#EDEBFA",
+    boardingText: "#1B2159",
+    boardingBgPressed: "#DFDAF3",
   },
   radius: { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 },
   spacing: { xs: 6, sm: 10, md: 14, lg: 18, xl: 24, xxl: 32 },
   shadow: {
     sm: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2 },
     md: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 6 },
+    lg: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.14, shadowRadius: 28, elevation: 10 },
   },
   typography: {
-    title: { fontSize: 22, fontWeight: "800" },
-    subtitle: { fontSize: 16, fontWeight: "600", color: "#6B7280" },
-    body: { fontSize: 16, color: "#0F172A" },
-    small: { fontSize: 12, color: "#6B7280" },
+    title: { fontSize: 26, fontWeight: "800", letterSpacing: -0.3 },
+    sectionTitle: { fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
+    subtitle: { fontSize: 16, fontWeight: "600", color: "#6B6F92" },
+    body: { fontSize: 16, color: "#1B2159" },
+    small: { fontSize: 12, color: "#6B6F92" },
   }
 };
 export default theme;
