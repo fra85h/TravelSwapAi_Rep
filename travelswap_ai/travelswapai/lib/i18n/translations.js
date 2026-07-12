@@ -118,6 +118,8 @@ export const translations = {
     matchingScreen: {
       backendErrorTitle: "Errore backend",
       backendErrorMsg: "Impossibile contattare il server",
+      backendUnreachable: "Backend non raggiungibile",
+      noMatchesComputed: "Nessun match calcolato",
     },
 
     // --- Annunci / Listing ---
@@ -190,6 +192,8 @@ export const translations = {
       imageUrl: "URL immagine",
       imageHint: "Aggiungi un URL immagine per vedere l’anteprima",
       imageLoadError: "Impossibile caricare l’immagine",
+      photos: "Foto",
+      photosHint: "Aggiungi fino a qualche foto reale: aumentano la fiducia di chi guarda l'annuncio.",
 
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
@@ -315,6 +319,13 @@ export const translations = {
       },
     },
 
+    editListing: {
+      draftDisabled: "Bozza disattivata",
+      saveError: "Impossibile salvare le modifiche.",
+      savedTitle: "Modifiche salvate",
+      savedMsg: "L'annuncio è stato aggiornato.",
+    },
+
     // --- Offerte ---
     offers: {
       title: "Offerte",
@@ -340,6 +351,11 @@ export const translations = {
       sentOffers: "Offerte inviate",
       proposePurchase: "Proponi acquisto",   // IT
       proposeSwap: "Proponi scambio",        // IT
+      trains: "Treni",
+      hotels: "Hotel",
+      flights: "Voli",
+      matchAi: "AI Matching",
+      noneOne: "Nessuna proposta trovata per l’ID selezionato",
     },
 
     // --- Dettaglio offerta ---
@@ -360,6 +376,13 @@ export const translations = {
       book: "Prenota",
     },
 
+    detail: {
+      actions: {
+        proposeBuy: "Proponi acquisto",
+        proposeSwap: "Proponi scambio",
+      },
+    },
+
     // --- Altre sezioni / flussi ---
     offerFlow: {
       title: "Nuova offerta",
@@ -369,6 +392,32 @@ export const translations = {
       next: "Avanti",
       back: "Indietro",
       confirm: "Conferma",
+
+      cantOfferOwn: "Non puoi proporre un'offerta al tuo stesso annuncio.",
+      listingNotActive: "Questo annuncio non è attivo.",
+      loginRequiredTitle: "Login richiesto",
+      loginRequiredMsg: "Accedi per inviare proposte.",
+      alreadySentTitle: "Già inviata",
+      alreadySentMsg: "Hai già una proposta in attesa per questo annuncio.",
+      invalidAmountTitle: "Importo non valido",
+      invalidAmountMsg: "Inserisci un importo valido oppure lascia vuoto.",
+      selectListingTitle: "Seleziona annuncio",
+      selectListingMsg: "Scegli uno dei tuoi annunci da proporre in scambio.",
+      sentTitle: "Proposta inviata",
+      sentMsg: "Il proprietario riceverà subito la tua proposta.",
+      canceled: "Proposta cancellata",
+      listing: "Annuncio",
+      pendingAlready: "Hai già una proposta in attesa",
+      cancelProposal: "Cancella proposta",
+      amountLabel: "Importo offerto (opzionale)",
+      amountPlaceholder: "Es. 120.00",
+      currencyLabel: "Valuta",
+      messageOptional: "Messaggio (opzionale)",
+      addDetailsOrRequests: "Aggiungi dettagli o richieste",
+      chooseOwnListing: "Scegli un tuo annuncio",
+      noActiveListings: "Non hai annunci attivi.",
+      addDetailsForSwap: "Aggiungi dettagli per lo scambio",
+      sendProposal: "Invia proposta",
     },
 
     listingDetail: {
@@ -416,6 +465,18 @@ export const translations = {
       legendHide: "Nascondi spiegazione",
       legendShowScores: "Mostra spiegazione punteggi",
       legendHideScores: "Nascondi spiegazione punteggi",
+      legend: {
+        title: "Come leggere i punteggi",
+        base: "60–69 = compatibilità di base",
+        good: "70–79 = buona compatibilità",
+        verygood: "80–89 = affinità alta (perfetto solo se bidirezionale)",
+        excellent: "90–100 = affinità eccellente (perfetto anche se non bidirezionale)",
+        rule: "Un match è PERFETTO se: (bidirezionale && punteggio ≥ 80) oppure (!bidirezionale && punteggio ≥ 90). Altrimenti è COMPATIBILE.",
+        show: "Mostra spiegazione",
+        hide: "Nascondi spiegazione",
+        showA11y: "Mostra spiegazione punteggi",
+        hideA11y: "Nascondi spiegazione punteggi",
+      },
       perfectMatches: "Match perfetti",
       perfectSubtitle:
         "Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.",
@@ -430,6 +491,29 @@ export const translations = {
       noOffers: "Nessuna offerta trovata",
       accept: "Accetta",
       reject: "Rifiuta",
+
+      pill: { new: "Nuovo" },
+      sections: {
+        perfectTitle: "Match perfetti",
+        perfectSubtitle: "Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.",
+        compatibleTitle: "Match compatibili",
+        compatibleSubtitle: "I numeri (60/70/80) sono la percentuale stimata di compatibilità: 60=base, 70=buona, 80+=eccellente.",
+      },
+      status: {
+        queued: "Ricalcolo AI in coda…",
+        running: "Ricalcolo AI in corso…",
+        error: "Backend offline o non raggiungibile",
+        tip: "Suggerimento: invia una proposta ai perfetti.",
+      },
+      toasts: { queued: "Ricalcolo AI in coda…" },
+      cta: {
+        perfectOnly: "Vedi solo perfetti",
+        showAll: "Vedi tutti",
+        sortNew: "Ordina per novità",
+        sortScore: "Ordina per punteggio",
+      },
+      hide: "Nascondi",
+      info: "Info",
     },
 
     // --- Auth / Onboarding ---
@@ -650,6 +734,8 @@ export const translations = {
     matchingScreen: {
       backendErrorTitle: "Backend error",
       backendErrorMsg: "Unable to reach the server",
+      backendUnreachable: "Backend unreachable",
+      noMatchesComputed: "No matches computed yet",
     },
 
     listing: {
@@ -694,6 +780,9 @@ export const translations = {
       step2: "Details & publish",
 
       type: "Type",
+      cercoVendoLabel: "Listing type",
+      cerco: "Looking for",
+      vendo: "Offering",
       titleLabel: "Title *",
       titlePlaceholderHotel: "e.g. Double room near Duomo",
       titlePlaceholderTrain: "e.g. Milan → Rome (FR 9520)",
@@ -714,6 +803,8 @@ export const translations = {
       imageUrl: "Image URL",
       imageHint: "Add an image URL to preview",
       imageLoadError: "Unable to load image",
+      photos: "Photos",
+      photosHint: "Add a few real photos: they increase trust for people viewing the listing.",
 
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
@@ -837,6 +928,13 @@ export const translations = {
       },
     },
 
+    editListing: {
+      draftDisabled: "Draft disabled",
+      saveError: "Unable to save changes.",
+      savedTitle: "Changes saved",
+      savedMsg: "The listing has been updated.",
+    },
+
     offers: {
       title: "Offers",
       accept: "Accept",
@@ -861,6 +959,11 @@ export const translations = {
       sentOffers: "Sent offers",
       proposePurchase: "Propose purchase",   // EN
       proposeSwap: "Propose swap",           // EN
+      trains: "Trains",
+      hotels: "Hotels",
+      flights: "Flights",
+      matchAi: "AI Matching",
+      noneOne: "No proposal found for the selected ID",
     },
 
     offerDetail: {
@@ -880,6 +983,13 @@ export const translations = {
       book: "Book",
     },
 
+    detail: {
+      actions: {
+        proposeBuy: "Propose purchase",
+        proposeSwap: "Propose swap",
+      },
+    },
+
     offerFlow: {
       title: "New offer",
       stepDestination: "Choose destination",
@@ -888,6 +998,32 @@ export const translations = {
       next: "Next",
       back: "Back",
       confirm: "Confirm",
+
+      cantOfferOwn: "You can't make an offer on your own listing.",
+      listingNotActive: "This listing is not active.",
+      loginRequiredTitle: "Login required",
+      loginRequiredMsg: "Log in to send proposals.",
+      alreadySentTitle: "Already sent",
+      alreadySentMsg: "You already have a pending proposal for this listing.",
+      invalidAmountTitle: "Invalid amount",
+      invalidAmountMsg: "Enter a valid amount or leave it empty.",
+      selectListingTitle: "Select a listing",
+      selectListingMsg: "Choose one of your listings to offer in exchange.",
+      sentTitle: "Proposal sent",
+      sentMsg: "The owner will receive your proposal right away.",
+      canceled: "Proposal canceled",
+      listing: "Listing",
+      pendingAlready: "You already have a pending proposal",
+      cancelProposal: "Cancel proposal",
+      amountLabel: "Offered amount (optional)",
+      amountPlaceholder: "E.g. 120.00",
+      currencyLabel: "Currency",
+      messageOptional: "Message (optional)",
+      addDetailsOrRequests: "Add details or requests",
+      chooseOwnListing: "Choose one of your listings",
+      noActiveListings: "You have no active listings.",
+      addDetailsForSwap: "Add details for the swap",
+      sendProposal: "Send proposal",
     },
 
     listingDetail: {
@@ -922,12 +1058,15 @@ export const translations = {
 
     matching: {
       title: "Matching",
+      new: "New",
       pill: { new: "New" },
       legend: {
         title: "What do 60 / 70 / 80 mean?",
         base: "60–69 = basic compatibility",
         good: "70–79 = good compatibility",
-        excellent: "80–100 = excellent affinity",
+        verygood: "80–89 = high affinity (perfect only if bidirectional)",
+        excellent: "90–100 = excellent affinity (perfect even if not bidirectional)",
+        rule: "A match is PERFECT if: (bidirectional && score ≥ 80) or (!bidirectional && score ≥ 90). Otherwise it's COMPATIBLE.",
         long:
           "The score is an estimate (0–100) calculated by TravelSwap AI by combining: preferences and history, price alignment, proximity/location, date overlap, listing category/type, and signals of mutual interest. “Perfect matches” are bidirectional.",
         show: "Show explanation",
@@ -939,6 +1078,8 @@ export const translations = {
         queued: "AI recompute queued…",
         running: "AI recompute in progress…",
         done: "Recompute completed ✓",
+        error: "Backend offline or unreachable",
+        tip: "Tip: send a proposal to your perfect matches.",
       },
       sections: {
         perfectTitle: "Perfect matches",
@@ -951,6 +1092,14 @@ export const translations = {
       list: { empty: "No results." },
       fab: { recompute: "Recompute AI" },
       toasts: { queued: "AI recompute queued…", done: "Recompute completed ✓" },
+      cta: {
+        perfectOnly: "Show perfect only",
+        showAll: "Show all",
+        sortNew: "Sort by newest",
+        sortScore: "Sort by score",
+      },
+      hide: "Hide",
+      info: "Info",
       matchFound: "We found a match!",
       noOffers: "No offers found",
       accept: "Accept",
@@ -1169,6 +1318,8 @@ export const translations = {
     matchingScreen: {
       backendErrorTitle: "Error del servidor",
       backendErrorMsg: "No se pudo contactar con el servidor",
+      backendUnreachable: "Servidor no disponible",
+      noMatchesComputed: "Todavía no se ha calculado ningún match",
     },
 
     listing: {
@@ -1236,6 +1387,8 @@ export const translations = {
       imageUrl: "URL de la imagen",
       imageHint: "Añade una URL de imagen para previsualizar",
       imageLoadError: "No se puede cargar la imagen",
+      photos: "Fotos",
+      photosHint: "Añade algunas fotos reales: aumentan la confianza de quien ve el anuncio.",
 
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
@@ -1368,6 +1521,13 @@ export const translations = {
       },
     },
 
+    editListing: {
+      draftDisabled: "Borrador desactivado",
+      saveError: "No se pudieron guardar los cambios.",
+      savedTitle: "Cambios guardados",
+      savedMsg: "El anuncio se ha actualizado.",
+    },
+
     offers: {
       title: "Ofertas",
       accept: "Aceptar",
@@ -1392,6 +1552,11 @@ export const translations = {
       sentOffers: "Ofertas enviadas",
       proposePurchase: "Proponer compra",    // ES
       proposeSwap: "Proponer intercambio",   // ES
+      trains: "Trenes",
+      hotels: "Hoteles",
+      flights: "Vuelos",
+      matchAi: "AI Matching",
+      noneOne: "No se encontró ninguna propuesta para el ID seleccionado",
     },
 
     offerDetail: {
@@ -1411,6 +1576,13 @@ export const translations = {
       book: "Reservar",
     },
 
+    detail: {
+      actions: {
+        proposeBuy: "Proponer compra",
+        proposeSwap: "Proponer intercambio",
+      },
+    },
+
     offerFlow: {
       title: "Nueva oferta",
       stepDestination: "Elige destino",
@@ -1419,6 +1591,32 @@ export const translations = {
       next: "Siguiente",
       back: "Atrás",
       confirm: "Confirmar",
+
+      cantOfferOwn: "No puedes hacer una oferta a tu propio anuncio.",
+      listingNotActive: "Este anuncio no está activo.",
+      loginRequiredTitle: "Inicio de sesión requerido",
+      loginRequiredMsg: "Inicia sesión para enviar propuestas.",
+      alreadySentTitle: "Ya enviada",
+      alreadySentMsg: "Ya tienes una propuesta pendiente para este anuncio.",
+      invalidAmountTitle: "Importe no válido",
+      invalidAmountMsg: "Introduce un importe válido o déjalo vacío.",
+      selectListingTitle: "Selecciona un anuncio",
+      selectListingMsg: "Elige uno de tus anuncios para proponer en el intercambio.",
+      sentTitle: "Propuesta enviada",
+      sentMsg: "El propietario recibirá tu propuesta enseguida.",
+      canceled: "Propuesta cancelada",
+      listing: "Anuncio",
+      pendingAlready: "Ya tienes una propuesta pendiente",
+      cancelProposal: "Cancelar propuesta",
+      amountLabel: "Importe ofrecido (opcional)",
+      amountPlaceholder: "Ej. 120.00",
+      currencyLabel: "Moneda",
+      messageOptional: "Mensaje (opcional)",
+      addDetailsOrRequests: "Añade detalles o solicitudes",
+      chooseOwnListing: "Elige uno de tus anuncios",
+      noActiveListings: "No tienes anuncios activos.",
+      addDetailsForSwap: "Añade detalles para el intercambio",
+      sendProposal: "Enviar propuesta",
     },
 
     listingDetail: {
@@ -1453,12 +1651,15 @@ export const translations = {
 
     matching: {
       title: "Matching",
+      new: "Nuevo",
       pill: { new: "Nuevo" },
       legend: {
         title: "¿Qué significan 60 / 70 / 80?",
         base: "60–69 = compatibilidad básica",
         good: "70–79 = buena compatibilidad",
-        excellent: "80–100 = afinidad excelente",
+        verygood: "80–89 = afinidad alta (perfecto solo si es bidireccional)",
+        excellent: "90–100 = afinidad excelente (perfecto incluso si no es bidireccional)",
+        rule: "Un match es PERFECTO si: (bidireccional && puntuación ≥ 80) o (!bidireccional && puntuación ≥ 90). En caso contrario es COMPATIBLE.",
         long:
           "La puntuación es una estimación (0–100) calculada por TravelSwap AI combinando: preferencias e historial, alineación de precios, proximidad/ubicación, solapamiento de fechas, categoría/tipo de anuncio y señales de interés mutuo. Las “coincidencias perfectas” son bidireccionales.",
         show: "Mostrar explicación",
@@ -1470,6 +1671,8 @@ export const translations = {
         queued: "Recalculo de AI en cola…",
         running: "Recalculo de AI en curso…",
         done: "Recalculo completado ✓",
+        error: "Servidor no disponible",
+        tip: "Consejo: envía una propuesta a tus coincidencias perfectas.",
       },
       sections: {
         perfectTitle: "Coincidencias perfectas",
@@ -1482,6 +1685,14 @@ export const translations = {
       list: { empty: "Sin resultados." },
       fab: { recompute: "Recalcular AI" },
       toasts: { queued: "Recalculo de AI en cola…", done: "Recalculo completado ✓" },
+      cta: {
+        perfectOnly: "Ver solo perfectos",
+        showAll: "Ver todos",
+        sortNew: "Ordenar por novedad",
+        sortScore: "Ordenar por puntuación",
+      },
+      hide: "Ocultar",
+      info: "Info",
       matchFound: "¡Hemos encontrado un match!",
       noOffers: "No se encontraron ofertas",
       accept: "Aceptar",
