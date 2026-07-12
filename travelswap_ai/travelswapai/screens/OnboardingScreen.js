@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     elevation: 0,
   },
-  title: { fontSize: 24, fontWeight: "800", textAlign: "center", color: theme.colors.text },
+  title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 24, textAlign: "center", color: theme.colors.text },
   text: { fontSize: 16, color: theme.colors.textMuted, textAlign: "center", marginTop: 8 },
   // dots
   dotsRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 18, gap: 8 },

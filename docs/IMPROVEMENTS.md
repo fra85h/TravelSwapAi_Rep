@@ -69,7 +69,9 @@ Direzione scelta dopo confronto visivo di 3 varianti (indigo raffinato / indigo 
 - `MatchCard`: badge "💫 reciproco" passato da un blu generico all'oro (è un momento "premium" della UI, i match forti).
 - Card di Home/Offerte/Profilo: da bordo piatto grigio a ombra morbida coerente col tema (stesso ~1 riga di stile per file).
 
-Non ancora fatto (prossimi passi naturali): font custom (Sora/Plus Jakarta Sans — richiede installare `expo-font`, rimandato per non sommare un altro giro di installazione dopo quello di `expo-image-picker`), estensione dell'ombra morbida alle card rimanenti, unificazione delle 3 librerie di icone su una sola.
+- ✅ **Font custom**: caricato **Plus Jakarta Sans** (pesi 600/700/800) via `expo-font` + `@expo-google-fonts/plus-jakarta-sans`, con gate di caricamento in `App.js`. Applicato ai 4 "hero moment" più visibili: wordmark `HeaderLogo`, titoli onboarding, headline "Benvenuto" del login, titolo annuncio nel dettaglio. Il resto del testo (corpo, label, bottoni) resta sul font di sistema — coppia display+body deliberata, non un rifacimento totale.
+
+Non ancora fatto (prossimi passi naturali): estensione dell'ombra morbida alle card rimanenti, unificazione delle 3 librerie di icone su una sola, estensione del font ai titoli di sezione rimanenti.
 
 ---
 

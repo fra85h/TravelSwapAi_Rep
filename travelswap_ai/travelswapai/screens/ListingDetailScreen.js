@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   ribbon: { backgroundColor: "#22C55E", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8,
     shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
   ribbonText: { color: "#fff", fontWeight: "800", letterSpacing: 0.5, fontSize: 12 },
-  title: { fontSize: 22, fontWeight: "800" },
+  title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 22 },
   subtitle: { marginTop: 6 },
   price: { fontSize: 22, fontWeight: "800" },
   card: { marginTop: 16, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 16, padding: 14,

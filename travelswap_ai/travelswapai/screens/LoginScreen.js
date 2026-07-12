@@ -178,7 +178,7 @@ export default function LoginScreen({ navigation }) {
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: theme.colors.background }}>
       <View style={{ alignItems: "center", marginTop: 40, marginBottom: 24 }}>
-        <Text style={{ fontSize: 28, fontWeight: "800", color: theme.colors.text }}>
+        <Text style={{ fontFamily: theme.fonts.headingExtraBold, fontSize: 28, color: theme.colors.text }}>
           Benvenuto 👋
         </Text>
         <Text style={{ marginTop: 6, color: theme.colors.muted }}>
