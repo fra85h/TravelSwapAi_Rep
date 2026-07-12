@@ -23,7 +23,9 @@ import SavedScreen from './screens/SavedScreen';
 import TransactionsScreen from './screens/TransactionsScreen';
 import ManageImagesScreen from './screens/ManageImagesScreen';
 import ChainProposalsScreen from './screens/ChainProposalsScreen';
+import PreferencesOnboardingScreen from './screens/PreferencesOnboardingScreen';
 import { AuthProvider, useAuth } from './lib/auth';
+import { useNeedsPreferencesOnboarding } from './lib/preferences';
 import { I18nProvider } from './lib/i18n';
 import Constants from "expo-constants";
 import { useFonts, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans';
@@ -72,13 +74,22 @@ const linking = {
 
 function RootNavigator() {
   const { session, loading } = useAuth();
+  const { loading: prefsLoading, needsOnboarding, markDone } = useNeedsPreferencesOnboarding(session);
 
-  if (loading) {
+  if (loading || (session && prefsLoading)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator />
       </View>
     );
+  }
+
+  // Preferenze subito dopo la registrazione (D4): una volta sola per
+  // account (profiles.prefs.onboarded), non ad ogni avvio. Renderizzata
+  // fuori dal Navigator: niente route da gestire, solo un passaggio
+  // intermedio prima di entrare nell'app vera e propria.
+  if (session && needsOnboarding) {
+    return <PreferencesOnboardingScreen onDone={markDone} />;
   }
 
   return (

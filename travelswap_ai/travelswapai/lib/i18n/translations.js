@@ -126,6 +126,21 @@ export const translations = {
       canceledMsg: "Nel frattempo uno degli annunci coinvolti non è più disponibile. Nessuno ha perso nulla.",
     },
 
+    prefsOnboarding: {
+      title: "Le tue preferenze di viaggio",
+      subtitle: "Aiutaci a trovarti gli scambi giusti — puoi cambiarle quando vuoi dal profilo.",
+      typeLabel: "Cosa ti interessa di più?",
+      typeTrain: "Treno",
+      typeHotel: "Hotel",
+      maxPriceLabel: "Budget massimo indicativo (€)",
+      maxPricePlaceholder: "Es. 100",
+      locationLabel: "Città o zona preferita",
+      locationPlaceholder: "Es. Milano",
+      save: "Salva preferenze",
+      skip: "Salta per ora",
+      saveError: "Impossibile salvare le preferenze.",
+    },
+
     editProfileScreen: {
       fullNameLabel: "Nome e cognome",
       fullNamePlaceholder: "Il tuo nome",
@@ -769,6 +784,21 @@ export const translations = {
       canceledMsg: "One of the listings involved is no longer available. Nobody lost anything.",
     },
 
+    prefsOnboarding: {
+      title: "Your travel preferences",
+      subtitle: "Help us find the right swaps for you — you can change these anytime from your profile.",
+      typeLabel: "What are you most interested in?",
+      typeTrain: "Train",
+      typeHotel: "Hotel",
+      maxPriceLabel: "Rough maximum budget (€)",
+      maxPricePlaceholder: "E.g. 100",
+      locationLabel: "Preferred city or area",
+      locationPlaceholder: "E.g. Milan",
+      save: "Save preferences",
+      skip: "Skip for now",
+      saveError: "Unable to save preferences.",
+    },
+
     editProfileScreen: {
       fullNameLabel: "Full name",
       fullNamePlaceholder: "Your name",
@@ -1378,6 +1408,21 @@ export const translations = {
       completedMsg: "Los 3 habéis confirmado: el intercambio se ha realizado. También lo encontrarás en \"Mis intercambios\".",
       canceledTitle: "El intercambio no se completó",
       canceledMsg: "Mientras tanto, uno de los anuncios implicados ya no está disponible. Nadie ha perdido nada.",
+    },
+
+    prefsOnboarding: {
+      title: "Tus preferencias de viaje",
+      subtitle: "Ayúdanos a encontrarte los intercambios adecuados — puedes cambiarlas cuando quieras desde el perfil.",
+      typeLabel: "¿Qué te interesa más?",
+      typeTrain: "Tren",
+      typeHotel: "Hotel",
+      maxPriceLabel: "Presupuesto máximo indicativo (€)",
+      maxPricePlaceholder: "Ej. 100",
+      locationLabel: "Ciudad o zona preferida",
+      locationPlaceholder: "Ej. Milán",
+      save: "Guardar preferencias",
+      skip: "Saltar por ahora",
+      saveError: "No se pudieron guardar las preferencias.",
     },
 
     editProfileScreen: {
