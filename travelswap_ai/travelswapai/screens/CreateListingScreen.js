@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AntDesign } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { insertListing, updateListing, getListingById } from "../lib/db";
+import { insertListing, updateListing, getListingById, getListingSecret } from "../lib/db";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
@@ -506,6 +506,8 @@ const initialJsonRef = useRef(null);
       try {
         if (mode === "edit" && route?.params?.listingId && typeof getListingById === "function") {
           const l = await getListingById(route.params.listingId);
+          // il PNR non è in listings: si legge dal segreto (solo owner)
+          const secretPnr = await getListingSecret(route.params.listingId).catch(() => null);
           if (!cancelled && l) {
             setForm((prev) => ({
               ...prev,
@@ -519,6 +521,7 @@ const initialJsonRef = useRef(null);
               checkOut: l.check_out || "",
               departAt: l.depart_at || "",
               arriveAt: l.arrive_at || "",
+              pnr: secretPnr ?? prev.pnr ?? "",
             }));
           }
           return;
@@ -961,7 +964,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
-        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt };
+        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt, pnr: form.pnr || null };
 
       if (mode === "edit") {
         const res = await updateListing(idForUpdate, payload);

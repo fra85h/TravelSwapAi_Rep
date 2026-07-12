@@ -15,9 +15,9 @@ Ordinato per rapporto **valore / sforzo**. Le voci ✅ sono già state applicate
 
 ## B. Bug / gap funzionali da chiudere (priorità alta)
 
-### B1. Il PNR non viene salvato
-Il form di creazione annuncio raccoglie il PNR (e in alcuni casi lo richiede come obbligatorio), ma `insertListing` non lo persiste da nessuna parte: la colonna è stata rimossa da `listings` (giustamente, era un leak) e l'app non scrive in `listing_secrets`.
-**Fix proposto:** dopo l'insert del listing, salvare il PNR in `listing_secrets` (le policy RLS per l'owner esistono già). In alternativa, instradare la creazione annuncio tramite il server (che usa la service role). Da decidere insieme.
+### B1. Il PNR non viene salvato — ✅ FATTO
+Il form raccoglieva il PNR ma non lo passava mai al salvataggio, e la colonna era stata rimossa da `listings`.
+Implementato: `insertListing`/`updateListing` salvano ora il PNR in `listing_secrets` (helper `savePnrSecret`, policy RLS "own secrets" già presente); in modifica il PNR viene riletto con `getListingSecret`. Corretto anche un potenziale crash: `updateListing` estrae `pnr` dal patch, evitando di scriverlo sulla colonna inesistente.
 
 ### B2. Login Google via proxy deprecato
 Il redirect usa `auth.expo.io` (proxy Expo dismesso) → il login non si completa. **Fix definitivo:** redirect basato sullo scheme dell'app (`travelswap://auth/callback`) tramite una **development build**, dove diventa stabile. (già in agenda con te)
