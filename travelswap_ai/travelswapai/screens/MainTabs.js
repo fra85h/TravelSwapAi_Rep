@@ -54,9 +54,9 @@ export default function MainTabs() {
           name="Matching"
           component={MatchingScreen}
           options={{
-            tabBarLabel: t("matching.title", "Matching"),
+            tabBarLabel: t("matching.tabLabel", "Per te"),
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? "search" : "search-outline"} color={color} size={size} />
+              <Ionicons name={focused ? "sparkles" : "sparkles-outline"} color={color} size={size} />
             ),
           }}
         />

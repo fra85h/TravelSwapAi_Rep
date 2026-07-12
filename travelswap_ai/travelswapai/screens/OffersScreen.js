@@ -173,7 +173,7 @@ export default function OffersScreen() {
   if (error) {
     return (
       <View style={s.center}>
-        <Text style={{ color: "#B91C1C", marginBottom: 12 }}>{error}</Text>
+        <Text style={{ color: theme.colors.danger, marginBottom: 12 }}>{error}</Text>
         <TouchableOpacity style={s.btnOutline} onPress={load}>
           <Text style={s.btnOutlineTxt}>{t("common.retry", "Riprova")}</Text>
         </TouchableOpacity>
@@ -206,7 +206,7 @@ export default function OffersScreen() {
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         ListEmptyComponent={
           <View style={{ paddingVertical: 32, alignItems: "center" }}>
-            <Text style={{ color: "#6B7280" }}>{t("offers.none", "Nessuna proposta")}</Text>
+            <Text style={{ color: theme.colors.textMuted }}>{t("offers.none", "Nessuna proposta")}</Text>
           </View>
         }
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -216,22 +216,22 @@ export default function OffersScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  screenTitle: { fontSize: 20, fontWeight: "800", marginBottom: 12 },
+  container: { flex: 1, backgroundColor: theme.colors.background, padding: 16 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
+  screenTitle: { fontSize: 20, fontWeight: "800", color: theme.colors.text, marginBottom: 12 },
   segmWrap: { flexDirection: "row", gap: 8, marginBottom: 12 },
-  segmBtn: { flex: 1, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 999, paddingVertical: 10, alignItems: "center" },
-  segmActive: { backgroundColor: theme.colors.primary, borderColor: "#111827" },
-  segmTxt: { fontWeight: "800", color: theme.colors.boardingText },
+  segmBtn: { flex: 1, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: 999, paddingVertical: 10, alignItems: "center" },
+  segmActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.text },
+  segmTxt: { fontWeight: "800", color: theme.colors.textMuted },
   segmTxtActive: { color: theme.colors.boardingText },
   card: {
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
     padding: 14, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
-  title: { fontWeight: "800" },
-  sub: { color: "#6B7280", marginTop: 4 },
-  meta: { color: "#111827", marginTop: 4, fontWeight: "600" },
-  msg: { marginTop: 8 },
+  title: { fontWeight: "800", color: theme.colors.text },
+  sub: { color: theme.colors.textMuted, marginTop: 4 },
+  meta: { color: theme.colors.text, marginTop: 4, fontWeight: "600" },
+  msg: { marginTop: 8, color: theme.colors.text },
   row: { flexDirection: "row", gap: 10, marginTop: 12, alignItems: "center" },
   btn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, alignItems: "center" },
   accept: { backgroundColor: "#DCFCE7" },
@@ -239,8 +239,8 @@ const s = StyleSheet.create({
   decline: { backgroundColor: "#FEE2E2" },
   declineTxt: { color: "#991B1B", fontWeight: "800" },
   btnDisabled: { opacity: 0.6 },
-  btnOutline: { borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
-  btnOutlineTxt: { fontWeight: "700", color: "#111827" },
-  badge: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: "#F3F4F6", borderRadius: 999 },
-  badgeTxt: { fontWeight: "700", color: "#374151" },
+  btnOutline: { borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10 },
+  btnOutlineTxt: { fontWeight: "700", color: theme.colors.text },
+  badge: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: theme.colors.surfaceMuted, borderRadius: 999 },
+  badgeTxt: { fontWeight: "700", color: theme.colors.textMuted },
 });
