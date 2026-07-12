@@ -17,11 +17,11 @@ export default function OfferCTAs({ listing, me }) {
 
   const onPurchase = () => {
     // TODO: collega al tuo flow acquisto
-    console.log("propose purchase", listing?.id);
+    if (__DEV__) console.log("propose purchase", listing?.id);
   };
   const onSwap = () => {
     // TODO: collega al tuo flow scambio
-    console.log("propose swap", listing?.id);
+    if (__DEV__) console.log("propose swap", listing?.id);
   };
 
   return (

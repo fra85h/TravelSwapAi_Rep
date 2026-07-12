@@ -25,23 +25,20 @@ export default function OAuthCallbackScreen({ navigation }) {
 
     const tryExchange = async (url) => {
       if (!url) return false;
-      console.log("[OAuthCallback] raw url:", url);
+      // url contiene il code PKCE: lo logghiamo solo in dev
+      if (__DEV__) console.log("[OAuthCallback] raw url:", url);
 
-      if (!hasAuthParams(url)) {
-        console.log("[OAuthCallback] URL senza ?code o code_verifier → skip");
-        return false;
-      }
+      if (!hasAuthParams(url)) return false;
 
       try {
         const { data, error } = await supabase.auth.exchangeCodeForSession(url);
         if (error) {
-          console.log("[OAuthCallback] exchange error:", error.message || String(error));
+          console.error("[OAuthCallback] exchange error:", error.message || String(error));
           return false;
         }
-        console.log("[OAuthCallback] session:", !!data?.session);
         return !!data?.session;
       } catch (e) {
-        console.log("[OAuthCallback] exception:", e);
+        console.error("[OAuthCallback] exception:", e);
         return false;
       }
     };
@@ -62,7 +59,6 @@ export default function OAuthCallbackScreen({ navigation }) {
 
       // 1) prova con l'URL di lancio
       const initialUrl = await Linking.getInitialURL();
-      console.log("[OAuthCallback] initialUrl:", initialUrl);
       if (await tryExchange(initialUrl)) {
         if (await finishIfSession()) return;
       }

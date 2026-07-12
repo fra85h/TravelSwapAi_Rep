@@ -8,8 +8,10 @@ import { useRoute, useNavigation, useFocusEffect } from "@react-navigation/nativ
 import * as ImagePicker from "expo-image-picker";
 import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 import { theme } from "../lib/theme";
+import { useI18n } from "../lib/i18n";
 
 export default function ManageImagesScreen() {
+  const { t } = useI18n();
   const route = useRoute();
   const navigation = useNavigation();
   const listingId = route.params?.listingId ?? route.params?.id;
@@ -35,7 +37,7 @@ export default function ManageImagesScreen() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Permesso negato", "Consenti l'accesso alle foto per aggiungere immagini.");
+        Alert.alert(t("manageImages.permissionDeniedTitle", "Permesso negato"), t("manageImages.permissionDeniedMsg", "Consenti l'accesso alle foto per aggiungere immagini."));
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -54,23 +56,23 @@ export default function ManageImagesScreen() {
         try {
           await uploadImage(listingId, a, pos++);
         } catch (e) {
-          console.log("[ManageImages] upload error:", e?.message || e);
-          Alert.alert("Errore caricamento", e?.message || "Impossibile caricare una foto.");
+          if (__DEV__) console.log("[ManageImages] upload error:", e?.message || e);
+          Alert.alert(t("manageImages.uploadErrorTitle", "Errore caricamento"), e?.message || t("manageImages.uploadErrorGeneric", "Impossibile caricare una foto."));
         }
       }
       await load();
     } catch (e) {
-      Alert.alert("Errore", e?.message || "Operazione non riuscita.");
+      Alert.alert(t("manageImages.genericErrorTitle", "Errore"), e?.message || t("manageImages.genericErrorMsg", "Operazione non riuscita."));
     } finally {
       setBusy(false);
     }
   };
 
   const onDelete = (img) => {
-    Alert.alert("Rimuovi foto", "Vuoi eliminare questa foto?", [
-      { text: "Annulla", style: "cancel" },
+    Alert.alert(t("manageImages.removePhotoTitle", "Rimuovi foto"), t("manageImages.removePhotoConfirm", "Vuoi eliminare questa foto?"), [
+      { text: t("common.cancel", "Annulla"), style: "cancel" },
       {
-        text: "Elimina",
+        text: t("common.delete", "Elimina"),
         style: "destructive",
         onPress: async () => {
           setBusy(true);
@@ -78,7 +80,7 @@ export default function ManageImagesScreen() {
             await deleteImage(img.id, img.url);
             await load();
           } catch (e) {
-            Alert.alert("Errore", e?.message || "Impossibile eliminare.");
+            Alert.alert(t("manageImages.genericErrorTitle", "Errore"), e?.message || t("manageImages.deleteErrorMsg", "Impossibile eliminare."));
           } finally {
             setBusy(false);
           }
@@ -90,7 +92,7 @@ export default function ManageImagesScreen() {
   if (!listingId) {
     return (
       <View style={styles.center}>
-        <Text style={{ color: theme.colors.textMuted }}>Annuncio non specificato.</Text>
+        <Text style={{ color: theme.colors.textMuted }}>{t("manageImages.missingListing", "Annuncio non specificato.")}</Text>
       </View>
     );
   }
@@ -107,13 +109,13 @@ export default function ManageImagesScreen() {
             {busy ? (
               <ActivityIndicator color={theme.colors.accent} />
             ) : (
-              <Text style={styles.addText}>＋ Aggiungi foto</Text>
+              <Text style={styles.addText}>{t("manageImages.addPhoto", "＋ Aggiungi foto")}</Text>
             )}
           </TouchableOpacity>
         }
         ListEmptyComponent={
           !loading ? (
-            <Text style={styles.empty}>Nessuna foto. Tocca “Aggiungi foto” per caricarne.</Text>
+            <Text style={styles.empty}>{t("manageImages.emptyText", "Nessuna foto. Tocca “Aggiungi foto” per caricarne.")}</Text>
           ) : null
         }
         renderItem={({ item }) => (
