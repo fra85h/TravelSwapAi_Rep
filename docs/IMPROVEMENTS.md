@@ -57,7 +57,7 @@ Con `expo-notifications`: avvisa l'utente quando arriva una nuova offerta o un n
 ### D2. Chat in-app per le offerte
 Oggi si può fare un'offerta ma non trattare. Una chat leggera per ogni offerta (tabella `messages` da aggiungere) sbloccherebbe la negoziazione e ridurrebbe gli scambi "fuori piattaforma" (che le euristiche antifrode già segnalano come rischio).
 
-### D0. Swap a catena + normalizzazione AI — 🚧 FASE 2 FATTA (schema + motore di ricerca)
+### D0. Swap a catena + normalizzazione AI — 🚧 FASE 3 FATTA (schema + motore + spiegazione)
 Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching reciproco diretto di oggi intercetta solo ~0,3% degli utenti; catene multi-parte da sole non cambiano nulla (~0,3% anche loro); **solo la combinazione catena + normalizzazione AI (tolleranza data/area) sblocca ~92%**. Deciso con te: catene di **esattamente 3** utenti, chiusura solo quando **tutti e 3 confermano esplicitamente** (nessuna esecuzione automatica).
 
 **Fase 1** (schema + funzioni, validata su Postgres locale con scenario felice/rifiuto/race-condition/permessi):
@@ -75,10 +75,16 @@ Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching r
 - ⚠️ Non testato end-to-end contro un vero progetto Supabase/OpenAI in questa sessione (nessuno dei due disponibile nell'ambiente): la logica pura (ricerca cicli, punteggio euristico) è coperta da test automatici in CI; le query Supabase sono scritte solo con pattern già usati altrove nel codebase (niente sintassi nuova non verificabile) proprio per questo motivo.
 - Bug preesistente scoperto per caso durante lo smoke test (non introdotto da questa modifica): `server/src/services/trust/aiTrust.js` fa crashare **l'intero server** all'avvio se manca `OPENAI_API_KEY` (chiama `new OpenAI(...)` senza controllare la chiave, a differenza di `ai/score.js` che lo fa correttamente). Segnalato, non ancora corretto.
 
+**Fase 3** (spiegazione in linguaggio naturale, `server/src/ai/chainExplain.js`):
+- Colonna `chain_proposals.explanation` (nuova migrazione), riempita subito dopo la creazione della proposta — non a ogni visualizzazione.
+- Stesso pattern di resilienza delle altre due fasi AI: **AI primaria** (prompt dedicato, max 3 frasi, non nomina mai persone reali) **con fallback a un template deterministico sempre disponibile** se la chiave manca o la chiamata fallisce — una spiegazione mancante non è mai motivo per bloccare la creazione della catena (se il salvataggio della spiegazione fallisce, la catena resta comunque valida, solo senza testo).
+- Il template deterministico descrive meccanicamente i 3 passaggi ("chi dà X riceve Y, chi dà Y riceve Z, chi dà Z riceve X") usando le tratte/città e le date, senza mai esporre nomi utente prima che la catena sia confermata.
+- 5 test unitari nuovi sul template (route treno, città hotel, nessun nome esposto, input malformato, data mancante).
+
 **Non ancora fatto** (prossimi passi):
-- Fase 3: spiegazione della catena in linguaggio naturale (AI) da mostrare all'utente.
-- Fase 4: UI per vedere/confermare/rifiutare una proposta di catena.
-- Applicare la migrazione fase 1 sul progetto Supabase reale (se non ancora fatto) e configurare `CHAIN_CRON_SECRET` + un trigger periodico (cron esterno o Render) per `/api/chains/recompute` e per `expire_old_chain_proposals()`.
+- Fase 4: UI per vedere/confermare/rifiutare una proposta di catena (userà anche `chain_proposals.explanation`).
+- La spiegazione è generata solo in italiano per ora (come le altre feature AI esistenti, non localizzate) — da rivedere se serve multilingua.
+- Applicare le migrazioni fase 1 e fase 3 sul progetto Supabase reale (se non ancora fatto) e configurare `CHAIN_CRON_SECRET` + `OPENAI_API_KEY` + un trigger periodico (cron esterno o Render) per `/api/chains/recompute` e per `expire_old_chain_proposals()`.
 
 ### D3. Avvisi di ricerca ("price/route alert")
 "Avvisami quando compare un treno Roma→Milano sotto 40€". Sfrutta il motore di matching che c'è già, girato al contrario. Ottima retention.
