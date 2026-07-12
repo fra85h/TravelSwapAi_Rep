@@ -6,18 +6,20 @@ import { theme } from "../lib/theme";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase";
+import { useI18n } from "../lib/i18n";
 
 const makeRedirectUrl = () => {
   return Linking.createURL("/auth/reset", { scheme: "travelswap" });
 };
 
 export default function ForgotPasswordScreen({ navigation }) {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
 
   const sendReset = async () => {
     if (!email) {
-      Alert.alert("Email richiesta", "Inserisci la tua email.");
+      Alert.alert(t("auth.needEmail", "Email richiesta"), t("auth.enterEmailForReset", "Inserisci la tua email."));
       return;
     }
     try {
@@ -26,13 +28,10 @@ export default function ForgotPasswordScreen({ navigation }) {
         redirectTo: makeRedirectUrl(),
       });
       if (error) throw error;
-      Alert.alert(
-        "Controlla la tua email",
-        "Ti abbiamo inviato un link per reimpostare la password."
-      );
+      Alert.alert(t("auth.emailSent", "Controlla la tua email"), t("auth.checkResetLink", "Ti abbiamo inviato un link per reimpostare la password."));
       navigation.goBack();
     } catch (err) {
-      Alert.alert("Errore", err.message ?? String(err));
+      Alert.alert(t("auth.resetError", "Errore"), err.message ?? String(err));
     } finally {
       setLoading(false);
     }
@@ -40,18 +39,18 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: theme.colors.background }}>
-      <Text style={{ fontSize: 22, fontWeight: "800", color: theme.colors.text, marginBottom: 16 }}>
-        Password dimenticata
+      <Text style={{ fontFamily: theme.fonts.headingExtraBold, fontSize: 22, color: theme.colors.text, marginBottom: 16 }}>
+        {t("auth.forgot", "Password dimenticata")}
       </Text>
       <Input
-        label="Email"
-        placeholder="nome@dominio.it"
+        label={t("auth.email", "Email")}
+        placeholder={t("auth.emailPlaceholder", "nome@dominio.it")}
         keyboardType="email-address"
         autoCapitalize="none"
         value={email}
         onChangeText={setEmail}
       />
-      <Button title="Invia link di reset" onPress={sendReset} loading={loading} />
+      <Button title={t("auth.sendResetLink", "Invia link di reset")} onPress={sendReset} loading={loading} />
     </View>
   );
 }

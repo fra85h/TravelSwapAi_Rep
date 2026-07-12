@@ -373,6 +373,14 @@ export const translations = {
         "Controlla la tua casella per il link di reset.",
       resetError: "Errore reset",
       oauthFailed: "OAuth fallito",
+      welcomeTitle: "Benvenuto 👋",
+      welcomeSubtitle: "Accedi per continuare",
+      emailPlaceholder: "nome@dominio.it",
+      signup: "Registrati",
+      or: "oppure",
+      passwordTooShortTitle: "Password troppo corta",
+      passwordTooShortMsg: "Usa almeno 6 caratteri.",
+      sendResetLink: "Invia link di reset",
     },
 
     onboarding: {
@@ -808,6 +816,14 @@ export const translations = {
         "Check your inbox for the reset link.",
       resetError: "Reset error",
       oauthFailed: "OAuth failed",
+      welcomeTitle: "Welcome 👋",
+      welcomeSubtitle: "Sign in to continue",
+      emailPlaceholder: "name@domain.com",
+      signup: "Sign up",
+      or: "or",
+      passwordTooShortTitle: "Password too short",
+      passwordTooShortMsg: "Use at least 6 characters.",
+      sendResetLink: "Send reset link",
     },
 
     onboarding: {
@@ -1249,6 +1265,14 @@ export const translations = {
         "Revisa tu bandeja por el enlace de restablecimiento.",
       resetError: "Error de restablecimiento",
       oauthFailed: "OAuth fallido",
+      welcomeTitle: "Bienvenido 👋",
+      welcomeSubtitle: "Inicia sesión para continuar",
+      emailPlaceholder: "nombre@dominio.com",
+      signup: "Registrarse",
+      or: "o",
+      passwordTooShortTitle: "Contraseña demasiado corta",
+      passwordTooShortMsg: "Usa al menos 6 caracteres.",
+      sendResetLink: "Enviar enlace de restablecimiento",
     },
 
     onboarding: {
