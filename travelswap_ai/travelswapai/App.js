@@ -20,6 +20,7 @@ import EditProfileScreen from './screens/EditProfileScreen';
 import OfferDetailScreen from './screens/OfferDetailScreen';
 import ListingDetailScreen from './screens/ListingDetailScreen';
 import SavedScreen from './screens/SavedScreen';
+import ManageImagesScreen from './screens/ManageImagesScreen';
 import { AuthProvider, useAuth } from './lib/auth';
 import { I18nProvider } from './lib/i18n';
 import Constants from "expo-constants";
@@ -105,6 +106,7 @@ function RootNavigator() {
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Listing" }} />
           <Stack.Screen name="OfferDetail" component={OfferDetailScreen} options={{ title: "Offer" }} />
           <Stack.Screen name="Saved" component={SavedScreen} options={{ title: "Preferiti" }} />
+          <Stack.Screen name="ManageImages" component={ManageImagesScreen} options={{ title: "Foto annuncio" }} />
         </>
       ) : (
         <>

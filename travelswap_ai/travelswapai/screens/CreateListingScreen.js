@@ -20,9 +20,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useI18n } from "../lib/i18n";
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
 import DateField from "../components/DateField";
 import DateTimeField from "../components/DateTimeField";
 import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI parser (server-side)
+import { Image } from "react-native";
+import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
@@ -602,6 +605,102 @@ const initialJsonRef = useRef(null);
   const [qrVisible, setQrVisible] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
+  /* ---------- FOTO ANNUNCIO ---------- */
+  // in creazione: foto scelte ma non ancora caricate (nessun listing su cui appoggiarle)
+  const [pendingPhotos, setPendingPhotos] = useState([]); // [{ uri, base64, mimeType, fileName }]
+  // in modifica: foto già salvate su listing_images
+  const [existingPhotos, setExistingPhotos] = useState([]); // [{ id, url }]
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  const editListingId = mode === "edit" ? (passedListing?.id || listingId) : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!editListingId) return;
+    listImages(editListingId).then((imgs) => {
+      if (!cancelled) setExistingPhotos(imgs || []);
+    });
+    return () => { cancelled = true; };
+  }, [editListingId]);
+
+  const pickPhotos = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(t("common.error", "Permesso negato"), "Consenti l'accesso alle foto per aggiungerne.");
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: 6,
+        quality: 0.7,
+        base64: true,
+      });
+      if (res.canceled) return;
+      const assets = res.assets || [];
+
+      if (editListingId) {
+        // annuncio già esistente: carica subito
+        setPhotoBusy(true);
+        let pos = existingPhotos.length;
+        for (const a of assets) {
+          try {
+            const row = await uploadImage(editListingId, a, pos++);
+            setExistingPhotos((prev) => [...prev, row]);
+          } catch (e) {
+            Alert.alert("Errore caricamento", e?.message || "Impossibile caricare una foto.");
+          }
+        }
+        setPhotoBusy(false);
+      } else {
+        // annuncio non ancora creato: tieni in sospeso, carica dopo la pubblicazione
+        setPendingPhotos((prev) => [...prev, ...assets]);
+      }
+    } catch (e) {
+      Alert.alert(t("common.error", "Errore"), e?.message || "Impossibile selezionare le foto.");
+    }
+  };
+
+  const removePendingPhoto = (idx) => {
+    setPendingPhotos((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const removeExistingPhoto = (img) => {
+    Alert.alert("Rimuovi foto", "Vuoi eliminare questa foto?", [
+      { text: t("common.cancel", "Annulla"), style: "cancel" },
+      {
+        text: t("common.delete", "Elimina"),
+        style: "destructive",
+        onPress: async () => {
+          setPhotoBusy(true);
+          try {
+            await deleteImage(img.id, img.url);
+            setExistingPhotos((prev) => prev.filter((p) => p.id !== img.id));
+          } catch (e) {
+            Alert.alert(t("common.error", "Errore"), e?.message || "Impossibile eliminare.");
+          } finally {
+            setPhotoBusy(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  /** Carica le foto rimaste in sospeso su un annuncio appena creato */
+  const flushPendingPhotos = async (newListingId) => {
+    if (!newListingId || pendingPhotos.length === 0) return;
+    let pos = 0;
+    for (const a of pendingPhotos) {
+      try {
+        await uploadImage(newListingId, a, pos++);
+      } catch (e) {
+        console.log("[flushPendingPhotos] upload error:", e?.message || e);
+      }
+    }
+    setPendingPhotos([]);
+  };
+
   const logStep = useCallback((msg, pct) => {
     setMicroLog((prev) => [...prev, msg]);
     if (typeof pct === "number") setProgress((p) => Math.max(p, Math.min(100, pct)));
@@ -979,11 +1078,13 @@ if ((patch.type || form.type) === "train" && routeStr) {
           const r2 = await insertListing(p2);
           if (r1?.error) throw r1.error;
           if (r2?.error) throw r2.error;
+          await flushPendingPhotos(r1?.id); // le foto vanno solo sul primo dei due annunci
           await AsyncStorage.removeItem(DRAFT_KEY);
           Alert.alert('Pubblicati 2 annunci', 'Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito.');
         } else {
           const res = await insertListing(payload);
           if (res?.error) throw res.error;
+          await flushPendingPhotos(res?.id);
           await AsyncStorage.removeItem(DRAFT_KEY);
           Alert.alert(t("createListing.publishedTitle", "Pubblicato!"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
         }
@@ -1279,6 +1380,49 @@ if ((patch.type || form.type) === "train" && routeStr) {
                     placeholderTextColor="#9CA3AF"
                   />
                   {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+
+                  {/* Foto */}
+                  <Text style={styles.label}>{t("createListing.photos", "Foto")}</Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
+                    {existingPhotos.map((img) => (
+                      <View key={img.id} style={{ width: 72, height: 72 }}>
+                        <Image source={{ uri: img.url }} style={{ width: 72, height: 72, borderRadius: 10 }} />
+                        <TouchableOpacity
+                          onPress={() => removeExistingPhoto(img)}
+                          style={styles.photoRemoveBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={styles.photoRemoveText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    {pendingPhotos.map((a, idx) => (
+                      <View key={`${a.uri}-${idx}`} style={{ width: 72, height: 72 }}>
+                        <Image source={{ uri: a.uri }} style={{ width: 72, height: 72, borderRadius: 10 }} />
+                        <TouchableOpacity
+                          onPress={() => removePendingPhoto(idx)}
+                          style={styles.photoRemoveBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={styles.photoRemoveText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      onPress={pickPhotos}
+                      disabled={photoBusy}
+                      style={styles.photoAddBtn}
+                    >
+                      {photoBusy ? (
+                        <ActivityIndicator />
+                      ) : (
+                        <Text style={{ fontSize: 24, color: theme.colors.boardingText || "#111827" }}>＋</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.note}>
+                    {t("createListing.photosHint", "Aggiungi fino a qualche foto reale: aumentano la fiducia di chi guarda l'annuncio.")}
+                  </Text>
 
                   {/* Località / Rotta */}
                   {form?.type === "train" ? (
@@ -1671,6 +1815,15 @@ const styles = StyleSheet.create({
   inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
   errorText: { color: "#B91C1C", marginTop: 4 },
   note: { fontSize: 12, lineHeight: 16, color: "#6B7280", marginTop: 6 },
+  photoAddBtn: {
+    width: 72, height: 72, borderRadius: 10, borderWidth: 1, borderStyle: "dashed",
+    borderColor: "#9CA3AF", alignItems: "center", justifyContent: "center",
+  },
+  photoRemoveBtn: {
+    position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center",
+  },
+  photoRemoveText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   multiline: { minHeight: 96 },
   segment: { flexDirection: "row", gap: 8 },
   segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
