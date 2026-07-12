@@ -26,18 +26,29 @@ export default function Button({
   };
 
   const variants = {
-    primary: { backgroundColor: theme.colors.primary },
+    // Accento oro: riservato al CTA principale, coerente con la moneta
+    // dell'onboarding e col concetto di scambio di valore dell'app.
+    primary: { backgroundColor: theme.colors.accent },
     secondary: { backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border },
-    outline: { backgroundColor: "transparent", borderWidth: 1, borderColor: theme.colors.primary },
+    outline: { backgroundColor: "transparent", borderWidth: 1.4, borderColor: theme.colors.accent },
     subtle: { backgroundColor: "transparent" },
   };
 
   const textVar = {
-    primary: { color: theme.colors.boardingText, fontWeight: "800" },
+    // Testo indigo sopra il riempimento oro: l'oro non va mai usato come
+    // colore di testo (contrasto insufficiente su sfondo chiaro).
+    primary: { color: theme.colors.accentOn, fontWeight: "800" },
     secondary: { color: theme.colors.text, fontWeight: "800" },
-    outline: { color: theme.colors.primary, fontWeight: "800" },
+    outline: { color: theme.colors.text, fontWeight: "800" },
     subtle: { color: theme.colors.text, fontWeight: "700" },
   };
+
+  // Ombra leggermente dorata sotto il CTA principale: dà "peso" al pulsante
+  // più importante della schermata invece di una generica ombra neutra.
+  const shadowVar =
+    variant === "primary"
+      ? { ...theme.shadow.md, shadowColor: theme.colors.accent, shadowOpacity: 0.35 }
+      : theme.shadow.sm;
 
   const handle = () => {
     if (disabled || loading) return;
@@ -48,12 +59,19 @@ export default function Button({
   return (
     <Pressable
       onPress={handle}
-      style={[base, variants[variant], theme.shadow.sm, disabled && { opacity: 0.6 }, style]}
+      style={({ pressed }) => [
+        base,
+        variants[variant],
+        shadowVar,
+        disabled && { opacity: 0.6 },
+        pressed && !disabled && !loading && { opacity: 0.88 },
+        style,
+      ]}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         {leftIcon || null}
         {loading ? (
-          <ActivityIndicator color={variant === "primary" ? "#fff" : theme.colors.text} />
+          <ActivityIndicator color={variant === "primary" ? theme.colors.accentOn : theme.colors.text} />
         ) : (
           <Text style={[textVar[variant], textStyle]}>{title}</Text>
         )}

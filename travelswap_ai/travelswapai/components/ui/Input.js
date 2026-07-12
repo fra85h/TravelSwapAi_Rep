@@ -14,8 +14,8 @@ export default function Input({ label, error, style, inputStyle, ...props }) {
       <View
         style={[
           {
-            borderWidth: 1,
-            borderColor: focused ? theme.colors.text : theme.colors.border,
+            borderWidth: focused ? 1.4 : 1,
+            borderColor: focused ? theme.colors.accent : theme.colors.border,
             backgroundColor: theme.colors.surface,
             borderRadius: theme.radius.lg,
             paddingHorizontal: 12,

@@ -31,14 +31,18 @@ export default function MatchCard({ item, onPress }) {
 }
 
 const s = StyleSheet.create({
-  card:{ borderWidth:1, borderColor:"#E5E7EB", borderRadius:12, padding:12, backgroundColor:"#fff" },
+  card:{
+    borderWidth:1, borderColor:theme.colors.border, borderRadius:theme.radius.lg,
+    padding:14, backgroundColor:theme.colors.surface, ...theme.shadow.sm,
+  },
   topRow:{ flexDirection:"row", alignItems:"center", justifyContent:"space-between" },
-  title:{ fontWeight:"800", flex:1, marginRight:8 },
-  sub:{ color:"#6B7280", marginTop:4 },
-  meta:{ color:"#111827", marginTop:6, fontWeight:"700" },
-  expl:{ color:"#374151", marginTop:8 },
+  title:{ fontWeight:"800", flex:1, marginRight:8, color: theme.colors.text },
+  sub:{ color:theme.colors.textMuted, marginTop:4 },
+  meta:{ color:theme.colors.text, marginTop:6, fontWeight:"700" },
+  expl:{ color:theme.colors.textMuted, marginTop:8 },
   bottomRow:{ flexDirection:"row", justifyContent:"space-between", marginTop:8 },
-  small:{ fontSize:12, color:"#6B7280" },
-  badge:{ paddingHorizontal:8, paddingVertical:2, borderRadius:999, backgroundColor:"#EAF7FF", borderWidth:1, borderColor:"#BAE6FD" },
-  badgeTxt:{ fontSize:12, color:"#0369A1", fontWeight:"700" },
+  small:{ fontSize:12, color:theme.colors.textMuted },
+  // badge oro per il match reciproco: un momento "premium" della UI, non un blu generico
+  badge:{ paddingHorizontal:8, paddingVertical:2, borderRadius:999, backgroundColor:theme.colors.accentSoft, borderWidth:1, borderColor:theme.colors.accent },
+  badgeTxt:{ fontSize:12, color:theme.colors.accentOn, fontWeight:"700" },
 });

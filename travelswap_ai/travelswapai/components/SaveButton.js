@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { isSaved, toggleSaved } from "../lib/savedListings";
 import { theme } from "../lib/theme";
 
-const SAVED_COLOR = "#f5a623";
+const SAVED_COLOR = theme.colors.accent;
 
 /**
  * @param {string} listingId
