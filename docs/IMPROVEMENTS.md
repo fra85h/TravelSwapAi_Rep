@@ -36,8 +36,16 @@ Implementato: `lib/listingImages.js` (upload su Supabase Storage + CRUD `listing
 Aggiunto anche il selettore foto **direttamente nel form di creazione/modifica annuncio** (`CreateListingScreen`, sezione "Foto" sotto il titolo): in creazione le foto restano in sospeso e vengono caricate dopo la pubblicazione (appena esiste l'id dell'annuncio); in modifica si caricano/eliminano subito.
 Prerequisiti d'attivazione: eseguire `supabase/storage_setup.sql` (bucket `listing-images` + policy) e installare `expo-image-picker` + `base64-arraybuffer`.
 
-### C3. Storico transazioni — `transactions`
-Tabella pronta ma nessuna UI. Serve: sezione "I miei scambi/acquisti" nel profilo. Utile per fiducia e ricomprensione dello stato.
+### C3. Storico transazioni — `transactions` — ✅ FATTO
+Implementato: `lib/transactions.js` (lettura con join sull'annuncio), `screens/TransactionsScreen.js` (lista con badge Venduto/Ricevuto), accesso "🧾 I miei scambi" dal Profilo, tradotto it/en/es.
+
+**Scoperta importante**: nessuna funzione scriveva mai in `transactions` — modificata `accept_offer_any()` (unica funzione di accettazione usata dall'app) per registrare 1 riga per un buy, 2 righe per uno swap (una per ciascun annuncio che cambia proprietario), in modo atomico con l'accettazione stessa.
+
+**⚠️ Bug critici preesistenti trovati testando in locale, indipendenti dalla feature**: accettare/rifiutare/cancellare **qualsiasi** offerta falliva sempre in produzione, per due cause distinte:
+1. `_norm()` veniva chiamata su `offers.status` (un ENUM) come se fosse testo — Postgres non fa il cast implicito. Rotto in 4 funzioni/trigger.
+2. L'enum `listing_status` non conteneva `pending`/`reserved`/`swapped`, valori impostati attivamente da `accept_offer_any()`.
+
+Entrambi corretti con migrazioni dedicate, validate con un test end-to-end reale (due utenti simulati, scenario buy e swap) applicato **nell'ordine esatto dei nomi file** di produzione. Vedi `supabase/README.md` — vanno applicate sul progetto Supabase reale.
 
 ---
 

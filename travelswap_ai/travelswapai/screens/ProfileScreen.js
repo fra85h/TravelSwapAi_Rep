@@ -332,6 +332,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={[styles.editBtn, { marginTop: 8 }]}
+              onPress={() => {
+                navigation.navigate?.("Transactions");
+                navigation.getParent?.()?.navigate?.("Transactions");
+              }}
+            >
+              <Text style={styles.editBtnText}>🧾 {t("profile.myTransactions", "I miei scambi")}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.editBtn, { marginTop: 8, backgroundColor: theme.colors.primary, borderColor: "#111827" }]}
               onPress={handleLogout}
             >

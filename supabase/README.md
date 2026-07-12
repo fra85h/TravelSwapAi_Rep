@@ -6,8 +6,13 @@ Lo schema del database vive in `migrations/`, in ordine di applicazione:
 |---|---|
 | `20260711160000_init.sql` | Schema completo ricostruito dal backup del progetto originale (enum, 14 tabelle, 6 viste, ~25 funzioni/RPC, trigger, indici, policy RLS) |
 | `20260711160001_security_hardening.sql` | Fix di sicurezza: RLS sulle 4 tabelle che ne erano prive, PNR rimosso da `listings` e dalla vista `v_last_minute`, valori enum `expired`/`deleted` mancanti |
+| `20260711160003_transactions_on_accept.sql` | `accept_offer_any()` registra ora una riga in `transactions` quando un'offerta viene accettata (1 per buy, 2 per swap) — prima nessuna funzione scriveva mai in questa tabella |
+| `20260711160004_fix_offer_status_norm_cast.sql` | ⚠️ **Fix critico**: `_norm()` veniva chiamata su `offers.status` (un ENUM) invece che su testo → **ogni** accettazione/rifiuto/cancellazione di un'offerta falliva sempre in produzione. Corregge 4 funzioni/trigger. |
+| `20260711160005_add_missing_listing_statuses.sql` | ⚠️ **Fix critico**: l'enum `listing_status` non conteneva `pending`/`reserved`/`swapped`, valori impostati da `accept_offer_any()` — bloccava l'accettazione di **qualsiasi** offerta (stesso sintomo del fix precedente, causa diversa) |
 
-Entrambe le migrazioni sono state validate applicandole in sequenza a un PostgreSQL 16 pulito.
+> Le due migrazioni "Fix critico" vanno applicate **subito** sul progetto Supabase reale (non solo nel repo): finché mancano, accettare un'offerta fallisce sempre con un errore Postgres. Scoperte testando in locale la migrazione `transactions_on_accept` prima di consegnarla — non erano mai state esercitate end-to-end.
+
+Tutte le migrazioni sono state validate applicandole in sequenza (nell'ordine reale dei nomi file) a un PostgreSQL 16 pulito, incluso un test end-to-end con due utenti simulati per buy e swap.
 
 ## Ripristino su un nuovo progetto (il vecchio è in pausa non riattivabile)
 

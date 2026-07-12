@@ -63,6 +63,7 @@ export const translations = {
       title: "Profilo",
       editProfile: "Modifica profilo",
       savedListings: "I miei preferiti",
+      myTransactions: "I miei scambi",
       logout: "Esci",
       myListings: "I miei annunci",
       publishListing: "Pubblica annuncio",
@@ -87,6 +88,15 @@ export const translations = {
       deleteErrorMsg: "Impossibile eliminare.",
       emptyText: "Nessuna foto. Tocca “Aggiungi foto” per caricarne.",
       missingListing: "Annuncio non specificato.",
+    },
+
+    transactions: {
+      screenTitle: "I miei scambi",
+      emptyText: "Nessuno scambio ancora.\nQuando compri, vendi o scambi un annuncio, lo troverai qui.",
+      typeSale: "Vendita",
+      typeSwap: "Scambio",
+      directionSold: "Venduto",
+      directionBought: "Ricevuto",
     },
 
     // --- Annunci / Listing ---
@@ -531,6 +541,7 @@ export const translations = {
       title: "Profile",
       editProfile: "Edit profile",
       savedListings: "My favorites",
+      myTransactions: "My transactions",
       logout: "Logout",
       myListings: "My listings",
       publishListing: "Publish listing",
@@ -555,6 +566,15 @@ export const translations = {
       deleteErrorMsg: "Couldn't delete it.",
       emptyText: "No photos yet. Tap “Add photo” to upload some.",
       missingListing: "Listing not specified.",
+    },
+
+    transactions: {
+      screenTitle: "My transactions",
+      emptyText: "No transactions yet.\nWhen you buy, sell, or swap a listing, it'll show up here.",
+      typeSale: "Sale",
+      typeSwap: "Swap",
+      directionSold: "Sold",
+      directionBought: "Received",
     },
 
     listing: {
@@ -986,6 +1006,7 @@ export const translations = {
       title: "Perfil",
       editProfile: "Editar perfil",
       savedListings: "Mis favoritos",
+      myTransactions: "Mis intercambios",
       logout: "Cerrar sesión",
       myListings: "Mis anuncios",
       publishListing: "Publicar anuncio",
@@ -1010,6 +1031,15 @@ export const translations = {
       deleteErrorMsg: "No se pudo eliminar.",
       emptyText: "Aún no hay fotos. Toca “Añadir foto” para subir alguna.",
       missingListing: "Anuncio no especificado.",
+    },
+
+    transactions: {
+      screenTitle: "Mis intercambios",
+      emptyText: "Aún no hay transacciones.\nCuando compres, vendas o intercambies un anuncio, aparecerá aquí.",
+      typeSale: "Venta",
+      typeSwap: "Intercambio",
+      directionSold: "Vendido",
+      directionBought: "Recibido",
     },
 
     listing: {
