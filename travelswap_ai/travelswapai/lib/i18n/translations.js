@@ -117,6 +117,13 @@ export const translations = {
       emptyText: "Nessuna proposta di scambio a 3 al momento.\nQuando ne troviamo una che ti riguarda, la vedrai qui.",
       unknownListing: "Annuncio non disponibile",
       unknownCity: "città sconosciuta",
+      gives: "dà",
+      legsCaption: "Ecco il giro:",
+      backToStart: "torna al primo — il giro si chiude",
+      completedTitle: "🎉 Scambio completato!",
+      completedMsg: "Tutti e 3 avete confermato: lo scambio è avvenuto. Lo trovi anche in \"I miei scambi\".",
+      canceledTitle: "Scambio non riuscito",
+      canceledMsg: "Nel frattempo uno degli annunci coinvolti non è più disponibile. Nessuno ha perso nulla.",
     },
 
     editProfileScreen: {
@@ -753,6 +760,13 @@ export const translations = {
       emptyText: "No 3-way swap proposals right now.\nWhen we find one that involves you, it'll show up here.",
       unknownListing: "Listing unavailable",
       unknownCity: "unknown city",
+      gives: "gives",
+      legsCaption: "Here's the loop:",
+      backToStart: "back to the first one — the loop closes",
+      completedTitle: "🎉 Swap completed!",
+      completedMsg: "All 3 of you confirmed: the swap went through. You'll also find it under \"My transactions\".",
+      canceledTitle: "Swap didn't go through",
+      canceledMsg: "One of the listings involved is no longer available. Nobody lost anything.",
     },
 
     editProfileScreen: {
@@ -1357,6 +1371,13 @@ export const translations = {
       emptyText: "No hay propuestas de intercambio a 3 por ahora.\nCuando encontremos una que te involucre, aparecerá aquí.",
       unknownListing: "Anuncio no disponible",
       unknownCity: "ciudad desconocida",
+      gives: "da",
+      legsCaption: "Así es el ciclo:",
+      backToStart: "vuelve al primero — el ciclo se cierra",
+      completedTitle: "🎉 ¡Intercambio completado!",
+      completedMsg: "Los 3 habéis confirmado: el intercambio se ha realizado. También lo encontrarás en \"Mis intercambios\".",
+      canceledTitle: "El intercambio no se completó",
+      canceledMsg: "Mientras tanto, uno de los anuncios implicados ya no está disponible. Nadie ha perdido nada.",
     },
 
     editProfileScreen: {

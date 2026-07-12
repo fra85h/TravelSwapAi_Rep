@@ -53,20 +53,33 @@ function ChainCard({ chain, onConfirm, onDecline, busyId, t, locale }) {
         {chain.explanation || t("chains.noExplanation", "Abbiamo trovato uno scambio a 3 che ti riguarda.")}
       </Text>
 
+      <Text style={styles.legsCaption}>{t("chains.legsCaption", "Ecco il giro:")}</Text>
       <View style={styles.legs}>
-        {chain.participants.map((p) => (
-          <View key={p.position} style={styles.leg}>
-            <Ionicons
-              name={p.confirmed ? "checkmark-circle" : "time-outline"}
-              size={16}
-              color={p.confirmed ? theme.colors.success : theme.colors.textMuted}
-            />
-            <Text style={styles.legText}>
-              {p.isMe ? t("chains.you", "Tu") : t("chains.otherUser", "Un altro utente")}
-              {" — "}
-              {describeListing(p.listing, t, locale)}
-            </Text>
-          </View>
+        {chain.participants.map((p, idx) => (
+          <React.Fragment key={p.position}>
+            <View style={styles.leg}>
+              <Ionicons
+                name={p.confirmed ? "checkmark-circle" : "time-outline"}
+                size={16}
+                color={p.confirmed ? theme.colors.success : theme.colors.textMuted}
+              />
+              <Text style={styles.legText}>
+                {p.isMe ? t("chains.you", "Tu") : t("chains.otherUser", "Un altro utente")}
+                {" "}{t("chains.gives", "dà")}{": "}
+                {describeListing(p.listing, t, locale)}
+              </Text>
+            </View>
+            {idx < chain.participants.length - 1 ? (
+              <View style={styles.legArrow}>
+                <Ionicons name="arrow-down-outline" size={16} color={theme.colors.textMuted} />
+              </View>
+            ) : (
+              <View style={styles.legArrow}>
+                <Ionicons name="repeat-outline" size={16} color={theme.colors.textMuted} />
+                <Text style={styles.legArrowText}>{t("chains.backToStart", "torna al primo — il giro si chiude")}</Text>
+              </View>
+            )}
+          </React.Fragment>
         ))}
       </View>
 
@@ -124,8 +137,19 @@ export default function ChainProposalsScreen() {
   const handleConfirm = useCallback(async (chainId) => {
     setBusyId(chainId);
     try {
-      await confirmChain(chainId);
+      const result = await confirmChain(chainId);
       await load();
+      if (result?.status === "completed") {
+        Alert.alert(
+          t("chains.completedTitle", "🎉 Scambio completato!"),
+          t("chains.completedMsg", "Tutti e 3 avete confermato: lo scambio è avvenuto. Lo trovi anche in \"I miei scambi\".")
+        );
+      } else if (result?.status === "canceled") {
+        Alert.alert(
+          t("chains.canceledTitle", "Scambio non riuscito"),
+          t("chains.canceledMsg", "Nel frattempo uno degli annunci coinvolti non è più disponibile. Nessuno ha perso nulla.")
+        );
+      }
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e?.message || t("chains.confirmError", "Impossibile confermare lo scambio."));
     } finally {
@@ -240,9 +264,12 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, fontWeight: "800", color: theme.colors.accentOn },
   progressText: { fontSize: 12, color: theme.colors.textMuted, fontWeight: "600" },
   explanation: { color: theme.colors.text, lineHeight: 20, marginBottom: 12 },
-  legs: { gap: 8, marginBottom: 14 },
-  leg: { flexDirection: "row", alignItems: "center", gap: 8 },
+  legsCaption: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, marginBottom: 6 },
+  legs: { marginBottom: 14 },
+  leg: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
   legText: { color: theme.colors.text, flexShrink: 1 },
+  legArrow: { flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: 3, paddingVertical: 2 },
+  legArrowText: { fontSize: 11, color: theme.colors.textMuted, fontStyle: "italic" },
   actionsRow: { flexDirection: "row", gap: 10 },
   waitingRow: { alignItems: "center", gap: 6 },
   waitingText: { color: theme.colors.textMuted, textAlign: "center" },

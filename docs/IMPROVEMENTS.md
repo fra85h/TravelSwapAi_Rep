@@ -88,11 +88,17 @@ Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching r
 - Tradotta interamente in it/en/es dall'inizio (16 chiavi nuove in `chains.*` + 1 in `profile.chainProposals`, parità verificata).
 - ⚠️ Come le fasi precedenti, non testata su dispositivo reale (nessun modo di eseguire l'app in questo ambiente) — solo controllo sintattico e verifica di parità i18n.
 
+✅ **Testata end-to-end con dati reali dall'utente** (3 account di test, un ciclo Roma→Milano / Torino→Roma / Napoli→Bari creato via SQL Editor): il trigger periodico ha trovato il ciclo, creato la proposta, e la schermata l'ha mostrata correttamente nel Profilo. Prima vera conferma su un progetto Supabase reale, non solo in locale.
+
+**Migliorie fatte dopo il primo test utente** (la spiegazione era poco chiara, e a scambio completato la card spariva senza nessun feedback):
+- Aggiunta una versione visiva del giro nella card: frecce tra i 3 passaggi + un'icona "torna al primo" per chiudere visivamente il cerchio, e il verbo esplicito "dà" invece del solo trattino.
+- Aggiunto un popup di conferma quando lo scambio si chiude con successo (🎉), e uno separato se decade per un annuncio non più disponibile nel frattempo — prima in entrambi i casi la card spariva silenziosamente, senza che l'utente sapesse cosa fosse successo.
+- 7 chiavi i18n nuove, parità verificata.
+
 **Non ancora fatto / prossimi passi**:
 - La spiegazione è generata solo in italiano per ora (come le altre feature AI esistenti, non localizzate) — da rivedere se serve multilingua.
 - Nessun badge/notifica quando arriva una nuova proposta — l'utente deve aprire la schermata per scoprirla (va bene per un primo test, da migliorare se il volume cresce).
-- **Da fare sul progetto Supabase reale**: applicare le migrazioni `20260712120000_swap_chains.sql` e `20260712180000_chain_explanation.sql`.
-- **Da fare sul server (Render)**: configurare `CHAIN_CRON_SECRET` + verificare `OPENAI_API_KEY`, e impostare un trigger periodico (cron esterno o Render) per `POST /api/chains/recompute` e per la funzione SQL `expire_old_chain_proposals()` — per ora nessuno dei due parte da solo.
+- **Fatto sul progetto Supabase reale**: migrazioni applicate, `CHAIN_CRON_SECRET`/`OPENAI_API_KEY` configurati su Render, trigger periodico attivo su cron-job.org.
 
 ### D3. Avvisi di ricerca ("price/route alert")
 "Avvisami quando compare un treno Roma→Milano sotto 40€". Sfrutta il motore di matching che c'è già, girato al contrario. Ottima retention.
