@@ -103,8 +103,14 @@ Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching r
 ### D3. Avvisi di ricerca ("price/route alert")
 "Avvisami quando compare un treno Roma→Milano sotto 40€". Sfrutta il motore di matching che c'è già, girato al contrario. Ottima retention.
 
-### D4. Onboarding con preferenze
-Raccogliere tratte/città preferite in onboarding per alimentare da subito il matching AI e i preferiti — oggi le `prefs` del profilo esistono ma non vengono popolate in modo guidato.
+### D4. Onboarding con preferenze — ✅ FATTO
+Implementato: `screens/PreferencesOnboardingScreen.js` + `lib/preferences.js`. Mostrata **una sola volta per account**, subito dopo la registrazione (o al primo login se non era mai stata vista) — non ad ogni avvio: il segnale è `profiles.prefs.onboarded`, assente finché l'utente non salva o salta. Renderizzata fuori dallo Stack Navigator (nessuna nuova route da gestire), come passaggio intermedio tra login e `MainTabs`.
+
+Raccoglie esattamente i 3 campi già letti dal matcher euristico esistente (`server/src/ai/score.js`: `prefs.types`/`prefs.maxPrice`/`prefs.location`) — **zero modifiche al backend/DB**, la colonna `profiles.prefs` (jsonb) esisteva già mai popolata in modo guidato. "Salta per ora" scrive comunque `{onboarded:true}` per non ripresentare il prompt ad ogni avvio, senza impostare preferenze funzionali (comportamento del matching invariato per chi salta).
+
+Tradotto interamente in it/en/es dall'inizio (12 chiavi nuove in `prefsOnboarding.*`, parità verificata).
+
+⚠️ Non testato su dispositivo reale in questa sessione (nessun modo di eseguire l'app qui) — solo controllo sintattico e verifica i18n.
 
 ---
 
