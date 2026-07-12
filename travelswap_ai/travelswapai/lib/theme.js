@@ -33,6 +33,14 @@ export const theme = {
     boardingText: "#1B2159",
     boardingBgPressed: "#DFDAF3",
   },
+  // Font dei titoli (Plus Jakarta Sans, caricato in App.js). Il testo
+  // corrente resta sul font di sistema: il display face si usa solo
+  // per i titoli, con misura.
+  fonts: {
+    headingSemibold: "PlusJakartaSans_600SemiBold",
+    headingBold: "PlusJakartaSans_700Bold",
+    headingExtraBold: "PlusJakartaSans_800ExtraBold",
+  },
   radius: { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 },
   spacing: { xs: 6, sm: 10, md: 14, lg: 18, xl: 24, xxl: 32 },
   shadow: {
@@ -41,8 +49,10 @@ export const theme = {
     lg: { shadowColor: "#0F172A", shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.14, shadowRadius: 28, elevation: 10 },
   },
   typography: {
-    title: { fontSize: 26, fontWeight: "800", letterSpacing: -0.3 },
-    sectionTitle: { fontSize: 17, fontWeight: "800", letterSpacing: -0.2 },
+    // fontWeight non va impostato insieme a un fontFamily custom: il peso
+    // è già "cotto" nel file del font caricato (vedi fonts.heading*).
+    title: { fontFamily: "PlusJakartaSans_800ExtraBold", fontSize: 26, letterSpacing: -0.3 },
+    sectionTitle: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 17, letterSpacing: -0.2 },
     subtitle: { fontSize: 16, fontWeight: "600", color: "#6B6F92" },
     body: { fontSize: 16, color: "#1B2159" },
     small: { fontSize: 12, color: "#6B6F92" },

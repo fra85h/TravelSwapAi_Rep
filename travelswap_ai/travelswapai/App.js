@@ -24,6 +24,7 @@ import ManageImagesScreen from './screens/ManageImagesScreen';
 import { AuthProvider, useAuth } from './lib/auth';
 import { I18nProvider } from './lib/i18n';
 import Constants from "expo-constants";
+import { useFonts, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans';
 
 const Stack = createNativeStackNavigator();
 
@@ -122,6 +123,23 @@ function RootNavigator() {
 
 export default function App() {
   console.log("[WHOAMI] owner =", Constants.expoConfig?.owner, "slug =", Constants.expoConfig?.slug, "name =", Constants.expoConfig?.name);
+
+  // Font dei titoli (Plus Jakarta Sans): caricato una volta all'avvio,
+  // il testo di sistema resta invariato per tutto il resto dell'app.
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <AuthProvider>

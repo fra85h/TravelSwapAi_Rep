@@ -99,7 +99,7 @@ export default function HeaderLogo() {
 
         {/* Testo con shimmer overlay */}
         <View style={{ position: "relative", overflow: "hidden" }}>
-          <Text style={{ fontWeight: "800", fontSize: 16, color: theme.colors.boardingText }}>
+          <Text style={{ fontFamily: theme.fonts.headingExtraBold, fontSize: 16, color: theme.colors.boardingText }}>
             TravelSwapAI
           </Text>
           {/* Luccichio diagonale che scorre sopra il testo */}
