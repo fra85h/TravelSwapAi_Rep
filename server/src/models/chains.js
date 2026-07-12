@@ -138,6 +138,17 @@ async function ownersWithPendingChain() {
 export async function findAndProposeChains() {
   if (!supabase) throw new Error("Supabase client not configured");
 
+  // Manutenzione nella stessa chiamata: chi triggera questo endpoint
+  // periodicamente non deve configurare un secondo meccanismo solo per
+  // scadere le catene rimaste in sospeso troppo a lungo (expires_at, 48h).
+  let expiredCount = 0;
+  const { data: expireResult, error: expireErr } = await supabase.rpc("expire_old_chain_proposals");
+  if (expireErr) {
+    console.error("[chains] expire_old_chain_proposals failed:", expireErr.message);
+  } else {
+    expiredCount = expireResult ?? 0;
+  }
+
   const allActive = await listActiveListings({ limit: 1000 });
   const { edges, singleVendoByOwner } = await buildDesireGraph(allActive);
   const cycles = findThreeCycles(edges);
@@ -195,6 +206,7 @@ export async function findAndProposeChains() {
   }
 
   return {
+    expiredChains: expiredCount,
     scannedListings: allActive.length,
     candidateOwners: singleVendoByOwner.size,
     cyclesFound: cycles.length,
