@@ -269,8 +269,11 @@ export default function OfferDetailScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 20, fontWeight: "800", marginBottom: 12 },
-  box: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12 },
+  title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, marginBottom: 12 },
+  box: {
+    borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
+    padding: 14, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
+  },
   boxTitle: { fontWeight: "800" },
   boxMeta: { color: "#6B7280", marginTop: 4 },
   badge: { color: "#374151", fontWeight: "700" },
@@ -278,7 +281,10 @@ const s = StyleSheet.create({
   /* CTA sotto il box annuncio */
   ctaRow: { flexDirection: "row", gap: 10, marginTop: 12 },
 
-  card: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12, marginBottom: 10, backgroundColor: "#fff" },
+  card: {
+    borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
+    padding: 14, marginBottom: 10, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
+  },
   cardTitle: { fontWeight: "800" },
   cardSub: { color: "#6B7280", marginTop: 4 },
   cardMeta: { color: "#111827", marginTop: 4, fontWeight: "600" },

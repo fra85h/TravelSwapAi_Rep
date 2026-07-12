@@ -71,7 +71,9 @@ Direzione scelta dopo confronto visivo di 3 varianti (indigo raffinato / indigo 
 
 - ✅ **Font custom**: caricato **Plus Jakarta Sans** (pesi 600/700/800) via `expo-font` + `@expo-google-fonts/plus-jakarta-sans`, con gate di caricamento in `App.js`. Applicato ai 4 "hero moment" più visibili: wordmark `HeaderLogo`, titoli onboarding, headline "Benvenuto" del login, titolo annuncio nel dettaglio. Il resto del testo (corpo, label, bottoni) resta sul font di sistema — coppia display+body deliberata, non un rifacimento totale.
 
-Non ancora fatto (prossimi passi naturali): estensione dell'ombra morbida alle card rimanenti, unificazione delle 3 librerie di icone su una sola, estensione del font ai titoli di sezione rimanenti.
+- ✅ **Terza tranche**: estesa l'ombra morbida ai contenitori-card rimanenti (`OfferFlow`, `OfferDetailScreen`, `MatchingScreen` — lasciati intenzionalmente piatti input/chip/skeleton loader, che non sono card). Trovato e sistemato un altro CTA ad alto impatto: il **FAB "Ricalcola AI"** in Matching passa da lavanda chiaro a oro con ombra dorata, stesso trattamento del pulsante "Pubblica". Aggiunto anche il badge "selezionato" (`cardSelected` in OfferFlow) in oro. Font esteso ai titoli di `OfferFlow`, `OfferDetailScreen`, `MatchingScreen`.
+
+Non ancora fatto (prossimi passi naturali): unificazione delle 3 librerie di icone su una sola (rimandata: non verificabile offline se le icone lucide→Ionicons esistono davvero, rischio di icona mancante silenziosa), estensione font ai titoli rimanenti (Profilo, form creazione annuncio).
 
 ---
 
