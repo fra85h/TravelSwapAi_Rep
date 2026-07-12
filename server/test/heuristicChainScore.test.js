@@ -29,7 +29,19 @@ test('date vicine ma area diversa: NON passa la soglia (65)', () => {
   const [top] = heuristicChainScore(want, [
     { id: 'a', type: 'train', route_from: 'Palermo', route_to: 'Catania', depart_at: '2026-08-02T09:00:00Z' },
   ]);
-  assert.equal(top.score, 45); // 30 + 15 (data), niente area
+  assert.equal(top.score, 35); // 20 + 15 (data), niente area
+  assert.ok(top.score < 65);
+});
+
+test('stessa area larga ma città diverse E date lontane: NON passa la soglia (bug reale trovato con test di integrazione)', () => {
+  // Napoli/Bari e Palermo/Catania sono nella stessa area "sud" ma sono
+  // città diverse e a quasi un mese di distanza: non deve bastare la sola
+  // area larga a considerarli compatibili.
+  const wantSud = { id: 'want-sud', type: 'train', route_from: 'Napoli', route_to: 'Bari', depart_at: '2026-08-03T09:00:00Z' };
+  const [top] = heuristicChainScore(wantSud, [
+    { id: 'a', type: 'train', route_from: 'Palermo', route_to: 'Catania', depart_at: '2026-09-01T09:00:00Z' },
+  ]);
+  assert.equal(top.score, 60); // 20 + 40 (area larga), niente data né città esatta
   assert.ok(top.score < 65);
 });
 
@@ -40,12 +52,13 @@ test('tipo diverso: score 0 a prescindere dal resto', () => {
   assert.equal(top.score, 0);
 });
 
-test('città nella stessa area ma non identiche (stazioni diverse) contano comunque', () => {
+test('città nella stessa area ma non identiche (stazioni diverse) contano comunque, sotto la soglia massima', () => {
   const wantVariant = { ...want, route_from: 'Roma Termini', route_to: 'Milano Centrale' };
   const [top] = heuristicChainScore(wantVariant, [
     { id: 'a', type: 'train', route_from: 'Roma Tiburtina', route_to: 'Milano Rogoredo', depart_at: '2026-08-01T09:00:00Z' },
   ]);
-  assert.equal(top.score, 100);
+  assert.equal(top.score, 75); // area larga + data vicina, ma non è la stessa stringa di città esatta
+  assert.ok(top.score >= 65);
 });
 
 test('fallback sul parsing di location "CittaA-->CittaB" quando route_from/route_to mancano', () => {
@@ -62,8 +75,8 @@ test('hotel: confronta la città in location + check_in', () => {
     { id: 'a', type: 'hotel', location: 'Firenze centro', check_in: '2026-08-03' },
     { id: 'b', type: 'hotel', location: 'Bari', check_in: '2026-08-01' },
   ]).sort((x, y) => x.id.localeCompare(y.id));
-  assert.equal(close.score, 100); // stessa area (Firenze), date vicine
-  assert.equal(far.score, 45);    // area diversa, solo data vicina
+  assert.equal(close.score, 75); // stessa area (Firenze), date vicine, non stringa città esatta
+  assert.equal(far.score, 35);   // area diversa, solo data vicina
 });
 
 test('ordina per score decrescente, tie-break per id', () => {

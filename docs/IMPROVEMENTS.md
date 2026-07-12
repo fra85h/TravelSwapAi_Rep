@@ -57,7 +57,7 @@ Con `expo-notifications`: avvisa l'utente quando arriva una nuova offerta o un n
 ### D2. Chat in-app per le offerte
 Oggi si può fare un'offerta ma non trattare. Una chat leggera per ogni offerta (tabella `messages` da aggiungere) sbloccherebbe la negoziazione e ridurrebbe gli scambi "fuori piattaforma" (che le euristiche antifrode già segnalano come rischio).
 
-### D0. Swap a catena + normalizzazione AI — 🚧 FASE 3 FATTA (schema + motore + spiegazione)
+### D0. Swap a catena + normalizzazione AI — ✅ TUTTE E 4 LE FASI FATTE (schema, motore, spiegazione, UI)
 Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching reciproco diretto di oggi intercetta solo ~0,3% degli utenti; catene multi-parte da sole non cambiano nulla (~0,3% anche loro); **solo la combinazione catena + normalizzazione AI (tolleranza data/area) sblocca ~92%**. Deciso con te: catene di **esattamente 3** utenti, chiusura solo quando **tutti e 3 confermano esplicitamente** (nessuna esecuzione automatica).
 
 **Fase 1** (schema + funzioni, validata su Postgres locale con scenario felice/rifiuto/race-condition/permessi):
@@ -81,10 +81,18 @@ Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching r
 - Il template deterministico descrive meccanicamente i 3 passaggi ("chi dà X riceve Y, chi dà Y riceve Z, chi dà Z riceve X") usando le tratte/città e le date, senza mai esporre nomi utente prima che la catena sia confermata.
 - 5 test unitari nuovi sul template (route treno, città hotel, nessun nome esposto, input malformato, data mancante).
 
-**Non ancora fatto** (prossimi passi):
-- Fase 4: UI per vedere/confermare/rifiutare una proposta di catena (userà anche `chain_proposals.explanation`).
+**Fase 4** (UI, `screens/ChainProposalsScreen.js` + `lib/chains.js`):
+- Nuova schermata, raggiungibile dal Profilo ("🔗 Proposte di scambio a 3"), che mostra le catene attive di cui l'utente fa parte: spiegazione in linguaggio naturale, i 3 passaggi con stato di conferma di ciascuno (✓/⏳), e "N di 3 hanno confermato".
+- Se l'utente non ha ancora confermato: pulsanti Conferma/Rifiuta. Se ha già confermato: stato "in attesa degli altri" con possibilità di ritirare la conferma (rifiuta comunque, prima che si chiuda per tutti).
+- `lib/chains.js` legge in 4 passaggi separati (`.eq()`/`.in()`, nessun join annidato PostgREST) per lo stesso motivo di cautela della fase 2: nessuna sintassi non verificabile in questo ambiente.
+- Tradotta interamente in it/en/es dall'inizio (16 chiavi nuove in `chains.*` + 1 in `profile.chainProposals`, parità verificata).
+- ⚠️ Come le fasi precedenti, non testata su dispositivo reale (nessun modo di eseguire l'app in questo ambiente) — solo controllo sintattico e verifica di parità i18n.
+
+**Non ancora fatto / prossimi passi**:
 - La spiegazione è generata solo in italiano per ora (come le altre feature AI esistenti, non localizzate) — da rivedere se serve multilingua.
-- Applicare le migrazioni fase 1 e fase 3 sul progetto Supabase reale (se non ancora fatto) e configurare `CHAIN_CRON_SECRET` + `OPENAI_API_KEY` + un trigger periodico (cron esterno o Render) per `/api/chains/recompute` e per `expire_old_chain_proposals()`.
+- Nessun badge/notifica quando arriva una nuova proposta — l'utente deve aprire la schermata per scoprirla (va bene per un primo test, da migliorare se il volume cresce).
+- **Da fare sul progetto Supabase reale**: applicare le migrazioni `20260712120000_swap_chains.sql` e `20260712180000_chain_explanation.sql`.
+- **Da fare sul server (Render)**: configurare `CHAIN_CRON_SECRET` + verificare `OPENAI_API_KEY`, e impostare un trigger periodico (cron esterno o Render) per `POST /api/chains/recompute` e per la funzione SQL `expire_old_chain_proposals()` — per ora nessuno dei due parte da solo.
 
 ### D3. Avvisi di ricerca ("price/route alert")
 "Avvisami quando compare un treno Roma→Milano sotto 40€". Sfrutta il motore di matching che c'è già, girato al contrario. Ottima retention.

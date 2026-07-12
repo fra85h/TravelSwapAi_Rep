@@ -22,6 +22,7 @@ import ListingDetailScreen from './screens/ListingDetailScreen';
 import SavedScreen from './screens/SavedScreen';
 import TransactionsScreen from './screens/TransactionsScreen';
 import ManageImagesScreen from './screens/ManageImagesScreen';
+import ChainProposalsScreen from './screens/ChainProposalsScreen';
 import { AuthProvider, useAuth } from './lib/auth';
 import { I18nProvider } from './lib/i18n';
 import Constants from "expo-constants";
@@ -110,6 +111,7 @@ function RootNavigator() {
           <Stack.Screen name="Saved" component={SavedScreen} options={{ title: "Preferiti" }} />
           <Stack.Screen name="Transactions" component={TransactionsScreen} options={{ title: "I miei scambi" }} />
           <Stack.Screen name="ManageImages" component={ManageImagesScreen} options={{ title: "Foto annuncio" }} />
+          <Stack.Screen name="ChainProposals" component={ChainProposalsScreen} options={{ title: "Scambi a 3" }} />
         </>
       ) : (
         <>
