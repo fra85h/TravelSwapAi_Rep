@@ -231,8 +231,11 @@ export default function OfferFlow() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 16 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 20, fontWeight: "800", marginBottom: 16 },
-  target: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12, marginBottom: 12 },
+  title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, marginBottom: 16 },
+  target: {
+    borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
+    padding: 14, marginBottom: 12, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
+  },
   tTitle: { fontWeight: "800" },
   tMeta: { color: "#6B7280", marginTop: 4 },
   label: { fontWeight: "700", marginTop: 8, marginBottom: 6 },
@@ -242,8 +245,11 @@ const s = StyleSheet.create({
   btnOutline: { borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 12, borderRadius: 12, alignItems: "center", paddingHorizontal: 14 },
   btnOutlineTxt: { color: "#111827", fontWeight: "700" },
   btnDisabled: { opacity: 0.5 },
-  card: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, padding: 12, marginBottom: 10 },
-  cardSelected: { borderColor: "#111827", backgroundColor: "#F3F4F6" },
+  card: {
+    borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
+    padding: 14, marginBottom: 10, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
+  },
+  cardSelected: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accentSoft },
   cardTitle: { fontWeight: "800" },
   cardMeta: { color: "#6B7280", marginTop: 4 },
   pendingBox: { borderWidth: 1, borderColor: "#F59E0B", backgroundColor: "#FFFBEB", borderRadius: 12, padding: 12, marginTop: 8 },

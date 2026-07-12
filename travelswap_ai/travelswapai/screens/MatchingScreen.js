@@ -747,7 +747,7 @@ refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         accessibilityLabel="Ricalcola AI"
         style={[styles.fab, { bottom: (tabBarHeight || 0) + (insets.bottom || 0) + 18 }]}
       >
-        {recomputing ? <ActivityIndicator color="#fff" /> : <Ionicons name="flash" size={26} color={theme.colors.boardingText} />}
+        {recomputing ? <ActivityIndicator color={theme.colors.accentOn} /> : <Ionicons name="flash" size={26} color={theme.colors.accentOn} />}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -794,14 +794,15 @@ const styles = StyleSheet.create({
 
   /* Sezioni */
   section: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 12,
+    borderColor: theme.colors.border,
+    padding: 14,
+    ...theme.shadow.sm,
   },
   sectionHeader: { marginBottom: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
+  sectionTitle: { fontFamily: theme.fonts.headingBold, fontSize: 16, color: theme.colors.boardingText },
   sectionSubtitle: { color: "#6B7280", marginTop: 4 },
 
   /* Riga */
@@ -873,11 +874,11 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor:  theme.colors.primary,
+    backgroundColor: theme.colors.accent,
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({
-      ios: { shadowColor: "#000", shadowOpacity: 0.55, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } },
+      ios: { shadowColor: theme.colors.accent, shadowOpacity: 0.55, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } },
       android: { elevation: 8 },
     }),
   },
