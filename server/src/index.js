@@ -9,6 +9,7 @@ import { trustscoreRouter } from './routes/trustscore.js';
 import { listingsRouter } from './routes/listing.js';
 import { matchesRouter } from './routes/match.js';
 import { chainsRouter } from './routes/chains.js';
+import { savedSearchesRouter } from './routes/savedSearches.js';
 
 // Parser / ingest / Messenger
 import { parseFacebookText } from './parsers/fbParser.js';
@@ -41,6 +42,7 @@ app.use('/ai', trustscoreRouter);
 app.use('/api/listings', listingsRouter);
 app.use('/api/matches', matchesRouter);
 app.use('/api/chains', chainsRouter);
+app.use('/api/saved-searches', savedSearchesRouter);
 app.use('/', translateListingsRouter);
 
 mountParseDescriptionRoute(app, [requireAuth, rateLimitParse]);
