@@ -18,7 +18,9 @@ export default function OfferFlow() {
   const route = useRoute();
   const { t } = useI18n();
 
-  const { mode = "BUY", listingId } = route.params || {};
+  const { mode: modeParam = "BUY", listingId } = route.params || {};
+  // normalizza il case: alcuni punti dell'app passano "buy"/"swap" minuscolo
+  const mode = String(modeParam).toUpperCase();
 
   const [me, setMe] = useState(null);
   const [target, setTarget] = useState(null);
