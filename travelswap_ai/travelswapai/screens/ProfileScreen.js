@@ -332,37 +332,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8 }]}
-              onPress={() => {
-                navigation.navigate?.("Transactions");
-                navigation.getParent?.()?.navigate?.("Transactions");
-              }}
-            >
-              <Text style={styles.editBtnText}>🧾 {t("profile.myTransactions", "I miei scambi")}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8 }]}
-              onPress={() => {
-                navigation.navigate?.("ChainProposals");
-                navigation.getParent?.()?.navigate?.("ChainProposals");
-              }}
-            >
-              <Text style={styles.editBtnText}>🔗 {t("profile.chainProposals", "Proposte di scambio a 3")}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8 }]}
-              onPress={() => {
-                navigation.navigate?.("SavedSearches");
-                navigation.getParent?.()?.navigate?.("SavedSearches");
-              }}
-            >
-              <Text style={styles.editBtnText}>🔔 {t("profile.savedSearches", "Avvisi di ricerca")}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8, backgroundColor: theme.colors.primary, borderColor: "#111827" }]}
+              style={[styles.editBtn, { marginTop: 8, backgroundColor: theme.colors.primary, borderColor: theme.colors.text }]}
               onPress={handleLogout}
             >
               <Text style={[styles.editBtnText, { color: theme.colors.boardingText }]}>{t("profile.logout", "Esci")}</Text>

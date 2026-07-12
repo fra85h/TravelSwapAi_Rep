@@ -38,6 +38,35 @@ export const translations = {
       create: "Crea",
       messages: "Messaggi",
       profile: "Il mio profilo",
+      explore: "Esplora",
+      sell: "Vendi",
+      activity: "Attività",
+    },
+
+    esplora: {
+      title: "Esplora",
+      searchPlaceholder: "Cerca tratta o città…",
+      forYouTitle: "Per te",
+      seeAll: "Vedi tutti",
+      alertsA11y: "I miei avvisi di ricerca",
+    },
+
+    activity: {
+      sectionToDo: "Da fare",
+      sectionToDoHint: "Aspettano una tua risposta.",
+      sectionWaiting: "In attesa",
+      sectionFound: "Trovati per te",
+      sectionFoundHint: "Annunci nuovi che soddisfano i tuoi avvisi.",
+      sectionHistory: "Storico",
+      offerReceived: "Proposta ricevuta",
+      offerSent: "Proposta inviata",
+      chainToConfirm: "Uno scambio a 3 aspetta la tua conferma",
+      chainWaiting: "Hai confermato — in attesa degli altri",
+      matchFound: "Trovato per un tuo avviso",
+      review: "Vedi e conferma",
+      pending: "In attesa",
+      emptyTitle: "Ancora niente da mostrare",
+      empty: "Qui trovi tutto ciò che ti riguarda: proposte ricevute e inviate, scambi a 3 da confermare, annunci trovati dai tuoi avvisi e lo storico.",
     },
 
     // --- Titoli usati in MainTabs ---
@@ -703,6 +732,35 @@ export const translations = {
       create: "Create",
       messages: "Messages",
       profile: "My Profile",
+      explore: "Explore",
+      sell: "Sell",
+      activity: "Activity",
+    },
+
+    esplora: {
+      title: "Explore",
+      searchPlaceholder: "Search route or city…",
+      forYouTitle: "For you",
+      seeAll: "See all",
+      alertsA11y: "My search alerts",
+    },
+
+    activity: {
+      sectionToDo: "To do",
+      sectionToDoHint: "These are waiting for your reply.",
+      sectionWaiting: "Waiting",
+      sectionFound: "Found for you",
+      sectionFoundHint: "New listings that match your alerts.",
+      sectionHistory: "History",
+      offerReceived: "Proposal received",
+      offerSent: "Proposal sent",
+      chainToConfirm: "A 3-way swap is waiting for your confirmation",
+      chainWaiting: "You've confirmed — waiting for the others",
+      matchFound: "Found for one of your alerts",
+      review: "Review and confirm",
+      pending: "Pending",
+      emptyTitle: "Nothing to show yet",
+      empty: "This is where everything about you lives: proposals received and sent, 3-way swaps to confirm, listings found by your alerts, and your history.",
     },
 
     listings: {
@@ -1350,6 +1408,35 @@ export const translations = {
       create: "Crear",
       messages: "Mensajes",
       profile: "Perfil",
+      explore: "Explorar",
+      sell: "Vender",
+      activity: "Actividad",
+    },
+
+    esplora: {
+      title: "Explorar",
+      searchPlaceholder: "Busca ruta o ciudad…",
+      forYouTitle: "Para ti",
+      seeAll: "Ver todos",
+      alertsA11y: "Mis avisos de búsqueda",
+    },
+
+    activity: {
+      sectionToDo: "Por hacer",
+      sectionToDoHint: "Esperan tu respuesta.",
+      sectionWaiting: "En espera",
+      sectionFound: "Encontrados para ti",
+      sectionFoundHint: "Anuncios nuevos que cumplen tus avisos.",
+      sectionHistory: "Historial",
+      offerReceived: "Propuesta recibida",
+      offerSent: "Propuesta enviada",
+      chainToConfirm: "Un intercambio a 3 espera tu confirmación",
+      chainWaiting: "Has confirmado — esperando a los demás",
+      matchFound: "Encontrado para uno de tus avisos",
+      review: "Ver y confirmar",
+      pending: "En espera",
+      emptyTitle: "Todavía no hay nada que mostrar",
+      empty: "Aquí encuentras todo lo que te concierne: propuestas recibidas y enviadas, intercambios a 3 por confirmar, anuncios encontrados por tus avisos y el historial.",
     },
 
     listings: {
