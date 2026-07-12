@@ -1,14 +1,39 @@
 // screens/HomeScreen.js — Annunci pubblici (senza tab "Voli")
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { listPublicListings, getCurrentUser } from "../lib/db";
+import { getUserSnapshot } from "../lib/backendApi";
 import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
 import SaveButton from "../components/SaveButton";
 import { Ionicons } from "@expo/vector-icons";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Estrae i migliori suggerimenti AI dallo snapshot backend, in modo
+// tollerante alla forma della risposta (come fa MatchingScreen). Best
+// effort: se manca o è malformato, la striscia "Per te" resta nascosta.
+function extractPicks(snap) {
+  const items = Array.isArray(snap) ? snap : (snap?.items || snap?.rows || snap?.data || []);
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((raw) => {
+      const listingId = raw.listingId ?? raw.listing_id ?? raw.toId ?? raw.to_id ?? raw.id;
+      return {
+        listingId,
+        title: raw.title ?? raw.name ?? "—",
+        location: raw.location ?? raw.city ?? raw.destination ?? "",
+        type: raw.type ?? raw.listing_type ?? "",
+        score: Number(raw.score ?? raw.score_pct ?? 0) || 0,
+      };
+    })
+    .filter((p) => typeof p.listingId === "string" && UUID_RE.test(p.listingId))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
 
 // --- Helper: rimuove eventuali prezzi dal titolo
 function stripPriceFromTitle(s) {
@@ -28,6 +53,8 @@ export default function HomeScreen() {
   const [error, setError] = useState(null);
   const [tab, setTab] = useState("all"); // "all" | "hotel" | "train"
   const [me, setMe] = useState(null);
+  const [query, setQuery] = useState("");
+  const [picks, setPicks] = useState([]);
 
   // helper i18n con fallback + interpolation
   const tt = (key, fallback, vars) => {
@@ -58,6 +85,12 @@ export default function HomeScreen() {
       ]);
       setMe(u);
       setItems(Array.isArray(data) ? data : []);
+      // Suggerimenti AI: best effort, non bloccano la lista se falliscono
+      if (u?.id) {
+        getUserSnapshot(u.id)
+          .then((snap) => setPicks(extractPicks(snap)))
+          .catch(() => setPicks([]));
+      }
     } catch (e) {
       setError(e?.message || String(e));
     } finally {
@@ -68,14 +101,32 @@ export default function HomeScreen() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    navigation.setOptions?.({ title: tt("listingsTitle", "Annunci") });
+    navigation.setOptions?.({
+      title: tt("esplora.title", "Esplora"),
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate("SavedSearches")}
+          style={{ paddingHorizontal: 14, paddingVertical: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={tt("esplora.alertsA11y", "I miei avvisi di ricerca")}
+        >
+          <Ionicons name="notifications-outline" size={22} color={theme.colors.boardingText} />
+        </TouchableOpacity>
+      ),
+    });
   }, [navigation, t, locale]);
 
   const filtered = useMemo(() => {
-    if (tab === "all") return items;
-    const ttype = tab.toLowerCase();
-    return items.filter((x) => String(x.type || "").toLowerCase() === ttype);
-  }, [items, tab]);
+    const q = query.trim().toLowerCase();
+    return items.filter((x) => {
+      if (tab !== "all" && String(x.type || "").toLowerCase() !== tab.toLowerCase()) return false;
+      if (!q) return true;
+      const hay = [x.title, x.location, x.route_from, x.route_to]
+        .map((s) => String(s || "").toLowerCase())
+        .join(" ");
+      return hay.includes(q);
+    });
+  }, [items, tab, query]);
 
   const renderTabs = () => (
     <View style={styles.tabs}>
@@ -174,6 +225,47 @@ export default function HomeScreen() {
     );
   };
 
+  // Striscia "Per te": i migliori suggerimenti dell'AI, in cima alla lista.
+  // Tiene l'AI in vetrina anche senza un tab dedicato, e porta alla
+  // schermata completa con "Vedi tutti".
+  const renderPerTe = () => {
+    if (!picks.length) return null;
+    return (
+      <View style={styles.perTeWrap}>
+        <View style={styles.perTeHead}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Ionicons name="sparkles" size={15} color={theme.colors.accent} />
+            <Text style={styles.perTeTitle}>{tt("esplora.forYouTitle", "Per te")}</Text>
+            <View style={styles.aiTag}><Text style={styles.aiTagText}>{tt("matching.aiTag", "AI")}</Text></View>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate("Matching")}>
+            <Text style={styles.seeAll}>{tt("esplora.seeAll", "Vedi tutti")}</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 16 }}>
+          {picks.map((p) => {
+            const isTrain = String(p.type || "").toLowerCase() === "train";
+            return (
+              <TouchableOpacity
+                key={p.listingId}
+                style={styles.pickCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate("ListingDetail", { id: p.listingId })}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Ionicons name={isTrain ? "train-outline" : "bed-outline"} size={15} color={theme.colors.boardingText} />
+                  <Text style={styles.pickScore}>{Math.round(p.score)}</Text>
+                </View>
+                <Text style={styles.pickTitle} numberOfLines={2}>{stripPriceFromTitle(p.title) || tt("listing.untitled", "Senza titolo")}</Text>
+                {p.location ? <Text style={styles.pickSub} numberOfLines={1}>{p.location}</Text> : null}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -196,13 +288,33 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{tt("listingsTitle", "Annunci")}</Text>
+      <Text style={styles.title}>{tt("esplora.title", "Esplora")}</Text>
+
+      <View style={styles.searchWrap}>
+        <Ionicons name="search" size={18} color={theme.colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+          placeholder={tt("esplora.searchPlaceholder", "Cerca tratta o città…")}
+          placeholderTextColor={theme.colors.textMuted}
+          returnKeyType="search"
+          autoCorrect={false}
+        />
+        {query ? (
+          <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close-circle" size={18} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
       {renderTabs()}
 
       <FlatList
         data={filtered}
         keyExtractor={(it) => String(it.id)}
         renderItem={renderItem}
+        ListHeaderComponent={query ? null : renderPerTe}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
@@ -245,4 +357,32 @@ const styles = StyleSheet.create({
   emptyWrap: { paddingVertical: 32, alignItems: "center", paddingHorizontal: 16 },
   emptyText: { color: theme.colors.textMuted, textAlign: "center", fontWeight: "700" },
   emptySub: { color: theme.colors.textMuted, textAlign: "center", marginTop: 6 },
+
+  searchWrap: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    marginHorizontal: 16, marginBottom: 12,
+    paddingHorizontal: 12, height: 44,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1, borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+  },
+  searchInput: { flex: 1, color: theme.colors.text, fontSize: 15, paddingVertical: 0 },
+
+  perTeWrap: { marginBottom: 16 },
+  perTeHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  perTeTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
+  seeAll: { color: theme.colors.accent, fontWeight: "800", fontSize: 13 },
+  aiTag: {
+    backgroundColor: theme.colors.accentSoft, borderWidth: 1, borderColor: theme.colors.accent,
+    borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1,
+  },
+  aiTagText: { fontSize: 10, fontWeight: "800", color: theme.colors.accentOn, letterSpacing: 0.4 },
+  pickCard: {
+    width: 150, padding: 12, borderRadius: theme.radius.lg,
+    borderWidth: 1, borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface, ...theme.shadow.sm,
+  },
+  pickScore: { fontSize: 13, fontWeight: "800", color: theme.colors.accent },
+  pickTitle: { marginTop: 8, fontWeight: "800", color: theme.colors.boardingText, minHeight: 36 },
+  pickSub: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
 });

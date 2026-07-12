@@ -23,7 +23,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
 import { useI18n } from "../lib/i18n";
 import { recomputeAIAndSnapshot } from "../lib/backendApi";
@@ -266,7 +265,9 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
 export default function MatchingScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight(); // calcolato qui (mai nei renderItem)
+  // Ora è una schermata Stack (aperta da "Vedi tutti"), non un tab:
+  // niente barra dei tab sotto, quindi nessuna altezza da compensare.
+  const tabBarHeight = 0;
   const { t, lang } = useI18n();
 const [showPerfectOnly, setShowPerfectOnly] = useState(false);
 const [sortByNewness, setSortByNewness] = useState(false);
