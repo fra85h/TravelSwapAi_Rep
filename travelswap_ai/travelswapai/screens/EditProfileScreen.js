@@ -4,7 +4,9 @@ import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Styl
 import { supabase } from "../lib/supabase";
 import { useNavigation } from "@react-navigation/native";
 import { theme } from "../lib/theme";
+import { useI18n } from "../lib/i18n";
 export default function EditProfileScreen() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -23,7 +25,7 @@ const navigation = useNavigation();
       // user corrente
       const { data: { user }, error: uerr } = await supabase.auth.getUser();
       if (uerr) throw uerr;
-      if (!user) throw new Error("Non autenticato");
+      if (!user) throw new Error(t("editProfileScreen.notAuthenticated", "Non autenticato"));
       setUserId(user.id);
 
       // profilo
@@ -59,7 +61,7 @@ const navigation = useNavigation();
     if (!userId) return;
     // validazioni minime
     if (username && !/^[a-z0-9_\.]{3,20}$/i.test(username)) {
-      Alert.alert("Username non valido", "Usa 3–20 caratteri alfanumerici (underscore e punto permessi).");
+      Alert.alert(t("editProfileScreen.usernameInvalidTitle", "Username non valido"), t("editProfileScreen.usernameInvalidMsg", "Usa 3–20 caratteri alfanumerici (underscore e punto permessi)."));
       return;
     }
     setSaving(true);
@@ -79,10 +81,10 @@ const navigation = useNavigation();
         .upsert(payload, { onConflict: "id" }); // id è FK verso auth.users
 
       if (error) throw error;
-      Alert.alert("Salvato", "Profilo aggiornato con successo.");
+      Alert.alert(t("editProfileScreen.savedTitle", "Salvato"), t("editProfileScreen.savedMsg", "Profilo aggiornato con successo."));
       navigation.goBack();  // torna al tab Profilo
     } catch (e) {
-      Alert.alert("Errore", e.message || String(e));
+      Alert.alert(t("common.error", "Errore"), e.message || String(e));
     } finally {
       setSaving(false);
     }
@@ -95,7 +97,7 @@ const navigation = useNavigation();
     return (
       <View style={s.center}>
         <Text style={{ color: "#B91C1C", marginBottom: 8 }}>{error}</Text>
-        <TouchableOpacity style={s.btn} onPress={load}><Text style={s.btnTxt}>Riprova</Text></TouchableOpacity>
+        <TouchableOpacity style={s.btn} onPress={load}><Text style={s.btnTxt}>{t("common.retry", "Riprova")}</Text></TouchableOpacity>
       </View>
     );
   }
@@ -103,43 +105,43 @@ const navigation = useNavigation();
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView style={s.container} contentContainerStyle={{ padding: 16 }}>
-        <Text style={s.title}>Modifica profilo</Text>
+        <Text style={s.title}>{t("profile.editProfile", "Modifica profilo")}</Text>
 
         <View style={s.field}>
-          <Text style={s.label}>Nome e cognome</Text>
+          <Text style={s.label}>{t("editProfileScreen.fullNameLabel", "Nome e cognome")}</Text>
           <TextInput
             value={fullName}
             onChangeText={setFullName}
-            placeholder="Il tuo nome"
+            placeholder={t("editProfileScreen.fullNamePlaceholder", "Il tuo nome")}
             style={s.input}
           />
         </View>
 
         <View style={s.field}>
-          <Text style={s.label}>Username</Text>
+          <Text style={s.label}>{t("editProfileScreen.usernameLabel", "Username")}</Text>
           <TextInput
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="es. mario_rossi"
+            placeholder={t("editProfileScreen.usernamePlaceholder", "es. mario_rossi")}
             style={s.input}
           />
         </View>
 
         <View style={s.field}>
-          <Text style={s.label}>Bio</Text>
+          <Text style={s.label}>{t("editProfileScreen.bioLabel", "Bio")}</Text>
           <TextInput
             value={bio}
             onChangeText={setBio}
-            placeholder="Racconta qualcosa di te"
+            placeholder={t("editProfileScreen.bioPlaceholder", "Racconta qualcosa di te")}
             style={[s.input, { height: 100, textAlignVertical: "top" }]}
             multiline
           />
         </View>
 
         <View style={s.field}>
-          <Text style={s.label}>Telefono</Text>
+          <Text style={s.label}>{t("editProfileScreen.phoneLabel", "Telefono")}</Text>
           <TextInput
             value={phone}
             onChangeText={setPhone}
@@ -154,7 +156,7 @@ const navigation = useNavigation();
           disabled={saving}
           style={[s.btn, saving && s.btnDisabled]}
         >
-          <Text style={s.btnTxt}>{saving ? "Salvataggio..." : "Salva"}</Text>
+          <Text style={s.btnTxt}>{saving ? t("editProfileScreen.saving", "Salvataggio...") : t("common.save", "Salva")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

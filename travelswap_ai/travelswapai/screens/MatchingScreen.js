@@ -552,9 +552,9 @@ const coerceSnapshot = (snap) => {
       console.error("[MatchingScreen] recompute error:", e);
       setStatus("error");
       if (Platform.OS === "android") {
-        ToastAndroid.show(String(e?.message || "Errore backend"), ToastAndroid.SHORT);
+        ToastAndroid.show(String(e?.message || t("matchingScreen.backendErrorTitle", "Errore backend")), ToastAndroid.SHORT);
       } else {
-        Alert.alert("Errore backend", String(e?.message || "Impossibile contattare il server"));
+        Alert.alert(t("matchingScreen.backendErrorTitle", "Errore backend"), String(e?.message || t("matchingScreen.backendErrorMsg", "Impossibile contattare il server")));
       }
     } finally {
       setRecomputing(false);

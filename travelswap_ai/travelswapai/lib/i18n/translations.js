@@ -99,6 +99,27 @@ export const translations = {
       directionBought: "Ricevuto",
     },
 
+    editProfileScreen: {
+      fullNameLabel: "Nome e cognome",
+      fullNamePlaceholder: "Il tuo nome",
+      usernameLabel: "Username",
+      usernamePlaceholder: "es. mario_rossi",
+      bioLabel: "Bio",
+      bioPlaceholder: "Racconta qualcosa di te",
+      phoneLabel: "Telefono",
+      usernameInvalidTitle: "Username non valido",
+      usernameInvalidMsg: "Usa 3–20 caratteri alfanumerici (underscore e punto permessi).",
+      savedTitle: "Salvato",
+      savedMsg: "Profilo aggiornato con successo.",
+      saving: "Salvataggio...",
+      notAuthenticated: "Non autenticato",
+    },
+
+    matchingScreen: {
+      backendErrorTitle: "Errore backend",
+      backendErrorMsg: "Impossibile contattare il server",
+    },
+
     // --- Annunci / Listing ---
     listing: {
       type: { hotel: "Hotel", train: "Treno" },
@@ -171,6 +192,7 @@ export const translations = {
       imageLoadError: "Impossibile caricare l’immagine",
 
       aiImport: "AI Import 1-click",
+      aiImportTitle: "AI Import",
       aiImportDesc:
         "Importa automaticamente i dati dell’annuncio leggendo un QR code oppure inserendo il PNR.",
       aiMagic: "Magia AI ✨",
@@ -222,6 +244,38 @@ export const translations = {
       aiImportFromQr: "Dati importati dal QR.",
       qrImportError: "Import da QR non riuscito.",
       simulateScan: "Simula scan",
+
+      photoPermissionTitle: "Permesso negato",
+      photoPermissionMsg: "Consenti l'accesso alle foto per aggiungerne.",
+      photoUploadErrorTitle: "Errore caricamento",
+      photoUploadErrorMsg: "Impossibile caricare una foto.",
+      photoPickErrorMsg: "Impossibile selezionare le foto.",
+      removePhotoTitle: "Rimuovi foto",
+      removePhotoMsg: "Vuoi eliminare questa foto?",
+      photoDeleteErrorMsg: "Impossibile eliminare.",
+
+      trustCheckWaitTitle: "Attendi un attimo",
+      trustCheckWaitMsg: "Puoi rilanciare la verifica tra ~{secs}s.",
+      trustScoreTitle: "AI TrustScore",
+      trustScoreGenericError: "Qualcosa è andato storto durante la verifica.",
+      noFixTitle: "Nessun fix",
+      noFixMsg: "Non ci sono suggerimenti da applicare.",
+      fixesAppliedTitle: "Fix applicati",
+      fixesAppliedMsg: "Ho applicato i suggerimenti AI. Puoi comunque modificarli.",
+      nothingToApplyTitle: "Nulla da applicare",
+      nothingToApplyMsg: "I suggerimenti non riguardano campi modificabili.",
+      applyFixesErrorMsg: "Impossibile applicare i fix.",
+
+      priceSuggestionTitle: "Suggerimento prezzo",
+      priceSuggestionMsg: "In base ai dati inseriti, potresti proporre circa {price}€.\nÈ solo un consiglio: sentiti libero di adattarlo.",
+      priceEstimateErrorMsg: "Impossibile stimare il prezzo al momento.",
+
+      checkAiRequiredTitle: "Esegui prima il Check AI",
+      checkAiRequiredMsg: "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati.",
+      splitPublishedTitle: "Pubblicati 2 annunci",
+      splitPublishedMsg: "Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito.",
+      draftUnavailableTitle: "Bozza non disponibile",
+      draftUnavailableMsg: "Salva direttamente le modifiche.",
 
       saveDraft: "Salva bozza",
       publishedTitle: "Pubblicato 🎉",
@@ -577,6 +631,27 @@ export const translations = {
       directionBought: "Received",
     },
 
+    editProfileScreen: {
+      fullNameLabel: "Full name",
+      fullNamePlaceholder: "Your name",
+      usernameLabel: "Username",
+      usernamePlaceholder: "e.g. mario_rossi",
+      bioLabel: "Bio",
+      bioPlaceholder: "Tell something about yourself",
+      phoneLabel: "Phone",
+      usernameInvalidTitle: "Invalid username",
+      usernameInvalidMsg: "Use 3–20 alphanumeric characters (underscore and dot allowed).",
+      savedTitle: "Saved",
+      savedMsg: "Profile updated successfully.",
+      saving: "Saving...",
+      notAuthenticated: "Not authenticated",
+    },
+
+    matchingScreen: {
+      backendErrorTitle: "Backend error",
+      backendErrorMsg: "Unable to reach the server",
+    },
+
     listing: {
       type: { hotel: "Hotel", train: "Train" },
       untitled: "Untitled",
@@ -641,6 +716,7 @@ export const translations = {
       imageLoadError: "Unable to load image",
 
       aiImport: "AI Import 1-click",
+      aiImportTitle: "AI Import",
       aiImportDesc:
         "Automatically import listing data by scanning a QR code or entering a PNR.",
       aiMagic: "AI Magic ✨",
@@ -692,6 +768,38 @@ export const translations = {
       aiImportFromQr: "Data imported from QR.",
       qrImportError: "QR import failed.",
       simulateScan: "Simulate scan",
+
+      photoPermissionTitle: "Permission denied",
+      photoPermissionMsg: "Allow photo access to add pictures.",
+      photoUploadErrorTitle: "Upload error",
+      photoUploadErrorMsg: "Couldn't upload a photo.",
+      photoPickErrorMsg: "Couldn't select photos.",
+      removePhotoTitle: "Remove photo",
+      removePhotoMsg: "Do you want to delete this photo?",
+      photoDeleteErrorMsg: "Couldn't delete it.",
+
+      trustCheckWaitTitle: "One moment",
+      trustCheckWaitMsg: "You can re-run the check in ~{secs}s.",
+      trustScoreTitle: "AI TrustScore",
+      trustScoreGenericError: "Something went wrong during the check.",
+      noFixTitle: "No fixes",
+      noFixMsg: "There are no suggestions to apply.",
+      fixesAppliedTitle: "Fixes applied",
+      fixesAppliedMsg: "AI suggestions have been applied. You can still edit them.",
+      nothingToApplyTitle: "Nothing to apply",
+      nothingToApplyMsg: "The suggestions don't affect editable fields.",
+      applyFixesErrorMsg: "Couldn't apply the fixes.",
+
+      priceSuggestionTitle: "Price suggestion",
+      priceSuggestionMsg: "Based on the entered data, you could ask around {price}€.\nIt's just a suggestion: feel free to adjust it.",
+      priceEstimateErrorMsg: "Couldn't estimate the price right now.",
+
+      checkAiRequiredTitle: "Run the Check AI first",
+      checkAiRequiredMsg: "To publish the listing you must first run the 'Check AI' for a quick data check.",
+      splitPublishedTitle: "2 listings published",
+      splitPublishedMsg: "Two separate listings were published with the same price. You can edit the prices later.",
+      draftUnavailableTitle: "Draft unavailable",
+      draftUnavailableMsg: "Save the changes directly instead.",
 
       saveDraft: "Save draft",
       publishedTitle: "Published 🎉",
@@ -1042,6 +1150,27 @@ export const translations = {
       directionBought: "Recibido",
     },
 
+    editProfileScreen: {
+      fullNameLabel: "Nombre y apellidos",
+      fullNamePlaceholder: "Tu nombre",
+      usernameLabel: "Usuario",
+      usernamePlaceholder: "p. ej. mario_rossi",
+      bioLabel: "Biografía",
+      bioPlaceholder: "Cuéntanos algo sobre ti",
+      phoneLabel: "Teléfono",
+      usernameInvalidTitle: "Usuario no válido",
+      usernameInvalidMsg: "Usa 3–20 caracteres alfanuméricos (guion bajo y punto permitidos).",
+      savedTitle: "Guardado",
+      savedMsg: "Perfil actualizado correctamente.",
+      saving: "Guardando...",
+      notAuthenticated: "No autenticado",
+    },
+
+    matchingScreen: {
+      backendErrorTitle: "Error del servidor",
+      backendErrorMsg: "No se pudo contactar con el servidor",
+    },
+
     listing: {
       type: { hotel: "Hotel", train: "Tren" },
       untitled: "Sin título",
@@ -1109,6 +1238,7 @@ export const translations = {
       imageLoadError: "No se puede cargar la imagen",
 
       aiImport: "AI Import 1-click",
+      aiImportTitle: "AI Import",
       aiImportDesc:
         "Importa automáticamente los datos del anuncio escaneando un QR o introduciendo un PNR.",
       aiMagic: "Magia IA ✨",
@@ -1163,6 +1293,38 @@ export const translations = {
       aiImportFromQr: "Datos importados desde el QR.",
       qrImportError: "Fallo al importar desde QR.",
       simulateScan: "Simular escaneo",
+
+      photoPermissionTitle: "Permiso denegado",
+      photoPermissionMsg: "Permite el acceso a las fotos para añadirlas.",
+      photoUploadErrorTitle: "Error de carga",
+      photoUploadErrorMsg: "No se pudo subir una foto.",
+      photoPickErrorMsg: "No se pudieron seleccionar las fotos.",
+      removePhotoTitle: "Eliminar foto",
+      removePhotoMsg: "¿Quieres eliminar esta foto?",
+      photoDeleteErrorMsg: "No se pudo eliminar.",
+
+      trustCheckWaitTitle: "Un momento",
+      trustCheckWaitMsg: "Puedes repetir la verificación en ~{secs}s.",
+      trustScoreTitle: "AI TrustScore",
+      trustScoreGenericError: "Algo salió mal durante la verificación.",
+      noFixTitle: "Sin sugerencias",
+      noFixMsg: "No hay sugerencias que aplicar.",
+      fixesAppliedTitle: "Sugerencias aplicadas",
+      fixesAppliedMsg: "Se han aplicado las sugerencias de la IA. Puedes seguir editándolas.",
+      nothingToApplyTitle: "Nada que aplicar",
+      nothingToApplyMsg: "Las sugerencias no afectan a campos editables.",
+      applyFixesErrorMsg: "No se pudieron aplicar las sugerencias.",
+
+      priceSuggestionTitle: "Sugerencia de precio",
+      priceSuggestionMsg: "Según los datos introducidos, podrías pedir unos {price}€.\nEs solo un consejo: siéntete libre de ajustarlo.",
+      priceEstimateErrorMsg: "No se pudo estimar el precio en este momento.",
+
+      checkAiRequiredTitle: "Ejecuta primero el Check AI",
+      checkAiRequiredMsg: "Para publicar el anuncio, primero debes ejecutar el 'Check AI' para una verificación rápida de los datos.",
+      splitPublishedTitle: "2 anuncios publicados",
+      splitPublishedMsg: "Se publicaron dos anuncios separados con el mismo precio. Puedes modificar los precios más tarde.",
+      draftUnavailableTitle: "Borrador no disponible",
+      draftUnavailableMsg: "Guarda los cambios directamente.",
 
       saveDraft: "Guardar borrador",
       publishedTitle: "Publicado 🎉",
