@@ -1,11 +1,13 @@
 // components/OfferCTA.js
 import React from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 
 export default function OfferCTAs({ listing, me }) {
   const { t } = useI18n();
+  const navigation = useNavigation();
   const isMine =
     me?.id && (listing?.owner_id || listing?.user_id || listing?.created_by) &&
     String(me.id) === String(listing.owner_id || listing.user_id || listing.created_by);
@@ -16,12 +18,12 @@ export default function OfferCTAs({ listing, me }) {
   const labelSwap     = t("offers.proposeSwap", "Proponi scambio");
 
   const onPurchase = () => {
-    // TODO: collega al tuo flow acquisto
-    if (__DEV__) console.log("propose purchase", listing?.id);
+    if (!listing?.id) return;
+    navigation.navigate("OfferFlow", { mode: "buy", listingId: listing.id });
   };
   const onSwap = () => {
-    // TODO: collega al tuo flow scambio
-    if (__DEV__) console.log("propose swap", listing?.id);
+    if (!listing?.id) return;
+    navigation.navigate("OfferFlow", { mode: "swap", listingId: listing.id });
   };
 
   return (
