@@ -57,6 +57,22 @@ Con `expo-notifications`: avvisa l'utente quando arriva una nuova offerta o un n
 ### D2. Chat in-app per le offerte
 Oggi si può fare un'offerta ma non trattare. Una chat leggera per ogni offerta (tabella `messages` da aggiungere) sbloccherebbe la negoziazione e ridurrebbe gli scambi "fuori piattaforma" (che le euristiche antifrode già segnalano come rischio).
 
+### D0. Swap a catena + normalizzazione AI — 🚧 FASE 1 FATTA (schema + funzioni)
+Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching reciproco diretto di oggi intercetta solo ~0,3% degli utenti; catene multi-parte da sole non cambiano nulla (~0,3% anche loro); **solo la combinazione catena + normalizzazione AI (tolleranza data/area) sblocca ~92%**. Deciso con te: catene di **esattamente 3** utenti, chiusura solo quando **tutti e 3 confermano esplicitamente** (nessuna esecuzione automatica).
+
+Implementato (fase 1, validata su Postgres locale con scenario felice/rifiuto/race-condition/permessi):
+- `chain_proposals`/`chain_participants` (RLS: solo i partecipanti vedono la propria catena).
+- `create_chain_proposal()` — solo `service_role`, valida ciclo chiuso + proprietà + stato `active` di ogni annuncio.
+- `confirm_chain_participant()` — chiude atomicamente solo a 3/3 conferme: annunci → `reserved`, offerte 1:1 pendenti su quegli annunci rifiutate, 3 righe in `transactions` (stesso trattamento di `accept_offer_any()` generalizzato a 3 lati). Se un annuncio non è più `active` al momento della chiusura (venduto altrove nel frattempo), la catena decade senza toccare nulla.
+- `decline_chain_participant()` — un rifiuto fa decadere subito la catena, nessun effetto collaterale.
+
+**Bug trovati e corretti durante il test locale, prima di consegnare**: (1) ricorsione infinita nella policy RLS di `chain_participants` (si auto-interrogava) — risolto con funzione helper `SECURITY DEFINER`; (2) `REVOKE ALL ... FROM PUBLIC` su `create_chain_proposal()` non bastava — su Supabase i permessi di default vanno direttamente ad `anon`/`authenticated`, non solo a `PUBLIC`: senza la correzione, **qualunque utente autenticato avrebbe potuto chiamare la funzione riservata al server**.
+
+**Non ancora fatto** (prossimi passi):
+- Fase 2: motore lato server che *trova* i cicli da proporre (grafo CERCO→VENDO su tutti gli annunci attivi, con normalizzazione fuzzy AI su data/area — i due parametri validati nella simulazione).
+- Fase 3: spiegazione della catena in linguaggio naturale (AI) da mostrare all'utente.
+- Fase 4: UI per vedere/confermare/rifiutare una proposta di catena.
+
 ### D3. Avvisi di ricerca ("price/route alert")
 "Avvisami quando compare un treno Roma→Milano sotto 40€". Sfrutta il motore di matching che c'è già, girato al contrario. Ottima retention.
 
