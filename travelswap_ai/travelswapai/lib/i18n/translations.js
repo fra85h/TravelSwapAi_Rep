@@ -118,6 +118,8 @@ export const translations = {
     matchingScreen: {
       backendErrorTitle: "Errore backend",
       backendErrorMsg: "Impossibile contattare il server",
+      backendUnreachable: "Backend non raggiungibile",
+      noMatchesComputed: "Nessun match calcolato",
     },
 
     // --- Annunci / Listing ---
@@ -416,6 +418,18 @@ export const translations = {
       legendHide: "Nascondi spiegazione",
       legendShowScores: "Mostra spiegazione punteggi",
       legendHideScores: "Nascondi spiegazione punteggi",
+      legend: {
+        title: "Come leggere i punteggi",
+        base: "60–69 = compatibilità di base",
+        good: "70–79 = buona compatibilità",
+        verygood: "80–89 = affinità alta (perfetto solo se bidirezionale)",
+        excellent: "90–100 = affinità eccellente (perfetto anche se non bidirezionale)",
+        rule: "Un match è PERFETTO se: (bidirezionale && punteggio ≥ 80) oppure (!bidirezionale && punteggio ≥ 90). Altrimenti è COMPATIBILE.",
+        show: "Mostra spiegazione",
+        hide: "Nascondi spiegazione",
+        showA11y: "Mostra spiegazione punteggi",
+        hideA11y: "Nascondi spiegazione punteggi",
+      },
       perfectMatches: "Match perfetti",
       perfectSubtitle:
         "Incroci bidirezionali: piaci a loro e loro piacciono a te. 80+ = affinità altissima.",
@@ -650,6 +664,8 @@ export const translations = {
     matchingScreen: {
       backendErrorTitle: "Backend error",
       backendErrorMsg: "Unable to reach the server",
+      backendUnreachable: "Backend unreachable",
+      noMatchesComputed: "No matches computed yet",
     },
 
     listing: {
@@ -927,7 +943,9 @@ export const translations = {
         title: "What do 60 / 70 / 80 mean?",
         base: "60–69 = basic compatibility",
         good: "70–79 = good compatibility",
-        excellent: "80–100 = excellent affinity",
+        verygood: "80–89 = high affinity (perfect only if bidirectional)",
+        excellent: "90–100 = excellent affinity (perfect even if not bidirectional)",
+        rule: "A match is PERFECT if: (bidirectional && score ≥ 80) or (!bidirectional && score ≥ 90). Otherwise it's COMPATIBLE.",
         long:
           "The score is an estimate (0–100) calculated by TravelSwap AI by combining: preferences and history, price alignment, proximity/location, date overlap, listing category/type, and signals of mutual interest. “Perfect matches” are bidirectional.",
         show: "Show explanation",
@@ -1169,6 +1187,8 @@ export const translations = {
     matchingScreen: {
       backendErrorTitle: "Error del servidor",
       backendErrorMsg: "No se pudo contactar con el servidor",
+      backendUnreachable: "Servidor no disponible",
+      noMatchesComputed: "Todavía no se ha calculado ningún match",
     },
 
     listing: {
@@ -1458,7 +1478,9 @@ export const translations = {
         title: "¿Qué significan 60 / 70 / 80?",
         base: "60–69 = compatibilidad básica",
         good: "70–79 = buena compatibilidad",
-        excellent: "80–100 = afinidad excelente",
+        verygood: "80–89 = afinidad alta (perfecto solo si es bidireccional)",
+        excellent: "90–100 = afinidad excelente (perfecto incluso si no es bidireccional)",
+        rule: "Un match es PERFECTO si: (bidireccional && puntuación ≥ 80) o (!bidireccional && puntuación ≥ 90). En caso contrario es COMPATIBLE.",
         long:
           "La puntuación es una estimación (0–100) calculada por TravelSwap AI combinando: preferencias e historial, alineación de precios, proximidad/ubicación, solapamiento de fechas, categoría/tipo de anuncio y señales de interés mutuo. Las “coincidencias perfectas” son bidireccionales.",
         show: "Mostrar explicación",

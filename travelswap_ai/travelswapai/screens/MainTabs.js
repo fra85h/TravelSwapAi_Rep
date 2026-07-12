@@ -34,7 +34,7 @@ export default function MainTabs() {
           name="Home"
           component={HomeScreen}
           options={{
-            tabBarLabel: t("home.title", "Annunci"),
+            tabBarLabel: t("listingsTitle", "Annunci"),
             tabBarIcon: ({ color, size, focused }) => (
               <Ionicons name={focused ? "home" : "home-outline"} color={color} size={size} />
             ),

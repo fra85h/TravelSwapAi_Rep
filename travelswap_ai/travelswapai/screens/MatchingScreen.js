@@ -34,6 +34,7 @@ import { getUserSnapshot, recomputeUserSnapshot } from "../lib/backendApi";
 
 /* ---------- UI di supporto ---------- */
 function EmptyState({ onRecompute, isLoading, hasError }) {
+  const { t } = useI18n();
   return (
     <View style={{ alignItems: "center", padding: 24 }}>
       <Ionicons
@@ -42,7 +43,9 @@ function EmptyState({ onRecompute, isLoading, hasError }) {
         color={theme.colors.boardingText}
       />
       <Text style={{ marginTop: 10, fontWeight: "800" , color:theme.colors.boardingText}}>
-        {hasError ? "Backend non raggiungibile" : "Nessun match calcolato"}
+        {hasError
+          ? t("matchingScreen.backendUnreachable", "Backend non raggiungibile")
+          : t("matchingScreen.noMatchesComputed", "Nessun match calcolato")}
       </Text>
     { /* {!hasError && (
         <TouchableOpacity
