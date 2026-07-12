@@ -8,7 +8,7 @@ import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
 import SaveButton from "../components/SaveButton";
-import { Train, BedDouble } from "lucide-react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 // --- Helper: rimuove eventuali prezzi dal titolo
 function stripPriceFromTitle(s) {
@@ -129,9 +129,9 @@ export default function HomeScreen() {
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
             {typeLc === "train" ? (
-              <Train size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
+              <Ionicons name="train-outline" size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
             ) : typeLc === "hotel" ? (
-              <BedDouble size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
+              <Ionicons name="bed-outline" size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
             ) : null}
             <Text style={styles.cardTitle} numberOfLines={1}>
               {stripPriceFromTitle(item.title) || tt("listing.untitled", "Senza titolo")}

@@ -24,7 +24,7 @@ import { useAuth } from "../lib/auth";
 import { theme } from "../lib/theme";
 import { supabase } from "../lib/supabase.js";
 import TrustScoreBadge from '../components/TrustScoreBadge';
-import { Train, BedDouble } from "lucide-react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 // --- Helper: rimuove eventuali prezzi dal titolo (come in HomeScreen)
 function stripPriceFromTitle(s) {
@@ -215,9 +215,9 @@ export default function ProfileScreen() {
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
           {String(item.type).toLowerCase() === "train" ? (
-            <Train size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
+            <Ionicons name="train-outline" size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
           ) : String(item.type).toLowerCase() === "hotel" ? (
-            <BedDouble size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
+            <Ionicons name="bed-outline" size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
           ) : null}
           <Text style={styles.listCardTitle} numberOfLines={1}>
             {stripPriceFromTitle(item.title) || t("listing.untitled", "Senza titolo")}

@@ -73,7 +73,9 @@ Direzione scelta dopo confronto visivo di 3 varianti (indigo raffinato / indigo 
 
 - ✅ **Terza tranche**: estesa l'ombra morbida ai contenitori-card rimanenti (`OfferFlow`, `OfferDetailScreen`, `MatchingScreen` — lasciati intenzionalmente piatti input/chip/skeleton loader, che non sono card). Trovato e sistemato un altro CTA ad alto impatto: il **FAB "Ricalcola AI"** in Matching passa da lavanda chiaro a oro con ombra dorata, stesso trattamento del pulsante "Pubblica". Aggiunto anche il badge "selezionato" (`cardSelected` in OfferFlow) in oro. Font esteso ai titoli di `OfferFlow`, `OfferDetailScreen`, `MatchingScreen`.
 
-Non ancora fatto (prossimi passi naturali): unificazione delle 3 librerie di icone su una sola (rimandata: non verificabile offline se le icone lucide→Ionicons esistono davvero, rischio di icona mancante silenziosa), estensione font ai titoli rimanenti (Profilo, form creazione annuncio).
+- ✅ **Unificazione icone**: verificato scaricando il pacchetto reale da npm (non più "non verificabile offline") che Ionicons ha `train-outline`/`bed-outline` — sostituiti i 2 usi di `lucide-react-native` (Home, Profilo) e rimossa la dipendenza dal `package.json`. Icone ora tutte su `@expo/vector-icons` (Ionicons + AntDesign).
+
+Non ancora fatto (prossimo passo naturale): estensione font ai titoli rimanenti (Profilo, form creazione annuncio).
 
 ---
 
