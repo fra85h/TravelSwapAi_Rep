@@ -33,6 +33,39 @@ g._mem = g._mem || { listings: {} }; // cache in memoria sicura
 
 // normalizza sempre la chiave ID a stringa
 const key = (id) => String(id);
+/**
+ * Salva/aggiorna il PNR (dato riservato) in listing_secrets — mai in listings.
+ * La policy RLS "own secrets" consente la scrittura solo all'owner del listing.
+ * Non blocca il flusso principale in caso di errore.
+ */
+async function savePnrSecret(listingId, pnr) {
+  try {
+    const clean = pnr == null ? null : String(pnr).trim();
+    if (!clean) {
+      await supabase.from("listing_secrets").delete().eq("listing_id", listingId);
+      return;
+    }
+    const { error } = await supabase
+      .from("listing_secrets")
+      .upsert({ listing_id: listingId, pnr: clean });
+    if (error) console.log("[savePnrSecret] error:", error.message);
+  } catch (e) {
+    console.log("[savePnrSecret] exception:", e?.message || e);
+  }
+}
+
+/** Legge il PNR del proprio annuncio (solo owner, via RLS). Ritorna stringa o null. */
+export async function getListingSecret(listingId) {
+  if (!listingId) return null;
+  const { data, error } = await supabase
+    .from("listing_secrets")
+    .select("pnr")
+    .eq("listing_id", listingId)
+    .maybeSingle();
+  if (error) { console.log("[getListingSecret] error:", error.message); return null; }
+  return data?.pnr ?? null;
+}
+
 /** Inserisci un annuncio (assegna user_id automaticamente) */
 export async function insertListing(payload) {
   const me = await getCurrentUser();
@@ -68,14 +101,21 @@ export async function insertListing(payload) {
     .insert([body])
     .select()
     .single();
-  if (error)       
- throw error;
+  if (error) throw error;
+
+  // PNR: dato riservato, salvato separatamente in listing_secrets (mai in listings)
+  if (payload.pnr) {
+    await savePnrSecret(data.id, payload.pnr);
+  }
   return data;
 }
 export async function updateListing(id, patch) {
+  // Il PNR non è una colonna di listings: va estratto e salvato in listing_secrets
+  const { pnr, ...rest } = patch || {};
+
   const { data, error } = await supabase
     .from('listings')
-    .update(patch)
+    .update(rest)
     .eq('id', id)
     .select('*')       // <-- fa fare "return=representation"
     .maybeSingle();    // <-- non lancia se 0 righe
@@ -87,6 +127,9 @@ export async function updateListing(id, patch) {
   if (!data) {
     // 0 righe toccate: id sbagliato o RLS
     return { error: { message: 'No rows updated (check ID or RLS policy)' } };
+  }
+  if (pnr !== undefined) {
+    await savePnrSecret(id, pnr);
   }
   return data;
 }

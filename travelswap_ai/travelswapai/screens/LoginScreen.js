@@ -54,26 +54,6 @@ async function handleOAuthCallback(returnUrl) {
 
   throw new Error("Né code né access_token nel redirect.");
 }
-async function testBridge() {
-  try {
-    const REDIRECT_TO = "https://auth.expo.io/@fra85h/travelswap";
-    // La funzione openAuthSessionAsync gestisce l'intero processo.
-    // Il risultato viene restituito direttamente in una variabile.
-    const result = await WebBrowser.openAuthSessionAsync(
-      `${REDIRECT_TO}?ping=1`, // Questo è l'URL di autenticazione
-      'http://pq0evwy-fra85h-8081.exp.direct' // Questo è il tuo URL di reindirizzamento
-    );
-
-    if (result.type === 'success' && result.url) {
-      console.log('Autenticazione riuscita! URL di callback:', result.url);
-      // Puoi usare l'URL qui per completare il login con il tuo provider.
-    } else {
-      console.log('Autenticazione fallita o annullata:', result.type);
-    }
-  } catch (error) {
-    console.error('Si è verificato un errore durante l\'autenticazione:', error);
-  }
-}
 export async function signInWithProviderOAuth(provider) {
   let sub;
   try {
@@ -142,6 +122,35 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
+  const signUpWithEmail = async () => {
+    if (!email || !password) {
+      Alert.alert("Compila tutti i campi", "Email e password sono richiesti.");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Password troppo corta", "Usa almeno 6 caratteri.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      // Se la conferma email è disattivata, arriva già una sessione:
+      // onAuthStateChange porta l'utente oltre la login.
+      if (data?.session) return;
+      // Altrimenti l'account è creato ma serve confermare via email.
+      Alert.alert(
+        "Registrazione quasi completa",
+        "Ti abbiamo inviato un'email di conferma. Aprila per attivare l'account, poi torna qui e premi Accedi."
+      );
+    } catch (err) {
+      console.error("[EmailSignup] error:", err);
+      Alert.alert("Registrazione fallita", err?.message ?? String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onPressGoogle = async () => {
     try {
       setLoading(true);
@@ -195,6 +204,7 @@ export default function LoginScreen({ navigation }) {
         />
 
         <Button title="Accedi" onPress={signInWithEmail} loading={loading} />
+        <Button title="Registrati" variant="outline" onPress={signUpWithEmail} loading={loading} />
 
         <View style={{ alignItems: "flex-end" }}>
           <TouchableOpacity onPress={() => navigation?.navigate?.("ForgotPassword")}>
@@ -224,8 +234,6 @@ export default function LoginScreen({ navigation }) {
           onPress={onPressFacebook}
           loading={loading}
         />
-        <Button title="Test bridge" variant="outline" onPress={testBridge} />
-
       </View>
     </View>
   );

@@ -7,6 +7,7 @@ import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
+import SaveButton from "../components/SaveButton";
 import { Train, BedDouble } from "lucide-react-native";
 
 // --- Helper: rimuove eventuali prezzi dal titolo
@@ -136,6 +137,7 @@ export default function HomeScreen() {
               {stripPriceFromTitle(item.title) || tt("listing.untitled", "Senza titolo")}
             </Text>
           </View>
+          <SaveButton listingId={item.id} size={22} />
         </View>
 
         <Text style={styles.cardSub}>
