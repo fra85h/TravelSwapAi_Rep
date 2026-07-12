@@ -8,6 +8,7 @@ import { trustscoreRouter } from './routes/trustscore.js';
 // Routers esistenti
 import { listingsRouter } from './routes/listing.js';
 import { matchesRouter } from './routes/match.js';
+import { chainsRouter } from './routes/chains.js';
 
 // Parser / ingest / Messenger
 import { parseFacebookText } from './parsers/fbParser.js';
@@ -39,6 +40,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/ai', trustscoreRouter);
 app.use('/api/listings', listingsRouter);
 app.use('/api/matches', matchesRouter);
+app.use('/api/chains', chainsRouter);
 app.use('/', translateListingsRouter);
 
 mountParseDescriptionRoute(app, [requireAuth, rateLimitParse]);
