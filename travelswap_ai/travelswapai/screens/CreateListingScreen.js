@@ -627,7 +627,7 @@ const initialJsonRef = useRef(null);
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(t("common.error", "Permesso negato"), "Consenti l'accesso alle foto per aggiungerne.");
+        Alert.alert(t("createListing.photoPermissionTitle", "Permesso negato"), t("createListing.photoPermissionMsg", "Consenti l'accesso alle foto per aggiungerne."));
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -649,7 +649,7 @@ const initialJsonRef = useRef(null);
             const row = await uploadImage(editListingId, a, pos++);
             setExistingPhotos((prev) => [...prev, row]);
           } catch (e) {
-            Alert.alert("Errore caricamento", e?.message || "Impossibile caricare una foto.");
+            Alert.alert(t("createListing.photoUploadErrorTitle", "Errore caricamento"), e?.message || t("createListing.photoUploadErrorMsg", "Impossibile caricare una foto."));
           }
         }
         setPhotoBusy(false);
@@ -658,7 +658,7 @@ const initialJsonRef = useRef(null);
         setPendingPhotos((prev) => [...prev, ...assets]);
       }
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e?.message || "Impossibile selezionare le foto.");
+      Alert.alert(t("common.error", "Errore"), e?.message || t("createListing.photoPickErrorMsg", "Impossibile selezionare le foto."));
     }
   };
 
@@ -667,7 +667,7 @@ const initialJsonRef = useRef(null);
   };
 
   const removeExistingPhoto = (img) => {
-    Alert.alert("Rimuovi foto", "Vuoi eliminare questa foto?", [
+    Alert.alert(t("createListing.removePhotoTitle", "Rimuovi foto"), t("createListing.removePhotoMsg", "Vuoi eliminare questa foto?"), [
       { text: t("common.cancel", "Annulla"), style: "cancel" },
       {
         text: t("common.delete", "Elimina"),
@@ -678,7 +678,7 @@ const initialJsonRef = useRef(null);
             await deleteImage(img.id, img.url);
             setExistingPhotos((prev) => prev.filter((p) => p.id !== img.id));
           } catch (e) {
-            Alert.alert(t("common.error", "Errore"), e?.message || "Impossibile eliminare.");
+            Alert.alert(t("common.error", "Errore"), e?.message || t("createListing.photoDeleteErrorMsg", "Impossibile eliminare."));
           } finally {
             setPhotoBusy(false);
           }
@@ -719,7 +719,7 @@ const initialJsonRef = useRef(null);
     const now = Date.now();
     if (now - lastTrustRunAt < 10_000) {
       const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
-      Alert.alert("Attendi un attimo", `Puoi rilanciare la verifica tra ~${secs}s.`);
+      Alert.alert(t("createListing.trustCheckWaitTitle", "Attendi un attimo"), t("createListing.trustCheckWaitMsg", `Puoi rilanciare la verifica tra ~${secs}s.`, { secs }));
       return;
     }
 
@@ -851,12 +851,12 @@ if ((patch.type || form.type) === "train" && routeStr) {
       setLastTrustRunAt(Date.now()); // <-- mark that Check AI has been run
       clearLogSoon();
       if (!res && trustError) {
-        Alert.alert("AI TrustScore", trustError);
+        Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), trustError);
       }
     } catch (err) {
       logStep("Errore durante il Check AI.", 100);
       clearLogSoon();
-      Alert.alert("AI TrustScore", "Qualcosa è andato storto durante la verifica.");
+      Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), t("createListing.trustScoreGenericError", "Qualcosa è andato storto durante la verifica."));
     } finally {
       setLoadingAI(false);
     }
@@ -867,7 +867,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
     try {
       const fixes = Array.isArray(trustData?.suggestedFixes) ? trustData.suggestedFixes : [];
       if (!fixes.length) {
-        Alert.alert("Nessun fix", "Non ci sono suggerimenti da applicare.");
+        Alert.alert(t("createListing.noFixTitle", "Nessun fix"), t("createListing.noFixMsg", "Non ci sono suggerimenti da applicare."));
         return;
       }
       const patch = {};
@@ -907,12 +907,12 @@ if ((patch.type || form.type) === "train" && routeStr) {
       if (Object.keys(patch).length) {
         update(patch);
         setShowFixesModal(false);
-        Alert.alert("Fix applicati", "Ho applicato i suggerimenti AI. Puoi comunque modificarli.");
+        Alert.alert(t("createListing.fixesAppliedTitle", "Fix applicati"), t("createListing.fixesAppliedMsg", "Ho applicato i suggerimenti AI. Puoi comunque modificarli."));
       } else {
-        Alert.alert("Nulla da applicare", "I suggerimenti non riguardano campi modificabili.");
+        Alert.alert(t("createListing.nothingToApplyTitle", "Nulla da applicare"), t("createListing.nothingToApplyMsg", "I suggerimenti non riguardano campi modificabili."));
       }
     } catch {
-      Alert.alert("Errore", "Impossibile applicare i fix.");
+      Alert.alert(t("common.error", "Errore"), t("createListing.applyFixesErrorMsg", "Impossibile applicare i fix."));
     }
   };
 
@@ -1015,9 +1015,16 @@ if ((patch.type || form.type) === "train" && routeStr) {
       suggestion = Math.round(suggestion / 5) * 5;
 
       update({ price: String(suggestion) });
-      Alert.alert("Suggerimento prezzo", `In base ai dati inseriti, potresti proporre circa ${suggestion}€.\nÈ solo un consiglio: sentiti libero di adattarlo.`);
+      Alert.alert(
+        t("createListing.priceSuggestionTitle", "Suggerimento prezzo"),
+        t(
+          "createListing.priceSuggestionMsg",
+          `In base ai dati inseriti, potresti proporre circa ${suggestion}€.\nÈ solo un consiglio: sentiti libero di adattarlo.`,
+          { price: suggestion }
+        )
+      );
     } catch {
-      Alert.alert("Errore", "Impossibile stimare il prezzo al momento.");
+      Alert.alert(t("common.error", "Errore"), t("createListing.priceEstimateErrorMsg", "Impossibile stimare il prezzo al momento."));
     } finally {
       setPriceLoading(false);
     }
@@ -1029,8 +1036,8 @@ if ((patch.type || form.type) === "train" && routeStr) {
     const hasRunCheckAI = lastTrustRunAt > 0;
     if (mode !== "edit" && !hasRunCheckAI) {
       Alert.alert(
-        "Esegui prima il Check AI",
-        "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati."
+        t("createListing.checkAiRequiredTitle", "Esegui prima il Check AI"),
+        t("createListing.checkAiRequiredMsg", "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati.")
       );
       return;
     }
@@ -1080,7 +1087,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
           if (r2?.error) throw r2.error;
           await flushPendingPhotos(r1?.id); // le foto vanno solo sul primo dei due annunci
           await AsyncStorage.removeItem(DRAFT_KEY);
-          Alert.alert('Pubblicati 2 annunci', 'Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito.');
+          Alert.alert(t("createListing.splitPublishedTitle", "Pubblicati 2 annunci"), t("createListing.splitPublishedMsg", "Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito."));
         } else {
           const res = await insertListing(payload);
           if (res?.error) throw res.error;
@@ -1109,16 +1116,16 @@ if ((patch.type || form.type) === "train" && routeStr) {
   /* ---------- DRAFT ---------- */
   const onSaveDraft = async () => {
     if (mode === "edit") {
-      Alert.alert("Bozza non disponibile", "Salva direttamente le modifiche.");
+      Alert.alert(t("createListing.draftUnavailableTitle", "Bozza non disponibile"), t("createListing.draftUnavailableMsg", "Salva direttamente le modifiche."));
       return;
     }
     try {
       setSaving(true);
       await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(form));
       await new Promise((r) => setTimeout(r, 350));
-      Alert.alert("Bozza salvata", "Puoi riprenderla in qualsiasi momento.");
+      Alert.alert(t("createListing.draftSavedTitle", "Bozza salvata"), t("createListing.draftSavedMsg", "Puoi riprenderla in qualsiasi momento."));
     } catch {
-      Alert.alert("Errore", "Non sono riuscito a salvare la bozza.");
+      Alert.alert(t("common.error", "Errore"), t("createListing.draftSaveError", "Non sono riuscito a salvare la bozza."));
     } finally {
       setSaving(false);
     }
@@ -1139,7 +1146,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
       const data = await aiImportFromPNR(code);
       applyImportedData(data);
       closeImport();
-      Alert.alert("AI Import", t("createListing.aiImportSuccess", "Dati importati correttamente."));
+      Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportSuccess", "Dati importati correttamente."));
       goToSlide(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.aiImportError", "Impossibile importare dal PNR."));
@@ -1175,7 +1182,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
       applyImportedData(parsed);
       setQrVisible(false);
       closeImport();
-      Alert.alert("AI Import", t("createListing.aiImportFromQr", "Dati importati dal QR."));
+      Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportFromQr", "Dati importati dal QR."));
       goToSlide(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.qrImportError", "Import da QR non riuscito."));
