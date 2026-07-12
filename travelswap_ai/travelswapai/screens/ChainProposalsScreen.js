@@ -140,7 +140,7 @@ export default function ChainProposalsScreen() {
       [
         { text: t("common.cancel", "Annulla"), style: "cancel" },
         {
-          text: t("common.confirm", "Conferma"),
+          text: t("chains.decline", "Rifiuta"),
           style: "destructive",
           onPress: async () => {
             setBusyId(chainId);
