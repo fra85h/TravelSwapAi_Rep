@@ -12,6 +12,7 @@ import { getListingById } from "../lib/db.js";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
 import OfferCTAs from "../components/OfferCTA";
+import SaveButton from "../components/SaveButton";
 import { useI18n } from "../lib/i18n";
 import { useListingTranslation } from "../lib/useListingTranslation";
 
@@ -104,6 +105,14 @@ useEffect(() => {
      // questa riga potrebbe non avere effetto. In tal caso vedi headerLeft custom sotto.
      headerBackTitle: tt("common.back", "Indietro"),
      headerBackTitleVisible: true,
+     // Stella preferiti in alto a destra
+     headerRight: () => (
+       listingId ? (
+         <View style={{ paddingHorizontal: 12 }}>
+           <SaveButton listingId={listingId} size={26} />
+         </View>
+       ) : null
+     ),
      // Android (e fallback cross-platform): headerLeft custom con testo localizzato
      headerLeft: (props) => (
        <TouchableOpacity

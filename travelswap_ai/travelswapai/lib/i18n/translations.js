@@ -62,6 +62,7 @@ export const translations = {
     profile: {
       title: "Profilo",
       editProfile: "Modifica profilo",
+      savedListings: "I miei preferiti",
       logout: "Esci",
       myListings: "I miei annunci",
       publishListing: "Pubblica annuncio",
@@ -440,6 +441,7 @@ export const translations = {
       matching: "Matching",
       listingDetail: "Dettaglio annuncio",
       editProfile: "Modifica profilo",
+      savedListings: "I miei preferiti",
       createListing: "Crea annuncio",
       onboarding: "Onboarding",
       login: "Accedi",
@@ -501,6 +503,7 @@ export const translations = {
     profile: {
       title: "Profile",
       editProfile: "Edit profile",
+      savedListings: "My favorites",
       logout: "Logout",
       myListings: "My listings",
       publishListing: "Publish listing",
@@ -869,6 +872,7 @@ export const translations = {
       matching: "Matching",
       listingDetail: "Listing detail",
       editProfile: "Edit profile",
+      savedListings: "My favorites",
       createListing: "Create listing",
       onboarding: "Onboarding",
       login: "Log in",
@@ -927,6 +931,7 @@ export const translations = {
     profile: {
       title: "Perfil",
       editProfile: "Editar perfil",
+      savedListings: "Mis favoritos",
       logout: "Cerrar sesión",
       myListings: "Mis anuncios",
       publishListing: "Publicar anuncio",
@@ -1313,6 +1318,7 @@ export const translations = {
       matching: "Matching",
       listingDetail: "Detalle del anuncio",
       editProfile: "Editar perfil",
+      savedListings: "Mis favoritos",
       createListing: "Crear anuncio",
       onboarding: "Onboarding",
       login: "Iniciar sesión",

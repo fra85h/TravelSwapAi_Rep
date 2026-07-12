@@ -28,8 +28,8 @@ Il redirect usa `auth.expo.io` (proxy Expo dismesso) → il login non si complet
 
 Queste tabelle esistono nello schema ma l'app non le usa affatto — sono "vinte a metà": manca solo il lato app.
 
-### C1. Preferiti / Wishlist — `saved_listings`
-Tabella e policy RLS (`saved_read_own`, `saved_write_own`) già pronte. Serve: un'icona ⭐ su ogni annuncio + una schermata "Salvati". Sforzo basso, valore alto per l'engagement.
+### C1. Preferiti / Wishlist — `saved_listings` — ✅ FATTO
+Implementato: `lib/savedListings.js` (CRUD sui preferiti), componente `SaveButton` (stella ⭐), schermata `SavedScreen`, stella nel dettaglio annuncio e sulle card della Home, accesso "I miei preferiti" dal Profilo (it/en/es).
 
 ### C2. Galleria immagini — `listing_images`
 Oggi l'annuncio ha una sola `image_url`. La tabella `listing_images` supporta più foto con posizione. Serve: caricamento multiplo + carosello nel dettaglio. Aumenta molto la qualità percepita e la fiducia.
