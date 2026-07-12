@@ -10,6 +10,7 @@
 import { supabase } from "../db.js";
 import { listActiveListings } from "./listings.js";
 import { scoreChainCandidates, CHAIN_SCORE_PASS_THRESHOLD } from "../ai/chainMatch.js";
+import { explainChain } from "../ai/chainExplain.js";
 
 /**
  * Trova cicli diretti di lunghezza esatta 3 in un grafo { ownerId: Set<ownerId> }.
@@ -177,6 +178,20 @@ export async function findAndProposeChains() {
     pending.add(a);
     pending.add(b);
     pending.add(c);
+
+    // Spiegazione in linguaggio naturale (fase 3): non blocca la proposta
+    // se fallisce, la catena resta valida senza `explanation` (il client
+    // può comunque mostrare i dati grezzi dei 3 annunci).
+    try {
+      const explanation = await explainChain([listingA, listingB, listingC]);
+      const { error: explErr } = await supabase
+        .from("chain_proposals")
+        .update({ explanation })
+        .eq("id", data);
+      if (explErr) console.error("[chains] failed to save explanation:", explErr.message);
+    } catch (e) {
+      console.error("[chains] explainChain failed:", e?.message || e);
+    }
   }
 
   return {
