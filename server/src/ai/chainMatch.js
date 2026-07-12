@@ -90,6 +90,13 @@ function withinDateTolerance(a, b, days) {
   return diffDays <= days;
 }
 
+// Due livelli di vicinanza geografica, non uno solo: "stessa area" (regione
+// larga, es. tutto il sud Italia) da sola NON deve bastare a superare la
+// soglia se le date sono lontane — altrimenti "Napoli→Bari il 3 agosto" e
+// "Palermo→Catania il 1 settembre" risulterebbero compatibili solo perché
+// entrambe le coppie di città sono genericamente "sud", con quasi un mese
+// di scarto. "Stessa città esatta" (stringa identica) è un segnale molto
+// più forte e vale anche con una data più lontana.
 function sameRegionRoute(want, candidate) {
   const w = routeOf(want);
   const c = routeOf(candidate);
@@ -99,11 +106,23 @@ function sameRegionRoute(want, candidate) {
   return rFrom === regionOf(c.from) && rTo === regionOf(c.to);
 }
 
+function exactRouteMatch(want, candidate) {
+  const w = routeOf(want);
+  const c = routeOf(candidate);
+  const wFrom = normCityKey(w.from);
+  const wTo = normCityKey(w.to);
+  if (!wFrom || !wTo) return false;
+  return wFrom === normCityKey(c.from) && wTo === normCityKey(c.to);
+}
+
 /**
  * Fallback deterministico, sempre disponibile (nessuna chiamata esterna).
- * Score: 30 base, +15 se le date sono vicine (±3gg), +55 se stessa area
- * geografica — la soglia CHAIN_SCORE_THRESHOLD (65) passa solo quando
- * l'area coincide, la vicinanza di data da sola non basta.
+ * Score: 20 base, +15 se le date sono vicine (±3gg), +40 se stessa area
+ * geografica larga, +25 in più se le città sono esattamente le stesse
+ * (l'esatto implica sempre anche l'area). La soglia CHAIN_SCORE_THRESHOLD
+ * (65) passa solo se c'è vicinanza geografica ABBINATA a data vicina o a
+ * corrispondenza esatta della città — l'area larga da sola, con date
+ * lontane, resta sotto soglia.
  */
 export function heuristicChainScore(wantListing, candidates, { dateToleranceDays = 3 } = {}) {
   return (candidates || [])
@@ -114,11 +133,12 @@ export function heuristicChainScore(wantListing, candidates, { dateToleranceDays
       }
       const dateOk = withinDateTolerance(wantListing, c, dateToleranceDays);
       const regionOk = sameRegionRoute(wantListing, c);
-      const score = 30 + (dateOk ? 15 : 0) + (regionOk ? 55 : 0);
+      const exactOk = exactRouteMatch(wantListing, c);
+      const score = 20 + (dateOk ? 15 : 0) + (regionOk ? 40 : 0) + (exactOk ? 25 : 0);
       return {
         id: c.id,
         score: Math.min(100, score),
-        reason: `${regionOk ? "stessa area" : "area diversa"}, ${dateOk ? "date vicine" : "date distanti"}`,
+        reason: `${exactOk ? "stessa città" : regionOk ? "stessa area" : "area diversa"}, ${dateOk ? "date vicine" : "date distanti"}`,
         model: "heuristic",
       };
     })
@@ -161,7 +181,9 @@ Per ciascun annuncio candidato, stima uno score 0-100 di quanto bene soddisfereb
 - differenze di data fino a circa 3 giorni;
 - non tollerare tipo diverso (treno vs hotel) o città in aree completamente diverse d'Italia.
 
-Linee guida punteggio: 30=nessuna corrispondenza, 65=area compatibile ma data lontana o viceversa, 85+=area e data entrambe compatibili.
+IMPORTANTE: una vicinanza geografica solo generica (es. "entrambe nel sud Italia" ma città diverse e lontane tra loro, tipo Napoli e Palermo) NON basta da sola a dare uno score alto se la data è lontana — richiede o (a) la stessa città/area metropolitana ristretta, oppure (b) area compatibile E data vicina insieme.
+
+Linee guida punteggio: 20=nessuna corrispondenza, 35-45=solo uno dei due criteri (area larga sola, o data vicina sola) — sotto soglia, 65+=area larga E data vicina insieme, 75+=stessa città esatta anche con data più lontana, 90+=stessa città e data entrambe vicine.
 
 Rispondi SOLO con:
 {"scores": [{"id": "<uuid>", "score": <int 0-100>, "reason": "<max 100 char, in italiano>"}]}
