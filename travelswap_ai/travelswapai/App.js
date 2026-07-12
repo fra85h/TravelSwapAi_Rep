@@ -122,7 +122,7 @@ function RootNavigator() {
 }
 
 export default function App() {
-  console.log("[WHOAMI] owner =", Constants.expoConfig?.owner, "slug =", Constants.expoConfig?.slug, "name =", Constants.expoConfig?.name);
+  if (__DEV__) console.log("[WHOAMI] owner =", Constants.expoConfig?.owner, "slug =", Constants.expoConfig?.slug, "name =", Constants.expoConfig?.name);
 
   // Font dei titoli (Plus Jakarta Sans): caricato una volta all'avvio,
   // il testo di sistema resta invariato per tutto il resto dell'app.

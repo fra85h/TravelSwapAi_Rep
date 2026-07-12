@@ -13,9 +13,9 @@ export function AuthProvider({ children }) {
     (async () => {
       const { data: { session: s } } = await supabase.auth.getSession();
       setSession(s ?? null);
-      console.log("[AuthState] INITIAL_SESSION", !!s, s?.user?.id);
+      if (__DEV__) console.log("[AuthState] INITIAL_SESSION", !!s, s?.user?.id);
       const sub = supabase.auth.onAuthStateChange((event, newSession) => {
-        console.log("[AuthState][onChange]", event, !!newSession, newSession?.user?.id);
+        if (__DEV__) console.log("[AuthState][onChange]", event, !!newSession, newSession?.user?.id);
         setSession(newSession ?? null);
       });
       unsubscribe = () => sub?.data?.subscription?.unsubscribe?.();

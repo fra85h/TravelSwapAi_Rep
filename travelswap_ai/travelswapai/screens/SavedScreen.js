@@ -8,6 +8,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { listSavedListings } from "../lib/savedListings";
 import SaveButton from "../components/SaveButton";
 import { theme } from "../lib/theme";
+import { useI18n } from "../lib/i18n";
 
 function subtitle(item) {
   const icon = item.type === "train" ? "🚆 " : "🏨 ";
@@ -19,6 +20,7 @@ function subtitle(item) {
 }
 
 export default function SavedScreen() {
+  const { t } = useI18n();
   const navigation = useNavigation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ export default function SavedScreen() {
     try {
       setItems(await listSavedListings());
     } catch (e) {
-      console.log("[Saved] load error", e?.message || e);
+      if (__DEV__) console.log("[Saved] load error", e?.message || e);
       setItems([]);
     } finally {
       setLoading(false);
@@ -50,7 +52,7 @@ export default function SavedScreen() {
       <View style={styles.center}>
         <Text style={{ fontSize: 44 }}>⭐</Text>
         <Text style={styles.emptyText}>
-          Nessun annuncio salvato.{"\n"}Tocca la stella su un annuncio per aggiungerlo qui.
+          {t("savedScreen.emptyText", "Nessun annuncio salvato.\nTocca la stella su un annuncio per aggiungerlo qui.")}
         </Text>
       </View>
     );
@@ -70,7 +72,7 @@ export default function SavedScreen() {
         >
           <View style={{ flex: 1, paddingRight: 12 }}>
             <Text style={styles.title} numberOfLines={2}>
-              {item.title || "Annuncio"}
+              {item.title || t("savedScreen.untitledListing", "Annuncio")}
             </Text>
             <Text style={styles.sub}>{subtitle(item)}</Text>
             {item.price != null ? (

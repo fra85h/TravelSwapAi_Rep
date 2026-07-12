@@ -81,10 +81,12 @@ Non ancora fatto (prossimo passo naturale): estensione font ai titoli rimanenti 
 
 ## E. Qualità del codice / infrastruttura
 
-- **i18n incompleto**: molte stringhe sono hardcoded in italiano fuori dal dizionario (es. schermata login, alert). Completarle abilita davvero EN/ES.
+- ✅ **i18n Login/Password dimenticata/Preferiti/Gestione foto** — collegate al dizionario. Il `LoginScreen` era **completamente** hardcoded in italiano (zero chiamate a `t()`): scoperto che esisteva già una sezione `auth.*` con 20 chiavi pronte proprio per questo schermo, mai collegata. Aggiunte solo le 9 chiavi mancanti (in it/en/es, parità verificata) invece di ricostruire da zero. Corretto anche un bug collaterale: `theme.colors.muted`/`theme.colors.link` non esistono nel tema (rientravano al colore di default invece di quello voluto).
+- ✅ **Riduzione `console.log`**: rimossi/protetti dietro `__DEV__` i log che stampavano URL OAuth completi (incluso il `code` PKCE) in `LoginScreen`, `OAuthCallbackScreen` — prima venivano loggati anche in produzione. Gate aggiunto anche a `lib/auth.js` (id utente ad ogni cambio sessione), `App.js` (log `[WHOAMI]` ad ogni avvio), `components/OfferCTA.js`.
+- **i18n ancora da fare**: altre schermate hardcoded (`CreateListingScreen` in parte, `EditProfileScreen`, alert sparsi in `MatchingScreen`/`OffersScreen`).
+- ⚠️ **Bug funzionale scoperto durante la pulizia**: in `components/OfferCTA.js` i pulsanti "Proponi acquisto"/"Proponi scambio" sulle card della Home hanno `onPress` che **non fa nulla** oltre a un `console.log` — sono TODO mai completati (`// TODO: collega al tuo flow acquisto/scambio`). Da decidere se collegarli a `OfferFlow` (già esistente e funzionante, raggiungibile oggi solo dal dettaglio annuncio).
 - **Development build (EAS)**: necessaria per push, OAuth stabile e pubblicazione sugli store. È lo sblocco per D1/D2 e B2.
 - **Migrazione graduale a TypeScript**: ridurrebbe i bug di forma dei dati (già oggi ci sono alias `asset_type`/`type`, `depart_at`/`start_date` gestiti a mano).
-- **Riduzione `console.log`**: molti log di debug ancora presenti nelle schermate.
 - **Rate limiter server su store condiviso** (Redis/Postgres) se si scala su più istanze.
 
 ---
