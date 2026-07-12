@@ -13,6 +13,9 @@ import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
 import OfferCTAs from "../components/OfferCTA";
 import SaveButton from "../components/SaveButton";
+import ImageCarousel from "../components/ImageCarousel";
+import { getCurrentUser } from "../lib/db.js";
+import { listImages } from "../lib/listingImages";
 import { useI18n } from "../lib/i18n";
 import { useListingTranslation } from "../lib/useListingTranslation";
 
@@ -141,11 +144,33 @@ useEffect(() => {
   });
   const [showOriginal, setShowOriginal] = useState(false);
 
+  const [images, setImages] = useState([]);
+  const [isOwner, setIsOwner] = useState(false);
+
   const load = useCallback(async () => {
-    setListing(await getListingById(listingId));
+    const l = await getListingById(listingId);
+    setListing(l);
+    try {
+      const [imgs, me] = await Promise.all([
+        listImages(listingId),
+        getCurrentUser().catch(() => null),
+      ]);
+      setImages((imgs || []).map((i) => i.url).filter(Boolean));
+      setIsOwner(!!me && !!l && me.id === l.user_id);
+    } catch { /* non bloccare il dettaglio */ }
   }, [listingId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ricarica le foto quando si torna dalla schermata di gestione
+  useEffect(() => {
+    const unsub = navigation.addListener?.("focus", () => {
+      listImages(listingId).then((imgs) =>
+        setImages((imgs || []).map((i) => i.url).filter(Boolean))
+      ).catch(() => {});
+    });
+    return unsub;
+  }, [navigation, listingId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -258,6 +283,21 @@ useEffect(() => {
     <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
         refreshControl={<RefreshControl refreshing={recomputing} onRefresh={() => setRecomputing(false)} />}>
+        {images.length > 0 ? (
+          <View style={{ marginHorizontal: -16, marginBottom: 12, borderRadius: 0, overflow: "hidden" }}>
+            <ImageCarousel images={images} height={220} />
+          </View>
+        ) : null}
+        {isOwner ? (
+          <TouchableOpacity
+            onPress={() => navigation.navigate("ManageImages", { listingId })}
+            style={{ alignSelf: "flex-start", marginBottom: 12, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }}
+          >
+            <Text style={{ fontWeight: "700", color: theme.colors.text }}>
+              📷 {images.length > 0 ? "Gestisci foto" : "Aggiungi foto"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
         <View style={styles.headerCard}>
           {isNewBadge ? (
             <View style={styles.ribbonWrap} pointerEvents="none">

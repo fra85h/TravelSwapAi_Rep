@@ -31,8 +31,9 @@ Queste tabelle esistono nello schema ma l'app non le usa affatto — sono "vinte
 ### C1. Preferiti / Wishlist — `saved_listings` — ✅ FATTO
 Implementato: `lib/savedListings.js` (CRUD sui preferiti), componente `SaveButton` (stella ⭐), schermata `SavedScreen`, stella nel dettaglio annuncio e sulle card della Home, accesso "I miei preferiti" dal Profilo (it/en/es).
 
-### C2. Galleria immagini — `listing_images`
-Oggi l'annuncio ha una sola `image_url`. La tabella `listing_images` supporta più foto con posizione. Serve: caricamento multiplo + carosello nel dettaglio. Aumenta molto la qualità percepita e la fiducia.
+### C2. Galleria immagini — `listing_images` — ✅ FATTO (richiede setup Storage)
+Implementato: `lib/listingImages.js` (upload su Supabase Storage + CRUD `listing_images`), `components/ImageCarousel.js` (carosello nel dettaglio), `screens/ManageImagesScreen.js` (aggiungi/rimuovi foto), accesso "📷 Gestisci/Aggiungi foto" dal proprio annuncio.
+Prerequisiti d'attivazione: eseguire `supabase/storage_setup.sql` (bucket `listing-images` + policy) e installare `expo-image-picker` + `base64-arraybuffer`.
 
 ### C3. Storico transazioni — `transactions`
 Tabella pronta ma nessuna UI. Serve: sezione "I miei scambi/acquisti" nel profilo. Utile per fiducia e ricomprensione dello stato.
