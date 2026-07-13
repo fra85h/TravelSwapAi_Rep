@@ -39,6 +39,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "experiments": {
+      "baseUrl": "/app"
+    },
     "plugins": [
       "expo-barcode-scanner",
       "expo-web-browser"
