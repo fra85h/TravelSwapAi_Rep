@@ -25,6 +25,7 @@ import ManageImagesScreen from './screens/ManageImagesScreen';
 import ChainProposalsScreen from './screens/ChainProposalsScreen';
 import SavedSearchesScreen from './screens/SavedSearchesScreen';
 import MatchingScreen from './screens/MatchingScreen';
+import LinkMessengerScreen from './screens/LinkMessengerScreen';
 import PreferencesOnboardingScreen from './screens/PreferencesOnboardingScreen';
 import { AuthProvider, useAuth } from './lib/auth';
 import { useNeedsPreferencesOnboarding } from './lib/preferences';
@@ -141,6 +142,7 @@ function RootNavigator() {
             )}
           </Stack.Screen>
           <Stack.Screen name="Matching" component={MatchingScreen} options={{ title: "Suggeriti dall'AI" }} />
+          <Stack.Screen name="LinkMessenger" component={LinkMessengerScreen} options={{ title: "Collega Messenger" }} />
         </>
       ) : (
         <>

@@ -345,6 +345,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={[styles.editBtn, { marginTop: 8 }]}
+              onPress={() => {
+                navigation.navigate?.("LinkMessenger");
+                navigation.getParent?.()?.navigate?.("LinkMessenger");
+              }}
+            >
+              <Text style={styles.editBtnText}>💬 {t("profile.linkMessenger", "Collega Messenger")}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.editBtn, { marginTop: 8, backgroundColor: theme.colors.primary, borderColor: theme.colors.text }]}
               onPress={handleLogout}
             >

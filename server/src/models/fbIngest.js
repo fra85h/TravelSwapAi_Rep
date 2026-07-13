@@ -103,9 +103,10 @@ function buildPresentation(parsed) {
   };
 }
 
-export async function upsertListingFromFacebook({ channel, externalId, contactUrl, rawText, parsed }) {
+export async function upsertListingFromFacebook({ channel, externalId, contactUrl, rawText, parsed, ownerId }) {
   if (!supabase) throw new Error('Supabase client not configured');
-  if (!DEFAULT_LISTING_OWNER_ID) throw new Error('Missing DEFAULT_LISTING_OWNER_ID env var');
+  const resolvedOwnerId = ownerId || DEFAULT_LISTING_OWNER_ID;
+  if (!resolvedOwnerId) throw new Error('Missing DEFAULT_LISTING_OWNER_ID env var');
 
   // Costruzione presentazione
   const pres = buildPresentation(parsed);
@@ -117,7 +118,7 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
 
   // Mappatura campi sul tuo schema
   const baseRow = {
-    user_id: DEFAULT_LISTING_OWNER_ID,
+    user_id: resolvedOwnerId,
     type: pres.type,                         // enum listing_type: 'train' | 'hotel'
     title: pres.title,                       // NOT NULL
     location: pres.location,                 // NOT NULL
