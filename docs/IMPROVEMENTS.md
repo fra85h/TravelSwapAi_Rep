@@ -128,6 +128,18 @@ Testato: 8 nuovi unit test (formato codice), integrazione contro Postgres locale
 
 ⚠️ **Resta da fare, fuori dal codice**: attivare davvero il bot serve una Pagina Facebook reale collegata a un'app su Meta for Developers, con token e webhook registrati — passaggi di configurazione, non di programmazione, simili a cron-job.org. Il codice è pronto e testato, ma il bot non risponderà finché quella parte non viene fatta.
 
+### D6. Stessa cosa per Instagram (DM del profilo business)
+Richiesta esplicitamente come estensione di D5. Fattibile con sforzo di programmazione simile: si riusano il parser AI (`parseFacebookText`) e il sistema di collegamento account (`fb_link_codes`/`fb_account_links`, gli ID mittente Instagram non collidono con quelli Messenger) — va solo esteso il webhook per accettare anche eventi `object: 'instagram'` oltre a `'page'`.
+
+Prerequisiti in più rispetto a Messenger (verificati a luglio 2026, le regole Meta cambiano spesso):
+- L'account Instagram deve essere **Business o Creator** (conversione gratuita se non lo è già)
+- Va collegato alla stessa Pagina Facebook già usata per Messenger (strada "Facebook Login for Business" — riusa il setup esistente, a differenza della strada alternativa "Instagram Login" che userebbe una configurazione Meta separata)
+- Serve il permesso `instagram_manage_messages` in **Advanced Access**, che richiede una revisione da parte di Meta — stesso tipo di ostacolo già previsto per portare Messenger in produzione vera, non uno nuovo
+
+Non risolve (né potrebbe): leggere automaticamente i post/Reels già pubblicati da un utente — stesso vincolo strutturale di piattaforma di D5, vale anche per Instagram.
+
+Messo in coda dopo D5: ha senso partire solo dopo aver verificato che il bot Messenger funzioni bene nella pratica.
+
 ---
 
 ## F. Restyling "Swap Gold" — ✅ prima tranche applicata
@@ -166,10 +178,13 @@ Non ancora fatto (prossimo passo naturale): estensione font ai titoli rimanenti 
 
 ---
 
-## Ordine consigliato
+## Ordine consigliato — aggiornato 13 luglio 2026
 
-1. **C1 Preferiti** (basso sforzo, valore immediato, tutto pronto lato DB)
-2. **B1 Salvataggio PNR** (chiude un buco funzionale reale)
-3. **Development build** → sblocca **B2 Google**, **D1 notifiche**
-4. **C2 Galleria immagini** (qualità/fiducia)
-5. **D1 Notifiche** → **D3 Avvisi di ricerca** → **D2 Chat**
+Tutto A/B/C/D0/D3/D4/D5 e la valutazione UX completa (nuova architettura a 4 tab, restyle oro, quality check) sono ✅ fatti. Quello che resta:
+
+1. **Provare su un dispositivo reale** ciò che è stato costruito senza mai poterlo eseguire in questo ambiente — priorità sopra qualunque nuova feature, prima di continuare a costruire su basi non ancora viste dal vivo
+2. **Attivare per davvero D5** (Pagina Facebook + Meta for Developers) — codice pronto, manca solo la configurazione
+3. **Development build (EAS)** → sblocca **B2 Google**, **D1 notifiche push**, e rende D6/il "Condividi" nativo più facili
+4. **D6 Instagram** (dopo aver verificato D5 nella pratica)
+5. **D1 Notifiche push** → poi **D2 Chat**
+6. Sul lungo periodo: migrazione TypeScript, rate limiter su store condiviso
