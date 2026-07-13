@@ -206,7 +206,16 @@ export default function OfferFlow() {
                     <Text style={s.cardMeta}>{item.type} • {item.location || item.route_from || "-"}</Text>
                   </TouchableOpacity>
                 )}
-                ListEmptyComponent={<Text style={{ color: theme.colors.textMuted }}>{t("offerFlow.noActiveListings", "Non hai annunci attivi.")}</Text>}
+                ListEmptyComponent={
+                  <View>
+                    <Text style={{ color: theme.colors.textMuted }}>{t("offerFlow.noActiveListings", "Non hai annunci attivi.")}</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate("CreateListing")} style={{ marginTop: 8 }}>
+                      <Text style={{ color: theme.colors.accent, fontWeight: "800" }}>
+                        {t("offerFlow.createListingCta", "＋ Crea prima un annuncio da offrire in scambio")}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                }
                 style={{ maxHeight: 240 }}
               />
               <Text style={[s.label, { marginTop: 16 }]}>{t("offerFlow.messageOptional", "Messaggio (opzionale)")}</Text>

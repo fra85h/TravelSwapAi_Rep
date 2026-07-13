@@ -311,57 +311,39 @@ export default function ProfileScreen() {
             <Text style={styles.metaText}>{profile?.email || "—"}</Text>
             <Text style={styles.metaText}>{profile?.phone || "—"}</Text>
           </View>
-
-          <View style={{ alignItems: "flex-end" }}>
-            <LanguageSwitcher />
-            <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8 }]}
-              onPress={() => {
-                navigation.navigate?.("EditProfile");
-                navigation.getParent?.()?.navigate?.("EditProfile");
-              }}
-            >
-              <Text style={styles.editBtnText}>{t("profile.editProfile", "Modifica profilo")}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8 }]}
-              onPress={() => {
-                navigation.navigate?.("Saved");
-                navigation.getParent?.()?.navigate?.("Saved");
-              }}
-            >
-              <Text style={styles.editBtnText}>⭐ {t("profile.savedListings", "I miei preferiti")}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8 }]}
-              onPress={() => {
-                navigation.navigate?.("EditPreferences");
-                navigation.getParent?.()?.navigate?.("EditPreferences");
-              }}
-            >
-              <Text style={styles.editBtnText}>✨ {t("profile.editPreferences", "Le mie preferenze")}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8 }]}
-              onPress={() => {
-                navigation.navigate?.("LinkMessenger");
-                navigation.getParent?.()?.navigate?.("LinkMessenger");
-              }}
-            >
-              <Text style={styles.editBtnText}>💬 {t("profile.linkMessenger", "Collega Messenger")}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.editBtn, { marginTop: 8, backgroundColor: theme.colors.primary, borderColor: theme.colors.text }]}
-              onPress={handleLogout}
-            >
-              <Text style={[styles.editBtnText, { color: theme.colors.boardingText }]}>{t("profile.logout", "Esci")}</Text>
-            </TouchableOpacity>
-          </View>
+          <LanguageSwitcher />
         </View>
+      </View>
+
+      {/* Menu: righe a tutta larghezza, non più pulsantini impilati
+          accanto all'avatar (era il problema n.3 della valutazione UX,
+          stava tornando a ogni nuova voce aggiunta). */}
+      <View style={[styles.card, { paddingVertical: 4, paddingHorizontal: 0 }]}>
+        {[
+          { icon: "👤", label: t("profile.editProfile", "Modifica profilo"), route: "EditProfile" },
+          { icon: "⭐", label: t("profile.savedListings", "I miei preferiti"), route: "Saved" },
+          { icon: "✨", label: t("profile.editPreferences", "Le mie preferenze"), route: "EditPreferences" },
+          { icon: "💬", label: t("profile.linkMessenger", "Collega Messenger"), route: "LinkMessenger" },
+        ].map((item, idx, arr) => (
+          <TouchableOpacity
+            key={item.route}
+            style={[styles.menuRow, idx < arr.length - 1 && styles.menuRowBorder]}
+            onPress={() => {
+              navigation.navigate?.(item.route);
+              navigation.getParent?.()?.navigate?.(item.route);
+            }}
+          >
+            <Text style={styles.menuIcon}>{item.icon}</Text>
+            <Text style={styles.menuLabel}>{item.label}</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity style={[styles.menuRow, styles.menuRowTopBorder]} onPress={handleLogout}>
+          <Text style={styles.menuIcon}>🚪</Text>
+          <Text style={[styles.menuLabel, { color: theme.colors.danger, fontWeight: "800" }]}>
+            {t("profile.logout", "Esci")}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Indicatori */}
@@ -518,8 +500,17 @@ const styles = StyleSheet.create({
   avatarText: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
   name: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText},
   metaText: { color: theme.colors.textMuted },
-  editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.primary, borderWidth: 1, borderColor: theme.colors.border },
-  editBtnText: { fontWeight: "700", color: theme.colors.boardingText},
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  menuRowBorder: { borderBottomWidth: 1, borderBottomColor: theme.colors.border },
+  menuRowTopBorder: { borderTopWidth: 1, borderTopColor: theme.colors.border },
+  menuIcon: { fontSize: 16, width: 24, textAlign: "center" },
+  menuLabel: { flex: 1, fontWeight: "700", color: theme.colors.text, fontSize: 15 },
 
   // stats
   statsCard: { marginTop: 12 },
