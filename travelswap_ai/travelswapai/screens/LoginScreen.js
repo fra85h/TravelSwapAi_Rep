@@ -224,7 +224,7 @@ export default function LoginScreen({ navigation }) {
         <Button
           title={t("auth.continueFacebook", "Continua con Facebook")}
           variant="outline"
-          leftIcon={<AntDesign name="facebook-square" size={18} />}
+          leftIcon={<AntDesign name="facebook" size={18} />}
           onPress={onPressFacebook}
           loading={loading}
         />
