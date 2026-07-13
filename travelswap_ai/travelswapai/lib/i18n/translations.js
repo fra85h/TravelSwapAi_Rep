@@ -94,6 +94,7 @@ export const translations = {
       title: "Profilo",
       editProfile: "Modifica profilo",
       savedListings: "I miei preferiti",
+      editPreferences: "Le mie preferenze",
       logout: "Esci",
       myListings: "I miei annunci",
       publishListing: "Pubblica annuncio",
@@ -183,6 +184,7 @@ export const translations = {
     prefsOnboarding: {
       title: "Le tue preferenze di viaggio",
       subtitle: "Aiutaci a trovarti gli scambi giusti — puoi cambiarle quando vuoi dal profilo.",
+      editSubtitle: "Aggiorna i tuoi gusti di viaggio: li usiamo per suggerirti scambi migliori.",
       typeLabel: "Cosa ti interessa di più?",
       typeTrain: "Treno",
       typeHotel: "Hotel",
@@ -193,6 +195,8 @@ export const translations = {
       save: "Salva preferenze",
       skip: "Salta per ora",
       saveError: "Impossibile salvare le preferenze.",
+      savedTitle: "Salvato",
+      savedMsg: "Preferenze aggiornate.",
     },
 
     editProfileScreen: {
@@ -784,6 +788,7 @@ export const translations = {
       title: "Profile",
       editProfile: "Edit profile",
       savedListings: "My favorites",
+      editPreferences: "My preferences",
       logout: "Logout",
       myListings: "My listings",
       publishListing: "Publish listing",
@@ -873,6 +878,7 @@ export const translations = {
     prefsOnboarding: {
       title: "Your travel preferences",
       subtitle: "Help us find the right swaps for you — you can change these anytime from your profile.",
+      editSubtitle: "Update your travel taste: we use it to suggest better swaps.",
       typeLabel: "What are you most interested in?",
       typeTrain: "Train",
       typeHotel: "Hotel",
@@ -883,6 +889,8 @@ export const translations = {
       save: "Save preferences",
       skip: "Skip for now",
       saveError: "Unable to save preferences.",
+      savedTitle: "Saved",
+      savedMsg: "Preferences updated.",
     },
 
     editProfileScreen: {
@@ -1459,6 +1467,7 @@ export const translations = {
       title: "Perfil",
       editProfile: "Editar perfil",
       savedListings: "Mis favoritos",
+      editPreferences: "Mis preferencias",
       logout: "Cerrar sesión",
       myListings: "Mis anuncios",
       publishListing: "Publicar anuncio",
@@ -1548,6 +1557,7 @@ export const translations = {
     prefsOnboarding: {
       title: "Tus preferencias de viaje",
       subtitle: "Ayúdanos a encontrarte los intercambios adecuados — puedes cambiarlas cuando quieras desde el perfil.",
+      editSubtitle: "Actualiza tus gustos de viaje: los usamos para sugerirte mejores intercambios.",
       typeLabel: "¿Qué te interesa más?",
       typeTrain: "Tren",
       typeHotel: "Hotel",
@@ -1558,6 +1568,8 @@ export const translations = {
       save: "Guardar preferencias",
       skip: "Saltar por ahora",
       saveError: "No se pudieron guardar las preferencias.",
+      savedTitle: "Guardado",
+      savedMsg: "Preferencias actualizadas.",
     },
 
     editProfileScreen: {

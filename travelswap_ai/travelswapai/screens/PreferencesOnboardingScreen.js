@@ -2,7 +2,7 @@
 // registrazione, per alimentare da subito il matching AI (server/src/ai/
 // score.js legge prefs.types/maxPrice/location per il fallback euristico,
 // e l'AI vera li usa come contesto).
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView,
 } from "react-native";
@@ -10,7 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
-import { saveMyPrefs, skipPrefsOnboarding } from "../lib/preferences";
+import { getMyPrefs, saveMyPrefs, skipPrefsOnboarding } from "../lib/preferences";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 
@@ -19,13 +19,33 @@ const TYPE_OPTIONS = [
   { key: "hotel", icon: "bed-outline", labelKey: "prefsOnboarding.typeHotel", fallback: "Hotel" },
 ];
 
-export default function PreferencesOnboardingScreen({ onDone }) {
+// mode "onboarding" (default): gate subito dopo la registrazione, con
+// "Salta per ora". mode "edit": raggiunta dal profilo in qualsiasi
+// momento, precarica le preferenze già salvate e non ha lo skip (c'è
+// già la freccia indietro dell'header).
+export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding" }) {
   const { t } = useI18n();
+  const isEdit = mode === "edit";
   const [types, setTypes] = useState([]);
   const [maxPrice, setMaxPrice] = useState("");
   const [location, setLocation] = useState("");
   const [saving, setSaving] = useState(false);
   const [skipping, setSkipping] = useState(false);
+  const [loadingPrefs, setLoadingPrefs] = useState(isEdit);
+
+  useEffect(() => {
+    if (!isEdit) return;
+    let alive = true;
+    getMyPrefs()
+      .then((prefs) => {
+        if (!alive || !prefs) return;
+        setTypes(Array.isArray(prefs.types) ? prefs.types : []);
+        setMaxPrice(prefs.maxPrice != null ? String(prefs.maxPrice) : "");
+        setLocation(prefs.location || "");
+      })
+      .finally(() => { if (alive) setLoadingPrefs(false); });
+    return () => { alive = false; };
+  }, [isEdit]);
 
   const toggleType = (key) => {
     setTypes((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
@@ -40,6 +60,9 @@ export default function PreferencesOnboardingScreen({ onDone }) {
         maxPrice: Number.isFinite(priceNum) && priceNum > 0 ? priceNum : undefined,
         location: location.trim() || undefined,
       });
+      if (isEdit) {
+        Alert.alert(t("prefsOnboarding.savedTitle", "Salvato"), t("prefsOnboarding.savedMsg", "Preferenze aggiornate."));
+      }
       onDone?.();
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e?.message || t("prefsOnboarding.saveError", "Impossibile salvare le preferenze."));
@@ -63,12 +86,22 @@ export default function PreferencesOnboardingScreen({ onDone }) {
 
   const busy = saving || skipping;
 
+  if (loadingPrefs) {
+    return (
+      <SafeAreaView style={[styles.root, { alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>{t("prefsOnboarding.title", "Le tue preferenze di viaggio")}</Text>
         <Text style={styles.subtitle}>
-          {t("prefsOnboarding.subtitle", "Aiutaci a trovarti gli scambi giusti — puoi cambiarle quando vuoi dal profilo.")}
+          {isEdit
+            ? t("prefsOnboarding.editSubtitle", "Aggiorna i tuoi gusti di viaggio: li usiamo per suggerirti scambi migliori.")
+            : t("prefsOnboarding.subtitle", "Aiutaci a trovarti gli scambi giusti — puoi cambiarle quando vuoi dal profilo.")}
         </Text>
 
         <Text style={styles.sectionLabel}>{t("prefsOnboarding.typeLabel", "Cosa ti interessa di più?")}</Text>
@@ -119,13 +152,15 @@ export default function PreferencesOnboardingScreen({ onDone }) {
           style={{ marginTop: 8 }}
         />
 
-        <TouchableOpacity onPress={onSkip} disabled={busy} style={styles.skipBtn}>
-          {skipping ? (
-            <ActivityIndicator color={theme.colors.textMuted} />
-          ) : (
-            <Text style={styles.skipText}>{t("prefsOnboarding.skip", "Salta per ora")}</Text>
-          )}
-        </TouchableOpacity>
+        {!isEdit && (
+          <TouchableOpacity onPress={onSkip} disabled={busy} style={styles.skipBtn}>
+            {skipping ? (
+              <ActivityIndicator color={theme.colors.textMuted} />
+            ) : (
+              <Text style={styles.skipText}>{t("prefsOnboarding.skip", "Salta per ora")}</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
