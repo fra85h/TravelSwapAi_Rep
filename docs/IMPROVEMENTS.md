@@ -100,8 +100,8 @@ Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching r
 - Nessun badge/notifica quando arriva una nuova proposta — l'utente deve aprire la schermata per scoprirla (va bene per un primo test, da migliorare se il volume cresce).
 - **Fatto sul progetto Supabase reale**: migrazioni applicate, `CHAIN_CRON_SECRET`/`OPENAI_API_KEY` configurati su Render, trigger periodico attivo su cron-job.org.
 
-### D3. Avvisi di ricerca ("price/route alert")
-"Avvisami quando compare un treno Roma→Milano sotto 40€". Sfrutta il motore di matching che c'è già, girato al contrario. Ottima retention.
+### D3. Avvisi di ricerca ("price/route alert") — ✅ FATTO
+"Avvisami quando compare un treno Roma→Milano sotto 40€". Implementato: tabelle `saved_searches`/`saved_search_matches`, matching deterministico e letterale (`server/src/models/savedSearches.js`, nessun fallback AI necessario), job periodico `/api/saved-searches/recompute` protetto da `X-Cron-Secret` condiviso con le catene, schermata `SavedSearchesScreen.js` (crea/pausa/elimina, vede i trovati). Testato con un test di integrazione ad-hoc su Postgres locale.
 
 ### D4. Onboarding con preferenze — ✅ FATTO
 Implementato: `screens/PreferencesOnboardingScreen.js` + `lib/preferences.js`. Mostrata **una sola volta per account**, subito dopo la registrazione (o al primo login se non era mai stata vista) — non ad ogni avvio: il segnale è `profiles.prefs.onboarded`, assente finché l'utente non salva o salta. Renderizzata fuori dallo Stack Navigator (nessuna nuova route da gestire), come passaggio intermedio tra login e `MainTabs`.
@@ -111,6 +111,22 @@ Raccoglie esattamente i 3 campi già letti dal matcher euristico esistente (`ser
 Tradotto interamente in it/en/es dall'inizio (12 chiavi nuove in `prefsOnboarding.*`, parità verificata).
 
 ⚠️ Non testato su dispositivo reale in questa sessione (nessun modo di eseguire l'app qui) — solo controllo sintattico e verifica i18n.
+
+### D5. Import annunci via bot Messenger + collegamento account — ✅ FATTO (attivazione manuale da fare)
+Idea nata da una valutazione richiesta esplicitamente: importare gli annunci di un utente dai gruppi Facebook via login Facebook **non è realizzabile** — l'API Graph non espone (e non ha mai esposto, dopo il 2018) un modo per un'app terza di leggere i post di un utente, propri o altrui, dentro gruppi che non amministra. Il vincolo è strutturale (lato piattaforma), non aggirabile con permessi più ampi.
+
+L'alternativa scoperta analizzando il codice: esisteva già, dormiente, un **bot Messenger** completo (`server/src/index.js`, webhook `/webhooks/facebook`) che usa il vero parser AI (`fbParser.js`, OpenAI) per trasformare un testo incollato in un annuncio strutturato, con conversazione a stati (chiede i campi mancanti, riepiloga, chiede conferma). Non richiede nessun permesso Facebook speciale: rispondere a chi scrive alla propria Pagina è funzionalità base della Messenger Platform.
+
+Gap trovato e chiuso in questa sessione: **ogni annuncio importato finiva sotto un unico account fisso** (`DEFAULT_LISTING_OWNER_ID`), non nel profilo di chi scriveva. Aggiunto un collegamento identità:
+- Tabelle `fb_link_codes` (codice monouso, 15 minuti) e `fb_account_links` (mappatura permanente sender Messenger → utente), entrambe service-role only (stesso pattern di `fb_sessions`: RLS abilitata, nessuna policy, revocato accesso ad `anon`/`authenticated`)
+- Endpoint autenticato `POST /api/fb-link/code` (`requireAuth` + rate limit 5/10min) che genera il codice per l'utente loggato
+- Il bot riconosce un messaggio-codice PRIMA di trattarlo come testo di un annuncio (`looksLikeLinkCode`), e se valido crea il collegamento e conferma
+- I due punti che pubblicano da Messenger (`PUB_CONFERMA`, sia da postback che da quick reply) risolvono l'`ownerId` dal collegamento prima di scrivere l'annuncio, con fallback automatico all'account condiviso per chi non si è ancora collegato (nessuna rottura per il flusso esistente)
+- App: `screens/LinkMessengerScreen.js` (genera codice, mostra scadenza e istruzioni), voce "💬 Collega Messenger" nel Profilo
+
+Testato: 8 nuovi unit test (formato codice), integrazione contro Postgres locale (RLS, upsert-overwrite su ri-collegamento, marcatura "usato"), smoke test del server con le nuove route, esbuild + bundle Metro completo, parità i18n 533/533/533.
+
+⚠️ **Resta da fare, fuori dal codice**: attivare davvero il bot serve una Pagina Facebook reale collegata a un'app su Meta for Developers, con token e webhook registrati — passaggi di configurazione, non di programmazione, simili a cron-job.org. Il codice è pronto e testato, ma il bot non risponderà finché quella parte non viene fatta.
 
 ---
 

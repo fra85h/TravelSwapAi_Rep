@@ -95,6 +95,7 @@ export const translations = {
       editProfile: "Modifica profilo",
       savedListings: "I miei preferiti",
       editPreferences: "Le mie preferenze",
+      linkMessenger: "Collega Messenger",
       logout: "Esci",
       myListings: "I miei annunci",
       publishListing: "Pubblica annuncio",
@@ -179,6 +180,17 @@ export const translations = {
       deleteTitle: "Elimina avviso",
       deleteMsg: "Non riceverai più notifiche per questa ricerca.",
       deleteError: "Impossibile eliminare l'avviso.",
+    },
+
+    linkMessenger: {
+      title: "Collega Messenger",
+      intro: "Scrivi al bot Messenger della nostra Pagina Facebook e pubblica un annuncio direttamente da lì. Collega prima il tuo account, una volta sola, così gli annunci finiscono nel tuo profilo.",
+      generate: "Genera codice",
+      yourCode: "Il tuo codice",
+      validUntil: "Valido fino alle {time}",
+      instructions: "Apri Messenger, scrivi alla Pagina TravelSwapAI e manda questo codice come messaggio. Riceverai una conferma quando il collegamento è fatto.",
+      regenerate: "Genera un nuovo codice",
+      error: "Impossibile generare il codice.",
     },
 
     prefsOnboarding: {
@@ -789,6 +801,7 @@ export const translations = {
       editProfile: "Edit profile",
       savedListings: "My favorites",
       editPreferences: "My preferences",
+      linkMessenger: "Link Messenger",
       logout: "Logout",
       myListings: "My listings",
       publishListing: "Publish listing",
@@ -873,6 +886,17 @@ export const translations = {
       deleteTitle: "Delete alert",
       deleteMsg: "You'll no longer get notified for this search.",
       deleteError: "Unable to delete the alert.",
+    },
+
+    linkMessenger: {
+      title: "Link Messenger",
+      intro: "Message our Facebook Page's Messenger bot and post a listing straight from there. Link your account first, just once, so listings land in your profile.",
+      generate: "Generate code",
+      yourCode: "Your code",
+      validUntil: "Valid until {time}",
+      instructions: "Open Messenger, message the TravelSwapAI Page and send this code as a message. You'll get a confirmation once the link is done.",
+      regenerate: "Generate a new code",
+      error: "Unable to generate the code.",
     },
 
     prefsOnboarding: {
@@ -1468,6 +1492,7 @@ export const translations = {
       editProfile: "Editar perfil",
       savedListings: "Mis favoritos",
       editPreferences: "Mis preferencias",
+      linkMessenger: "Conectar Messenger",
       logout: "Cerrar sesión",
       myListings: "Mis anuncios",
       publishListing: "Publicar anuncio",
@@ -1552,6 +1577,17 @@ export const translations = {
       deleteTitle: "Eliminar aviso",
       deleteMsg: "Ya no recibirás notificaciones para esta búsqueda.",
       deleteError: "No se pudo eliminar el aviso.",
+    },
+
+    linkMessenger: {
+      title: "Conectar Messenger",
+      intro: "Escribe al bot de Messenger de nuestra Página de Facebook y publica un anuncio directamente desde ahí. Conecta antes tu cuenta, una sola vez, para que los anuncios lleguen a tu perfil.",
+      generate: "Generar código",
+      yourCode: "Tu código",
+      validUntil: "Válido hasta las {time}",
+      instructions: "Abre Messenger, escribe a la Página TravelSwapAI y envía este código como mensaje. Recibirás una confirmación cuando la conexión esté hecha.",
+      regenerate: "Generar un nuevo código",
+      error: "No se pudo generar el código.",
     },
 
     prefsOnboarding: {

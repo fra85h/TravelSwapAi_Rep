@@ -17,6 +17,8 @@ import { upsertListingFromFacebook } from './models/fbIngest.js';
 import { sendFbText, sendFbQuickReplies } from './lib/fbSend.js'; // quick replies
 import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.js';
 import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
+import { looksLikeLinkCode, tryLinkFromMessage, getLinkedUserId } from './models/fbLink.js';
+import { fbLinkRouter } from './routes/fbLink.js';
 import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
 import { translateListingsRouter } from "./routes/translateListings.js";
 import { requireAuth } from './middleware/requireAuth.js';
@@ -43,6 +45,7 @@ app.use('/api/listings', listingsRouter);
 app.use('/api/matches', matchesRouter);
 app.use('/api/chains', chainsRouter);
 app.use('/api/saved-searches', savedSearchesRouter);
+app.use('/api/fb-link', fbLinkRouter);
 app.use('/', translateListingsRouter);
 
 mountParseDescriptionRoute(app, [requireAuth, rateLimitParse]);
@@ -325,11 +328,13 @@ app.post('/webhooks/facebook', async (req, res) => {
                   return;
                 }
                 try {
+                  const ownerId = await getLinkedUserId(senderId);
                   const result = await upsertListingFromFacebook({
                     channel: 'facebook:messenger',
                     externalId: m?.mid || `${senderId}:${m.timestamp}`,
                     contactUrl: null,
                     rawText: '', // opzionale
+                    ownerId,
                     parsed: {
                       ...s,
                       start_date: s.check_in || s.depart_at || null,
@@ -406,11 +411,13 @@ if (quickPayload) {
   }
 
   try {
+    const ownerId = await getLinkedUserId(senderId);
     const result = await upsertListingFromFacebook({
       channel: 'facebook:messenger',
       externalId: m.message?.mid || `${senderId}:${m.timestamp}`,
       contactUrl: null,
       rawText: '', // opzionale
+      ownerId,
       parsed: {
         ...s,
         start_date: s.check_in || s.depart_at || null,
@@ -503,6 +510,23 @@ if (quickPayload) {
 
           const text = message.text;
           try {
+            // Collegamento account: un codice a 6 caratteri (vedi
+            // fbLink.js) non è mai testo utile per un annuncio, quindi
+            // va intercettato PRIMA di passarlo al parser AI.
+            if (looksLikeLinkCode(text)) {
+              const outcome = await tryLinkFromMessage(senderId, text);
+              if (outcome.linked) {
+                await sendFbText(senderId,
+                  "✅ Account collegato! Da ora in poi gli annunci che pubblichi qui finiscono nel tuo profilo TravelSwapAI."
+                );
+              } else if (outcome.reason === "expired" || outcome.reason === "already_used" || outcome.reason === "not_found") {
+                await sendFbText(senderId,
+                  "⚠️ Codice non valido o scaduto. Genera un nuovo codice dal profilo dell'app (Collega Messenger) e scrivimelo di nuovo."
+                );
+              }
+              continue;
+            }
+
             // scorciatoie
             let prev = await getSession(senderId);
             if (prev && isSessionExpired(prev)) {
