@@ -1254,7 +1254,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
           onChangeText={(v) => update({ description: v })}
           placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
           style={[styles.input, styles.multiline, styles.inputSurface]}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={theme.colors.textMuted}
           multiline
           numberOfLines={4}
           textAlignVertical="top"
@@ -1384,7 +1384,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
                         : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
                     }
                     style={[styles.input, !editableFields.title && styles.inputDisabled, errors.title && styles.inputError]}
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.colors.textMuted}
                   />
                   {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
@@ -1447,7 +1447,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
                         onChangeText={(v) => update({ location: v })}
                         placeholder={t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")}
                         style={[styles.input, !editableFields.location && styles.inputDisabled, errors.location && styles.inputError]}
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={theme.colors.textMuted}
                       />
                       {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
                     </>
@@ -1461,7 +1461,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
                         editable={!hotelLocLocked}
                         selectTextOnFocus={!hotelLocLocked && editableFields.location}
                         style={[styles.input, hotelLocLocked && styles.inputDisabled, errors.location && styles.inputError]}
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={theme.colors.textMuted}
                       />
                       {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
                     </>
@@ -1572,7 +1572,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
                         placeholder={t("createListing.train.pnrPlaceholder", "Es. ABCDEF")}
                         style={styles.input}
                         autoCapitalize="characters"
-                        placeholderTextColor="#9CA3AF"
+                        placeholderTextColor={theme.colors.textMuted}
                       />
                       <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
                     </View>
@@ -1586,7 +1586,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
                     placeholder={t("createListing.pricePlaceholder", "Es. 120")}
                     keyboardType="decimal-pad"
                     style={[styles.input, errors.price && styles.inputError]}
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={theme.colors.textMuted}
                   />
                   {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
 
@@ -1597,7 +1597,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
                       <Text style={styles.infoLink}> Info</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={analyzePriceAI} disabled={priceLoading} style={[styles.smallAIButton, priceLoading && {opacity:0.7}]}> 
-                      {priceLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.smallAIButtonText}>Analisi prezzo con AI</Text>}
+                      {priceLoading ? <ActivityIndicator color={theme.colors.accentOn} /> : <Text style={styles.smallAIButtonText}>Analisi prezzo con AI</Text>}
                     </TouchableOpacity>
                   </View>
                   {priceInfoOpen && (
@@ -1647,11 +1647,11 @@ if ((patch.type || form.type) === "train" && routeStr) {
           <View style={styles.footer}>
             {slideIndex > 0 ? (
               <TouchableOpacity onPress={onBackPress} style={[styles.footerBtn, styles.footerGhost]}>
-                <Text style={[styles.footerText, { color: "#111827" }]}>{t("common.back", "Indietro")}</Text>
+                <Text style={[styles.footerText, { color: theme.colors.text }]}>{t("common.back", "Indietro")}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={onSaveDraft} disabled={saving || mode === "edit"} style={[styles.footerBtn, styles.footerGhost, (saving || mode === "edit") && { opacity: 0.6 }]}>
-                {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: "#111827" }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft","Salva bozza")}</Text>}
+                {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: theme.colors.text }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft","Salva bozza")}</Text>}
               </TouchableOpacity>
             )}
 
@@ -1689,7 +1689,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
               placeholder={t("createListing.train.pnrPlaceholder", "Es. ABCDEF")}
               autoCapitalize="characters"
               style={styles.input}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.colors.textMuted}
             />
             <TouchableOpacity onPress={handlePNRImport} style={[styles.sheetBtn, styles.sheetBtnGhost]}>
               {importBusy ? <ActivityIndicator /> : <Text style={styles.sheetBtnText}>{t("createListing.importFromPnr", "Importa da PNR")}</Text>}
@@ -1718,7 +1718,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity onPress={() => setQrVisible(false)} style={[styles.footerBtn, styles.footerGhost, { flex: 1 }]}>
-                <Text style={[styles.footerText, { color: "#111827" }]}>{t("common.cancel", "Annulla")}</Text>
+                <Text style={[styles.footerText, { color: theme.colors.text }]}>{t("common.cancel", "Annulla")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => onQrScanned({ data: "Ryanair FR1234 MXP-FCO 10/09/2025 08:10 09:20 PNR ABCDEF €49" })}
@@ -1755,27 +1755,27 @@ if ((patch.type || form.type) === "train" && routeStr) {
 const styles = StyleSheet.create({
     labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     iconBtn: { padding: 6, marginLeft: 8 },
-    inputDisabled: { backgroundColor: "#F3F4F6", color: "#6B7280" },
+    inputDisabled: { backgroundColor: theme.colors.surfaceMuted, color: theme.colors.textMuted },
     fieldContainer: { position: "relative" },
     disabledOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   // --- top ---
-  topPanel: { backgroundColor: "#F4F7FB", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  topPanel: { backgroundColor: theme.colors.surfaceMuted, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   topTitle: { fontSize: 20, fontWeight: "900", color: theme.colors.boardingText },
 
   pillsRow: { flexDirection: "row", gap: 12, paddingTop: 8, paddingBottom: 6 },
   pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
-  pillLight: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
-  pillDark: { backgroundColor: "#0F172A", borderColor: "#0F172A" },
-  pillText: { fontWeight: "800", color: "#111827" },
+  pillLight: { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border },
+  pillDark: { backgroundColor: theme.colors.text, borderColor: theme.colors.text },
+  pillText: { fontWeight: "800", color: theme.colors.text },
   pillTextDark: { color: "#fff" },
 
-  inputSurface: { backgroundColor: "#FBFDFF" },
+  inputSurface: { backgroundColor: theme.colors.surface },
 
   // Micro log + progress
   microWrap: { marginTop: 6, marginBottom: 4 },
-  microLine: { fontSize: 12, color: "#374151", marginBottom: 2 },
-  progressBar: { height: 8, borderRadius: 6, backgroundColor: "#E5E7EB", overflow: "hidden", marginTop: 6 },
+  microLine: { fontSize: 12, color: theme.colors.textMuted, marginBottom: 2 },
+  progressBar: { height: 8, borderRadius: 6, backgroundColor: theme.colors.border, overflow: "hidden", marginTop: 6 },
   progressFill: { height: "100%", backgroundColor: theme.colors.boardingText },
 
   // --- slider ---
@@ -1791,11 +1791,11 @@ const styles = StyleSheet.create({
     marginBottom: FOOTER_H - 20 // spazio sopra i pulsanti
   },
   slideCard: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.surface,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: theme.colors.border,
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
@@ -1810,21 +1810,21 @@ const styles = StyleSheet.create({
   col: { flex: 1, minWidth: 0 },
 
   // common
-  card: { backgroundColor: "#fff", borderRadius: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
-  subCard: { backgroundColor: "#F9FAFB", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 },
+  card: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: theme.colors.border, shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },
+  subCard: { backgroundColor: theme.colors.surfaceMuted, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 12 },
   subCardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText, marginBottom: 6 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   cardTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
 
   label: { fontWeight: "700", color: theme.colors.boardingText, marginTop: 8, marginBottom: 6 },
   labelInline: { fontWeight: "700", color: theme.colors.boardingText },
-  input: { borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: "#111827" },
+  input: { borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text },
   inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
-  errorText: { color: "#B91C1C", marginTop: 4 },
-  note: { fontSize: 12, lineHeight: 16, color: "#6B7280", marginTop: 6 },
+  errorText: { color: theme.colors.danger, marginTop: 4 },
+  note: { fontSize: 12, lineHeight: 16, color: theme.colors.textMuted, marginTop: 6 },
   photoAddBtn: {
     width: 72, height: 72, borderRadius: 10, borderWidth: 1, borderStyle: "dashed",
-    borderColor: "#9CA3AF", alignItems: "center", justifyContent: "center",
+    borderColor: theme.colors.textMuted, alignItems: "center", justifyContent: "center",
   },
   photoRemoveBtn: {
     position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 11,
@@ -1833,17 +1833,17 @@ const styles = StyleSheet.create({
   photoRemoveText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   multiline: { minHeight: 96 },
   segment: { flexDirection: "row", gap: 8 },
-  segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F3F4F6" },
-  segBtnActive: { backgroundColor: theme.colors.primary, borderColor: "#111827" },
+  segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceMuted },
+  segBtnActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.text },
   segText: { color: theme.colors.boardingText, fontWeight: "800" },
   segTextActive: { color: theme.colors.boardingText },
   smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.boardingText },
   smallBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
   switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  noteSmall: { color: "#6B7280", marginTop: 6 },
-  previewPlaceholder: { height: 160, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", alignItems: "center", justifyContent: "center", marginTop: 10 },
-  previewText: { color: "#6B7280", textAlign: "center", paddingHorizontal: 12 },
-  previewImage: { width: "100%", height: 200, borderRadius: 12, backgroundColor: "#E5E7EB", marginTop: 10 },
+  noteSmall: { color: theme.colors.textMuted, marginTop: 6 },
+  previewPlaceholder: { height: 160, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceMuted, alignItems: "center", justifyContent: "center", marginTop: 10 },
+  previewText: { color: theme.colors.textMuted, textAlign: "center", paddingHorizontal: 12 },
+  previewImage: { width: "100%", height: 200, borderRadius: 12, backgroundColor: theme.colors.border, marginTop: 10 },
 
   footer: {
     position: "absolute", left: 0, right: 0, bottom: 0,
@@ -1859,31 +1859,31 @@ const styles = StyleSheet.create({
     elevation: 4
   },
   footerGhost: {
-    backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB",
+    backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border,
     shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: {width:0, height:3},
     elevation: 2
   },
   footerText: { fontWeight: "800", color: theme.colors.boardingText },
 
   sheetBackdrop: { flex: 1, backgroundColor: "#00000066", alignItems: "center", justifyContent: "flex-end" },
-  sheetCard: { width: "100%", backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, borderTopWidth: 1, borderColor: "#E5E7EB" },
+  sheetCard: { width: "100%", backgroundColor: theme.colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, borderTopWidth: 1, borderColor: theme.colors.border },
   sheetTitle: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
   sheetText: { color: theme.colors.boardingText, marginTop: 4 },
   sheetBtn: { marginTop: 10, paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   sheetBtnPrimary: { backgroundColor: theme.colors.boardingText },
-  sheetBtnGhost: { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
+  sheetBtnGhost: { backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border },
   sheetBtnText: { fontWeight: "800", color: theme.colors.boardingText },
   sheetClose: { alignSelf: "center", marginTop: 10 },
-  sheetCloseText: { color: "#6B7280" },
+  sheetCloseText: { color: theme.colors.textMuted },
   qrOverlay: { flex: 1, backgroundColor: "#000000CC", alignItems: "center", justifyContent: "center", padding: 16 },
   qrFrame: { width: "100%", maxWidth: 480, backgroundColor: theme.colors.primary, borderRadius: 16, padding: 12, gap: 12 },
   qrTitle: { fontWeight: "800", color: theme.colors.primary, alignSelf: "center" },
-  qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: "#E5E7EB" },
+  qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: theme.colors.border },
 
   // --- new for price info + AI button
   infoRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 10 },
   infoButton: { flexDirection: "row", alignItems: "center", paddingVertical: 6, paddingRight: 10 },
   infoLink: { fontWeight: "700", color: theme.colors.boardingText },
-  smallAIButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: theme.colors.boardingText },
-  smallAIButtonText: { color: "#fff", fontWeight: "800" },
+  smallAIButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: theme.colors.accent },
+  smallAIButtonText: { color: theme.colors.accentOn, fontWeight: "800" },
 });
