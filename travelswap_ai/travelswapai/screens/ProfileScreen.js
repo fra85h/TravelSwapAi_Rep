@@ -335,6 +335,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={[styles.editBtn, { marginTop: 8 }]}
+              onPress={() => {
+                navigation.navigate?.("EditPreferences");
+                navigation.getParent?.()?.navigate?.("EditPreferences");
+              }}
+            >
+              <Text style={styles.editBtnText}>✨ {t("profile.editPreferences", "Le mie preferenze")}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.editBtn, { marginTop: 8, backgroundColor: theme.colors.primary, borderColor: theme.colors.text }]}
               onPress={handleLogout}
             >

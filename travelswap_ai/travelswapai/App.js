@@ -135,6 +135,11 @@ function RootNavigator() {
           <Stack.Screen name="ManageImages" component={ManageImagesScreen} options={{ title: "Foto annuncio" }} />
           <Stack.Screen name="ChainProposals" component={ChainProposalsScreen} options={{ title: "Scambi a 3" }} />
           <Stack.Screen name="SavedSearches" component={SavedSearchesScreen} options={{ title: "Avvisi di ricerca" }} />
+          <Stack.Screen name="EditPreferences" options={{ title: "Le tue preferenze" }}>
+            {(props) => (
+              <PreferencesOnboardingScreen {...props} mode="edit" onDone={() => props.navigation.goBack()} />
+            )}
+          </Stack.Screen>
           <Stack.Screen name="Matching" component={MatchingScreen} options={{ title: "Suggeriti dall'AI" }} />
         </>
       ) : (
