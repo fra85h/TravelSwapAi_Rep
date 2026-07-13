@@ -77,36 +77,6 @@ function SkeletonRow() {
   );
 }
 
-/*function LegendCard({ t }) {
-  return (
-    <View style={styles.legendCard}>
-      <Text style={styles.legendTitle}>{t("matching.legend.title", "Cosa significano 60 / 70 / 80?")}</Text>
-
-      <View style={styles.legendRow}>
-        <View style={[styles.legendDot, { backgroundColor: "#FEF9C3", borderColor: "#FDE68A" }]} />
-        <Text style={styles.legendText}>{t("matching.legend.base", "60–69 = compatibilità di base")}</Text>
-      </View>
-
-      <View style={styles.legendRow}>
-        <View style={[styles.legendDot, { backgroundColor: "#ECFCCB", borderColor: "#BEF264" }]} />
-        <Text style={styles.legendText}>{t("matching.legend.good", "70–79 = buona compatibilità")}</Text>
-      </View>
-
-      <View style={styles.legendRow}>
-        <View style={[styles.legendDot, { backgroundColor: "#DCFCE7", borderColor: "#86EFAC" }]} />
-        <Text style={styles.legendText}>{t("matching.legend.excellent", "80–100 = affinità eccellente")}</Text>
-      </View>
-
-      <Text style={[styles.legendText, { marginTop: 8 }]}>
-        {t(
-          "matching.legend.long",
-          "Il punteggio è una stima (0–100) calcolata da TravelSwap AI combinando: preferenze e cronologia, allineamento prezzo, prossimità/località, sovrapposizione date, categoria/tipo annuncio e segnali di interesse reciproco. I “match perfetti” sono bidirezionali."
-        )}
-      </Text>
-    </View>
-  );
-}*/
-
 function LegendCard({ t }) {
   return (
     <View style={styles.legendCard}>
@@ -190,7 +160,7 @@ function StatusBanner({
 
 /* ---------- Riga Match ---------- */
 
-function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, onPressChevron ,onProposeBuy, onProposeSwap }) {
+function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, onPressChevron }) {
   const { t } = useI18n();
   const badgeStyle =
     item.score >= 80 ? styles.badgeGreen : item.score >= 70 ? styles.badgeLime : styles.badgeYellow;
@@ -606,8 +576,6 @@ const compatible = useMemo(
      type: item.type || "hotel",
    })
     }
-                onProposeBuy={(it) => handleProposeBuy(it)}
-                onProposeSwap={(it) => handleProposeSwap(it)}
               />
             );
           }}
@@ -625,20 +593,6 @@ const compatible = useMemo(
       )}
     </View>
   );
- const handleProposeBuy = useCallback((it) => {
-   const targetId = it.listingId || it.id;
-   if (!targetId) return;
-   // Adatta alla tua rotta/sheet esistente:
-   // Esempio 1: navigazione a una screen di proposta
-   navigation.navigate("Proposal", { mode: "buy", listingId: targetId });
-   // Esempio 2 (se hai già uno sheet): openNegotiationSheet({ type: "buy", toListingId: targetId })
- }, [navigation]);
-
- const handleProposeSwap = useCallback((it) => {
-   const targetId = it.listingId || it.id;
-   if (!targetId) return;
-   navigation.navigate("Proposal", { mode: "swap", listingId: targetId });
- }, [navigation]);
   return (
     <SafeAreaView style={{ flex: 1 }}>
     <StatusBanner

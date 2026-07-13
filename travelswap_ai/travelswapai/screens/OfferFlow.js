@@ -11,6 +11,7 @@ import {
   listMyActiveListings
 } from "../lib/offers";
 import { useI18n } from "../lib/i18n";
+import { notifyActivityChanged } from "../lib/ActivityContext";
 import { theme } from "../lib/theme";
 
 export default function OfferFlow() {
@@ -105,6 +106,7 @@ export default function OfferFlow() {
         await createOfferSwap(selectedMyListing.id, listingId, { message });
       }
 
+      notifyActivityChanged();
       Alert.alert(t("offerFlow.sentTitle", "Proposta inviata"), t("offerFlow.sentMsg", "Il proprietario riceverà subito la tua proposta."));
       navigation.goBack();
     } catch (e) {
@@ -117,6 +119,7 @@ export default function OfferFlow() {
       if (!pendingOffer?.id) return;
       await cancelOffer(pendingOffer.id);
       setPendingOffer(null);
+      notifyActivityChanged();
       Alert.alert(t("common.ok", "OK"), t("offerFlow.canceled", "Proposta cancellata"));
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e.message || String(e));

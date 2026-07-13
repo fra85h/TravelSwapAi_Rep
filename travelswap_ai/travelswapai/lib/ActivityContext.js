@@ -7,6 +7,17 @@ import { loadActivity } from "./activity";
 
 const EMPTY = { toDo: [], waiting: [], found: [], history: [] };
 
+// Canale per le schermate FUORI dal provider (Scambi a 3, invio proposta:
+// vivono nello Stack radice, non dentro i tab): dopo un'azione che cambia
+// la casella Attività chiamano notifyActivityChanged() e il provider,
+// se montato, si ricarica — così il numeretto sul tab non resta stantio.
+const listeners = new Set();
+export function notifyActivityChanged() {
+  listeners.forEach((fn) => {
+    try { fn(); } catch {}
+  });
+}
+
 const ActivityContext = createContext({
   summary: EMPTY,
   toDoCount: 0,
@@ -30,6 +41,11 @@ export function ActivityProvider({ children }) {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    listeners.add(refresh);
+    return () => { listeners.delete(refresh); };
+  }, [refresh]);
 
   return (
     <ActivityContext.Provider
