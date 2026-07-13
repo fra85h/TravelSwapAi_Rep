@@ -51,6 +51,9 @@ export const translations = {
       alertsA11y: "I miei avvisi di ricerca",
       noResults: "Nessun risultato per “{query}”",
       tryOther: "Prova con un'altra città o tratta — o crea un avviso con la campanella in alto: ti avvisiamo noi quando compare.",
+      emptyForType: "Nessun annuncio di questo tipo al momento.",
+      emptyAll: "Ancora nessun annuncio in giro.",
+      emptyAllSub: "Torna a trovarci tra poco — o pubblica tu il primo dal tab Vendi.",
     },
 
     activity: {
@@ -528,6 +531,7 @@ export const translations = {
       addDetailsOrRequests: "Aggiungi dettagli o richieste",
       chooseOwnListing: "Scegli un tuo annuncio",
       noActiveListings: "Non hai annunci attivi.",
+      createListingCta: "＋ Crea prima un annuncio da offrire in scambio",
       addDetailsForSwap: "Aggiungi dettagli per lo scambio",
       sendProposal: "Invia proposta",
     },
@@ -760,6 +764,9 @@ export const translations = {
       alertsA11y: "My search alerts",
       noResults: "No results for “{query}”",
       tryOther: "Try another city or route — or create an alert with the bell above: we'll let you know when it shows up.",
+      emptyForType: "No listings of this type right now.",
+      emptyAll: "No listings around yet.",
+      emptyAllSub: "Check back soon — or be the first to post one from the Sell tab.",
     },
 
     activity: {
@@ -1224,6 +1231,7 @@ export const translations = {
       addDetailsOrRequests: "Add details or requests",
       chooseOwnListing: "Choose one of your listings",
       noActiveListings: "You have no active listings.",
+      createListingCta: "＋ First create a listing to offer in the swap",
       addDetailsForSwap: "Add details for the swap",
       sendProposal: "Send proposal",
     },
@@ -1451,6 +1459,9 @@ export const translations = {
       alertsA11y: "Mis avisos de búsqueda",
       noResults: "Sin resultados para “{query}”",
       tryOther: "Prueba con otra ciudad o ruta — o crea un aviso con la campana de arriba: te avisaremos cuando aparezca.",
+      emptyForType: "No hay anuncios de este tipo por ahora.",
+      emptyAll: "Todavía no hay anuncios por aquí.",
+      emptyAllSub: "Vuelve pronto — o sé el primero en publicar uno desde la pestaña Vender.",
     },
 
     activity: {
@@ -1924,6 +1935,7 @@ export const translations = {
       addDetailsOrRequests: "Añade detalles o solicitudes",
       chooseOwnListing: "Elige uno de tus anuncios",
       noActiveListings: "No tienes anuncios activos.",
+      createListingCta: "＋ Crea antes un anuncio para ofrecer en el intercambio",
       addDetailsForSwap: "Añade detalles para el intercambio",
       sendProposal: "Enviar propuesta",
     },

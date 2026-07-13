@@ -137,11 +137,6 @@ export async function fetchJson(path, opts = {}) {
 
 // -------- API convenience --------
 
-// Health check rapido
-export async function apiHealth() {
-  return fetchJson(`/api/health`);
-}
-
 // Snapshot utente
 export async function getUserSnapshot(userId) {
   if (!userId) throw new Error("userId mancante");

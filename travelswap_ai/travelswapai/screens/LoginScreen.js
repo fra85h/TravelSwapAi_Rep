@@ -121,7 +121,7 @@ export default function LoginScreen({ navigation }) {
 
   const signUpWithEmail = async () => {
     if (!email || !password) {
-      Alert.alert(t("auth.fillForSignup", "Compila tutti i campi"), t("auth.fillForSignup", "Email e password sono richiesti."));
+      Alert.alert(t("auth.needEmail", "Serve l'email"), t("auth.fillForSignup", "Inserisci email e password per registrarti"));
       return;
     }
     if (password.length < 6) {
