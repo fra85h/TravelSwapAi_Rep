@@ -1,4 +1,5 @@
 import './lib/polyfills';
+import './lib/webAlert';
 import * as Linking from 'expo-linking';
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
