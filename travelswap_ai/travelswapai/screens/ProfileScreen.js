@@ -279,12 +279,15 @@ export default function ProfileScreen() {
     </TouchableOpacity>
   );
 
-  // 🔐 Logout
+  // 🔐 Logout: basta chiudere la sessione — al cambio di stato auth il
+  // navigator radice passa da solo al ramo di accesso. Il vecchio
+  // reset verso "Login" avveniva quando quella rotta non era ancora
+  // registrata (esiste solo senza sessione) e produceva un errore di
+  // navigazione, facendo atterrare sul carosello di onboarding.
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e?.message || t("errors.logout", "Impossibile uscire dall’account."));
     }

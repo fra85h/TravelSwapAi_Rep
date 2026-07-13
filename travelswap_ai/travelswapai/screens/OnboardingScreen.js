@@ -117,7 +117,7 @@ export default function OnboardingScreen() {
 
                 {/* Testi */}
                 <Text style={styles.title} numberOfLines={2}>{t(s.title)}</Text>
-                <Text style={styles.text}  numberOfLines={3}>{t(s.text)}</Text>
+                <Text style={styles.text} numberOfLines={5}>{t(s.text)}</Text>
               </View>
 
               {/* Dots */}

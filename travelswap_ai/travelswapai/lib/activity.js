@@ -6,8 +6,11 @@ import { listMyChainProposals } from "./chains";
 import { listMyMatches } from "./savedSearches";
 import { listMyTransactions } from "./transactions";
 
+// Stessi stati che lib/offers.js considera "pendenti": una proposta
+// in_review deve comparire in Attività come una pending.
 function isPending(status) {
-  return String(status || "").toLowerCase() === "pending";
+  const s = String(status || "").toLowerCase();
+  return s === "pending" || s === "in_review";
 }
 
 /**

@@ -7,6 +7,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { listMyChainProposals, confirmChain, declineChain } from "../lib/chains";
+import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import Button from "../components/ui/Button";
@@ -139,6 +140,7 @@ export default function ChainProposalsScreen() {
     try {
       const result = await confirmChain(chainId);
       await load();
+      notifyActivityChanged();
       if (result?.status === "completed") {
         Alert.alert(
           t("chains.completedTitle", "🎉 Scambio completato!"),
@@ -171,6 +173,7 @@ export default function ChainProposalsScreen() {
             try {
               await declineChain(chainId);
               await load();
+              notifyActivityChanged();
             } catch (e) {
               Alert.alert(t("common.error", "Errore"), e?.message || t("chains.declineError", "Impossibile rifiutare lo scambio."));
             } finally {

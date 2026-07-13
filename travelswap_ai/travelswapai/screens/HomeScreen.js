@@ -319,10 +319,14 @@ export default function HomeScreen() {
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyText}>
-              {tt("listing.emptyForFilter", "Nessun annuncio per questo stato")}
+              {query.trim()
+                ? tt("esplora.noResults", "Nessun risultato per “{query}”", { query: query.trim() })
+                : tt("listing.emptyForFilter", "Nessun annuncio per questo stato")}
             </Text>
             <Text style={styles.emptySub}>
-              {tt("listing.tryChangeFilter", "Prova a cambiare filtro.")}
+              {query.trim()
+                ? tt("esplora.tryOther", "Prova con un'altra città o tratta — o crea un avviso con la campanella in alto: ti avvisiamo noi quando compare.")
+                : tt("listing.tryChangeFilter", "Prova a cambiare filtro.")}
             </Text>
           </View>
         }

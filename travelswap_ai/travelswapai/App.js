@@ -1,6 +1,7 @@
 import './lib/polyfills';
 import * as Linking from 'expo-linking';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -20,7 +21,6 @@ import EditProfileScreen from './screens/EditProfileScreen';
 import OfferDetailScreen from './screens/OfferDetailScreen';
 import ListingDetailScreen from './screens/ListingDetailScreen';
 import SavedScreen from './screens/SavedScreen';
-import TransactionsScreen from './screens/TransactionsScreen';
 import ManageImagesScreen from './screens/ManageImagesScreen';
 import ChainProposalsScreen from './screens/ChainProposalsScreen';
 import SavedSearchesScreen from './screens/SavedSearchesScreen';
@@ -78,7 +78,16 @@ function RootNavigator() {
   const { session, loading } = useAuth();
   const { loading: prefsLoading, needsOnboarding, markDone } = useNeedsPreferencesOnboarding(session);
 
-  if (loading || (session && prefsLoading)) {
+  // Il carosello di presentazione si mostra solo la prima volta: chi lo ha
+  // già visto (o fa logout) atterra direttamente sul Login.
+  const [seenOnboarding, setSeenOnboarding] = useState(null);
+  useEffect(() => {
+    AsyncStorage.getItem('hasSeenOnboarding')
+      .then((v) => setSeenOnboarding(v === '1'))
+      .catch(() => setSeenOnboarding(false));
+  }, []);
+
+  if (loading || (session && prefsLoading) || (!session && seenOnboarding === null)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator />
@@ -96,6 +105,7 @@ function RootNavigator() {
 
   return (
     <Stack.Navigator
+      initialRouteName={session ? "MainTabs" : (seenOnboarding ? "Login" : "Onboarding")}
       screenOptions={{
         headerShown: true,
         headerShadowVisible: false,
@@ -122,7 +132,6 @@ function RootNavigator() {
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Listing" }} />
           <Stack.Screen name="OfferDetail" component={OfferDetailScreen} options={{ title: "Offer" }} />
           <Stack.Screen name="Saved" component={SavedScreen} options={{ title: "Preferiti" }} />
-          <Stack.Screen name="Transactions" component={TransactionsScreen} options={{ title: "I miei scambi" }} />
           <Stack.Screen name="ManageImages" component={ManageImagesScreen} options={{ title: "Foto annuncio" }} />
           <Stack.Screen name="ChainProposals" component={ChainProposalsScreen} options={{ title: "Scambi a 3" }} />
           <Stack.Screen name="SavedSearches" component={SavedSearchesScreen} options={{ title: "Avvisi di ricerca" }} />
