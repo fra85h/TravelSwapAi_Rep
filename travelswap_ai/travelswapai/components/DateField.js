@@ -45,7 +45,7 @@ export default function DateField({ label, value, onChange, required, error, dis
           value={value}
           onChangeText={onChange}
           placeholder="YYYY-MM-DD"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={theme.colors.textMuted}
           style={[styles.input, error && styles.inputError]}
           autoCapitalize="none"
           autoCorrect={false}
@@ -63,8 +63,8 @@ export default function DateField({ label, value, onChange, required, error, dis
 
       <TouchableOpacity onPress={!disabled ? () => setShowPicker(true) : undefined} activeOpacity={0.8}>
         <View style={[styles.input, styles.inputRow, error && styles.inputError]}>
-          <Text style={{ color: value ? "#111827" : "#9CA3AF" }}>{value || "YYYY-MM-DD"}</Text>
-          <Text style={{ color: "#6B7280" }}>📅</Text>
+          <Text style={{ color: value ? theme.colors.text : theme.colors.textMuted }}>{value || "YYYY-MM-DD"}</Text>
+          <Text style={{ color: theme.colors.textMuted }}>📅</Text>
         </View>
       </TouchableOpacity>
       {!!error && <Text style={styles.errorText}>{error}</Text>}
@@ -103,20 +103,20 @@ export default function DateField({ label, value, onChange, required, error, dis
 }
 
 const styles = StyleSheet.create({
-  label: { fontWeight: "700", color: "#111827", marginTop: 8, marginBottom: 6 },
+  label: { fontWeight: "700", color: theme.colors.text, marginTop: 8, marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#fff",
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    color: "#111827",
+    color: theme.colors.text,
   },
   inputRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
-  errorText: { color: "#B91C1C", marginTop: 4 },
-  smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: "#111827" },
+  errorText: { color: theme.colors.danger, marginTop: 4 },
+  smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.text },
   smallBtnText: { color: "#fff", fontWeight: "800" },
-  inputDisabled: { backgroundColor: "#F3F4F6", color: "#6B7280" },
+  inputDisabled: { backgroundColor: theme.colors.surfaceMuted, color: theme.colors.textMuted },
 });

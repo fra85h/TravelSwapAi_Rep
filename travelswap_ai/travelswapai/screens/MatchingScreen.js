@@ -179,7 +179,7 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
   
   return (
     <View style={styles.row}>
-      <View style={[styles.avatar, { backgroundColor: "#E5E7EB" }]} />
+      <View style={[styles.avatar, { backgroundColor: theme.colors.surfaceMuted }]} />
       <View style={{ flex: 1, marginLeft: 10 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
@@ -223,7 +223,7 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
         </TouchableOpacity>
 
         <TouchableOpacity onPress={onPressChevron} style={{ paddingTop: 6 }}>
-          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
         </TouchableOpacity>
       </View>
     </View>
@@ -734,8 +734,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceMuted,
   },
   legendToggleText: { fontWeight: "700", color: theme.colors.boardingText },
 
@@ -750,21 +750,21 @@ const styles = StyleSheet.create({
   },
   sectionHeader: { marginBottom: 8 },
   sectionTitle: { fontFamily: theme.fonts.headingBold, fontSize: 16, color: theme.colors.boardingText },
-  sectionSubtitle: { color: "#6B7280", marginTop: 4 },
+  sectionSubtitle: { color: theme.colors.textMuted, marginTop: 4 },
 
   /* Riga */
   row: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: theme.colors.border,
     borderRadius: 12,
     padding: 10,
   },
   avatar: { width: 48, height: 48, borderRadius: 10 },
   title: { fontWeight: "800", color: theme.colors.boardingText, marginRight: 8 },
-  meta: { color: "#6B7280", marginTop: 2 },
+  meta: { color: theme.colors.textMuted, marginTop: 2 },
 
   /* colonna destra */
   rightCol: { alignItems: "flex-end", justifyContent: "center", gap: 8 },
@@ -799,20 +799,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: theme.colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: theme.colors.border,
   },
   infoChipTxt: { color: theme.colors.boardingText, fontWeight: "700", fontSize: 12 },
 
   /* Spiegazione */
-  explBox: { marginTop: 8, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", borderRadius: 10, padding: 10 },
-  explText: { color: "#374151", lineHeight: 18 },
+  explBox: { marginTop: 8, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceMuted, borderRadius: 10, padding: 10 },
+  explText: { color: theme.colors.text, lineHeight: 18 },
   explFooter: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
-  explSmall: { fontSize: 12, color: "#6B7280" },
+  explSmall: { fontSize: 12, color: theme.colors.textMuted },
 
   /* Skeleton */
-  skel: { backgroundColor: "#E5E7EB" },
+  skel: { backgroundColor: theme.colors.border },
 
   /* Pulsante "Aggiorna suggerimenti" (pill con etichetta) */
   fab: {

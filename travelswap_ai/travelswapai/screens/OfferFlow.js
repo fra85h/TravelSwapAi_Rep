@@ -132,7 +132,7 @@ export default function OfferFlow() {
   if (error) {
     return (
       <View style={s.center}>
-        <Text style={{ color: "#B91C1C", marginBottom: 12 }}>{error}</Text>
+        <Text style={{ color: theme.colors.danger, marginBottom: 12 }}>{error}</Text>
         <TouchableOpacity style={s.btn} onPress={load}><Text style={s.btnTxt}>{t("common.retry", "Riprova")}</Text></TouchableOpacity>
       </View>
     );
@@ -206,7 +206,7 @@ export default function OfferFlow() {
                     <Text style={s.cardMeta}>{item.type} • {item.location || item.route_from || "-"}</Text>
                   </TouchableOpacity>
                 )}
-                ListEmptyComponent={<Text style={{ color: "#6B7280" }}>{t("offerFlow.noActiveListings", "Non hai annunci attivi.")}</Text>}
+                ListEmptyComponent={<Text style={{ color: theme.colors.textMuted }}>{t("offerFlow.noActiveListings", "Non hai annunci attivi.")}</Text>}
                 style={{ maxHeight: 240 }}
               />
               <Text style={[s.label, { marginTop: 16 }]}>{t("offerFlow.messageOptional", "Messaggio (opzionale)")}</Text>
@@ -234,7 +234,7 @@ export default function OfferFlow() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
+  container: { flex: 1, backgroundColor: theme.colors.background, padding: 16 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, marginBottom: 16 },
   target: {
@@ -242,13 +242,13 @@ const s = StyleSheet.create({
     padding: 14, marginBottom: 12, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
   tTitle: { fontWeight: "800" },
-  tMeta: { color: "#6B7280", marginTop: 4 },
+  tMeta: { color: theme.colors.textMuted, marginTop: 4 },
   label: { fontWeight: "700", marginTop: 8, marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  btn: { backgroundColor: "#111827", paddingVertical: 12, borderRadius: 12, alignItems: "center" },
-  btnTxt: { color: "#fff", fontWeight: "700" },
-  btnOutline: { borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 12, borderRadius: 12, alignItems: "center", paddingHorizontal: 14 },
-  btnOutlineTxt: { color: "#111827", fontWeight: "700" },
+  input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  btn: { backgroundColor: theme.colors.accent, paddingVertical: 12, borderRadius: 12, alignItems: "center" },
+  btnTxt: { color: theme.colors.accentOn, fontWeight: "800" },
+  btnOutline: { borderWidth: 1, borderColor: theme.colors.border, paddingVertical: 12, borderRadius: 12, alignItems: "center", paddingHorizontal: 14 },
+  btnOutlineTxt: { color: theme.colors.text, fontWeight: "700" },
   btnDisabled: { opacity: 0.5 },
   card: {
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
@@ -256,7 +256,7 @@ const s = StyleSheet.create({
   },
   cardSelected: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accentSoft },
   cardTitle: { fontWeight: "800" },
-  cardMeta: { color: "#6B7280", marginTop: 4 },
+  cardMeta: { color: theme.colors.textMuted, marginTop: 4 },
   pendingBox: { borderWidth: 1, borderColor: "#F59E0B", backgroundColor: "#FFFBEB", borderRadius: 12, padding: 12, marginTop: 8 },
   pendingTitle: { fontWeight: "800", color: "#92400E" },
   pendingMsg: { marginTop: 6, color: "#92400E" },

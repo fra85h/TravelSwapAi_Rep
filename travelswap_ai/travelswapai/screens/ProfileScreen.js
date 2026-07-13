@@ -257,7 +257,7 @@ export default function ProfileScreen() {
 
       {/* Pubblicato il */}
       {item.created_at && (
-        <Text style={{ color: '#6B7280', marginTop: 8, fontSize: 12 }}>
+        <Text style={{ color: theme.colors.textMuted, marginTop: 8, fontSize: 12 }}>
           {t("listing.publishedOn", "Pubblicato il")} {fmtPubDate(item.created_at)}
         </Text>
       )}
@@ -478,11 +478,11 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   // card contenitori header/sezioni profilo
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: theme.colors.border,
     marginBottom: 12,
   },
 
@@ -497,8 +497,8 @@ const styles = StyleSheet.create({
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
   avatarText: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
   name: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText},
-  metaText: { color: "#6B7280" },
-  editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.primary, borderWidth: 1, borderColor: "#E5E7EB" },
+  metaText: { color: theme.colors.textMuted },
+  editBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: theme.colors.primary, borderWidth: 1, borderColor: theme.colors.border },
   editBtnText: { fontWeight: "700", color: theme.colors.boardingText},
 
   // stats
@@ -511,20 +511,20 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceMuted,
   },
-  statBoxActive: { backgroundColor: "#EEF2FF", borderColor: "#C7D2FE" },
+  statBoxActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primaryMuted },
   statIcon: { fontSize: 18, marginBottom: 4 },
   statValue: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
-  statLabel: { fontSize: 12, color: "#6B7280" },
+  statLabel: { fontSize: 12, color: theme.colors.textMuted },
 
   filterBar: {
-    marginTop: 10, padding: 8, borderRadius: 10, backgroundColor: "#F3F4F6",
+    marginTop: 10, padding: 8, borderRadius: 10, backgroundColor: theme.colors.surfaceMuted,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
-  filterText: { color: "#374151", fontWeight: "600" },
-  clearBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: "#111827" },
+  filterText: { color: theme.colors.textMuted, fontWeight: "600" },
+  clearBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: theme.colors.text },
   clearBtnText: { color: "#fff", fontWeight: "700" },
 
   sectionHeader: { marginTop: 0, marginBottom: 8, paddingHorizontal: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -536,24 +536,24 @@ const styles = StyleSheet.create({
     padding: 14, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
   listCardTitle: { fontWeight: "800", color: theme.colors.boardingText },
-  listCardSub: { color: "#6B7280", marginTop: 4 },
-  listCardMeta: { color: "#111827", marginTop: 6, fontWeight: "600" },
+  listCardSub: { color: theme.colors.textMuted, marginTop: 4 },
+  listCardMeta: { color: theme.colors.text, marginTop: 6, fontWeight: "600" },
 
-  stateBadge: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
-  stateBadgeText: { fontSize: 12, fontWeight: "800", color: "#374151" },
+  stateBadge: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border },
+  stateBadgeText: { fontSize: 12, fontWeight: "800", color: theme.colors.textMuted },
 
   overflowBtn: { marginLeft: 6, paddingHorizontal: 6, paddingVertical: 2, alignItems: "center", justifyContent: "center" },
-  overflowIcon: { fontSize: 20, color: "#6B7280", fontWeight: "800", marginTop: -2 },
+  overflowIcon: { fontSize: 20, color: theme.colors.textMuted, fontWeight: "800", marginTop: -2 },
 
-  pubDate: { marginTop: 2, color: "#6B7280", fontSize: 12 },
+  pubDate: { marginTop: 2, color: theme.colors.textMuted, fontSize: 12 },
 
   errorBox: { marginBottom: 10, padding: 12, borderRadius: 12, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA" },
   errorText: { color: "#991B1B" },
-  retryText: { color: "#2563EB", fontWeight: "700", marginTop: 6 },
+  retryText: { color: theme.colors.info, fontWeight: "700", marginTop: 6 },
 
   emptyWrap: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
-  emptyTitle: { fontWeight: "800", color: "#111827", marginBottom: 6 },
-  emptyText: { color: "#6B7280", textAlign: "center" },
+  emptyTitle: { fontWeight: "800", color: theme.colors.text, marginBottom: 6 },
+  emptyText: { color: theme.colors.textMuted, textAlign: "center" },
 
   fabWrap: { position: "absolute", right: 16 },
   fab: {
@@ -562,5 +562,5 @@ const styles = StyleSheet.create({
   },
   fabPlus: { color: theme.colors.boardingText, fontSize: 28, fontWeight: "900", marginTop: -2 },
 
-  skel: { backgroundColor: "#E5E7EB" },
+  skel: { backgroundColor: theme.colors.border },
 });

@@ -52,7 +52,7 @@ export default function OfferDetailScreen() {
   if (!effectiveId) {
     return (
       <View style={s.center}>
-        <Text style={{ color: "#6B7280" }}>{t("offerDetail.notFound", "Annuncio non trovato.")}</Text>
+        <Text style={{ color: theme.colors.textMuted }}>{t("offerDetail.notFound", "Annuncio non trovato.")}</Text>
       </View>
     );
   }
@@ -135,7 +135,7 @@ export default function OfferDetailScreen() {
   if (error) {
     return (
       <View style={s.center}>
-        <Text style={{ color: "#B91C1C", marginBottom: 8 }}>{error}</Text>
+        <Text style={{ color: theme.colors.danger, marginBottom: 8 }}>{error}</Text>
         <TouchableOpacity style={s.btn} onPress={load}>
           <Text style={s.btnTxt}>{t("common.retry", "Riprova")}</Text>
         </TouchableOpacity>
@@ -183,11 +183,11 @@ export default function OfferDetailScreen() {
                     listingId: effectiveId,
                   })
                 }
-                style={[s.btn, { backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" }]}
+                style={[s.btn, { backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border }]}
                 accessibilityRole="button"
                 accessibilityLabel={t("detail.actions.proposeBuy", "Proponi acquisto")}
               >
-                <Text style={[s.btnTxt, { color: theme.colors.primary }]}>
+                <Text style={[s.btnTxt, { color: theme.colors.text }]}>
                   {t("detail.actions.proposeBuy", "Proponi acquisto")}
                 </Text>
               </TouchableOpacity>
@@ -255,7 +255,7 @@ export default function OfferDetailScreen() {
 
       {visibleOffers.length === 0 && (
         <View style={{ alignItems: "center", paddingVertical: 24 }}>
-          <Text style={{ color: "#6B7280" }}>
+          <Text style={{ color: theme.colors.textMuted }}>
             {showOnlyThisProposal && proposalId
               ? t("offers.noneOne", "Nessuna proposta trovata per l’ID selezionato")
               : t("offers.none", "Nessuna proposta")}
@@ -267,7 +267,7 @@ export default function OfferDetailScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: theme.colors.background },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, marginBottom: 12 },
   box: {
@@ -275,8 +275,8 @@ const s = StyleSheet.create({
     padding: 14, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
   boxTitle: { fontWeight: "800" },
-  boxMeta: { color: "#6B7280", marginTop: 4 },
-  badge: { color: "#374151", fontWeight: "700" },
+  boxMeta: { color: theme.colors.textMuted, marginTop: 4 },
+  badge: { color: theme.colors.textMuted, fontWeight: "700" },
 
   /* CTA sotto il box annuncio */
   ctaRow: { flexDirection: "row", gap: 10, marginTop: 12 },
@@ -286,14 +286,14 @@ const s = StyleSheet.create({
     padding: 14, marginBottom: 10, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
   cardTitle: { fontWeight: "800" },
-  cardSub: { color: "#6B7280", marginTop: 4 },
-  cardMeta: { color: "#111827", marginTop: 4, fontWeight: "600" },
+  cardSub: { color: theme.colors.textMuted, marginTop: 4 },
+  cardMeta: { color: theme.colors.text, marginTop: 4, fontWeight: "600" },
 
   row: { flexDirection: "row", gap: 10, alignItems: "center", marginTop: 10 },
 
   /* Bottoni */
-  btn: { backgroundColor: "#111827", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, alignItems: "center" },
-  btnTxt: { color: "#fff", fontWeight: "800" },
+  btn: { backgroundColor: theme.colors.accent, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, alignItems: "center" },
+  btnTxt: { color: theme.colors.accentOn, fontWeight: "800" },
   btnSm: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, alignItems: "center" },
   btnDisabled: { opacity: 0.6 },
   accept: { backgroundColor: "#DCFCE7" },
@@ -301,6 +301,6 @@ const s = StyleSheet.create({
   decline: { backgroundColor: "#FEE2E2" },
   declineTxt: { color: "#991B1B", fontWeight: "800" },
 
-  badgeWrap: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: "#F3F4F6", borderRadius: 999 },
-  badgeTxt: { fontWeight: "700", color: "#374151" },
+  badgeWrap: { paddingVertical: 6, paddingHorizontal: 10, backgroundColor: theme.colors.surfaceMuted, borderRadius: 999 },
+  badgeTxt: { fontWeight: "700", color: theme.colors.textMuted },
 });

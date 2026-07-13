@@ -126,7 +126,7 @@ useEffect(() => {
          accessibilityLabel={tt("common.back", "Indietro")}
        >
          {props.canGoBack !== false && (props.backImage ? props.backImage({ tintColor: props.tintColor }) : null)}
-         <Text style={{ marginLeft: 6, color: props.tintColor ?? "#007AFF", fontWeight: "600" }}>
+         <Text style={{ marginLeft: 6, color: props.tintColor ?? theme.colors.boardingText, fontWeight: "600" }}>
            {tt("common.back", "Indietro")}
          </Text>
        </TouchableOpacity>
@@ -280,7 +280,7 @@ useEffect(() => {
   const operator  = listing?.operator  ?? listing?.carrier  ?? null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
         refreshControl={<RefreshControl refreshing={recomputing} onRefresh={() => setRecomputing(false)} />}>
         {images.length > 0 ? (
@@ -317,7 +317,7 @@ useEffect(() => {
               {/* (toggle spostato nella sezione descrizione) */}
             </View>
 
-            <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#E5E7EB", marginTop: 12, marginBottom: 12 }} />
+            <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border, marginTop: 12, marginBottom: 12 }} />
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <View style={{ flexShrink: 1 }}>
@@ -456,7 +456,7 @@ useEffect(() => {
 /* ========= Micro UI ========= */
 
 function Hairline({ mt = 10, mb = 10 }) {
-  return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: "#E5E7EB", marginTop: mt, marginBottom: mb }} />;
+  return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.colors.border, marginTop: mt, marginBottom: mb }} />;
 }
 function SectionCard({ title, children, textColor }) {
   return (
@@ -495,7 +495,7 @@ function ExpandableText({ children, numberOfLines = 4, textColor }) {
 /* ========= Styles ========= */
 
 const styles = StyleSheet.create({
-  headerCard: { borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E5E7EB",
+  headerCard: { borderRadius: 20, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border,
     shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, overflow: "hidden", position: "relative" },
   headerGradient: { padding: 16 },
   ribbonWrap: { position: "absolute", top: 10, left: -6, zIndex: 10, transform: [{ rotate: "-10deg" }] },
@@ -505,18 +505,18 @@ const styles = StyleSheet.create({
   title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 22 },
   subtitle: { marginTop: 6 },
   price: { fontSize: 22, fontWeight: "800" },
-  card: { marginTop: 16, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 16, padding: 14,
-    backgroundColor: "#FFFFFF", shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
+  card: { marginTop: 16, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 16, padding: 14,
+    backgroundColor: theme.colors.surface, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   cardTitle: { fontSize: 16, fontWeight: "800" },
-  chip: { flexDirection: "row", alignItems: "center", backgroundColor: "#F8FAFC", borderWidth: 1,
-    borderColor: "#E5E7EB", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8, marginBottom: 8 },
-  imageWrap: { borderRadius: 20, overflow: "hidden", backgroundColor: "#E5E7EB" },
+  chip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.colors.background, borderWidth: 1,
+    borderColor: theme.colors.border, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8, marginBottom: 8 },
+  imageWrap: { borderRadius: 20, overflow: "hidden", backgroundColor: theme.colors.surfaceMuted },
   image: { width: "100%", aspectRatio: 16 / 9 },
-  footer: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 12, backgroundColor: "#FFFFFF",
-    borderTopWidth: 1, borderTopColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, elevation: 8 },
+  footer: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 12, backgroundColor: theme.colors.surface,
+    borderTopWidth: 1, borderTopColor: theme.colors.border, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 10, elevation: 8 },
 
-  toggleBtn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F8FAFC" },
-  toggleText: { fontWeight: "700", color: "#111827" },
-  caption: { marginTop: 6, color: "#6B7280", fontSize: 12 },
+  toggleBtn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.background },
+  toggleText: { fontWeight: "700", color: theme.colors.text },
+  caption: { marginTop: 6, color: theme.colors.textMuted, fontSize: 12 },
   descHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
 });
