@@ -3,6 +3,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { supabase } from './db.js';
 import { trustscoreRouter } from './routes/trustscore.js';
 // Routers esistenti
@@ -46,6 +48,16 @@ app.use('/api/matches', matchesRouter);
 app.use('/api/chains', chainsRouter);
 app.use('/api/saved-searches', savedSearchesRouter);
 app.use('/api/fb-link', fbLinkRouter);
+
+// --- Versione web dell'app (build Expo committata in server/public/app) ---
+// Permette di provare l'app da qualsiasi browser senza installare nulla
+// (telefono/PC aziendali inclusi). La versione nativa resta invariata:
+// stesso codice, seconda "uscita". Il fallback su index.html serve i
+// percorsi interni della SPA anche al refresh della pagina.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const webAppDir = path.join(__dirname, '..', 'public', 'app');
+app.use('/app', express.static(webAppDir, { maxAge: '1h' }));
+app.get('/app/*', (_req, res) => res.sendFile(path.join(webAppDir, 'index.html')));
 app.use('/', translateListingsRouter);
 
 mountParseDescriptionRoute(app, [requireAuth, rateLimitParse]);
