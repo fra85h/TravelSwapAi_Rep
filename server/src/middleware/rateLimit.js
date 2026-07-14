@@ -45,3 +45,6 @@ export const rateLimitTranslate = makeRateLimiter({ windowMs: 10 * 60 * 1000, ma
 
 // Limite parsing descrizioni: 20 ogni 10 minuti per utente
 export const rateLimitParse = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'analisi del testo' });
+
+// Limite analisi prezzo: 20 ogni 10 minuti per utente
+export const rateLimitPriceCheck = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'analisi prezzo' });

@@ -570,6 +570,10 @@ export const translations = {
       aiPriceInfoBullet3: "• operatore (Trenitalia, Italo, …) o struttura",
       aiPriceInfoBullet4: "• periodo/stagionalità ed eventi",
       aiPriceInfoBullet5: "• storico prezzi e vincoli del titolo",
+      aiPriceVerdictLow: "Prezzo conveniente",
+      aiPriceVerdictFair: "Prezzo in linea",
+      aiPriceVerdictHigh: "Prezzo alto",
+      aiPriceUnavailable: "Analisi prezzo non disponibile al momento. Riprova più tardi.",
     },
 
     matching: {
@@ -1277,6 +1281,10 @@ export const translations = {
       aiPriceInfoBullet3: "• operator (Trenitalia, Italo, …) or property",
       aiPriceInfoBullet4: "• seasonality & events",
       aiPriceInfoBullet5: "• price history & ticket constraints",
+      aiPriceVerdictLow: "Good price",
+      aiPriceVerdictFair: "Fair price",
+      aiPriceVerdictHigh: "High price",
+      aiPriceUnavailable: "Price analysis unavailable right now. Try again later.",
     },
 
     matching: {
@@ -1988,6 +1996,10 @@ export const translations = {
       aiPriceInfoBullet3: "• operador (Trenitalia, Italo, …) o alojamiento",
       aiPriceInfoBullet4: "• estacionalidad y eventos",
       aiPriceInfoBullet5: "• historial de precios y restricciones del billete",
+      aiPriceVerdictLow: "Precio conveniente",
+      aiPriceVerdictFair: "Precio adecuado",
+      aiPriceVerdictHigh: "Precio alto",
+      aiPriceUnavailable: "Análisis de precio no disponible por ahora. Vuelve a intentarlo más tarde.",
     },
 
     matching: {

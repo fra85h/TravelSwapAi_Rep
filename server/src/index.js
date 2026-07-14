@@ -23,6 +23,7 @@ import { looksLikeLinkCode, tryLinkFromMessage, getLinkedUserId } from './models
 import { fbLinkRouter } from './routes/fbLink.js';
 import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
 import { translateListingsRouter } from "./routes/translateListings.js";
+import { priceCheckRouter } from "./routes/priceCheck.js";
 import { requireAuth } from './middleware/requireAuth.js';
 import { rateLimitParse } from './middleware/rateLimit.js';
 
@@ -69,6 +70,7 @@ app.get(['/app', '/app/*'], (_req, res) => {
   res.sendFile(path.join(webAppDir, 'index.html'));
 });
 app.use('/', translateListingsRouter);
+app.use('/', priceCheckRouter);
 
 mountParseDescriptionRoute(app, [requireAuth, rateLimitParse]);
 

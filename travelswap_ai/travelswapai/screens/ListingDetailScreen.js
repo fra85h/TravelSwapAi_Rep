@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
-  RefreshControl, Image, StyleSheet,
+  RefreshControl, Image, StyleSheet, Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -18,6 +18,7 @@ import { getCurrentUser } from "../lib/db.js";
 import { listImages } from "../lib/listingImages";
 import { useI18n } from "../lib/i18n";
 import { useListingTranslation } from "../lib/useListingTranslation";
+import { usePriceCheck } from "../lib/usePriceCheck";
 
 /* ========= Utils ========= */
 
@@ -139,6 +140,7 @@ useEffect(() => {
   const [showPriceInfo, setShowPriceInfo] = useState(false);
 
   const { getTranslated, loading: translating } = useListingTranslation();
+  const { checkPrice, loading: priceChecking } = usePriceCheck();
   const [translated, setTranslated] = useState({
     title: null, description: null, translated: false, originalLang: null, lang: null,
   });
@@ -266,6 +268,10 @@ useEffect(() => {
       tt("listingDetail.aiPriceInfoBullet5", "• storico prezzi e vincoli del titolo"),
     ],
     toggleA11y: tt("listingDetail.toggleA11y","Mostra originale / Tradotto"),
+    aiPriceVerdictLow: tt("listingDetail.aiPriceVerdictLow", "Prezzo conveniente"),
+    aiPriceVerdictFair: tt("listingDetail.aiPriceVerdictFair", "Prezzo in linea"),
+    aiPriceVerdictHigh: tt("listingDetail.aiPriceVerdictHigh", "Prezzo alto"),
+    aiPriceUnavailable: tt("listingDetail.aiPriceUnavailable", "Analisi prezzo non disponibile al momento. Riprova più tardi."),
   };
 
   if (!listing) {
@@ -414,16 +420,32 @@ useEffect(() => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => console.log("AI price", listingId)}
+            onPress={async () => {
+              const res = await checkPrice(listingId);
+              if (res?.available) {
+                const verdictLabel = res.verdict === "low" ? L.aiPriceVerdictLow
+                  : res.verdict === "high" ? L.aiPriceVerdictHigh
+                  : L.aiPriceVerdictFair;
+                Alert.alert(verdictLabel, res.explanation);
+              } else {
+                Alert.alert(L.aiPriceCta, L.aiPriceUnavailable);
+              }
+            }}
+            disabled={priceChecking}
             style={{
               backgroundColor: theme.colors.primary, paddingVertical: 14, paddingHorizontal: 24,
               borderRadius: 12, alignItems: "center", minWidth: "70%",
+              opacity: priceChecking ? 0.6 : 1,
             }}
             activeOpacity={0.85}
           >
-            <Text style={{ color: theme.colors.boardingText, fontWeight: "700", fontSize: 16 }}>
-              {L.aiPriceCta}
-            </Text>
+            {priceChecking ? (
+              <ActivityIndicator color={theme.colors.boardingText} />
+            ) : (
+              <Text style={{ color: theme.colors.boardingText, fontWeight: "700", fontSize: 16 }}>
+                {L.aiPriceCta}
+              </Text>
+            )}
           </TouchableOpacity>
 
           {showPriceInfo ? (
