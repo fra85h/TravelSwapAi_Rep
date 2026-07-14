@@ -6,7 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Text } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { theme } from './lib/theme';
 import { StatusBar } from 'expo-status-bar';
 import HeaderLogo from './components/HeaderLogo';
@@ -36,14 +37,31 @@ import { useFonts, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJak
 
 const Stack = createNativeStackNavigator();
 
+// Rete di sicurezza per errori imprevisti: prima mostrava una pagina
+// bianca senza alcun indizio (return null) — un crash reale (mancanza
+// di SafeAreaProvider) è passato inosservato per giorni proprio perché
+// non c'era nulla da vedere né da segnalare. Ora almeno si capisce che
+// qualcosa si è rotto, invece di sembrare che l'app non si carichi.
 class ErrorBoundary extends React.Component {
   state = { error: null };
   componentDidCatch(error, info) {
-    console.log("[ErrorBoundary]", error, info);
+    console.error("[ErrorBoundary]", error, info);
     this.setState({ error });
   }
   render() {
-    if (this.state.error) return null; // o un fallback <Text>Errore</Text>
+    if (this.state.error) {
+      return (
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: theme.colors.background }}>
+          <Text style={{ fontSize: 40, marginBottom: 12 }}>⚠️</Text>
+          <Text style={{ fontSize: 18, fontWeight: "800", color: theme.colors.text, textAlign: "center", marginBottom: 8 }}>
+            Qualcosa è andato storto
+          </Text>
+          <Text style={{ fontSize: 14, color: theme.colors.textMuted, textAlign: "center" }}>
+            Ricarica la pagina. Se il problema continua, segnalalo con questo messaggio: {String(this.state.error?.message || this.state.error).slice(0, 200)}
+          </Text>
+        </View>
+      );
+    }
     return this.props.children;
   }
 }
@@ -178,14 +196,16 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <I18nProvider>
-          <NavigationContainer theme={navTheme} linking={linking}>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </NavigationContainer>
-        </I18nProvider>
-      </AuthProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <I18nProvider>
+            <NavigationContainer theme={navTheme} linking={linking}>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </NavigationContainer>
+          </I18nProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
