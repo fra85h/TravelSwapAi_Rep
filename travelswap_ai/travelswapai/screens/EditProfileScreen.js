@@ -1,7 +1,9 @@
 // screens/EditProfileScreen.js
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../lib/supabase";
+import { uploadAvatar } from "../lib/avatar";
 import { useNavigation } from "@react-navigation/native";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
@@ -17,6 +19,8 @@ export default function EditProfileScreen() {
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [phone, setPhone] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 const navigation = useNavigation();
   const load = useCallback(async () => {
     setError(null);
@@ -31,14 +35,14 @@ const navigation = useNavigation();
       // profilo
       const { data, error: perr } = await supabase
         .from("profiles")
-        .select("full_name, username, bio, phone")
+        .select("full_name, username, bio, phone, avatar_url")
         .eq("id", user.id)
         .single();
 
       if (perr) {
         // se non esiste la riga, inizializza vuoto (opzionale)
         if (perr.code === "PGRST116") {
-          setFullName(""); setUsername(""); setBio(""); setPhone("");
+          setFullName(""); setUsername(""); setBio(""); setPhone(""); setAvatarUrl(null);
         } else {
           throw perr;
         }
@@ -47,6 +51,7 @@ const navigation = useNavigation();
         setUsername(data?.username ?? "");
         setBio(data?.bio ?? "");
         setPhone(data?.phone ?? "");
+        setAvatarUrl(data?.avatar_url ?? null);
       }
     } catch (e) {
       setError(e.message || String(e));
@@ -90,6 +95,35 @@ const navigation = useNavigation();
     }
   }, [userId, fullName, username, bio, phone]);
 
+  const onPickAvatar = useCallback(async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(t("manageImages.permissionDeniedTitle", "Permesso negato"), t("manageImages.permissionDeniedMsg", "Consenti l'accesso alle foto per aggiungere immagini."));
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: true,
+      });
+      if (res.canceled) return;
+
+      const asset = res.assets?.[0];
+      if (!asset) return;
+
+      setAvatarUploading(true);
+      const url = await uploadAvatar(asset);
+      setAvatarUrl(url);
+    } catch (e) {
+      Alert.alert(t("common.error", "Errore"), e?.message || t("editProfileScreen.avatarUploadError", "Impossibile caricare la foto profilo."));
+    } finally {
+      setAvatarUploading(false);
+    }
+  }, [t]);
+
   if (loading) {
     return <View style={s.center}><ActivityIndicator /></View>;
   }
@@ -106,6 +140,24 @@ const navigation = useNavigation();
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView style={s.container} contentContainerStyle={{ padding: 16 }}>
         <Text style={s.title}>{t("profile.editProfile", "Modifica profilo")}</Text>
+
+        <View style={s.avatarRow}>
+          <TouchableOpacity onPress={onPickAvatar} disabled={avatarUploading} style={s.avatarWrap} accessibilityLabel={t("editProfileScreen.changePhoto", "Cambia foto profilo")}>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={s.avatarImg} />
+            ) : (
+              <View style={[s.avatarImg, s.avatarPlaceholder]}>
+                <Text style={s.avatarInitials}>
+                  {((fullName || "U").trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 2) || "U").toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View style={s.avatarEditBadge}>
+              {avatarUploading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={s.avatarEditIcon}>✎</Text>}
+            </View>
+          </TouchableOpacity>
+          <Text style={s.avatarHint}>{t("editProfileScreen.changePhoto", "Cambia foto profilo")}</Text>
+        </View>
 
         <View style={s.field}>
           <Text style={s.label}>{t("editProfileScreen.fullNameLabel", "Nome e cognome")}</Text>
@@ -173,4 +225,16 @@ const s = StyleSheet.create({
   btn: { backgroundColor: theme.colors.primary, paddingVertical: 12, borderRadius: 12, alignItems: "center", marginTop: 8 },
   btnTxt: { color: theme.colors.boardingText, fontWeight: "800" },
   btnDisabled: { opacity: 0.6 },
+  avatarRow: { alignItems: "center", marginBottom: 20 },
+  avatarWrap: { width: 96, height: 96 },
+  avatarImg: { width: 96, height: 96, borderRadius: 48 },
+  avatarPlaceholder: { backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
+  avatarInitials: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 28 },
+  avatarEditBadge: {
+    position: "absolute", right: -2, bottom: -2, width: 30, height: 30, borderRadius: 15,
+    backgroundColor: theme.colors.accent, alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: "#fff",
+  },
+  avatarEditIcon: { fontSize: 14, color: theme.colors.accentOn },
+  avatarHint: { marginTop: 8, color: "#6B7280", fontSize: 12, fontWeight: "600" },
 });

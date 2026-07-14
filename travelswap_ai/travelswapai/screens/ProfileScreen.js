@@ -12,7 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
-  ActionSheetIOS,
+  Image,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -24,6 +24,7 @@ import { useAuth } from "../lib/auth";
 import { theme } from "../lib/theme";
 import { supabase } from "../lib/supabase.js";
 import TrustScoreBadge from '../components/TrustScoreBadge';
+import ActionSheet from "../components/ui/ActionSheet";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 
@@ -96,6 +97,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState(null);
 
   const [statusFilter, setStatusFilter] = useState(null); // "active" | "swapped" | "sold" | "pending" | "expired" | null
+  const [actionSheetItem, setActionSheetItem] = useState(null);
 
   const loadMine = useCallback(async () => {
     setLoading(true);
@@ -132,53 +134,32 @@ export default function ProfileScreen() {
     }
   };
 
-  const onOverflow = (item) => {
-    const current = String(item.status || "").toLowerCase();
-    const toggleLabel = current === "active" || current === "" ? t("listing.actions.pause", "Metti in pausa") : t("listing.actions.activate", "Rendi attivo");
+  // Menu "..." di ogni annuncio: usa ActionSheet (cross-platform) invece di
+  // ActionSheetIOS/Alert.alert a più bottoni — su web, Alert.alert passa da
+  // window.confirm() che è binario e faceva sparire silenziosamente
+  // "Modifica" ed "Elimina", lasciando raggiungibile solo la prima opzione.
+  const onOverflow = (item) => setActionSheetItem(item);
 
-    const onDeleteConfirm = () =>
-      Alert.alert(
-        t("listing.actions.deleteTitle", "Elimina annuncio"),
-        t("listing.actions.deleteConfirm", "Vuoi eliminare “{title}”?", { title: item.title }),
-        [
-          { text: t("common.cancel", "Annulla"), style: "cancel" },
-          {
-            text: t("common.delete", "Elimina"),
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await deleteMyListing(item.id);
-                await loadMine();
-              } catch (e) {
-                Alert.alert(t("common.error", "Errore"), e?.message || t("errors.delete", "Impossibile eliminare"));
-              }
-            },
-          },
-        ]
-      );
-
-    if (Platform.OS === "ios") {
-      const options = [toggleLabel, t("common.edit", "Modifica"), t("common.delete", "Elimina"), t("common.cancel", "Annulla")];
-      const destructiveButtonIndex = 2;
-      const cancelButtonIndex = 3;
-
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options, destructiveButtonIndex, cancelButtonIndex },
-        (idx) => {
-          if (idx === 0) toggleStatus(item);
-          else if (idx === 1) onEdit(item);
-          else if (idx === 2) onDeleteConfirm();
-        }
-      );
-    } else {
-      Alert.alert(t("listing.actions.more", "Azioni"), item.title || t("listing.untitled", "Annuncio"), [
-        { text: toggleLabel, onPress: () => toggleStatus(item) },
-        { text: t("common.edit", "Modifica"), onPress: () => onEdit(item) },
-        { text: t("common.delete", "Elimina"), style: "destructive", onPress: onDeleteConfirm },
+  const onDeleteConfirm = (item) =>
+    Alert.alert(
+      t("listing.actions.deleteTitle", "Elimina annuncio"),
+      t("listing.actions.deleteConfirm", "Vuoi eliminare “{title}”?", { title: item.title }),
+      [
         { text: t("common.cancel", "Annulla"), style: "cancel" },
-      ]);
-    }
-  };
+        {
+          text: t("common.delete", "Elimina"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteMyListing(item.id);
+              await loadMine();
+            } catch (e) {
+              Alert.alert(t("common.error", "Errore"), e?.message || t("errors.delete", "Impossibile eliminare"));
+            }
+          },
+        },
+      ]
+    );
 
   const stats = useMemo(() => {
     const s = { active: 0, swapped: 0, sold: 0, pending: 0, expired: 0 };
@@ -308,7 +289,13 @@ export default function ProfileScreen() {
       {/* Dati personali + bandierine */}
       <View style={[styles.card, { marginTop: 0, paddingTop: 16 }]}>
         <View style={styles.profileRow}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+          <TouchableOpacity onPress={() => navigation.navigate("EditProfile")} accessibilityLabel={t("profile.editProfile", "Modifica profilo")}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+            )}
+          </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{profile?.full_name  || "—"}</Text>
             <Text style={styles.metaText}>{profile?.email || "—"}</Text>
@@ -485,6 +472,24 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </>
       )}
+
+      <ActionSheet
+        visible={!!actionSheetItem}
+        title={t("listing.actions.more", "Azioni")}
+        message={actionSheetItem?.title || t("listing.untitled", "Annuncio")}
+        cancelLabel={t("common.cancel", "Annulla")}
+        onClose={() => setActionSheetItem(null)}
+        options={actionSheetItem ? [
+          {
+            label: (String(actionSheetItem.status || "").toLowerCase() === "active" || !actionSheetItem.status)
+              ? t("listing.actions.pause", "Metti in pausa")
+              : t("listing.actions.activate", "Rendi attivo"),
+            onPress: () => toggleStatus(actionSheetItem),
+          },
+          { label: t("common.edit", "Modifica"), onPress: () => onEdit(actionSheetItem) },
+          { label: t("common.delete", "Elimina"), destructive: true, onPress: () => onDeleteConfirm(actionSheetItem) },
+        ] : []}
+      />
     </SafeAreaView>
   );
 }
