@@ -52,12 +52,22 @@ app.use('/api/fb-link', fbLinkRouter);
 // --- Versione web dell'app (build Expo committata in server/public/app) ---
 // Permette di provare l'app da qualsiasi browser senza installare nulla
 // (telefono/PC aziendali inclusi). La versione nativa resta invariata:
-// stesso codice, seconda "uscita". Il fallback su index.html serve i
-// percorsi interni della SPA anche al refresh della pagina.
+// stesso codice, seconda "uscita".
+//
+// index.html NON va mai in cache: è la "copertina" che dice al browser
+// quale file JS caricare (il nome cambia a ogni build, es.
+// AppEntry-<hash>.js). Se il browser tenesse in cache una copertina
+// vecchia, chiederebbe un file che il deploy successivo ha già
+// sostituito -> pagina bianca fino a un refresh manuale (bug reale,
+// capitato in produzione). Gli asset con hash nel nome invece possono
+// avere cache lunghissima: il nome stesso cambia se il contenuto cambia.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webAppDir = path.join(__dirname, '..', 'public', 'app');
-app.use('/app', express.static(webAppDir, { maxAge: '1h' }));
-app.get('/app/*', (_req, res) => res.sendFile(path.join(webAppDir, 'index.html')));
+app.use('/app', express.static(webAppDir, { maxAge: '1y', index: false }));
+app.get(['/app', '/app/*'], (_req, res) => {
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(webAppDir, 'index.html'));
+});
 app.use('/', translateListingsRouter);
 
 mountParseDescriptionRoute(app, [requireAuth, rateLimitParse]);

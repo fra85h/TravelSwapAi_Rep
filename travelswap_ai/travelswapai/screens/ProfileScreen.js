@@ -25,6 +25,9 @@ import { theme } from "../lib/theme";
 import { supabase } from "../lib/supabase.js";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { Ionicons } from "@expo/vector-icons";
+import Constants from "expo-constants";
+
+const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
 // --- Helper: rimuove eventuali prezzi dal titolo (come in HomeScreen)
 function stripPriceFromTitle(s) {
@@ -450,6 +453,14 @@ export default function ProfileScreen() {
             ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
             ListHeaderComponent={ListHeader}
             ListEmptyComponent={ListEmpty}
+            ListFooterComponent={
+              <Text style={styles.footerCredits}>
+                {t("profile.credits", "TravelSwapAI v{version} · © {year} Francesco Giacalone", {
+                  version: APP_VERSION,
+                  year: new Date().getFullYear(),
+                })}
+              </Text>
+            }
             contentContainerStyle={{
               paddingTop: 0,
               paddingBottom: (tabBarHeight || 0) + 24 + 72,
@@ -574,4 +585,12 @@ const styles = StyleSheet.create({
   fabPlus: { color: theme.colors.boardingText, fontSize: 28, fontWeight: "900", marginTop: -2 },
 
   skel: { backgroundColor: theme.colors.border },
+
+  footerCredits: {
+    textAlign: "center",
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    marginTop: 20,
+    marginBottom: 4,
+  },
 });

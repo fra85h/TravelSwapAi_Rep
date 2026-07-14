@@ -1,5 +1,7 @@
 {
-  "license": "0BSD",
+  "name": "travelswapai",
+  "author": "Francesco Giacalone",
+  "license": "UNLICENSED",
   "main": "expo/AppEntry",
   "scripts": {
     "start": "expo start",
