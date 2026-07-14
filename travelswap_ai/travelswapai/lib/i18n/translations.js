@@ -624,6 +624,7 @@ export const translations = {
       continueFacebook: "Continua con Facebook",
       createAccount: "Crea un nuovo account",
       fillEmailPwd: "Inserisci email e password",
+      fillEmailPwdMsg: "Email e password sono richiesti.",
       loginFailed: "Login fallito",
       fillForSignup: "Inserisci email e password per registrarti",
       checkInbox: "Controlla la posta",
@@ -1324,6 +1325,7 @@ export const translations = {
       continueFacebook: "Continue with Facebook",
       createAccount: "Create a new account",
       fillEmailPwd: "Enter email and password",
+      fillEmailPwdMsg: "Email and password are required.",
       loginFailed: "Login failed",
       fillForSignup:
         "Enter email and password to sign up",
@@ -2030,6 +2032,7 @@ export const translations = {
       createAccount: "Crear una cuenta nueva",
       fillEmailPwd:
         "Introduce correo y contraseña",
+      fillEmailPwdMsg: "Correo y contraseña son obligatorios.",
       loginFailed: "Error de inicio de sesión",
       fillForSignup:
         "Introduce correo y contraseña para registrarte",
