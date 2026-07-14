@@ -138,10 +138,18 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
         />
 
         <Input
-          label={t("prefsOnboarding.locationLabel", "Città o zona preferita")}
+          label={
+            types.includes("train")
+              ? t("prefsOnboarding.locationLabelTrain", "Tratta preferita")
+              : t("prefsOnboarding.locationLabel", "Città o zona preferita")
+          }
           value={location}
           onChangeText={setLocation}
-          placeholder={t("prefsOnboarding.locationPlaceholder", "Es. Milano")}
+          placeholder={
+            types.includes("train")
+              ? t("prefsOnboarding.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")
+              : t("prefsOnboarding.locationPlaceholder", "Es. Milano")
+          }
         />
 
         <Button
