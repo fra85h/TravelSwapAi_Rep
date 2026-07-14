@@ -423,14 +423,18 @@ export default function CreateListingScreen({
   const [insightsOpen, setInsightsOpen] = useState(false);
   const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
 
-  // Campi disabilitati di default + matita per abilitare
+  // Campi disabilitati di default + matita per abilitare: protegge i dati
+  // già presenti (annuncio esistente in modifica, o importati dall'AI) da
+  // modifiche accidentali. In creazione da zero, invece, non c'è nulla da
+  // proteggere: i campi partono sbloccati, altrimenti non si riesce a
+  // scrivere nulla senza prima scoprire il tasto matita.
   const [editableFields, setEditableFields] = useState({
-    title: false,
-    checkIn: false,
-    checkOut: false,
-    departAt: false,
-    arriveAt: false,
-    location: false,
+    title: mode === "create",
+    checkIn: mode === "create",
+    checkOut: mode === "create",
+    departAt: mode === "create",
+    arriveAt: mode === "create",
+    location: mode === "create",
   });
 
   // Helper: località non vuota (per lock hotel Località)
