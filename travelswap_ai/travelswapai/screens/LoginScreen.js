@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Alert } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, FontAwesome } from "@expo/vector-icons";
 
 import { theme } from "../lib/theme";
 import Input from "../components/ui/Input";
@@ -103,7 +103,7 @@ export default function LoginScreen({ navigation }) {
 
   const signInWithEmail = async () => {
     if (!email || !password) {
-      Alert.alert(t("auth.fillEmailPwd", "Compila tutti i campi"), t("auth.fillEmailPwd", "Email e password sono richiesti."));
+      Alert.alert(t("auth.fillEmailPwd", "Compila tutti i campi"), t("auth.fillEmailPwdMsg", "Email e password sono richiesti."));
       return;
     }
     try {
@@ -224,7 +224,7 @@ export default function LoginScreen({ navigation }) {
         <Button
           title={t("auth.continueFacebook", "Continua con Facebook")}
           variant="outline"
-          leftIcon={<AntDesign name="facebook" size={18} />}
+          leftIcon={<FontAwesome name="facebook" size={18} />}
           onPress={onPressFacebook}
           loading={loading}
         />
