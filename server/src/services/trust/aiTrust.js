@@ -1,7 +1,13 @@
 // server/src/services/trust/aiTrust.js
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Bug preesistente corretto: il costruttore di OpenAI lancia un'eccezione
+// a livello di modulo se la chiave manca — a import time, prima che il
+// controllo esplicito qui sotto (riga ~15) abbia mai la possibilità di
+// scattare — facendo cadere l'intero server all'avvio, non solo questa
+// funzione. Costruito solo se la chiave è presente, stesso pattern già
+// corretto in ai/score.js.
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 /**
  * Valuta un listing con AI e restituisce:
