@@ -160,7 +160,7 @@ Direzione scelta dopo confronto visivo di 3 varianti (indigo raffinato / indigo 
 
 - ✅ **Unificazione icone**: verificato scaricando il pacchetto reale da npm (non più "non verificabile offline") che Ionicons ha `train-outline`/`bed-outline` — sostituiti i 2 usi di `lucide-react-native` (Home, Profilo) e rimossa la dipendenza dal `package.json`. Icone ora tutte su `@expo/vector-icons` (Ionicons + AntDesign).
 
-Non ancora fatto (prossimo passo naturale): estensione font ai titoli rimanenti (Profilo, form creazione annuncio).
+- ✅ **Font esteso agli ultimi 2 titoli**: nome utente in cima al Profilo e titolo "Dati principali" del form annuncio, stesso trattamento degli altri hero moment.
 
 ---
 

@@ -372,6 +372,23 @@ export default function CreateListingScreen({
     } catch { return { two: false, reason: "" }; }
   }, []);
 
+  // Stato form
+  const [form, setForm] = useState({
+    type: "hotel",
+    cercoVendo: "VENDO",
+    title: "",
+    location: "",
+    checkIn: "",
+    checkOut: "",
+    departAt: "",
+    arriveAt: "",
+    isNamedTicket: false,
+    gender: "",
+    pnr: "",
+    description: "",
+    price: "",
+  });
+
   const [lastTrustRunAt, setLastTrustRunAt] = useState(0);
   useEffect(() => {
     // Mostra il box solo dopo un Check AI (per coerenza con il flusso richiesto)
@@ -406,25 +423,6 @@ export default function CreateListingScreen({
   const [insightsOpen, setInsightsOpen] = useState(false);
   const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
 
-  // Stato form
-  const [form, setForm] = useState({
-    type: "hotel",
-    cercoVendo: "VENDO",
-    title: "",
-    location: "",
-    checkIn: "",
-    checkOut: "",
-    departAt: "",
-    arriveAt: "",
-    isNamedTicket: false,
-    gender: "",
-    pnr: "",
-    description: "",
-    price: "",
-  });
-
-  
-  // Campi disabilitati di default + matita per abilitare
   // Campi disabilitati di default + matita per abilitare
   const [editableFields, setEditableFields] = useState({
     title: false,
