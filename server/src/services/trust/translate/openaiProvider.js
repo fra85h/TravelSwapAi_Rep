@@ -1,6 +1,10 @@
 import OpenAI from "openai";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Se la chiave manca, il costruttore di OpenAI lancia un'eccezione a livello
+// di modulo — a import time, non dentro una funzione — che far cadere
+// l'intero server all'avvio (bug preesistente, stesso pattern trovato anche
+// in aiTrust.js e fbParser.js). Costruito solo se la chiave è presente.
+const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 const PH_RE = /(\{[A-Z0-9_]+\}|<<[A-Z0-9_]+>>)/gi;
@@ -20,6 +24,7 @@ function normalize(s="") {
 
 export async function openaiTranslate({ text, targetLang, sourceLang="auto" }) {
   if (!text) return "";
+  if (!client) return null; // chiave non configurata: fallimento distinto, vedi commento sopra
   const { safe, m } = protect(text);
   const sys = "You are a concise professional translator. Preserve tokens like __PH_0__ EXACTLY. Output only the translated text.";
   const user = `Target language: ${targetLang}\nSource language: ${sourceLang}\n\n${safe}`;

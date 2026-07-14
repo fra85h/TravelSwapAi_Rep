@@ -10,9 +10,13 @@ import OpenAI from 'openai';
  * Richiede: process.env.OPENAI_API_KEY
  */
 
-const client = new OpenAI({
-  apiKey: (process.env.OPENAI_API_KEY || '').trim(),
-});
+// Bug preesistente corretto: con apiKey vuota il costruttore di OpenAI
+// lancia comunque un'eccezione a livello di modulo — a import time, ben
+// prima che aiExtract() abbia mai la possibilità di controllare la chiave
+// — facendo cadere l'intero server all'avvio, non solo l'import da
+// Messenger. Costruito solo se la chiave è presente.
+const OPENAI_KEY = (process.env.OPENAI_API_KEY || '').trim();
+const client = OPENAI_KEY ? new OpenAI({ apiKey: OPENAI_KEY }) : null;
 
 // Schema base con tutti i campi a null
 function emptyParsed() {
@@ -129,7 +133,7 @@ const FEW_SHOTS = [
 ];
 
 async function aiExtract(text) {
-  if (!client.apiKey) {
+  if (!client) {
     throw new Error('Missing OPENAI_API_KEY');
   }
 
