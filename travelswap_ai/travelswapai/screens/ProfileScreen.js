@@ -326,6 +326,7 @@ export default function ProfileScreen() {
           { icon: "👤", label: t("profile.editProfile", "Modifica profilo"), route: "EditProfile" },
           { icon: "⭐", label: t("profile.savedListings", "I miei preferiti"), route: "Saved" },
           { icon: "✨", label: t("profile.editPreferences", "Le mie preferenze"), route: "EditPreferences" },
+          { icon: "🔗", label: t("profile.chainProposals", "Scambi a 3"), route: "ChainProposals" },
           { icon: "💬", label: t("profile.linkMessenger", "Collega Messenger"), route: "LinkMessenger" },
         ].map((item, idx, arr) => (
           <TouchableOpacity
