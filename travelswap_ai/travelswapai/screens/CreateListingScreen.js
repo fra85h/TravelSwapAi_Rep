@@ -1070,9 +1070,13 @@ if ((patch.type || form.type) === "train" && routeStr) {
         ...(mode !== "edit" ? { status: "active" , trustScore: trustData?.trustScore ?? null,} : {})
       };
 
+      const [routeFrom, routeTo] = form.location.includes("→")
+        ? form.location.split("→").map((s) => s.trim())
+        : [form.location.trim(), ""];
+
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
-        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt, pnr: form.pnr || null };
+        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt, pnr: form.pnr || null, route_from: routeFrom, route_to: routeTo };
 
       if (mode === "edit") {
         const res = await updateListing(idForUpdate, payload);
