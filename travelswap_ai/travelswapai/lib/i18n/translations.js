@@ -232,6 +232,8 @@ export const translations = {
       savedMsg: "Profilo aggiornato con successo.",
       saving: "Salvataggio...",
       notAuthenticated: "Non autenticato",
+      changePhoto: "Cambia foto profilo",
+      avatarUploadError: "Impossibile caricare la foto profilo.",
     },
 
     matchingScreen: {
@@ -947,6 +949,8 @@ export const translations = {
       savedMsg: "Profile updated successfully.",
       saving: "Saving...",
       notAuthenticated: "Not authenticated",
+      changePhoto: "Change profile photo",
+      avatarUploadError: "Unable to upload profile photo.",
     },
 
     matchingScreen: {
@@ -1647,6 +1651,8 @@ export const translations = {
       savedMsg: "Perfil actualizado correctamente.",
       saving: "Guardando...",
       notAuthenticated: "No autenticado",
+      changePhoto: "Cambiar foto de perfil",
+      avatarUploadError: "No se pudo subir la foto de perfil.",
     },
 
     matchingScreen: {

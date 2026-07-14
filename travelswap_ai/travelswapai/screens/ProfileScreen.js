@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Platform,
   ActionSheetIOS,
+  Image,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -308,7 +309,13 @@ export default function ProfileScreen() {
       {/* Dati personali + bandierine */}
       <View style={[styles.card, { marginTop: 0, paddingTop: 16 }]}>
         <View style={styles.profileRow}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+          <TouchableOpacity onPress={() => navigation.navigate("EditProfile")} accessibilityLabel={t("profile.editProfile", "Modifica profilo")}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+            )}
+          </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{profile?.full_name  || "—"}</Text>
             <Text style={styles.metaText}>{profile?.email || "—"}</Text>
