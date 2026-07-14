@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   profileRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
   avatarText: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
-  name: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText},
+  name: { fontFamily: theme.fonts.headingExtraBold, fontSize: 16, color: theme.colors.boardingText},
   metaText: { color: theme.colors.textMuted },
   menuRow: {
     flexDirection: "row",
