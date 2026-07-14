@@ -61,13 +61,25 @@ translateListingsRouter.get("/api/listings/:id/translate", requireAuth, rateLimi
       openaiTranslate({ text: description, targetLang: lang, sourceLang: "auto" }),
     ]);
 
+    // null = la chiamata OpenAI è fallita per quel campo, non "niente da tradurre"
+    // (quel caso ritorna ""). Se falliscono entrambi, non fingere un successo:
+    // il client mostrerebbe un pulsante "vedi originale" che alterna fra due
+    // testi identici, sembrando rotto.
+    const titleOk = tTitle !== null;
+    const descOk = tDesc !== null;
+    if (!titleOk && !descOk) {
+      return res.json({
+        title, description, lang, originalLang, translated: false, cached: false,
+      });
+    }
+
     // Salvataggio in cache (se la tabella esiste)
     try {
       await supabase.from("listing_translations").upsert({
         listing_id: id,
         lang,
-        title_translated: tTitle,
-        description_translated: tDesc,
+        title_translated: titleOk ? tTitle : null,
+        description_translated: descOk ? tDesc : null,
         provider: "openai",
       });
     } catch (e) {
@@ -75,8 +87,8 @@ translateListingsRouter.get("/api/listings/:id/translate", requireAuth, rateLimi
     }
 
     return res.json({
-      title: tTitle || title,
-      description: tDesc || description,
+      title: titleOk ? tTitle : title,
+      description: descOk ? tDesc : description,
       lang,
       originalLang,
       translated: true,

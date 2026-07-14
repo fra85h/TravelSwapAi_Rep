@@ -36,6 +36,6 @@ export async function openaiTranslate({ text, targetLang, sourceLang="auto" }) {
     return normalize(restore(out, m));
   } catch (e) {
     console.error("[openaiTranslate] error", e);
-    return text;
+    return null; // fallimento distinto da "" (niente da tradurre): il chiamante non deve spacciarlo per un successo
   }
 }
