@@ -104,6 +104,7 @@ export const translations = {
       publishListing: "Pubblica annuncio",
       premium: "Abbonati Premium",
       saved: "Profilo aggiornato",
+      credits: "TravelSwapAI v{version} · © {year} Francesco Giacalone",
     },
 
     savedScreen: {
@@ -814,6 +815,7 @@ export const translations = {
       publishListing: "Publish listing",
       premium: "Go Premium",
       saved: "Profile updated",
+      credits: "TravelSwapAI v{version} · © {year} Francesco Giacalone",
     },
 
     savedScreen: {
@@ -1509,6 +1511,7 @@ export const translations = {
       publishListing: "Publicar anuncio",
       premium: "Hazte Premium",
       saved: "Perfil actualizado",
+      credits: "TravelSwapAI v{version} · © {year} Francesco Giacalone",
     },
 
     savedScreen: {

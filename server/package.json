@@ -1,6 +1,8 @@
 {
   "name": "travelswap-ai-server",
   "version": "1.0.0",
+  "author": "Francesco Giacalone",
+  "license": "UNLICENSED",
   "type": "module",
   "private": true,
   "scripts": {
