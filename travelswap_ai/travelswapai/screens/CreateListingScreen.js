@@ -828,8 +828,15 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
       // 3) TrustScore remoto
       logStep("Verifica affidabilità annuncio…", 80);
-      const hasArrow = (patch.type || form?.type) === "train" && /→/.test((patch.location || form.location || ""));
-      const [locFrom, locTo] = hasArrow ? (patch.location || form.location).split("→").map(s => s.trim()) : [null, null];
+      const locForTrust = (patch.location || form.location || "");
+      // La tratta può essere stata scritta poco sopra con "-->" (righe 789/791)
+      // invece della freccia "→" digitata dall'utente: riconoscere solo "→"
+      // qui lasciava origin/destination sempre null, quindi l'AI non aveva
+      // alcuna tratta da valutare per la plausibilità geografica.
+      const hasArrow = (patch.type || form?.type) === "train" && (/-->/.test(locForTrust) || /→/.test(locForTrust));
+      const [locFrom, locTo] = hasArrow
+        ? (locForTrust.split("-->").length > 1 ? locForTrust.split("-->") : locForTrust.split("→")).map(s => s.trim())
+        : [null, null];
 
       const payload = {
         id: passedListing?.id || listingId || null,

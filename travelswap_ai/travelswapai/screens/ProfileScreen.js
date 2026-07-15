@@ -250,12 +250,12 @@ export default function ProfileScreen() {
 
       {/* Affidabilità in basso a destra */}
       {(() => {
-        const score =
-          typeof item.trustscore === "number"
-            ? item.trustscore
-            : typeof item.trust_score === "number"
-            ? item.trust_score
-            : null;
+        // Supabase/PostgREST serializza le colonne numeric come stringa
+        // JSON (es. "58.00"), non come numero — typeof==="number" lasciava
+        // il badge sempre nascosto anche a valore correttamente salvato.
+        const raw = item.trustscore ?? item.trust_score ?? null;
+        const n = raw != null ? Number(raw) : NaN;
+        const score = Number.isFinite(n) ? n : null;
         return score != null ? (
           <View style={{ alignItems: "flex-end", marginTop: 8 }}>
             <TrustScoreBadge score={Number(score)} />
