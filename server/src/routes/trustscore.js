@@ -3,6 +3,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { computeHeuristicChecks } from '../services/trust/heuristics.js';
 import { aiTrustReview } from '../services/trust/aiTrust.js';
+import { moderateListing } from '../services/trust/moderation.js';
 import { saveTrustAudit } from '../services/trust/store.js';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { rateLimitTrustScore } from '../middleware/rateLimit.js';
@@ -71,6 +72,14 @@ trustscoreRouter.post(
         ai.flags.push({ code: 'AI_ERROR', msg: 'AI non disponibile, uso fallback' });
       }
 
+      // 2b) Moderazione contenuti (isolata, fail-safe: non blocca mai)
+      let moderation = { flagged: false, flags: [] };
+      try {
+        moderation = (await moderateListing(listing)) || moderation;
+      } catch (e) {
+        console.error('[trustscore] moderateListing failed:', e?.message || e);
+      }
+
       // 3) Fusione punteggio
   const weights = { heuristics: 0.45, aiText: 0.45, aiImages: 0.10 };
 
@@ -78,14 +87,27 @@ const h = Number(heur?.score ?? 0);
 const t = Number(ai?.textScore ?? (h || 0));
 const i = Number(ai?.imageScore ?? 50);
 
-const trustScore = Math.round(
+let trustScore = Math.round(
   (h * weights.heuristics) +
   (t * weights.aiText) +
   (i * weights.aiImages)
 );
 
+// Contenuto segnalato dalla moderazione: è un problema grave e oggettivo,
+// il punteggio non può restare alto — lo forziamo verso il basso.
+if (moderation.flagged) {
+  trustScore = Math.min(trustScore, 15);
+}
+
+// Se l'AI non ha potuto valutare (chiave assente o errore), il punteggio
+// si basa sulle sole euristiche: va detto chiaramente all'utente invece
+// di mostrare un numero apparentemente altrettanto autorevole.
+const aiFlagCodes = (ai?.flags ?? []).map((f) => f?.code);
+const aiAvailable = !aiFlagCodes.includes('AI_DISABLED') && !aiFlagCodes.includes('AI_ERROR');
+
 const response = {
   trustScore,
+  aiAvailable,
   subScores: {
     heuristics: h,
     aiText: t,
@@ -94,10 +116,10 @@ const response = {
     plausibility: Number(heur?.plausibilityScore ?? 0),
     completeness: Number(heur?.completenessScore ?? 0),
   },
-  flags: [...(heur?.flags ?? []), ...(ai?.flags ?? [])],
+  flags: [...(heur?.flags ?? []), ...(ai?.flags ?? []), ...(moderation?.flags ?? [])],
   suggestedFixes: [...(heur?.suggestedFixes ?? []), ...(ai?.suggestedFixes ?? [])],
   metadata: {
-    version: '1.0.0',
+    version: '1.1.0',
     listingId: listing.id ?? null,
     evaluatedAt: new Date().toISOString(),
   },

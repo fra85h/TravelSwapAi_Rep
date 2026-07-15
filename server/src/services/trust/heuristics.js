@@ -7,6 +7,51 @@ const suspiciousTerms = [
   'fuori piattaforma', 'telegram', 'whatsapp solo', 'codice otp', 'garanzia finta'
 ];
 
+// Località italiane NON raggiungibili da rete ferroviaria (isole minori):
+// backstop deterministico per le tratte treno palesemente impossibili
+// (es. Lampedusa → Pantelleria), indipendente dal giudizio dell'AI e quindi
+// affidabile al 100% sui casi noti anche se la chiave OpenAI è assente.
+// Le isole maggiori (Sicilia, Sardegna) hanno rete ferroviaria e NON sono qui.
+const NO_RAIL_PLACES = [
+  // Pelagie
+  'lampedusa', 'linosa', 'lampione',
+  // Pantelleria
+  'pantelleria',
+  // Egadi
+  'favignana', 'levanzo', 'marettimo',
+  // Eolie
+  'lipari', 'vulcano', 'stromboli', 'salina', 'panarea', 'filicudi', 'alicudi',
+  // Ustica
+  'ustica',
+  // Pontine
+  'ponza', 'ventotene', 'palmarola',
+  // Golfo di Napoli
+  'capri', 'ischia', 'procida',
+  // Arcipelago Toscano
+  'elba', 'giglio', 'capraia', 'giannutri', 'pianosa', 'montecristo', 'gorgona',
+  // Isole sarde minori
+  'maddalena', 'caprera', 'carloforte', 'calasetta', 'asinara',
+  // Tremiti
+  'tremiti', 'san domino', 'san nicola',
+];
+
+// Normalizza una località: minuscolo, senza accenti, spazi compattati.
+function normPlace(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Vero se la località corrisponde a un luogo non servito da treno (match
+// su parola intera, per evitare falsi positivi tipo "elbasan").
+function isNoRailPlace(loc) {
+  const n = normPlace(loc);
+  if (!n) return false;
+  return NO_RAIL_PLACES.some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
+}
+
 export function computeHeuristicChecks(listing) {
   const flags = [];
   const fixes = [];
@@ -87,6 +132,20 @@ export function computeHeuristicChecks(listing) {
   } else {
     plausibility -= 0.2;
     flags.push({ code: 'MISSING_PRICE', msg: 'Prezzo mancante' });
+  }
+
+  // 3b) Plausibilità tratta (solo treno): backstop deterministico su
+  // origine/destinazione non raggiungibili da rotaia. Complementare al
+  // controllo AI: cattura i casi ovvi con certezza, anche senza AI.
+  const isTrain = type === 'train' || type === 'treno';
+  if (isTrain) {
+    const badOrigin = isNoRailPlace(origin);
+    const badDest = isNoRailPlace(destination);
+    if (badOrigin || badDest) {
+      plausibility -= 0.5;
+      const where = [badOrigin ? origin : null, badDest ? destination : null].filter(Boolean).join(', ');
+      flags.push({ code: 'IMPLAUSIBLE_ROUTE', msg: `Tratta treno non plausibile: ${where} non è raggiungibile in treno` });
+    }
   }
 
   // 4) Parole sospette
