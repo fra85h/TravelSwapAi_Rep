@@ -258,6 +258,7 @@ export const translations = {
         sold: "Venduto",
         pending: "In revisione",
         expired: "Scaduto",
+        paused: "In pausa",
       },
       filters: {
         active: "Attivi",
@@ -556,6 +557,7 @@ export const translations = {
       toggleA11y: "Mostra originale / Tradotto",
       translating: "Traduzione in corso…",
       translatedAuto: "Tradotto automaticamente{lang}{orig}",
+      translatedPartial: "Titolo tradotto — descrizione non disponibile in questa lingua",
 
       tripLabel: "Viaggio",
       roundtrip: "A/R",
@@ -979,6 +981,7 @@ export const translations = {
         sold: "Sold",
         pending: "Pending review",
         expired: "Expired",
+        paused: "Paused",
       },
       filters: {
         active: "Active",
@@ -1269,6 +1272,7 @@ export const translations = {
       toggleA11y: "Show original / Translated",
       translating: "Translating…",
       translatedAuto: "Automatically translated{lang}{orig}",
+      translatedPartial: "Title translated — description not available in this language",
 
       tripLabel: "Trip",
       roundtrip: "Round trip",
@@ -1687,6 +1691,7 @@ export const translations = {
         sold: "Vendido",
         pending: "En revisión",
         expired: "Caducado",
+        paused: "En pausa",
       },
       filters: {
         active: "Activos",
@@ -1986,6 +1991,7 @@ export const translations = {
       toggleA11y: "Mostrar original / Traducido",
       translating: "Traduciendo…",
       translatedAuto: "Traducido automáticamente{lang}{orig}",
+      translatedPartial: "Título traducido — descripción no disponible en este idioma",
 
       tripLabel: "Viaje",
       roundtrip: "Ida y vuelta",

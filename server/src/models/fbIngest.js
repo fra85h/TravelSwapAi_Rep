@@ -29,6 +29,16 @@ function cap(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// Normalizza il tipo annuncio: gestisce sia i valori già in inglese (dai
+// quick reply del bot, es. "train"/"hotel") sia eventuali sinonimi italiani
+// che possono arrivare dal parsing AI del testo libero (es. "treno").
+function normType(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  if (s === 'treno' || s === 'train') return 'train';
+  if (s === 'hotel' || s === 'albergo') return 'hotel';
+  return s || null;
+}
+
 /**
  * Costruisce titolo / location / descrizione “presentabili” a partire dal parsed.
  * Richiede: cerco_vendo, asset_type, date (train: depart_at/arrive_at; hotel: check_in/check_out), price

@@ -34,6 +34,14 @@ export async function aiTrustReview(listing, heur = {}) {
     type: "text",
     text:
       "Sei un sistema di risk analysis per annunci (treni/hotel). " +
+      "Oltre a prezzo, coerenza dei dati e pattern tipici da truffa, valuta " +
+      "ANCHE se la tratta è geograficamente/logisticamente plausibile per il " +
+      "mezzo indicato in `type`: per un annuncio treno, origin/destination " +
+      "devono essere collegabili da una rete ferroviaria reale (es. due isole " +
+      "minori non collegate da treno sono una tratta impossibile); per un " +
+      "annuncio hotel, verifica solo che la città/location sia un luogo reale. " +
+      "Se la tratta è impossibile o palesemente insensata, aggiungi un flag " +
+      "con code:'IMPLAUSIBLE_ROUTE' e un msg che spiega perché. " +
       "Restituisci SOLO un JSON con la forma: " +
       "{ textScore:number(0-100), imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
       "Usa rigore: nessun testo extra oltre al JSON.",

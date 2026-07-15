@@ -50,6 +50,9 @@ export function useListingTranslation() {
         lang: res?.lang || target,
         originalLang: res?.originalLang || null,
         translated: !!res?.translated,
+        // per-campo: distingue "tutto tradotto" da "solo un campo tradotto"
+        titleTranslated: !!res?.titleTranslated,
+        descriptionTranslated: !!res?.descriptionTranslated,
         cached: !!res?.cached,
       };
 
