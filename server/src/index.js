@@ -414,7 +414,7 @@ if (quickPayload) {
       { title: "CERCO", payload: "CV_CERCO" },
       { title: "VENDO", payload: "CV_VENDO" }
     ]);
-    return;
+    return res.sendStatus(200);
   }
 
   // 👇 normalizza alias/valori PRIMA di confermare
@@ -431,7 +431,7 @@ if (quickPayload) {
         { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
       ]);
     }
-    return;
+    return res.sendStatus(200);
   }
 
   try {
@@ -458,7 +458,7 @@ if (quickPayload) {
     console.error('[Messenger QuickReply CONFIRM] Error:', e);
     await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
   }
-  return;
+  return res.sendStatus(200);
 }
 
 
@@ -473,7 +473,7 @@ if (quickPayload) {
           { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
         ]);
       }
-      return;
+      return res.sendStatus(200);
     }
 
     // 🔹 2) Gestione normale delle quick replies (CERCO/VENDO, TIPO)
