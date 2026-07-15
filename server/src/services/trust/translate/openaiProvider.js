@@ -26,7 +26,7 @@ export async function openaiTranslate({ text, targetLang, sourceLang="auto" }) {
   if (!text) return "";
   if (!client) return null; // chiave non configurata: fallimento distinto, vedi commento sopra
   const { safe, m } = protect(text);
-  const sys = "You are a concise professional translator. Preserve tokens like __PH_0__ EXACTLY. Output only the translated text.";
+  const sys = "You are a professional translator. Translate the ENTIRE text faithfully and completely — do not summarize, shorten, or omit any part of it. Preserve tokens like __PH_0__ EXACTLY. Output only the translated text, nothing else.";
   const user = `Target language: ${targetLang}\nSource language: ${sourceLang}\n\n${safe}`;
   try {
     const resp = await client.chat.completions.create({

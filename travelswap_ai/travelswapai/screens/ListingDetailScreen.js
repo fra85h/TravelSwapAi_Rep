@@ -143,6 +143,7 @@ useEffect(() => {
   const { checkPrice, loading: priceChecking } = usePriceCheck();
   const [translated, setTranslated] = useState({
     title: null, description: null, translated: false, originalLang: null, lang: null,
+    titleTranslated: false, descriptionTranslated: false,
   });
   const [showOriginal, setShowOriginal] = useState(false);
 
@@ -186,6 +187,8 @@ useEffect(() => {
         translated: !!res.translated,
         originalLang: res.originalLang ?? null,
         lang: res.lang ?? null,
+        titleTranslated: !!res.titleTranslated,
+        descriptionTranslated: !!res.descriptionTranslated,
       });
       setShowOriginal(false);
     })();
@@ -246,6 +249,7 @@ useEffect(() => {
         lang: lang ? ` in ${lang}` : "",
         orig: orig ? ` (origine: ${orig})` : "",
       }),
+    translatedPartial: tt("listingDetail.translatedPartial", "Titolo tradotto — descrizione non disponibile in questa lingua"),
     checkIn: tt("createListing.checkIn", "Check-in"),
     checkOut: tt("createListing.checkOut", "Check-out"),
     departAt: tt("createListing.departAt", "Partenza (data e ora)"),
@@ -392,8 +396,10 @@ useEffect(() => {
 
             {translating ? (
               <Text style={styles.caption}>{L.translating}</Text>
-            ) : translated.translated ? (
+            ) : translated.translated && translated.descriptionTranslated ? (
               <Text style={styles.caption}>{L.translatedAuto(translated.lang, translated.originalLang)}</Text>
+            ) : translated.translated && !translated.descriptionTranslated ? (
+              <Text style={styles.caption}>{L.translatedPartial}</Text>
             ) : null}
 
             <View style={{ height: 10 }} />

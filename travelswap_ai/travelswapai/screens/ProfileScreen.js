@@ -162,7 +162,7 @@ export default function ProfileScreen() {
     );
 
   const stats = useMemo(() => {
-    const s = { active: 0, swapped: 0, sold: 0, pending: 0, expired: 0 };
+    const s = { active: 0, swapped: 0, sold: 0, pending: 0, expired: 0, paused: 0 };
     for (const it of myListings) {
       const st = String(it?.status || "").toLowerCase();
       if (st === "active" || !st) s.active++;
@@ -170,6 +170,7 @@ export default function ProfileScreen() {
       else if (st === "sold") s.sold++;
       else if (st === "pending" || st === "review") s.pending++;
       else if (st === "expired") s.expired++;
+      else if (st === "paused") s.paused++;
     }
     return s;
   }, [myListings]);
@@ -217,6 +218,7 @@ export default function ProfileScreen() {
                   : ["swapped","traded","exchanged"].includes(String(item.status).toLowerCase()) ? t("listing.state.swapped", "Scambiato")
                   : ["pending","review"].includes(String(item.status).toLowerCase()) ? t("listing.state.pending", "In revisione")
                   : String(item.status).toLowerCase() === "expired" ? t("listing.state.expired", "Scaduto")
+                  : String(item.status).toLowerCase() === "paused" ? t("listing.state.paused", "In pausa")
                   : t("listing.state.active", "Attivo")}
               </Text>
             </View>
