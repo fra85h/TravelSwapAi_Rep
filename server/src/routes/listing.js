@@ -1,17 +1,9 @@
 import { Router } from 'express';
 import { isUUID } from '../util/uuid.js';
 import { createListing, getListingPublic, listActiveListings, updateListing } from '../models/listings.js';
-import express from 'express';
-import { supabase } from '../db.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 
-//export const listingsRouter = express.Router();
 export const listingsRouter = Router();
-
-// Esempio: middleware auth che setta req.user.id
-function requireAuth(req, res, next) {
-  if (!req.user?.id) return res.status(401).json({ error: 'Unauthorized' });
-  next();
-}
 
 listingsRouter.get('/', async (req, res) => {
   const { ownerId, limit } = req.query;
