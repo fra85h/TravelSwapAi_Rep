@@ -21,7 +21,7 @@
       "package": "com.travelswap.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#C99A2E"
       },
       "edgeToEdgeEnabled": true,
       "intentFilters": [
