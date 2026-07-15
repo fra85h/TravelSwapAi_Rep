@@ -1,7 +1,7 @@
 // screens/HomeScreen.js — Annunci pubblici (senza tab "Voli")
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, ScrollView } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { listPublicListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
 import OfferCTAs from "../components/OfferCTA";
@@ -46,6 +46,7 @@ function stripPriceFromTitle(s) {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const { t, locale } = useI18n();
 
   const [loading, setLoading] = useState(true);
@@ -98,7 +99,11 @@ export default function HomeScreen() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Ricarica a ogni focus dello screen (non solo al mount): la bottom-tab
+  // navigation lascia HomeScreen montato quando si passa ad altre tab, quindi
+  // senza questo pausa/riattiva/elimina di un annuncio da Profilo non si
+  // rifletteva mai su Esplora finché l'app non veniva riaperta da zero.
+  useEffect(() => { if (isFocused) load(); }, [isFocused, load]);
 
   useEffect(() => {
     navigation.setOptions?.({

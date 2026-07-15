@@ -77,7 +77,7 @@ export default function OnboardingScreen() {
       {/* TOP: bandierine in safe area */}
       <SafeAreaView edges={["top"]} style={styles.safeTop}>
         <View style={styles.langWrap}>
-          <LanguageSwitcher />
+          <LanguageSwitcher large />
         </View>
       </SafeAreaView>
 

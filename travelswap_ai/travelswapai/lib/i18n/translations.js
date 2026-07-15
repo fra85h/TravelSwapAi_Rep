@@ -418,6 +418,7 @@ export const translations = {
       pickTime: "Scegli ora",
 
       errors: {
+        cannotSaveTitle: "Impossibile salvare",
         titleRequired: "Titolo obbligatorio.",
         locationRequired: "Località obbligatoria.",
         checkInRequired: "Check-in obbligatorio.",
@@ -667,6 +668,7 @@ export const translations = {
       skip: "Salta",
       next: "Avanti",
       start: "Inizia",
+      languageLabel: "Lingua",
     },
 
     // --- Pulsanti & Placeholder (generici) ---
@@ -1132,6 +1134,7 @@ export const translations = {
       pickTime: "Pick time",
 
       errors: {
+        cannotSaveTitle: "Can't save",
         titleRequired: "Title is required.",
         locationRequired: "Location is required.",
         checkInRequired: "Check-in is required.",
@@ -1379,6 +1382,7 @@ export const translations = {
       skip: "Skip",
       next: "Next",
       start: "Start",
+      languageLabel: "Language",
     },
 
     buttons: {
@@ -1843,6 +1847,7 @@ export const translations = {
       pickTime: "Elegir hora",
 
       errors: {
+        cannotSaveTitle: "No se puede guardar",
         titleRequired: "Título obligatorio.",
         locationRequired: "Localidad obligatoria.",
         checkInRequired: "Check-in obligatorio.",
@@ -2095,6 +2100,7 @@ export const translations = {
       skip: "Saltar",
       next: "Siguiente",
       start: "Empezar",
+      languageLabel: "Idioma",
     },
 
     buttons: {
