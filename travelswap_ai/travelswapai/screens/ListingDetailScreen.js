@@ -198,11 +198,12 @@ useEffect(() => {
   const textColor = theme?.colors?.boardingText || "#111827";
 
   const trustScore = useMemo(() => {
-    const raw =
-      typeof listing?.trustscore === "number" ? listing.trustscore :
-      typeof listing?.trust_score === "number" ? listing.trust_score :
-      null;
-    return raw != null ? Number(raw) : null;
+    // Supabase/PostgREST serializza le colonne numeric come stringa JSON
+    // (es. "58.00"), non come numero — un controllo typeof==="number"
+    // lasciava il badge sempre nascosto anche a valore correttamente salvato.
+    const raw = listing?.trustscore ?? listing?.trust_score ?? null;
+    const n = raw != null ? Number(raw) : NaN;
+    return Number.isFinite(n) ? n : null;
   }, [listing]);
 
   // meta
