@@ -30,10 +30,11 @@ export async function moderateListing(listing) {
   if (!client) return { flagged: false, flags: [] };
 
   const text = [listing?.title, listing?.description].filter(Boolean).join("\n").trim();
+  // Accetta sia URL https sia data URI base64 (foto locali al Check AI)
   const imageUrls = Array.isArray(listing?.images)
     ? listing.images
         .map((i) => (i?.url || i?.uri || "").trim())
-        .filter((u) => /^https?:\/\//i.test(u))
+        .filter((u) => /^https?:\/\//i.test(u) || /^data:image\//i.test(u))
         .slice(0, 4)
     : [];
 

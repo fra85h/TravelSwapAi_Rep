@@ -24,6 +24,7 @@ import { fbLinkRouter } from './routes/fbLink.js';
 import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
 import { translateListingsRouter } from "./routes/translateListings.js";
 import { priceCheckRouter } from "./routes/priceCheck.js";
+import { reportsNotifyRouter } from './routes/reportsNotify.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { rateLimitParse } from './middleware/rateLimit.js';
 
@@ -38,7 +39,9 @@ const corsOrigins = (process.env.CORS_ORIGINS || '')
   .filter(Boolean);
 app.use(cors({ origin: corsOrigins.length ? corsOrigins : true, credentials: true }));
 const rawBodySaver = (req, _res, buf) => { req.rawBody = buf; };
-app.use(express.json({ limit: '2mb', verify: rawBodySaver }));
+// 15mb: il Check AI in creazione invia fino a 3 foto in base64 (~1-3MB
+// l'una) per moderazione e verifica di coerenza — 2mb le troncava.
+app.use(express.json({ limit: '15mb', verify: rawBodySaver }));
 app.use(express.urlencoded({ extended: false }));
 
 // Ogni router è montato UNA volta, su prefisso esplicito.
@@ -49,6 +52,7 @@ app.use('/api/matches', matchesRouter);
 app.use('/api/chains', chainsRouter);
 app.use('/api/saved-searches', savedSearchesRouter);
 app.use('/api/fb-link', fbLinkRouter);
+app.use('/api/reports', reportsNotifyRouter);
 
 // --- Versione web dell'app (build Expo committata in server/public/app) ---
 // Permette di provare l'app da qualsiasi browser senza installare nulla

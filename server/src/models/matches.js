@@ -65,16 +65,10 @@ function snapshotsAreEqual(aItems, bItems) {
   if (!candidates.length) {
     return { user, generatedAt: now, items: [] };
   }
-  // 4) cancella i match precedenti per le tue sorgenti
+  // 4) NB: la cancellazione dei match precedenti avviene più sotto, SOLO
+  // dopo che il ricalcolo ha prodotto righe — cancellare qui lasciava la
+  // tabella (e quindi lo snapshot) vuota se il percorso AI/insert falliva.
   const fromIds = fromListings.map((l) => l.id);
-if (fromIds.length) {
-  const { error } = await supabase
-    .from('matches')
-    .delete()
-    .in('from_listing_id', fromIds);   // DELETE WHERE from_listing_id IN (...)
-
-  if (error) throw error; // richiede SERVICE_ROLE_KEY lato server se RLS attiva
-}
 
 //  const rows = [];
 const DETERMINISTIC = process.env.MATCH_AI_DETERMINISTIC !== "false"; // default true
@@ -155,6 +149,16 @@ const tasks = fromListings.map((f) => async () => {
 const CONCURRENCY = Number(process.env.MATCH_AI_CONCURRENCY || 4);
 const rows = await runPool(tasks, CONCURRENCY);
 if (rows.length) {
+  // Ricalcolo riuscito: ORA è sicuro rimuovere i match precedenti delle
+  // sorgenti (pulizia dei candidati non più attivi) prima di inserire.
+  if (fromIds.length) {
+    const { error: delErr } = await supabase
+      .from('matches')
+      .delete()
+      .in('from_listing_id', fromIds);
+    if (delErr) throw delErr; // richiede SERVICE_ROLE_KEY lato server se RLS attiva
+  }
+
   const CHUNK = Number(process.env.MATCH_INSERT_CHUNK || 100);
 
   // mappa rapida per sicurezza (se vuoi recuperare l'owner dalla listing)

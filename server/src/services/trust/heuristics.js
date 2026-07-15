@@ -52,6 +52,20 @@ function isNoRailPlace(loc) {
   return NO_RAIL_PLACES.some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
 }
 
+// La Sardegna ha una rete ferroviaria INTERNA ma nessun collegamento su
+// rotaia col continente (a differenza della Sicilia, servita dal traghetto
+// dei treni sullo Stretto). Una tratta Sardegna↔continente è quindi
+// impossibile in treno; una tratta interna alla Sardegna è legittima.
+const SARDINIA_PLACES = [
+  'cagliari', 'sassari', 'olbia', 'nuoro', 'oristano', 'alghero', 'iglesias',
+  'carbonia', 'porto torres', 'golfo aranci', 'macomer', 'tortoli', 'sardegna',
+];
+function isSardiniaPlace(loc) {
+  const n = normPlace(loc);
+  if (!n) return false;
+  return SARDINIA_PLACES.some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
+}
+
 export function computeHeuristicChecks(listing) {
   const flags = [];
   const fixes = [];
@@ -65,10 +79,13 @@ export function computeHeuristicChecks(listing) {
   const text = `${title}\n${description}`.toLowerCase();
 
   // 1) Completezza base
+  // NB: l'app manda i tipi in inglese ('train'/'hotel'); i sinonimi italiani
+  // restano per retrocompatibilità (canali legacy/Messenger). Il mismatch
+  // 'treno' vs 'train' teneva spenti questi controlli per i treni reali.
   let completeness = 0;
   const required = ['description', 'price', 'startDate'];
   if (type === 'hotel' || type === 'alloggio') required.push('endDate', 'destination');
-  if (type === 'treno' || type === 'volo' || type === 'bus') required.push('origin', 'destination');
+  if (type === 'train' || type === 'treno' || type === 'volo' || type === 'bus') required.push('origin', 'destination');
 
   let present = 0;
   for (const field of required) {
@@ -121,9 +138,9 @@ export function computeHeuristicChecks(listing) {
       plausibility -= 0.3;
       flags.push({ code: 'PRICE_OUTLIER', msg: 'Prezzo hotel anomalo' });
     }
-    if ((type === 'treno' || type === 'bus') && p > 400) {
+    if ((type === 'train' || type === 'treno' || type === 'bus') && p > 400) {
       plausibility -= 0.3;
-      flags.push({ code: 'PRICE_OUTLIER', msg: 'Prezzo viaggio terrestre anomalo' });
+      flags.push({ code: 'PRICE_OUTLIER', msg: 'Prezzo viaggio terrestre anomalo (oltre 400€)' });
     }
     if (type === 'volo' && p > 4000) {
       plausibility -= 0.3;
@@ -145,6 +162,13 @@ export function computeHeuristicChecks(listing) {
       plausibility -= 0.5;
       const where = [badOrigin ? origin : null, badDest ? destination : null].filter(Boolean).join(', ');
       flags.push({ code: 'IMPLAUSIBLE_ROUTE', msg: `Tratta treno non plausibile: ${where} non è raggiungibile in treno` });
+    }
+    // Sardegna↔continente: nessun collegamento ferroviario attraverso il mare
+    const sardOrigin = isSardiniaPlace(origin);
+    const sardDest = isSardiniaPlace(destination);
+    if (origin && destination && (sardOrigin !== sardDest)) {
+      plausibility -= 0.5;
+      flags.push({ code: 'IMPLAUSIBLE_ROUTE', msg: 'Tratta treno non plausibile: la Sardegna non è collegata al continente su rotaia' });
     }
   }
 

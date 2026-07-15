@@ -48,3 +48,6 @@ export const rateLimitParse = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 2
 
 // Limite analisi prezzo: 20 ogni 10 minuti per utente
 export const rateLimitPriceCheck = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'analisi prezzo' });
+
+// Limite notifiche segnalazione: 10 ogni 10 minuti per utente
+export const rateLimitReportNotify = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 10, name: 'segnalazioni' });

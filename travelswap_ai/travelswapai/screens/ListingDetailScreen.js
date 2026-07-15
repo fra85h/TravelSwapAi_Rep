@@ -178,6 +178,7 @@ useEffect(() => {
       listingId,
       reportedUserId: listing?.user_id || null,
       reason,
+      listingTitle: listing?.title || null,
     });
     const thanksTitle = tt("listingDetail.reportThanksTitle", "Segnalazione inviata");
     if (res?.ok) {
