@@ -305,6 +305,9 @@ export default function ProfileScreen() {
           </View>
           <LanguageSwitcher />
         </View>
+        {!!profile?.bio && (
+          <Text style={styles.bioText}>{profile.bio}</Text>
+        )}
       </View>
 
       {/* Menu: righe a tutta larghezza, non più pulsantini impilati
@@ -519,6 +522,7 @@ const styles = StyleSheet.create({
   avatarText: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
   name: { fontFamily: theme.fonts.headingExtraBold, fontSize: 16, color: theme.colors.boardingText},
   metaText: { color: theme.colors.textMuted },
+  bioText: { color: theme.colors.text, marginTop: 12, lineHeight: 20 },
   menuRow: {
     flexDirection: "row",
     alignItems: "center",
