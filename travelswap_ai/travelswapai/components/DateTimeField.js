@@ -42,6 +42,41 @@ export default function DateTimeField({ label, value, onChange, required, error,
   const current = value && parseISODateTime(value) ? parseISODateTime(value) : new Date();
   const display = value ? value.replace("T", " ") : "YYYY-MM-DD HH:mm";
 
+  // Su web @react-native-community/datetimepicker non ha una variante
+  // .web.js: Metro risolve comunque il require (nessuna eccezione), ma il
+  // componente risultante è uno stub che renderizza null — il selettore
+  // "si apre" (showDate/showTime diventa true) senza però mostrare nulla
+  // da scorrere/toccare. Usiamo l'<input type="datetime-local"> nativo
+  // del browser: il suo formato valore (YYYY-MM-DDTHH:MM) coincide già
+  // con quello usato internamente da questo campo, nessuna conversione.
+  if (Platform.OS === "web") {
+    return (
+      <View style={{ marginBottom: 8 }}>
+        <Text style={styles.label}>
+          {label} {required ? "*" : ""}
+        </Text>
+        <input
+          type="datetime-local"
+          value={value || ""}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            border: `1px solid ${error ? "#FCA5A5" : theme.colors.border}`,
+            backgroundColor: error ? "#FEF2F2" : theme.colors.surface,
+            borderRadius: 12,
+            padding: "12px",
+            color: theme.colors.text,
+            fontSize: 15,
+            fontFamily: "inherit",
+          }}
+        />
+        {!!error && <Text style={styles.errorText}>{error}</Text>}
+      </View>
+    );
+  }
+
   if (hasPickerLib === false) {
     return (
       <View style={{ marginBottom: 8 }}>

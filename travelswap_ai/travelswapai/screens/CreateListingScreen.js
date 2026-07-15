@@ -1514,7 +1514,6 @@ if ((patch.type || form.type) === "train" && routeStr) {
                     </>
                   ) : (
                     <>
-                      { /* START */} = isFullDateTime(form?.departAt) && !editableFields.departAt; const arriveLocked = isFullDateTime(form?.arriveAt) && !editableFields.arriveAt; return (
                       <View style={styles.labelRow}>
                         <Text style={styles.label}>{t("createListing.departAt", "Partenza (data e ora)")}</Text>
                         <TouchableOpacity accessibilityLabel="Modifica partenza" onPress={() => toggleEditable("departAt")} style={styles.iconBtn}>
