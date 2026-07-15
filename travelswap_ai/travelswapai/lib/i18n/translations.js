@@ -546,6 +546,16 @@ export const translations = {
       sendProposal: "Invia proposta",
     },
 
+    sellerProfile: {
+      title: "Venditore",
+      unknown: "Venditore",
+      notFound: "Profilo non disponibile.",
+      since: "Membro da {when}",
+      activeListings: "Annunci attivi",
+      completedSwaps: "Scambi completati",
+      otherListings: "Annunci di questo venditore",
+      noListings: "Nessun annuncio attivo al momento.",
+    },
     listingDetail: {
       title: "Dettaglio annuncio",
       description: "Descrizione",
@@ -553,6 +563,11 @@ export const translations = {
 
       // 🔻 NUOVE CHIAVI
       info: "Informazioni",
+      seller: "Venditore",
+      sellerSince: "Membro da {when}",
+      sellerListingsCount: "{n} annunci attivi",
+      sellerSalesCount: "{n} scambi completati",
+      sellerViewProfile: "Vedi profilo",
       publishedAgo: "pubblicato {ago}",
       toggleOriginal: "Vedi originale",
       toggleTranslated: "Mostra tradotto",
@@ -1263,6 +1278,16 @@ export const translations = {
       sendProposal: "Send proposal",
     },
 
+    sellerProfile: {
+      title: "Seller",
+      unknown: "Seller",
+      notFound: "Profile not available.",
+      since: "Member since {when}",
+      activeListings: "Active listings",
+      completedSwaps: "Completed swaps",
+      otherListings: "Listings by this seller",
+      noListings: "No active listings at the moment.",
+    },
     listingDetail: {
       title: "Listing detail",
       description: "Description",
@@ -1270,6 +1295,11 @@ export const translations = {
 
       // 🔻 NEW KEYS
       info: "Information",
+      seller: "Seller",
+      sellerSince: "Member since {when}",
+      sellerListingsCount: "{n} active listings",
+      sellerSalesCount: "{n} completed swaps",
+      sellerViewProfile: "View profile",
       publishedAgo: "published {ago} ago",
       toggleOriginal: "See original",
       toggleTranslated: "Show translated",
@@ -1984,6 +2014,16 @@ export const translations = {
       sendProposal: "Enviar propuesta",
     },
 
+    sellerProfile: {
+      title: "Vendedor",
+      unknown: "Vendedor",
+      notFound: "Perfil no disponible.",
+      since: "Miembro desde {when}",
+      activeListings: "Anuncios activos",
+      completedSwaps: "Intercambios completados",
+      otherListings: "Anuncios de este vendedor",
+      noListings: "Ningún anuncio activo por el momento.",
+    },
     listingDetail: {
       title: "Detalle del anuncio",
       description: "Descripción",
@@ -1991,6 +2031,11 @@ export const translations = {
 
       // 🔻 CLAVES NUEVAS
       info: "Información",
+      seller: "Vendedor",
+      sellerSince: "Miembro desde {when}",
+      sellerListingsCount: "{n} anuncios activos",
+      sellerSalesCount: "{n} intercambios completados",
+      sellerViewProfile: "Ver perfil",
       publishedAgo: "publicado hace {ago}",
       toggleOriginal: "Ver original",
       toggleTranslated: "Mostrar traducido",
