@@ -1344,6 +1344,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
               const idx = Math.round(x / w);
               setSlideIndex(idx);
             }}
+            style={{ flex: 1 }}
             contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
           >
             {/* ===== SLIDE 1 ===== */}
@@ -1807,10 +1808,12 @@ const styles = StyleSheet.create({
   stepBarActive: { backgroundColor: theme.colors.boardingText },
 
   slide: {
+    flex: 1,
     paddingHorizontal: 16,
     marginBottom: FOOTER_H - 20 // spazio sopra i pulsanti
   },
   slideCard: {
+    flex: 1,
     backgroundColor: theme.colors.surface,
     borderRadius: 20,
     padding: 16,
