@@ -14,6 +14,8 @@ import TrustScoreBadge from "../components/TrustScoreBadge";
 import OfferCTAs from "../components/OfferCTA";
 import SaveButton from "../components/SaveButton";
 import ImageCarousel from "../components/ImageCarousel";
+import ActionSheet from "../components/ui/ActionSheet";
+import { submitReport } from "../lib/reports";
 import { getCurrentUser } from "../lib/db.js";
 import { listImages } from "../lib/listingImages";
 import { useI18n } from "../lib/i18n";
@@ -150,6 +152,7 @@ useEffect(() => {
   const [images, setImages] = useState([]);
   const [isOwner, setIsOwner] = useState(false);
   const [seller, setSeller] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const load = useCallback(async () => {
     const l = await getListingById(listingId);
@@ -169,6 +172,22 @@ useEffect(() => {
   }, [listingId]);
 
   useEffect(() => { load(); }, [load]);
+
+  const doReport = useCallback(async (reason) => {
+    const res = await submitReport({
+      listingId,
+      reportedUserId: listing?.user_id || null,
+      reason,
+    });
+    const thanksTitle = tt("listingDetail.reportThanksTitle", "Segnalazione inviata");
+    if (res?.ok) {
+      Alert.alert(thanksTitle, tt("listingDetail.reportThanksMsg", "Grazie: il nostro team la esaminerà."));
+    } else if (res?.alreadyReported) {
+      Alert.alert(thanksTitle, tt("listingDetail.reportAlready", "Hai già segnalato questo annuncio."));
+    } else {
+      Alert.alert(tt("listingDetail.report", "Segnala annuncio"), tt("listingDetail.reportError", "Impossibile inviare la segnalazione. Riprova."));
+    }
+  }, [listingId, listing]);
 
   // ricarica le foto quando si torna dalla schermata di gestione
   useEffect(() => {
@@ -264,6 +283,18 @@ useEffect(() => {
     sellerListingsCount: (n) => tt("listingDetail.sellerListingsCount", "{n} annunci pubblicati", { n }),
     sellerSalesCount: (n) => tt("listingDetail.sellerSalesCount", "{n} scambi completati", { n }),
     sellerViewProfile: tt("listingDetail.sellerViewProfile", "Vedi profilo"),
+    report: tt("listingDetail.report", "Segnala annuncio"),
+    reportTitle: tt("listingDetail.reportTitle", "Segnala questo annuncio"),
+    reportMsg: tt("listingDetail.reportMsg", "Perché lo stai segnalando?"),
+    reportReasonFake: tt("listingDetail.reportReasonFake", "Annuncio falso o ingannevole"),
+    reportReasonScam: tt("listingDetail.reportReasonScam", "Sospetta truffa"),
+    reportReasonInappropriate: tt("listingDetail.reportReasonInappropriate", "Contenuto inappropriato"),
+    reportReasonDuplicate: tt("listingDetail.reportReasonDuplicate", "Doppione o spam"),
+    reportReasonOther: tt("listingDetail.reportReasonOther", "Altro"),
+    reportThanksTitle: tt("listingDetail.reportThanksTitle", "Segnalazione inviata"),
+    reportThanksMsg: tt("listingDetail.reportThanksMsg", "Grazie: il nostro team la esaminerà."),
+    reportAlready: tt("listingDetail.reportAlready", "Hai già segnalato questo annuncio."),
+    reportError: tt("listingDetail.reportError", "Impossibile inviare la segnalazione. Riprova."),
     description: tt("listingDetail.description", "Descrizione"),
     publishedAgo: (ago) => tt("listingDetail.publishedAgo", "pubblicato {ago}", { ago }),
     toggleOriginal: tt("listingDetail.toggleOriginal", "Vedi originale"),
@@ -525,8 +556,35 @@ useEffect(() => {
           ) : null}
         </View>
 
+        {/* Segnala annuncio (solo se non sono io il proprietario) */}
+        {!isOwner ? (
+          <TouchableOpacity
+            onPress={() => setReportOpen(true)}
+            style={{ marginTop: 20, alignSelf: "center", flexDirection: "row", alignItems: "center", paddingVertical: 8, paddingHorizontal: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={L.report}
+          >
+            <Text style={{ color: theme.colors.danger, fontWeight: "700" }}>⚑ {L.report}</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      <ActionSheet
+        visible={reportOpen}
+        title={L.reportTitle}
+        message={L.reportMsg}
+        cancelLabel={tt("common.cancel", "Annulla")}
+        onClose={() => setReportOpen(false)}
+        options={[
+          { label: L.reportReasonFake, onPress: () => doReport("fake") },
+          { label: L.reportReasonScam, onPress: () => doReport("scam") },
+          { label: L.reportReasonInappropriate, onPress: () => doReport("inappropriate") },
+          { label: L.reportReasonDuplicate, onPress: () => doReport("duplicate") },
+          { label: L.reportReasonOther, onPress: () => doReport("other") },
+        ]}
+      />
 
       {/* CTA footer (già localizzate dentro OfferCTAs) */}
       {!isMine ? (
