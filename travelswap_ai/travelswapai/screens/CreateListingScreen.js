@@ -446,10 +446,12 @@ export default function CreateListingScreen({
     return /^\d{4}-\d{2}-\d{2}$/.test(s);
   }, []);
 
-  // Helper: datetime completo YYYY-MM-DDTHH:MM (per lock treno)
+  // Helper: datetime completo YYYY-MM-DDTHH:MM (per lock treno) — stessa
+  // forma richiesta da parseISODateTime, altrimenti un campo può risultare
+  // "completo" (bloccato) ma comunque invalido per il validatore.
   const isFullDateTime = useCallback((s) => {
     if (!s || typeof s !== "string") return false;
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s);
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s);
   }, []);
 
   const toggleEditable = useCallback((key) => {
@@ -524,8 +526,13 @@ const initialJsonRef = useRef(null);
               price: l.price != null ? String(l.price) : prev.price,
               checkIn: l.check_in || "",
               checkOut: l.check_out || "",
-              departAt: l.depart_at || "",
-              arriveAt: l.arrive_at || "",
+              // depart_at/arrive_at arrivano dal DB come timestamptz completi
+              // (con secondi e offset, es. "2026-07-20T09:00:00+00:00"): li
+              // normalizziamo nel formato YYYY-MM-DDTHH:MM che il validatore
+              // e il picker si aspettano, altrimenti il salvataggio fallisce
+              // silenziosamente in edit mode.
+              departAt: l.depart_at ? `${toISODate(new Date(l.depart_at))}T${toISOTime(new Date(l.depart_at))}` : "",
+              arriveAt: l.arrive_at ? `${toISODate(new Date(l.arrive_at))}T${toISOTime(new Date(l.arrive_at))}` : "",
               pnr: secretPnr ?? prev.pnr ?? "",
             }));
           }
@@ -1044,7 +1051,15 @@ if ((patch.type || form.type) === "train" && routeStr) {
       return;
     }
 
-    if (!validate()) { return; }
+    const validationErrors = computeErrors();
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      Alert.alert(
+        t("createListing.errors.cannotSaveTitle", "Impossibile salvare"),
+        Object.values(validationErrors).join("\n")
+      );
+      return;
+    }
     try {
       setPublishing(true);
       onSubmitStart();
