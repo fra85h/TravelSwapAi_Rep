@@ -22,6 +22,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import OfferDetailScreen from './screens/OfferDetailScreen';
 import ListingDetailScreen from './screens/ListingDetailScreen';
+import SellerProfileScreen from './screens/SellerProfileScreen';
 import SavedScreen from './screens/SavedScreen';
 import ManageImagesScreen from './screens/ManageImagesScreen';
 import ChainProposalsScreen from './screens/ChainProposalsScreen';
@@ -150,6 +151,7 @@ function RootNavigator() {
           <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: "Modifica profilo" }} />
           <Stack.Screen name="OfferFlow" component={OfferFlow} options={{ title: "Offerta" }} />
           <Stack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "Listing" }} />
+          <Stack.Screen name="SellerProfile" component={SellerProfileScreen} options={{ title: "Venditore" }} />
           <Stack.Screen name="OfferDetail" component={OfferDetailScreen} options={{ title: "Offer" }} />
           <Stack.Screen name="Saved" component={SavedScreen} options={{ title: "Preferiti" }} />
           <Stack.Screen name="ManageImages" component={ManageImagesScreen} options={{ title: "Foto annuncio" }} />

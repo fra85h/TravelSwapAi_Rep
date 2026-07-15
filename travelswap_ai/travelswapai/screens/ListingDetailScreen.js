@@ -8,7 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { getListingMatches, recomputeForListing } from "../lib/backendApi";
 import MatchCard from "../components/MatchCard";
-import { getListingById } from "../lib/db.js";
+import { getListingById, getPublicProfile } from "../lib/db.js";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
 import OfferCTAs from "../components/OfferCTA";
@@ -149,6 +149,7 @@ useEffect(() => {
 
   const [images, setImages] = useState([]);
   const [isOwner, setIsOwner] = useState(false);
+  const [seller, setSeller] = useState(null);
 
   const load = useCallback(async () => {
     const l = await getListingById(listingId);
@@ -160,6 +161,10 @@ useEffect(() => {
       ]);
       setImages((imgs || []).map((i) => i.url).filter(Boolean));
       setIsOwner(!!me && !!l && me.id === l.user_id);
+      // Profilo pubblico del venditore (best-effort, non blocca il dettaglio)
+      if (l?.user_id) {
+        getPublicProfile(l.user_id).then(setSeller).catch(() => setSeller(null));
+      }
     } catch { /* non bloccare il dettaglio */ }
   }, [listingId]);
 
@@ -238,8 +243,27 @@ useEffect(() => {
   const titleShown = translated.translated && !showOriginal ? (translated.title || titleOriginal) : titleOriginal;
   const descShown  = translated.translated && !showOriginal ? (translated.description || descOriginal) : descOriginal;
 
+  // "Membro da <mese anno>" localizzato dalla data di iscrizione del venditore
+  const sellerSince = useMemo(() => {
+    if (!seller?.created_at) return null;
+    const d = new Date(seller.created_at);
+    if (isNaN(d.getTime())) return null;
+    const loc = locale === "en" ? "en-US" : locale === "es" ? "es-ES" : "it-IT";
+    try { return d.toLocaleDateString(loc, { month: "long", year: "numeric" }); }
+    catch { return d.toLocaleDateString(); }
+  }, [seller, locale]);
+
+  const sellerName = seller?.full_name || seller?.username || null;
+  const sellerInitials = (sellerName || "?").trim().slice(0, 2).toUpperCase();
+  const sellerSalesCount = Number(seller?.counters?.sold ?? 0) + Number(seller?.counters?.exchanged ?? 0);
+
   const L = {
     info: tt("listingDetail.info", "Informazioni"),
+    seller: tt("listingDetail.seller", "Venditore"),
+    sellerSince: (when) => tt("listingDetail.sellerSince", "Membro da {when}", { when }),
+    sellerListingsCount: (n) => tt("listingDetail.sellerListingsCount", "{n} annunci pubblicati", { n }),
+    sellerSalesCount: (n) => tt("listingDetail.sellerSalesCount", "{n} scambi completati", { n }),
+    sellerViewProfile: tt("listingDetail.sellerViewProfile", "Vedi profilo"),
     description: tt("listingDetail.description", "Descrizione"),
     publishedAgo: (ago) => tt("listingDetail.publishedAgo", "pubblicato {ago}", { ago }),
     toggleOriginal: tt("listingDetail.toggleOriginal", "Vedi originale"),
@@ -369,6 +393,38 @@ useEffect(() => {
             ) : null}
           </View>
         </SectionCard>
+
+        {/* Venditore (solo se non sono io il proprietario) */}
+        {!isOwner && seller ? (
+          <SectionCard title={L.seller} textColor={textColor}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("SellerProfile", { sellerId: seller.id })}
+              activeOpacity={0.8}
+              style={{ flexDirection: "row", alignItems: "center" }}
+            >
+              {seller.avatar_url ? (
+                <Image source={{ uri: seller.avatar_url }} style={styles.sellerAvatar} />
+              ) : (
+                <View style={[styles.sellerAvatar, styles.sellerAvatarPlaceholder]}>
+                  <Text style={styles.sellerInitials}>{sellerInitials}</Text>
+                </View>
+              )}
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.sellerName, { color: textColor }]} numberOfLines={1}>
+                  {sellerName || "—"}
+                </Text>
+                {sellerSince ? (
+                  <Text style={styles.sellerMeta} numberOfLines={1}>{L.sellerSince(sellerSince)}</Text>
+                ) : null}
+                <Text style={styles.sellerMeta} numberOfLines={1}>
+                  {L.sellerListingsCount(Number(seller?.counters?.active ?? 0))}
+                  {sellerSalesCount > 0 ? `  •  ${L.sellerSalesCount(sellerSalesCount)}` : ""}
+                </Text>
+              </View>
+              <Text style={styles.sellerLink}>{L.sellerViewProfile} ›</Text>
+            </TouchableOpacity>
+          </SectionCard>
+        ) : null}
 
         {/* Immagine */}
         {listing?.imageUrl ? (
@@ -537,6 +593,12 @@ const styles = StyleSheet.create({
   card: { marginTop: 16, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 16, padding: 14,
     backgroundColor: theme.colors.surface, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   cardTitle: { fontSize: 16, fontWeight: "800" },
+  sellerAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: theme.colors.surfaceMuted },
+  sellerAvatarPlaceholder: { alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.primary },
+  sellerInitials: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
+  sellerName: { fontWeight: "800", fontSize: 15 },
+  sellerMeta: { color: theme.colors.textMuted, fontSize: 13, marginTop: 2 },
+  sellerLink: { color: theme.colors.primary, fontWeight: "700", marginLeft: 8 },
   chip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.colors.background, borderWidth: 1,
     borderColor: theme.colors.border, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8, marginBottom: 8 },
   imageWrap: { borderRadius: 20, overflow: "hidden", backgroundColor: theme.colors.surfaceMuted },

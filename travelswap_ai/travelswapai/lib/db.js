@@ -166,6 +166,49 @@ export async function getMyProfile() {
   if (error) throw error;
   return data;
 }
+/**
+ * Profilo PUBBLICO di un altro utente (venditore).
+ * ⚠️ Seleziona SOLO colonne pubbliche: la RLS su `profiles` è permissiva
+ * (leggibile da chiunque) ma NON protegge le colonne — leggere `phone`/
+ * `email`/`*` esporrebbe dati sensibili di un altro utente. Mai farlo qui.
+ */
+const PUBLIC_PROFILE_COLUMNS = "id, full_name, username, avatar_url, bio, created_at, counters";
+export async function getPublicProfile(userId) {
+  if (!userId) return null;
+  // Preferisci la vista `public_profiles` (espone SOLO colonne pubbliche a
+  // livello di DB — vedi supabase/harden_profiles_privacy.sql). Se non
+  // esiste ancora, ripiega sulla tabella selezionando comunque solo le
+  // colonne pubbliche (mai phone/email).
+  const fromView = await supabase
+    .from("public_profiles")
+    .select(PUBLIC_PROFILE_COLUMNS)
+    .eq("id", userId)
+    .maybeSingle();
+  if (!fromView.error) return fromView.data || null;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PUBLIC_PROFILE_COLUMNS)
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+/** Annunci attivi di uno specifico venditore (per il profilo pubblico) */
+export async function listSellerActiveListings(ownerId, { limit = 50 } = {}) {
+  if (!ownerId) return [];
+  const { data, error } = await supabase
+    .from("listings")
+    .select(LISTING_PUBLIC_COLUMNS)
+    .eq("user_id", ownerId)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 /** Lista annunci pubblici (status=active). Se loggato, esclude i miei */
 export async function listPublicListings({ limit = 50, excludeMine = true } = {}) {
   const me = await getCurrentUser().catch(() => null);
