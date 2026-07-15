@@ -1643,6 +1643,17 @@ if ((patch.type || form.type) === "train" && routeStr) {
                       <Text style={{ marginTop: 6 }}>Al momento della pubblicazione verranno creati <Text style={{ fontWeight: '700' }}>due annunci separati</Text> con lo stesso prezzo. Potrai modificare i prezzi in seguito.</Text>
                     </View>
                   )}
+                  {trustData && trustData.aiAvailable === false && (
+                    <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FEE2E2", borderWidth: 1, borderColor: "#F87171" }}>
+                      <Text style={{ fontWeight: "800", marginBottom: 4 }}>
+                        {t("createListing.aiUnavailableTitle", "Verifica AI non disponibile")}
+                      </Text>
+                      <Text>
+                        {t("createListing.aiUnavailableMsg", "Il punteggio si basa solo sui controlli di base (prezzo, date, coerenza). L'analisi AI del testo e delle foto non è stata eseguita.")}
+                      </Text>
+                    </View>
+                  )}
+
                   {!!flagsNoImg?.length && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
                       <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>

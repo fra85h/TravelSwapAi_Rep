@@ -80,7 +80,9 @@ export async function aiTrustReview(listing, heur = {}) {
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_TRUST_MODEL || "gpt-4o-mini",
       response_format: { type: "json_object" }, // forza JSON
-      temperature: 0.2,
+      // temperature 0: massima consistenza tra check ripetuti sullo stesso
+      // annuncio (un punteggio di rischio non deve ballare a ogni click).
+      temperature: 0,
       messages: [
         {
           role: "system",
