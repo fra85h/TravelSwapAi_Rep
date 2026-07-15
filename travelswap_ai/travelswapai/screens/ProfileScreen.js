@@ -297,9 +297,9 @@ export default function ProfileScreen() {
             )}
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{profile?.full_name  || "—"}</Text>
-            <Text style={styles.metaText}>{profile?.email || "—"}</Text>
-            <Text style={styles.metaText}>{profile?.phone || "—"}</Text>
+            <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">{profile?.full_name  || "—"}</Text>
+            <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{profile?.email || "—"}</Text>
+            <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{profile?.phone || "—"}</Text>
           </View>
           <LanguageSwitcher />
         </View>
