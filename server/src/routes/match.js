@@ -22,10 +22,11 @@ matchesRouter.get("/snapshot/ping", (req, res) => {
  * GET /api/matches/snapshot?userId=...
  * Risponde: { items, count, generatedAt }
  */
-matchesRouter.get("/snapshot", async (req, res) => {
+matchesRouter.get("/snapshot", requireAuth, async (req, res) => {
   try {
     const userId = String(req.query?.userId || "");
     if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
+    if (userId !== req.user.id) return res.status(403).json({ error: "Forbidden" });
     const out = await getUserSnapshot(userId);
     return res.json(out);
   } catch (e) {
@@ -40,12 +41,13 @@ matchesRouter.get("/snapshot", async (req, res) => {
  * Risponde: { userId, generatedAt, count }
  */
 
-matchesRouter.post("/snapshot/recompute", async (req, res) => {
+matchesRouter.post("/snapshot/recompute", requireAuth, async (req, res) => {
   try {
     const userId = String(req.body?.userId || "");
     const topPerListing = req.body?.topPerListing ?? 3;
     const maxTotal = req.body?.maxTotal ?? 50;
     if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
+    if (userId !== req.user.id) return res.status(403).json({ error: "Forbidden" });
 
     // Se hai creato l’RPC v2, preferisci la SQL:
     // const out = await recomputeUserSnapshotSQL(userId, { topPerListing, maxTotal });
@@ -57,11 +59,14 @@ matchesRouter.post("/snapshot/recompute", async (req, res) => {
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });
-matchesRouter.post("/ai/recompute", async (req, res) => {
+matchesRouter.post("/ai/recompute", requireAuth, async (req, res) => {
   try {
     const { userId, topPerListing = 3, maxTotal = 50 } = req.body || {};
     if (!userId || !isUUID(userId)) {
       return res.status(400).json({ ok: false, error: "missing/invalid userId" });
+    }
+    if (userId !== req.user.id) {
+      return res.status(403).json({ ok: false, error: "Forbidden" });
     }
 
     // 1) calcolo AI

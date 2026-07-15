@@ -34,7 +34,12 @@ export async function createLinkCode(userId) {
   if (!supabase) throw new Error("Supabase client not configured");
   if (!userId) throw new Error("Missing userId");
 
-  await supabase.from("fb_link_codes").delete().eq("user_id", userId).is("used_at", null);
+  const { error: delError } = await supabase
+    .from("fb_link_codes")
+    .delete()
+    .eq("user_id", userId)
+    .is("used_at", null);
+  if (delError) console.error("[fbLink] createLinkCode: errore pulizia codici precedenti:", delError.message);
 
   const code = randomCode();
   const expiresAt = new Date(Date.now() + CODE_TTL_MINUTES * 60000).toISOString();
@@ -87,7 +92,7 @@ export async function getLinkedUserId(senderId) {
     .eq("sender_id", senderId)
     .maybeSingle();
   if (error) {
-    console.log("[fbLink] getLinkedUserId error:", error.message);
+    console.error("[fbLink] getLinkedUserId error:", error.message);
     return null;
   }
   return data?.user_id || null;

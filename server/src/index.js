@@ -349,7 +349,7 @@ app.post('/webhooks/facebook', async (req, res) => {
                     { title: "CERCO", payload: "CV_CERCO" },
                     { title: "VENDO", payload: "CV_VENDO" }
                   ]);
-                  return;
+                  return res.sendStatus(200);
                 }
                 try {
                   const ownerId = await getLinkedUserId(senderId);
@@ -375,7 +375,7 @@ app.post('/webhooks/facebook', async (req, res) => {
                   console.error('[Messenger Confirm Publish] Error:', e);
                   await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
                 }
-                return;
+                return res.sendStatus(200);
               } else if (p === 'PUB_MODIFICA') {
                 await sendFbText(senderId,
                   "✏️ Nessun problema! Dimmi cosa vuoi correggere: azione (CERCO/VENDO), tipo (treno/hotel), date o prezzo."
@@ -387,7 +387,7 @@ app.post('/webhooks/facebook', async (req, res) => {
                     { title: "🏨 Hotel", payload: "TYPE_HOTEL" }
                   ]);
                 }
-                return;
+                return res.sendStatus(200);
               }
             } catch (e) {
               console.error('[Messenger Postback] Error:', e);
