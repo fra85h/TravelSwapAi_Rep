@@ -129,9 +129,19 @@ if (moderation.flagged) {
 const aiFlagCodes = (ai?.flags ?? []).map((f) => f?.code);
 const aiAvailable = !aiFlagCodes.includes('AI_DISABLED') && !aiFlagCodes.includes('AI_ERROR');
 
+// Motivo preciso quando l'AI non è disponibile: il client lo mostra SOLO
+// nella versione web (per test); nell'app nativa resta il messaggio
+// generico. Utile per distinguere "chiave mancante" da "chiamata fallita".
+let aiUnavailableReason = null;
+if (!aiAvailable) {
+  const f = (ai?.flags ?? []).find((x) => x?.code === 'AI_DISABLED' || x?.code === 'AI_ERROR');
+  aiUnavailableReason = f?.msg || 'Motivo non disponibile';
+}
+
 const response = {
   trustScore,
   aiAvailable,
+  aiUnavailableReason,
   subScores: {
     heuristics: h,
     aiText: t,

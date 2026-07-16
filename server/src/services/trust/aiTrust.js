@@ -22,7 +22,7 @@ export async function aiTrustReview(listing, heur = {}) {
     return {
       textScore: Number.isFinite(heur?.score) ? Number(heur.score) : 55,
       imageScore: 50,
-      flags: [{ code: "AI_DISABLED", msg: "OPENAI_API_KEY non impostata: uso fallback" }],
+      flags: [{ code: "AI_DISABLED", msg: "Chiave OpenAI mancante sul server (OPENAI_API_KEY non impostata)" }],
       suggestedFixes: [],
     };
   }
@@ -67,9 +67,16 @@ export async function aiTrustReview(listing, heur = {}) {
     })}`,
   });
 
+  // IMPORTANTE: NON serializzare le foto dentro al testo. Una foto in
+  // base64 (~1MB) diventa ~300k token di testo grezzo: con 3-4 foto la
+  // richiesta superava 1,2M token e OpenAI la rifiutava con 429 "Request
+  // too large" (limite 200k), facendo fallire l'intero Check AI. Le
+  // immagini vanno SOLO come `image_url` qui sotto, dove vengono
+  // tokenizzate come immagini (poche decine di token), non come testo.
+  const { images: _omitImages, ...listingNoImages } = listing || {};
   userContent.push({
     type: "text",
-    text: `Listing: ${JSON.stringify(listing)}`,
+    text: `Listing: ${JSON.stringify(listingNoImages)}`,
   });
 
   // Accetta sia URL https (foto già caricate) sia data URI base64 (foto
@@ -82,10 +89,13 @@ export async function aiTrustReview(listing, heur = {}) {
         .filter((u) => /^https?:\/\//i.test(u) || /^data:image\//i.test(u))
     : [];
 
-  for (const url of imageUrls.slice(0, 4)) {
+  // detail:"low" → costo fisso ~85 token/immagine: per il controllo di
+  // COERENZA (biglietto/stazione vs cibo/selfie) la bassa risoluzione
+  // basta, e tiene la richiesta piccola e prevedibile.
+  for (const url of imageUrls.slice(0, 3)) {
     userContent.push({
       type: "image_url",
-      image_url: { url },
+      image_url: { url, detail: "low" },
     });
   }
 
@@ -129,12 +139,18 @@ export async function aiTrustReview(listing, heur = {}) {
 
     return out;
   } catch (e) {
-    console.error("[aiTrustReview] error:", e?.message || e);
+    console.error("[aiTrustReview] error:", e?.status || "", e?.message || e);
+    // Motivo compatto per la diagnosi (mostrato solo nella web di test).
+    // Lo status HTTP dice quasi tutto: 401 chiave errata, 429 quota/credito,
+    // 404/403 modello non abilitato. Nessun segreto: l'SDK non mette mai la
+    // chiave nel messaggio d'errore.
+    const status = e?.status ? ` (${e.status})` : "";
+    const detail = String(e?.message || e || "").slice(0, 160);
     // Fallback: NON far mai fallire l’endpoint
     return {
       textScore: Number.isFinite(heur?.score) ? Number(heur.score) : 55,
       imageScore: imageUrls.length ? 60 : 50,
-      flags: [{ code: "AI_ERROR", msg: "AI non disponibile o risposta non valida: uso fallback" }],
+      flags: [{ code: "AI_ERROR", msg: `Chiamata OpenAI fallita${status}: ${detail}` }],
       suggestedFixes: [],
     };
   }
