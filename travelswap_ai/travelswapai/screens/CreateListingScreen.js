@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById, getListingSecret } from "../lib/db";
+import { recomputeAIAndSnapshot } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
@@ -169,6 +170,16 @@ const toISODate = (d) => {
 const toISOTime = (d) => {
   const dt = new Date(d);
   return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+};
+// Converte un timestamptz del DB (es. "2026-09-25T08:00:00+00:00") nel formato
+// "YYYY-MM-DDTHH:MM" del campo data/ora, leggendo i componenti in UTC: gli
+// orari treno sono "da parete" (ora alla stazione) e vanno riproposti in
+// modifica identici a come inseriti, senza lo scarto del fuso locale (+2 in IT).
+const tsToWallInput = (ts) => {
+  if (!ts) return "";
+  const dt = new Date(ts);
+  if (isNaN(dt.getTime())) return String(ts).replace(" ", "T").slice(0, 16);
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}T${pad2(dt.getUTCHours())}:${pad2(dt.getUTCMinutes())}`;
 };
 const parseISODate = (s) => {
   const norm = normalizeDateStr(s);
@@ -575,8 +586,8 @@ const initialJsonRef = useRef(null);
               // normalizziamo nel formato YYYY-MM-DDTHH:MM che il validatore
               // e il picker si aspettano, altrimenti il salvataggio fallisce
               // silenziosamente in edit mode.
-              departAt: l.depart_at ? `${toISODate(new Date(l.depart_at))}T${toISOTime(new Date(l.depart_at))}` : "",
-              arriveAt: l.arrive_at ? `${toISODate(new Date(l.arrive_at))}T${toISOTime(new Date(l.arrive_at))}` : "",
+              departAt: tsToWallInput(l.depart_at),
+              arriveAt: tsToWallInput(l.arrive_at),
               pnr: secretPnr ?? prev.pnr ?? "",
             }));
           }
@@ -597,8 +608,8 @@ const initialJsonRef = useRef(null);
               imageUrl: l.image_url || prev.imageUrl,
               checkIn: l.check_in || "",
               checkOut: l.check_out || "",
-              departAt: l.depart_at || "",
-              arriveAt: l.arrive_at || "",
+              departAt: tsToWallInput(l.depart_at),
+              arriveAt: tsToWallInput(l.arrive_at),
             }));
           }
         } else {
@@ -1307,6 +1318,12 @@ const initialJsonRef = useRef(null);
           Alert.alert(t("createListing.publishedTitle", "Pubblicato!"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
         }
       }
+
+      // Ricalcolo match fire-and-forget: pubblicare/aggiornare un annuncio
+      // rigenera i tuoi suggerimenti "Per te" senza che tu debba aprire a mano
+      // la schermata Suggeriti (che prima era l'UNICO punto da cui partiva il
+      // ricalcolo — se la striscia "Per te" era vuota, non era raggiungibile).
+      recomputeAIAndSnapshot().catch(() => {});
 
       initialJsonRef.current = JSON.stringify(form);
       onDirtyChange(false);
