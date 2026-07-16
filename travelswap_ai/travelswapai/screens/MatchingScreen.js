@@ -162,12 +162,9 @@ function StatusBanner({
 
 function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, onPressChevron }) {
   const { t } = useI18n();
-  const badgeStyle =
-    item.score >= 80 ? styles.badgeGreen : item.score >= 70 ? styles.badgeLime : styles.badgeYellow;
-  
   const fallbackExpl = [
     item.bidirectional ? "Match reciproco (💫)" : null,
-    `Affinità ${Math.round(Number(item.score) || 0)}/100`,
+    `Match ${Math.round(Number(item.score) || 0)}%`,
     item.location ? `Località: ${item.location}` : null,
     item.type ? `Tipologia: ${item.type}` : null,
     item.price != null ? `Prezzo: €${item.price}` : null,
@@ -207,15 +204,13 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
       </View>
 
       <View style={styles.rightCol}>
-        {item.bidirectional ? (
-          <View style={[styles.badge, styles.badgeBlue]}>
-            <Text style={{ fontWeight: "800", color: "#0369A1" }}>💫</Text>
-          </View>
-        ) : (
-          <View style={[styles.badge, badgeStyle]}>
-            <Text style={styles.badgeText}>{Math.round(item.score)}</Text>
-          </View>
-        )}
+        {/* Stesso badge di Esplora: pillola oro "Match NN%" (+💫 se reciproco).
+            Coerente ovunque e dentro la palette (niente semaforo di colori). */}
+        <View style={styles.matchPill}>
+          <Text style={styles.matchPillText}>
+            {t("esplora.matchPct", "Match {n}%", { n: Math.round(item.score) })}{item.bidirectional ? " 💫" : ""}
+          </Text>
+        </View>
 
         <TouchableOpacity onPress={onToggleInfo} style={styles.infoChip} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="information-circle-outline" size={16} color={theme.colors.boardingText}/>
@@ -614,11 +609,9 @@ const compatible = useMemo(
                         <View style={styles.legendHeaderRow}>
               <View style={{ flexShrink: 1, paddingRight: 10 }}>
                 <View style={styles.titleRow}>
+                  {/* Tag "AI" rimosso: ridondante — il titolo dice già
+                      "Suggeriti dall'AI" e il sottotitolo lo ripete. */}
                   <Text style={styles.legendHeaderTitle}>{t("matching.title", "Suggeriti dall'AI")}</Text>
-                  <View style={styles.aiTag}>
-                    <Ionicons name="sparkles" size={11} color={theme.colors.accentOn} />
-                    <Text style={styles.aiTagText}>{t("matching.aiTag", "AI")}</Text>
-                  </View>
                 </View>
                 <Text style={styles.poweredBy}>
                   {t("matching.poweredBy", "Suggerimenti generati dalla nostra AI in base a ciò che cerchi e pubblichi.")}
@@ -790,6 +783,12 @@ const styles = StyleSheet.create({
   badgeLime: { backgroundColor: "#ECFCCB", borderColor: "#BEF264" },
   badgeYellow: { backgroundColor: "#FEF9C3", borderColor: "#FDE68A" },
   badgeBlue: { backgroundColor: "#EAF7FF", borderColor: "#BAE6FD" },
+  // Pillola Match identica a quella di Esplora (oro tenue + bordo + testo navy)
+  matchPill: {
+    backgroundColor: theme.colors.accentSoft, borderWidth: 1, borderColor: theme.colors.accent,
+    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, alignItems: "center", justifyContent: "center",
+  },
+  matchPillText: { fontSize: 12, fontWeight: "800", color: theme.colors.boardingText },
 
   /* Chip "i Info" */
   infoChip: {
