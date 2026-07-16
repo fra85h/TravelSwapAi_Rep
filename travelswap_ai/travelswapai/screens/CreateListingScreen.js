@@ -1268,7 +1268,15 @@ const initialJsonRef = useRef(null);
         description: form.description.trim() || null,
         price: Number.isFinite(priceNum) ? priceNum : null,
         cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
-        ...(mode !== "edit" ? { status: "active" , trustScore: trustData?.trustScore ?? null,} : {})
+        // In creazione: salva la reliability calcolata (chiave camelCase, la
+        // mappa insertListing). In modifica: aggiorna il punteggio salvato
+        // SOLO se in questa sessione è stato rilanciato il Check AI — così
+        // ri-verificare un annuncio "guarisce" un punteggio vecchio/ingiusto,
+        // invece di restare congelato al valore della pubblicazione. La chiave
+        // qui è snake_case perché updateListing passa i campi come colonne.
+        ...(mode !== "edit"
+          ? { status: "active", trustScore: trustData?.trustScore ?? null }
+          : (Number.isFinite(Number(trustData?.trustScore)) ? { trust_score: Number(trustData.trustScore) } : {}))
       };
 
       const payload = form?.type === "hotel"
