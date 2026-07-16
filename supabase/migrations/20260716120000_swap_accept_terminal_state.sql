@@ -100,6 +100,8 @@ update public.listings l
    and exists (
      select 1 from public.offers o
      where o.type = 'swap'
-       and o.status in ('accepted', 'finalized')
+       -- confronto come testo: 'finalized' non è (ancora) un valore dell'enum
+       -- offer_status, quindi evitiamo la coercizione che darebbe errore 22P02
+       and o.status::text in ('accepted', 'finalized')
        and (o.to_listing_id = l.id or o.from_listing_id = l.id)
    );
