@@ -162,12 +162,13 @@ export default function ProfileScreen() {
     );
 
   const stats = useMemo(() => {
-    const s = { active: 0, swapped: 0, sold: 0, pending: 0, expired: 0, paused: 0 };
+    const s = { active: 0, swapped: 0, sold: 0, reserved: 0, pending: 0, expired: 0, paused: 0 };
     for (const it of myListings) {
       const st = String(it?.status || "").toLowerCase();
       if (st === "active" || !st) s.active++;
       else if (st === "swapped" || st === "traded" || st === "exchanged") s.swapped++;
       else if (st === "sold") s.sold++;
+      else if (st === "reserved") s.reserved++;
       else if (st === "pending" || st === "review") s.pending++;
       else if (st === "expired") s.expired++;
       else if (st === "paused") s.paused++;
@@ -182,6 +183,7 @@ export default function ProfileScreen() {
       if (statusFilter === "active") return st === "active" || !st;
       if (statusFilter === "swapped") return st === "swapped" || st === "traded" || st === "exchanged";
       if (statusFilter === "sold") return st === "sold";
+      if (statusFilter === "reserved") return st === "reserved";
       if (statusFilter === "pending") return st === "pending" || st === "review";
       if (statusFilter === "expired") return st === "expired";
       return true;
@@ -216,6 +218,7 @@ export default function ProfileScreen() {
               <Text style={styles.stateBadgeText}>
                 {String(item.status).toLowerCase() === "sold" ? t("listing.state.sold", "Venduto")
                   : ["swapped","traded","exchanged"].includes(String(item.status).toLowerCase()) ? t("listing.state.swapped", "Scambiato")
+                  : String(item.status).toLowerCase() === "reserved" ? t("listing.state.reserved", "Riservato")
                   : ["pending","review"].includes(String(item.status).toLowerCase()) ? t("listing.state.pending", "In revisione")
                   : String(item.status).toLowerCase() === "expired" ? t("listing.state.expired", "Scaduto")
                   : String(item.status).toLowerCase() === "paused" ? t("listing.state.paused", "In pausa")
@@ -368,6 +371,13 @@ export default function ProfileScreen() {
             onPress={() => setStatusFilter(statusFilter === "sold" ? null : "sold")}
           />
           <StatItem
+            label={t("listing.filters.reserved", "Riservati")}
+            icon="🔒"
+            value={stats.reserved}
+            active={statusFilter === "reserved"}
+            onPress={() => setStatusFilter(statusFilter === "reserved" ? null : "reserved")}
+          />
+          <StatItem
             label={t("listing.filters.pending", "In revisione")}
             icon="🕑"
             value={stats.pending}
@@ -393,6 +403,8 @@ export default function ProfileScreen() {
                 ? t("listing.filters.swapped", "Scambiati")
                 : statusFilter === "sold"
                 ? t("listing.filters.sold", "Venduti")
+                : statusFilter === "reserved"
+                ? t("listing.filters.reserved", "Riservati")
                 : statusFilter === "pending"
                 ? t("listing.filters.pending", "In revisione")
                 : t("listing.filters.expired", "Scaduti")}
