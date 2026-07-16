@@ -179,6 +179,9 @@ export function useTrustScore() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }, // in caso fetchJson non lo aggiunga
         body: JSON.stringify({ listing }),
+        // con le foto in base64 la verifica (moderazione + visione AI)
+        // può superare i 20s di default
+        timeoutMs: 45000,
       });
 
       setData(res);
