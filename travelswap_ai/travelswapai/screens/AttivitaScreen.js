@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { useActivity } from "../lib/ActivityContext";
+import { useActivity, notifyActivityChanged } from "../lib/ActivityContext";
 import { acceptOffer, declineOffer, cancelOffer } from "../lib/offers";
 import { markMatchSeen } from "../lib/savedSearches";
 import { useI18n } from "../lib/i18n";
@@ -57,23 +57,26 @@ export default function AttivitaScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
+  // notifyActivityChanged() propaga il cambiamento anche fuori dalla casella
+  // Attività (es. Esplora): dopo accettare/rifiutare/annullare uno scambio la
+  // disponibilità degli annunci cambia, e il feed si aggiorna da solo.
   const onAccept = useCallback(async (offerId) => {
     setBusyId(offerId);
-    try { await acceptOffer(offerId); await refresh(); Alert.alert(t("common.ok", "OK"), t("offers.accepted", "Proposta accettata")); }
+    try { await acceptOffer(offerId); await refresh(); notifyActivityChanged(); Alert.alert(t("common.ok", "OK"), t("offers.accepted", "Proposta accettata")); }
     catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
     finally { setBusyId(null); }
   }, [refresh, t]);
 
   const onDecline = useCallback(async (offerId) => {
     setBusyId(offerId);
-    try { await declineOffer(offerId); await refresh(); }
+    try { await declineOffer(offerId); await refresh(); notifyActivityChanged(); }
     catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
     finally { setBusyId(null); }
   }, [refresh, t]);
 
   const onCancel = useCallback(async (offerId) => {
     setBusyId(offerId);
-    try { await cancelOffer(offerId); await refresh(); }
+    try { await cancelOffer(offerId); await refresh(); notifyActivityChanged(); }
     catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
     finally { setBusyId(null); }
   }, [refresh, t]);
