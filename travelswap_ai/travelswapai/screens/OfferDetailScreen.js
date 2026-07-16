@@ -151,9 +151,9 @@ export default function OfferDetailScreen() {
         <View style={s.box}>
           <Text style={s.boxTitle}>{listing.title || t("offerDetail.listing", "Annuncio")}</Text>
           <Text style={s.boxMeta}>
-            {listing.type} • {listing.location || listing.route_from || "-"}
+            {t(`listing.type.${String(listing.type || "").toLowerCase()}`, listing.type || "")} • {listing.location || listing.route_from || "-"}
           </Text>
-          <Text style={[s.badge, { marginTop: 8 }]}>{listing.status}</Text>
+          <Text style={[s.badge, { marginTop: 8 }]}>{t(`listing.state.${String(listing.status || "").toLowerCase()}`, listing.status || "")}</Text>
 
           {/* CTA: visibili solo se NON sono il proprietario */}
           {!isOwner && (
@@ -227,7 +227,7 @@ export default function OfferDetailScreen() {
 
             <View style={s.row}>
               <View style={[s.badgeWrap]}>
-                <Text style={s.badgeTxt}>{o.status}</Text>
+                <Text style={s.badgeTxt}>{t(`offers.status.${String(o.status || "").toLowerCase()}`, o.status || "")}</Text>
               </View>
 
               {isOwner && pending && (
