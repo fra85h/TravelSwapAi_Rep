@@ -273,7 +273,7 @@ export default function HomeScreen() {
                     così si capisce senza spiegazioni cosa rappresenta. */}
                 <View style={styles.affinityPill}>
                   <Ionicons name={isTrain ? "train-outline" : "bed-outline"} size={13} color={theme.colors.accentOn} />
-                  <Text style={styles.affinityText}>{tt("esplora.affinity", "Affinità {n}%", { n: Math.round(p.score) })}</Text>
+                  <Text style={styles.affinityText}>{tt("esplora.matchPct", "Match {n}%", { n: Math.round(p.score) })}</Text>
                 </View>
                 <Text style={styles.pickTitle} numberOfLines={2}>{stripPriceFromTitle(p.title) || tt("listing.untitled", "Senza titolo")}</Text>
                 {p.location ? <Text style={styles.pickSub} numberOfLines={1}>{p.location}</Text> : null}
