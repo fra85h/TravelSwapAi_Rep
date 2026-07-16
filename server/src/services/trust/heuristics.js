@@ -66,6 +66,48 @@ function isSardiniaPlace(loc) {
   return SARDINIA_PLACES.some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
 }
 
+// Città italiane con stazione ferroviaria servita (capoluoghi + hub noti,
+// incluse le principali città siciliane raggiunte dal traghetto dei treni
+// sullo Stretto). Usata come ALLOW-LIST: se origine E destinazione di una
+// tratta treno sono entrambe qui, la tratta è certamente percorribile sulla
+// rete nazionale, quindi un IMPLAUSIBLE_ROUTE emesso dall'AI su quella tratta
+// (es. Palermo→Messina, Ancona→Bari) è un falso positivo da scartare.
+// Non è esaustiva: per una città non elencata si lascia decidere l'AI (così
+// restano intercettabili le località inventate/assurde).
+const RAIL_CITIES = [
+  // Sicilia (rete FS, collegata via traghetto ferroviario)
+  'palermo', 'messina', 'catania', 'siracusa', 'trapani', 'agrigento',
+  'caltanissetta', 'enna', 'ragusa', 'gela', 'marsala', 'mazara del vallo',
+  'cefalu', 'milazzo', 'taormina', 'giardini naxos', 'termini imerese',
+  'bagheria', 'castelvetrano', 'alcamo', 'partinico', 'barcellona pozzo di gotto',
+  // Calabria e Sud
+  'reggio calabria', 'villa san giovanni', 'lamezia terme', 'cosenza', 'crotone',
+  'catanzaro', 'paola', 'napoli', 'salerno', 'caserta', 'benevento', 'avellino',
+  'bari', 'foggia', 'lecce', 'brindisi', 'taranto', 'barletta', 'trani', 'andria',
+  'potenza', 'matera', 'campobasso', 'termoli',
+  // Centro
+  'roma', 'latina', 'frosinone', 'viterbo', 'rieti', 'civitavecchia',
+  'l aquila', 'pescara', 'chieti', 'teramo', 'ancona', 'pesaro', 'macerata',
+  'ascoli piceno', 'fabriano', 'perugia', 'terni', 'foligno', 'assisi', 'orte',
+  'firenze', 'prato', 'pistoia', 'lucca', 'pisa', 'livorno', 'arezzo', 'siena',
+  'grosseto', 'massa', 'carrara', 'viareggio', 'empoli',
+  // Nord
+  'bologna', 'modena', 'reggio emilia', 'parma', 'piacenza', 'ferrara',
+  'ravenna', 'forli', 'cesena', 'rimini', 'imola',
+  'milano', 'monza', 'bergamo', 'brescia', 'como', 'lecco', 'varese', 'pavia',
+  'cremona', 'mantova', 'lodi', 'sondrio', 'lecco',
+  'torino', 'novara', 'alessandria', 'asti', 'cuneo', 'biella', 'vercelli',
+  'genova', 'la spezia', 'savona', 'imperia', 'ventimiglia', 'sanremo',
+  'venezia', 'mestre', 'padova', 'verona', 'vicenza', 'treviso', 'rovigo',
+  'belluno', 'trieste', 'udine', 'pordenone', 'gorizia',
+  'trento', 'bolzano', 'rovereto', 'bressanone', 'aosta',
+];
+export function isKnownRailCity(loc) {
+  const n = normPlace(loc);
+  if (!n) return false;
+  return RAIL_CITIES.some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
+}
+
 // Testi dei suggerimenti (fix) nelle tre lingue. I messaggi dei FLAG restano
 // in italiano perché il client li rimpiazza con etichette localizzate in base
 // al `code`; i suggerimenti invece non hanno un code, quindi li localizziamo

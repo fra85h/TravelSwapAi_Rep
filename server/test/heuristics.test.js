@@ -1,7 +1,7 @@
 // Test per le euristiche antifrode del TrustScore
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeHeuristicChecks } from '../src/services/trust/heuristics.js';
+import { computeHeuristicChecks, isKnownRailCity } from '../src/services/trust/heuristics.js';
 
 function inDays(n) {
   return new Date(Date.now() + n * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -96,4 +96,39 @@ test('gli score parziali sono normalizzati 0..100', () => {
   for (const k of ['score', 'consistencyScore', 'plausibilityScore', 'completenessScore']) {
     assert.ok(out[k] >= 0 && out[k] <= 100, `${k}=${out[k]} fuori range`);
   }
+});
+
+test('allow-list città ferroviarie: coppie reali riconosciute (anche Sicilia)', () => {
+  // Coppie reali che l'AI a volte segnalava per errore: entrambe le città
+  // devono risultare note, così l'IMPLAUSIBLE_ROUTE dell'AI viene soppresso.
+  for (const [a, b] of [
+    ['Palermo', 'Messina'], ['Palermo', 'Catania'], ['Catania', 'Siracusa'],
+    ['Ancona', 'Bari'], ['Roma', 'Milano'], ['Palermo Centrale', 'Messina C.le'],
+  ]) {
+    assert.ok(isKnownRailCity(a) && isKnownRailCity(b), `attese note: ${a} / ${b}`);
+  }
+});
+
+test('allow-list città ferroviarie: casi impossibili/ignoti restano fuori', () => {
+  // Se NON entrambe note, la soppressione non scatta e il flag (AI o
+  // deterministico) sopravvive: isole minori, Sardegna, luoghi inventati.
+  assert.equal(isKnownRailCity('Lampedusa'), false);
+  assert.equal(isKnownRailCity('Cagliari'), false); // Sardegna: no rotaia col continente
+  assert.equal(isKnownRailCity('Narnia'), false);
+  assert.equal(isKnownRailCity(''), false);
+  assert.equal(isKnownRailCity(null), false);
+});
+
+test('tratta treno Palermo→Messina: il deterministico NON la segnala', () => {
+  const out = computeHeuristicChecks({
+    type: 'train',
+    title: 'Vendo biglietto treno Palermo Messina',
+    description: 'Biglietto regionale Palermo Centrale → Messina, solo andata',
+    origin: 'Palermo',
+    destination: 'Messina',
+    startDate: inDays(10),
+    price: 15,
+    images: [{ url: 'https://example.com/1.jpg' }],
+  });
+  assert.equal(out.flags.some((f) => f.code === 'IMPLAUSIBLE_ROUTE'), false);
 });

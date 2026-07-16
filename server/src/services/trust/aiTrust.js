@@ -43,7 +43,9 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "principali città della Sicilia. Le tratte lunghe ma reali sono " +
       "PLAUSIBILI e NON vanno segnalate: es. Ancona→Bari, Milano→Lecce, " +
       "Torino→Reggio Calabria, Venezia→Napoli, Genova→Roma sono tutte tratte " +
-      "ferroviarie valide. Segnala IMPLAUSIBLE_ROUTE SOLO quando la tratta è " +
+      "ferroviarie valide. Anche le tratte INTERNE alla Sicilia sono valide e " +
+      "NON vanno segnalate: es. Palermo→Messina, Palermo→Catania, " +
+      "Messina→Catania, Catania→Siracusa. Segnala IMPLAUSIBLE_ROUTE SOLO quando la tratta è " +
       "REALMENTE impossibile in treno e ne sei ragionevolmente certo: isole " +
       "minori senza ferrovia (es. Lampedusa, Pantelleria, Capri), collegamenti " +
       "Sardegna↔continente su rotaia, oppure località palesemente inesistenti o " +
