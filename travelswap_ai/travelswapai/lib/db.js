@@ -150,9 +150,12 @@ export function __debug_all() {
 
 
 
-/** Cancella un mio annuncio */
+/** Elimina (definitivamente, lato UI) un mio annuncio.
+ * Soft-delete verso lo stato terminale `deleted`: l'annuncio sparisce da
+ * ovunque nell'app e NON è più riattivabile (a differenza di `paused`).
+ * Resta la riga nel DB per non rompere lo storico di scambi/transazioni. */
 export async function deleteMyListing(id) {
-  const { error } = await supabase.from("listings").update({ status: "expired" }).eq("id", id);
+  const { error } = await supabase.from("listings").update({ status: "deleted" }).eq("id", id);
   if (error) throw error;
 }
 export async function getMyProfile() {

@@ -104,7 +104,12 @@ export default function ProfileScreen() {
     setError(null);
     try {
       const data = await listMyListings();
-      setMyListings(Array.isArray(data) ? data : []);
+      // Gli annunci eliminati (stato terminale `deleted`) non compaiono più:
+      // "Elimina" è definitivo, niente più "Rendi attivo" su di essi.
+      const visible = Array.isArray(data)
+        ? data.filter((x) => String(x?.status || "").toLowerCase() !== "deleted")
+        : [];
+      setMyListings(visible);
       const p = await getMyProfile();
       setProfile(p || null);
     } catch (e) {
@@ -126,6 +131,9 @@ export default function ProfileScreen() {
   const toggleStatus = async (item) => {
     try {
       const current = String(item.status || "").toLowerCase();
+      // Solo attivo ⇄ pausa. Gli stati terminali (venduto, scambiato, riservato,
+      // eliminato, scaduto) non si riattivano: "Pausa" è reversibile, il resto no.
+      if (current !== "active" && current !== "paused" && current !== "") return;
       const next = current === "active" || current === "" ? "paused" : "active";
       await updateListing(item.id, { status: next });
       await loadMine();
@@ -498,12 +506,16 @@ export default function ProfileScreen() {
         cancelLabel={t("common.cancel", "Annulla")}
         onClose={() => setActionSheetItem(null)}
         options={actionSheetItem ? [
-          {
-            label: (String(actionSheetItem.status || "").toLowerCase() === "active" || !actionSheetItem.status)
-              ? t("listing.actions.pause", "Metti in pausa")
-              : t("listing.actions.activate", "Rendi attivo"),
-            onPress: () => toggleStatus(actionSheetItem),
-          },
+          // Pausa/Riattiva solo per annunci attivi o in pausa: sugli stati
+          // terminali (venduto, scambiato, eliminato…) l'opzione non compare.
+          ...(["active", "paused", ""].includes(String(actionSheetItem.status || "").toLowerCase())
+            ? [{
+                label: (String(actionSheetItem.status || "").toLowerCase() === "active" || !actionSheetItem.status)
+                  ? t("listing.actions.pause", "Metti in pausa")
+                  : t("listing.actions.activate", "Rendi attivo"),
+                onPress: () => toggleStatus(actionSheetItem),
+              }]
+            : []),
           { label: t("common.edit", "Modifica"), onPress: () => onEdit(actionSheetItem) },
           { label: t("common.delete", "Elimina"), destructive: true, onPress: () => onDeleteConfirm(actionSheetItem) },
         ] : []}
