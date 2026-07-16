@@ -163,9 +163,13 @@ export async function recomputeAIAndSnapshot(
   }
   if (!userId) throw new Error("missing userId");
 
+  // Il ricalcolo AI interroga OpenAI per ogni annuncio-sorgente contro i
+  // candidati: su Render supera facilmente i 20s di default del client
+  // (timeout osservato in produzione). 90s è un margine sicuro.
   return fetchJson(`/api/matches/ai/recompute`, {
     method: "POST",
     body: { userId, topPerListing, maxTotal },
+    timeoutMs: 90000,
   });
 }
 
