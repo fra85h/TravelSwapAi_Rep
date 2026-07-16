@@ -18,6 +18,15 @@ export function notifyActivityChanged() {
   });
 }
 
+// Stesso canale, ma pensato per schermate che NON sono la casella Attività
+// (es. Esplora): dopo un'azione che cambia la disponibilità degli annunci
+// (accettazione/rifiuto di uno scambio) vogliono ricaricarsi da sole, senza
+// che l'utente debba fare refresh manuale. Ritorna la funzione di unsubscribe.
+export function subscribeDataChanged(fn) {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
+
 const ActivityContext = createContext({
   summary: EMPTY,
   toDoCount: 0,

@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { listPublicListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
+import { subscribeDataChanged } from "../lib/ActivityContext";
 import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
@@ -112,6 +113,11 @@ export default function HomeScreen() {
   // senza questo pausa/riattiva/elimina di un annuncio da Profilo non si
   // rifletteva mai su Esplora finché l'app non veniva riaperta da zero.
   useEffect(() => { if (isFocused) load(); }, [isFocused, load]);
+
+  // Ricarica Esplora quando qualcosa cambia altrove (es. accettazione/rifiuto
+  // di uno scambio in Attività): senza questo il feed restava stantio finché
+  // non si faceva refresh manuale, anche se la tab era già aperta.
+  useEffect(() => subscribeDataChanged(() => { load(); }), [load]);
 
   useEffect(() => {
     navigation.setOptions?.({
