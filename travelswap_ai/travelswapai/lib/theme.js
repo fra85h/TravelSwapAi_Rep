@@ -10,11 +10,12 @@ export const theme = {
     text: "#1B2159",
     textMuted: "#6B6F92",
 
-    // "primary" resta il token storico: sfondo chiaro lavanda per badge,
-    // pill di selezione, avatar — sempre abbinato a testo scuro sopra
-    // (boardingText/text). Ruolo invariato, solo la tinta è raffinata.
-    primary: "#E4E1F7",
-    primaryMuted: "#C9C4EE", // variante più marcata per stati pressed/selected
+    // "primary" = sfondo chiaro per badge, pill di selezione, avatar, CTA
+    // secondari — sempre con testo scuro sopra (boardingText/text). Ritirato
+    // il lilla: assorbito nell'ORO tenue per ridurre le tinte in gioco
+    // (palette a 3: navy + oro + verde semantico). Ruolo invariato.
+    primary: "#F4E7C0",
+    primaryMuted: "#E6CE8C", // variante più marcata per bordi/stati pressed/selected
 
     // Accento oro: riservato ai CTA principali e ai momenti "premium".
     // Non va mai usato come colore di testo su sfondo chiaro (contrasto
