@@ -116,6 +116,11 @@ if (allFlagCodes.includes('PRICE_OUTLIER') || allFlagCodes.includes('NON_POSITIV
 if (allFlagCodes.includes('SUSPICIOUS_TERMS')) {
   trustScore = Math.min(trustScore, 45);
 }
+// Annuncio incoerente (testo che contraddice i campi, o tipo sbagliato):
+// non è per forza una truffa ma è confuso e poco affidabile.
+if (allFlagCodes.includes('INCOHERENT_TYPE') || allFlagCodes.includes('INCOHERENT_LISTING')) {
+  trustScore = Math.min(trustScore, 50);
+}
 
 // Contenuto segnalato dalla moderazione: è un problema grave e oggettivo,
 // il punteggio non può restare alto — lo forziamo verso il basso.

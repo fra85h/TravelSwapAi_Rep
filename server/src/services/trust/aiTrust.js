@@ -51,6 +51,14 @@ export async function aiTrustReview(listing, heur = {}) {
       "viaggio di questo tipo (biglietto, stazione, hotel, camera, luogo): " +
       "foto del tutto estranee (cibo, selfie, oggetti non pertinenti) meritano " +
       "un flag con code:'IRRELEVANT_IMAGES' e un msg che dice cosa mostrano. " +
+      "Valuta inoltre la COERENZA tra titolo/descrizione e i dati strutturati " +
+      "(type, origin/destination, date, price, e l'azione cerco/vendo se " +
+      "presente): se il testo contraddice i campi — es. la descrizione parla " +
+      "di hotel ma type è train, cita una città o tratta diversa da " +
+      "origin/destination, riporta un prezzo molto diverso da price, oppure " +
+      "dice di CERCARE mentre l'annuncio risulta in vendita (o viceversa) — " +
+      "aggiungi un flag con code:'INCOHERENT_LISTING' e un msg che spiega la " +
+      "discrepanza in modo concreto. " +
       "Restituisci SOLO un JSON con la forma: " +
       "{ textScore:number(0-100), imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
       "Usa rigore: nessun testo extra oltre al JSON.",

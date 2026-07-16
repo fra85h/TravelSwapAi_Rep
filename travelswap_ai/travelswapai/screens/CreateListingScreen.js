@@ -987,6 +987,7 @@ const initialJsonRef = useRef(null);
       const payload = {
         id: passedListing?.id || listingId || null,
         type: form?.type,
+        cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
         title: form.title,
         description: form.description,
         origin: isTrain ? (String(form.routeFrom || "").trim() || null) : null,
@@ -1493,6 +1494,50 @@ const initialJsonRef = useRef(null);
               <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, progress))}%` }]} />
             </View>
           </View>
+        )}
+
+        {/* Sommario "a semaforo" del Check AI: resta visibile nel pannello
+            fisso (entrambi i tab) così l'utente si accorge subito degli esiti,
+            che nel dettaglio vivono nel secondo tab. Un tap porta ai dettagli. */}
+        {lastTrustRunAt > 0 && trustData && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => goToSlide(1)}
+            style={styles.checkSummary}
+            accessibilityRole="button"
+            accessibilityLabel="Riepilogo verifica AI, tocca per i dettagli"
+          >
+            <View style={styles.checkSummaryChips}>
+              {trustData.aiAvailable === false && (
+                <View style={[styles.sumChip, styles.sumChipRed]}>
+                  <Text style={styles.sumChipText}>Verifica AI non disponibile</Text>
+                </View>
+              )}
+              {!!flagsNoImg?.length && (
+                <View style={[styles.sumChip, styles.sumChipYellow]}>
+                  <Text style={styles.sumChipText}>{flagsNoImg.length} {flagsNoImg.length === 1 ? "problema" : "problemi"}</Text>
+                </View>
+              )}
+              {!!fixesNoImg?.length && (
+                <View style={[styles.sumChip, styles.sumChipGreen]}>
+                  <Text style={styles.sumChipText}>{fixesNoImg.length} suggeriment{fixesNoImg.length === 1 ? "o" : "i"}</Text>
+                </View>
+              )}
+              {splitDetected && (
+                <View style={[styles.sumChip, styles.sumChipBlue]}>
+                  <Text style={styles.sumChipText}>2 annunci</Text>
+                </View>
+              )}
+              {trustData.aiAvailable !== false && !flagsNoImg?.length && !fixesNoImg?.length && !splitDetected && (
+                <View style={[styles.sumChip, styles.sumChipGreen]}>
+                  <Text style={styles.sumChipText}>Nessun problema rilevato</Text>
+                </View>
+              )}
+            </View>
+            {slideIndex === 0 && (
+              <Text style={styles.checkSummaryLink}>Vedi dettagli ›</Text>
+            )}
+          </TouchableOpacity>
         )}
       </View>
 
@@ -2010,6 +2055,17 @@ const styles = StyleSheet.create({
   pillTextDark: { color: "#fff" },
 
   inputSurface: { backgroundColor: theme.colors.surface },
+
+  // Sommario Check AI (chip a semaforo, stessi colori dei box di dettaglio)
+  checkSummary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8, marginBottom: 2 },
+  checkSummaryChips: { flexDirection: "row", flexWrap: "wrap", gap: 6, flexShrink: 1 },
+  sumChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
+  sumChipText: { fontSize: 12, fontWeight: "700", color: theme.colors.boardingText },
+  sumChipRed: { backgroundColor: "#FEE2E2", borderColor: "#F87171" },
+  sumChipYellow: { backgroundColor: "#FFF4C5", borderColor: "#FACC15" },
+  sumChipGreen: { backgroundColor: "#E7F7C5", borderColor: "#84CC16" },
+  sumChipBlue: { backgroundColor: "#DBEAFE", borderColor: "#60A5FA" },
+  checkSummaryLink: { fontSize: 12, fontWeight: "800", color: theme.colors.boardingText },
 
   // Micro log + progress
   microWrap: { marginTop: 6, marginBottom: 4 },

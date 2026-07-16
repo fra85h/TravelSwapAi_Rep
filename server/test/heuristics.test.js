@@ -55,6 +55,42 @@ test('nessuna immagine: flag NO_IMAGES', () => {
   assert.ok(out.flags.some(f => f.code === 'NO_IMAGES'));
 });
 
+test('descrizione da hotel su annuncio treno: flag INCOHERENT_TYPE', () => {
+  const out = computeHeuristicChecks({
+    type: 'train',
+    title: 'Vendo',
+    description: 'Camera doppia con colazione inclusa, 3 notti in hotel, check-in flessibile',
+    origin: 'Roma', destination: 'Milano',
+    startDate: inDays(20),
+    price: 50, images: [{ url: 'https://example.com/1.jpg' }],
+  });
+  assert.ok(out.flags.some(f => f.code === 'INCOHERENT_TYPE'));
+});
+
+test('treno coerente: nessun flag INCOHERENT_TYPE', () => {
+  const out = computeHeuristicChecks({
+    type: 'train',
+    title: 'Vendo treno Roma Milano',
+    description: 'Biglietto Frecciarossa, posto a sedere confermato, vagone silenzio',
+    origin: 'Roma', destination: 'Milano',
+    startDate: inDays(20),
+    price: 50, images: [{ url: 'https://example.com/1.jpg' }],
+  });
+  assert.equal(out.flags.some(f => f.code === 'INCOHERENT_TYPE'), false);
+});
+
+test('una sola parola dell\'altro tipo non basta (niente falso positivo)', () => {
+  const out = computeHeuristicChecks({
+    type: 'train',
+    title: 'Vendo',
+    description: 'Porto con me una piccola camera fotografica durante il viaggio',
+    origin: 'Roma', destination: 'Milano',
+    startDate: inDays(20),
+    price: 50, images: [{ url: 'https://example.com/1.jpg' }],
+  });
+  assert.equal(out.flags.some(f => f.code === 'INCOHERENT_TYPE'), false);
+});
+
 test('gli score parziali sono normalizzati 0..100', () => {
   const out = computeHeuristicChecks(goodHotel);
   for (const k of ['score', 'consistencyScore', 'plausibilityScore', 'completenessScore']) {

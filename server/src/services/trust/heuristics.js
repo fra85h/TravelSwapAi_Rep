@@ -180,6 +180,31 @@ export function computeHeuristicChecks(listing) {
     flags.push({ code: 'SUSPICIOUS_TERMS', msg: `Termini sospetti: ${hits.join(', ')}` });
   }
 
+  // 4b) Coerenza testo ↔ tipo dichiarato. Se la descrizione/titolo parla
+  // palesemente dell'altro mezzo (es. type=train ma il testo è tutto
+  // "hotel/camera/notti"), l'annuncio è incoerente. Conservativo: scatta
+  // solo con ALMENO due segnali forti del tipo OPPOSTO e NESSUN segnale del
+  // tipo dichiarato, per evitare falsi positivi. Deterministico: complementa
+  // il giudizio AI e funziona anche senza chiave OpenAI.
+  const TRAIN_WORDS = ['treno', 'binario', 'carrozza', 'frecciarossa', 'frecciargento', 'frecciabianca', 'italo', 'intercity', 'regionale', 'trenitalia', 'vagone', 'posto a sedere'];
+  const HOTEL_WORDS = ['hotel', 'albergo', 'camera doppia', 'camera singola', 'notti', 'pernott', 'check-in', 'check in', 'b&b', 'bed and breakfast', 'ostello', 'resort', 'soggiorno', 'mezza pensione', 'colazione inclusa'];
+  const declaredTrain = type === 'train' || type === 'treno';
+  const declaredHotel = type === 'hotel' || type === 'alloggio';
+  if (declaredTrain || declaredHotel) {
+    const ownWords = declaredTrain ? TRAIN_WORDS : HOTEL_WORDS;
+    const otherWords = declaredTrain ? HOTEL_WORDS : TRAIN_WORDS;
+    const hasOwn = ownWords.some((w) => text.includes(w));
+    const otherHits = otherWords.filter((w) => text.includes(w));
+    if (!hasOwn && otherHits.length >= 2) {
+      consistency -= 0.4;
+      flags.push({
+        code: 'INCOHERENT_TYPE',
+        msg: `La descrizione sembra riferirsi a ${declaredTrain ? 'un hotel' : 'un treno'}, ma l'annuncio è di tipo ${declaredTrain ? 'treno' : 'hotel'}`,
+      });
+      fixes.push({ field: 'type', suggestion: 'Controlla il tipo di annuncio o allinea la descrizione' });
+    }
+  }
+
   // 5) Immagini: minimo qualità e quantità
   if (images.length === 0) {
     flags.push({ code: 'NO_IMAGES', msg: 'Nessuna immagine caricata' });
