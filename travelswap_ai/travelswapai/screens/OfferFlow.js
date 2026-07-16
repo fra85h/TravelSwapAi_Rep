@@ -1,6 +1,7 @@
 // screens/OfferFlow.js — flussi completi Proponi acquisto / Proponi scambio
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert, FlatList } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { getCurrentUser, getPublicListingById } from "../lib/db";
 import {
@@ -41,6 +42,15 @@ export default function OfferFlow() {
   const [pendingOffer, setPendingOffer] = useState(null);
   const isBuy = mode === "BUY";
 
+  // Sottotitolo localizzato: "Treno • Roma Termini → Firenze"
+  const fmtMeta = useCallback((l) => {
+    const typeLabel = t(`listing.type.${String(l?.type || "").toLowerCase()}`, l?.type || "");
+    const from = l?.route_from;
+    const to = l?.route_to;
+    const where = from ? (to ? `${from} → ${to}` : from) : (l?.location || "-");
+    return typeLabel ? `${typeLabel} • ${where}` : where;
+  }, [t]);
+
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -79,6 +89,14 @@ export default function OfferFlow() {
   }, [listingId, isBuy, t]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-selezione quando c'è un solo annuncio da offrire: niente attrito,
+  // la CTA è subito attiva.
+  useEffect(() => {
+    if (!isBuy && myListings.length === 1 && !selectedMyListing) {
+      setSelectedMyListing(myListings[0]);
+    }
+  }, [isBuy, myListings, selectedMyListing]);
 
   const canSubmit = useMemo(() => {
     if (!me || !target || pendingOffer) return false;
@@ -139,16 +157,23 @@ export default function OfferFlow() {
   }
 
   return (
-    <View style={s.container}>
+    <ScrollView
+      style={s.container}
+      contentContainerStyle={s.content}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
       <Text style={s.title}>
         {isBuy ? t("offers.proposePurchase", "Proponi acquisto") : t("offers.proposeSwap", "Proponi scambio")}
       </Text>
 
+      {/* Card annuncio target: cosa ricevi (swap) / cosa acquisti (buy) */}
+      <Text style={s.eyebrow}>
+        {isBuy ? t("offerFlow.buyLabel", "Acquisti") : t("offerFlow.receiveLabel", "Ricevi")}
+      </Text>
       <View style={s.target}>
         <Text style={s.tTitle}>{target?.title || t("offerFlow.listing", "Annuncio")}</Text>
-        <Text style={s.tMeta}>
-          {target?.type} • {target?.location || target?.route_from || "-"}
-        </Text>
+        <Text style={s.tMeta}>{fmtMeta(target)}</Text>
       </View>
 
       {pendingOffer ? (
@@ -164,73 +189,90 @@ export default function OfferFlow() {
             </TouchableOpacity>
           </View>
         </View>
+      ) : isBuy ? (
+        <>
+          <Text style={s.label}>{t("offerFlow.amountLabel", "Importo offerto (opzionale)")}</Text>
+          <TextInput
+            value={amount}
+            onChangeText={setAmount}
+            placeholder={t("offerFlow.amountPlaceholder", "Es. 120.00")}
+            keyboardType="decimal-pad"
+            style={s.input}
+          />
+          <Text style={s.label}>{t("offerFlow.currencyLabel", "Valuta")}</Text>
+          <TextInput
+            value={currency}
+            onChangeText={setCurrency}
+            style={s.input}
+          />
+          <Text style={s.label}>{t("offerFlow.messageOptional", "Messaggio (opzionale)")}</Text>
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            placeholder={t("offerFlow.addDetailsOrRequests", "Aggiungi dettagli o richieste")}
+            style={[s.input, { height: 100, textAlignVertical: "top" }]}
+            multiline
+          />
+          <TouchableOpacity
+            style={[s.btn, s.cta, !canSubmit && s.btnDisabled]}
+            disabled={!canSubmit}
+            onPress={onSubmit}
+          >
+            <Text style={s.btnTxt}>{t("offerFlow.sendProposal", "Invia proposta")}</Text>
+          </TouchableOpacity>
+        </>
       ) : (
         <>
-          {isBuy ? (
-            <>
-              <Text style={s.label}>{t("offerFlow.amountLabel", "Importo offerto (opzionale)")}</Text>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                placeholder={t("offerFlow.amountPlaceholder", "Es. 120.00")}
-                keyboardType="decimal-pad"
-                style={s.input}
-              />
-              <Text style={s.label}>{t("offerFlow.currencyLabel", "Valuta")}</Text>
-              <TextInput
-                value={currency}
-                onChangeText={setCurrency}
-                style={s.input}
-              />
-              <Text style={s.label}>{t("offerFlow.messageOptional", "Messaggio (opzionale)")}</Text>
-              <TextInput
-                value={message}
-                onChangeText={setMessage}
-                placeholder={t("offerFlow.addDetailsOrRequests", "Aggiungi dettagli o richieste")}
-                style={[s.input, { height: 100, textAlignVertical: "top" }]}
-                multiline
-              />
-            </>
+          {/* Freccia di scambio: rende chiara la direzione ricevi ⇄ offri */}
+          <View style={s.swapArrow}>
+            <Ionicons name="swap-vertical" size={22} color={theme.colors.accent} />
+          </View>
+
+          <Text style={s.eyebrow}>{t("offerFlow.offerLabel", "Offri")}</Text>
+          <Text style={s.label}>{t("offerFlow.chooseOwnListing", "Scegli un tuo annuncio")}</Text>
+
+          {myListings.length === 0 ? (
+            <View style={s.emptyBox}>
+              <Text style={{ color: theme.colors.textMuted }}>{t("offerFlow.noActiveListings", "Non hai annunci attivi.")}</Text>
+              <TouchableOpacity onPress={() => navigation.navigate("CreateListing")} style={{ marginTop: 8 }}>
+                <Text style={{ color: theme.colors.accent, fontWeight: "800" }}>
+                  {t("offerFlow.createListingCta", "＋ Crea prima un annuncio da offrire in scambio")}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            <>
-              <Text style={s.label}>{t("offerFlow.chooseOwnListing", "Scegli un tuo annuncio")}</Text>
-              <FlatList
-                data={myListings}
-                keyExtractor={(it) => String(it.id)}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[s.card, selectedMyListing?.id === item.id && s.cardSelected]}
-                    onPress={() => setSelectedMyListing(item)}
-                  >
+            myListings.map((item) => {
+              const selected = selectedMyListing?.id === item.id;
+              return (
+                <TouchableOpacity
+                  key={String(item.id)}
+                  style={[s.card, selected && s.cardSelected]}
+                  onPress={() => setSelectedMyListing(item)}
+                  activeOpacity={0.8}
+                >
+                  <View style={{ flex: 1 }}>
                     <Text style={s.cardTitle}>{item.title || t("offerFlow.listing", "Annuncio")}</Text>
-                    <Text style={s.cardMeta}>{item.type} • {item.location || item.route_from || "-"}</Text>
-                  </TouchableOpacity>
-                )}
-                ListEmptyComponent={
-                  <View>
-                    <Text style={{ color: theme.colors.textMuted }}>{t("offerFlow.noActiveListings", "Non hai annunci attivi.")}</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate("CreateListing")} style={{ marginTop: 8 }}>
-                      <Text style={{ color: theme.colors.accent, fontWeight: "800" }}>
-                        {t("offerFlow.createListingCta", "＋ Crea prima un annuncio da offrire in scambio")}
-                      </Text>
-                    </TouchableOpacity>
+                    <Text style={s.cardMeta}>{fmtMeta(item)}</Text>
                   </View>
-                }
-                style={{ maxHeight: 240 }}
-              />
-              <Text style={[s.label, { marginTop: 16 }]}>{t("offerFlow.messageOptional", "Messaggio (opzionale)")}</Text>
-              <TextInput
-                value={message}
-                onChangeText={setMessage}
-                placeholder={t("offerFlow.addDetailsForSwap", "Aggiungi dettagli per lo scambio")}
-                style={[s.input, { height: 100, textAlignVertical: "top" }]}
-                multiline
-              />
-            </>
+                  <View style={[s.radio, selected && s.radioOn]}>
+                    {selected ? <Ionicons name="checkmark" size={16} color={theme.colors.accentOn} /> : null}
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
 
+          <Text style={[s.label, { marginTop: 16 }]}>{t("offerFlow.messageOptional", "Messaggio (opzionale)")}</Text>
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            placeholder={t("offerFlow.addDetailsForSwap", "Aggiungi dettagli per lo scambio")}
+            style={[s.input, { height: 100, textAlignVertical: "top" }]}
+            multiline
+          />
+
           <TouchableOpacity
-            style={[s.btn, { marginTop: 18 }, !canSubmit && s.btnDisabled]}
+            style={[s.btn, s.cta, !canSubmit && s.btnDisabled]}
             disabled={!canSubmit}
             onPress={onSubmit}
           >
@@ -238,34 +280,51 @@ export default function OfferFlow() {
           </TouchableOpacity>
         </>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.background, padding: 16 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  content: { padding: 16, paddingBottom: 32 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
   title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, marginBottom: 16 },
+  eyebrow: {
+    fontSize: 11, fontWeight: "800", letterSpacing: 0.6, textTransform: "uppercase",
+    color: theme.colors.textMuted, marginBottom: 6,
+  },
   target: {
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
     padding: 14, marginBottom: 12, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
   tTitle: { fontWeight: "800" },
   tMeta: { color: theme.colors.textMuted, marginTop: 4 },
+  swapArrow: { alignItems: "center", marginTop: 2, marginBottom: 10 },
   label: { fontWeight: "700", marginTop: 8, marginBottom: 6 },
   input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
   btn: { backgroundColor: theme.colors.accent, paddingVertical: 12, borderRadius: 12, alignItems: "center" },
+  cta: { marginTop: 18 },
   btnTxt: { color: theme.colors.accentOn, fontWeight: "800" },
   btnOutline: { borderWidth: 1, borderColor: theme.colors.border, paddingVertical: 12, borderRadius: 12, alignItems: "center", paddingHorizontal: 14 },
   btnOutlineTxt: { color: theme.colors.text, fontWeight: "700" },
   btnDisabled: { opacity: 0.5 },
   card: {
+    flexDirection: "row", alignItems: "center", gap: 12,
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
     padding: 14, marginBottom: 10, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
   cardSelected: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accentSoft },
   cardTitle: { fontWeight: "800" },
   cardMeta: { color: theme.colors.textMuted, marginTop: 4 },
+  radio: {
+    width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: theme.colors.border,
+    alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.surface,
+  },
+  radioOn: { borderColor: theme.colors.accent, backgroundColor: theme.colors.accent },
+  emptyBox: {
+    borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
+    padding: 14, marginBottom: 4, backgroundColor: theme.colors.surface,
+  },
   pendingBox: { borderWidth: 1, borderColor: "#F59E0B", backgroundColor: "#FFFBEB", borderRadius: 12, padding: 12, marginTop: 8 },
   pendingTitle: { fontWeight: "800", color: "#92400E" },
   pendingMsg: { marginTop: 6, color: "#92400E" },

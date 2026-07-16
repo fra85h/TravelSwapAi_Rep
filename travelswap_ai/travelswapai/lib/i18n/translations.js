@@ -639,6 +639,9 @@ export const translations = {
       createListingCta: "＋ Crea prima un annuncio da offrire in scambio",
       addDetailsForSwap: "Aggiungi dettagli per lo scambio",
       sendProposal: "Invia proposta",
+      receiveLabel: "Ricevi",
+      offerLabel: "Offri",
+      buyLabel: "Acquisti",
     },
 
     sellerProfile: {
@@ -1472,6 +1475,9 @@ export const translations = {
       createListingCta: "＋ First create a listing to offer in the swap",
       addDetailsForSwap: "Add details for the swap",
       sendProposal: "Send proposal",
+      receiveLabel: "You receive",
+      offerLabel: "You offer",
+      buyLabel: "You buy",
     },
 
     sellerProfile: {
@@ -2309,6 +2315,9 @@ export const translations = {
       createListingCta: "＋ Crea antes un anuncio para ofrecer en el intercambio",
       addDetailsForSwap: "Añade detalles para el intercambio",
       sendProposal: "Enviar propuesta",
+      receiveLabel: "Recibes",
+      offerLabel: "Ofreces",
+      buyLabel: "Compras",
     },
 
     sellerProfile: {
