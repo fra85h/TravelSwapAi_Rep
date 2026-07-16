@@ -609,11 +609,9 @@ const compatible = useMemo(
                         <View style={styles.legendHeaderRow}>
               <View style={{ flexShrink: 1, paddingRight: 10 }}>
                 <View style={styles.titleRow}>
+                  {/* Tag "AI" rimosso: ridondante — il titolo dice già
+                      "Suggeriti dall'AI" e il sottotitolo lo ripete. */}
                   <Text style={styles.legendHeaderTitle}>{t("matching.title", "Suggeriti dall'AI")}</Text>
-                  <View style={styles.aiTag}>
-                    <Ionicons name="sparkles" size={11} color={theme.colors.accentOn} />
-                    <Text style={styles.aiTagText}>{t("matching.aiTag", "AI")}</Text>
-                  </View>
                 </View>
                 <Text style={styles.poweredBy}>
                   {t("matching.poweredBy", "Suggerimenti generati dalla nostra AI in base a ciò che cerchi e pubblichi.")}
