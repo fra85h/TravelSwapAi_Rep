@@ -1,5 +1,6 @@
 // lib/reports.js — segnalazione di annunci/venditori sospetti
 import { supabase } from "./supabase";
+import { fetchJson } from "./backendApi";
 
 // Codici motivo consentiti (devono combaciare col CHECK in reports_setup.sql)
 export const REPORT_REASONS = ["fake", "scam", "inappropriate", "duplicate", "other"];
@@ -8,7 +9,7 @@ export const REPORT_REASONS = ["fake", "scam", "inappropriate", "duplicate", "ot
  * Invia una segnalazione. reporter_id è sempre l'utente corrente.
  * Ritorna { ok:true } | { ok:false, alreadyReported?:true, error? }.
  */
-export async function submitReport({ listingId = null, reportedUserId = null, reason, details = null }) {
+export async function submitReport({ listingId = null, reportedUserId = null, reason, details = null, listingTitle = null }) {
   if (!REPORT_REASONS.includes(reason)) return { ok: false, error: "invalid_reason" };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "not_authenticated" };
@@ -26,5 +27,14 @@ export async function submitReport({ listingId = null, reportedUserId = null, re
     if (error.code === "23505") return { ok: false, alreadyReported: true };
     return { ok: false, error: error.message || String(error) };
   }
+
+  // Notifica email al moderatore: best-effort, non blocca né fallisce la
+  // segnalazione (che è già salvata a DB) se il server/SMTP non risponde.
+  fetchJson("/api/reports/notify", {
+    method: "POST",
+    body: { listingId, listingTitle, reportedUserId, reason, details },
+    timeoutMs: 10000,
+  }).catch(() => {});
+
   return { ok: true };
 }

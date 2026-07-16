@@ -44,13 +44,12 @@ function toISOorNull(v) {
   return Number.isFinite(d.getTime()) ? d.toISOString() : null;
 }
 
-function buildPrompt(user, listingsBatch) {
-  // prova a leggere da più posti; non forzare default sbagliati
-  const userMode = user?.cerco_vendo ?? user?.prefs?.cerco_vendo ?? null;
-
-  const slimUser = { id: user?.id, prefs: user?.prefs ?? {}, cerco_vendo: userMode };
-
-  const slimListings = listingsBatch.map((l) => ({
+// L'ANNUNCIO SORGENTE dell'utente è il vero termine di paragone del match:
+// senza di esso l'AI valutava alla cieca (bug storico: veniva passato come
+// user.fromListing ma mai letto, quindi rotta/tipo/cerco_vendo dell'utente
+// non arrivavano mai al modello e la reciprocità CERCO↔VENDO era morta).
+function slimListing(l) {
+  return {
     id: l.id,
     title: truncate(normText(l.title), 120),
     type: l.type,
@@ -62,10 +61,16 @@ function buildPrompt(user, listingsBatch) {
     location: truncate(normText(l.location), 80),
     price: l.price,
     description: truncate(normText(l.description), MAX_DESC_CHARS),
-  }));
+  };
+}
 
-  return `Sei un motore di matching.
-Compito: per ciascun listing calcola "score" (0–100) e imposta "bidirectional" quando c'è reciprocità forte con l'UTENTE.
+function buildPrompt(user, listingsBatch) {
+  const from = user?.fromListing ? slimListing(user.fromListing) : null;
+  const slimUser = { id: user?.id, prefs: user?.prefs ?? {} };
+  const slimListings = listingsBatch.map(slimListing);
+
+  return `Sei un motore di matching per un marketplace di viaggi (treni/hotel).
+L'utente ha pubblicato l'ANNUNCIO SORGENTE qui sotto. Per ciascun listing candidato calcola quanto è un buon abbinamento PER QUELL'ANNUNCIO.
 
 Rispondi SOLO con:
 {
@@ -77,11 +82,15 @@ Rispondi SOLO con:
 Regole vincolanti:
 - Un elemento in "scores" per OGNI listing (nessuna omissione).
 - "score" intero 0..100.
-- "bidirectional" = true SOLO se (user.cerco_vendo e listing.cerco_vendo sono complementari) E (route_from→route_to e data/ora coincidono o sono nello stesso giorno). Altrimenti false.
-- Se user.cerco_vendo è null o listing.cerco_vendo è null ⇒ bidirectional=false.
-- Considera route_from/route_to e le date: stessa direzione e stesso giorno aumentano molto lo score; disallineamenti lo riducono.
-- Linee guida score: 60=base, 70=buona, 80+=eccellente.
+- La complementarità è il criterio principale: se l'annuncio sorgente è CERCO, i candidati VENDO equivalenti valgono molto (e viceversa). Due annunci con lo stesso cerco_vendo NON sono complementari.
+- "bidirectional" = true SOLO se (cerco_vendo del sorgente e del candidato sono complementari) E (stesso type) E (stessa tratta route_from→route_to, o stessa località per hotel) E (le date coincidono o sono nello stesso giorno). Altrimenti false.
+- Se cerco_vendo del sorgente o del candidato è null ⇒ bidirectional=false.
+- Tipo diverso dal sorgente (train vs hotel) ⇒ score basso (max 30).
+- Stessa tratta/direzione e stesso giorno aumentano molto lo score; tratta diversa o direzione inversa lo riducono.
+- Linee guida score: <=30 irrilevante, 50=debole, 70=buona, 85+=eccellente, 90+=reciproco quasi perfetto.
+- "explanation" in italiano, breve e concreta (es. "VENDO complementare al tuo CERCO, stessa tratta Roma→Vienna").
 
+AnnuncioSorgente: ${stableStringify(from)}
 Utente: ${stableStringify(slimUser)}
 Listings: ${stableStringify(slimListings)}`;
 }
@@ -283,12 +292,81 @@ export async function scoreWithAI(user, listings) {
 }
 
 /**
- * Fallback deterministico se l’AI non risponde:
- * +15 se type matcha preferenze
- * +10 se price <= maxPrice
- * +10 se location contiene la preferenza location (case-insensitive)
+ * Fallback deterministico se l'AI non risponde.
+ * Con user.fromListing (percorso reale in produzione): confronta il
+ * candidato con l'ANNUNCIO SORGENTE — complementarità CERCO↔VENDO,
+ * stesso tipo, stessa tratta, stesso giorno.
+ * Senza fromListing (percorso legacy/prefs): comportamento storico
+ * basato sulle preferenze utente.
  */
+const normPlace = (s) =>
+  String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+
+function routeOf(l) {
+  let a = normPlace(l?.route_from);
+  let b = normPlace(l?.route_to);
+  if (!a || !b) {
+    const parts = String(l?.location || "").split(/-->|→/);
+    if (parts.length === 2) {
+      a = a || normPlace(parts[0]);
+      b = b || normPlace(parts[1]);
+    }
+  }
+  return [a, b];
+}
+
+function dayOf(l) {
+  const v = l?.depart_at ?? l?.departAt ?? l?.check_in ?? l?.checkIn ?? null;
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : null;
+}
+
 export function heuristicScore(user, listings) {
+  const f = user?.fromListing || null;
+
+  if (f) {
+    const fCV = String(f.cerco_vendo || "").toUpperCase();
+    const compCV = fCV === "CERCO" ? "VENDO" : fCV === "VENDO" ? "CERCO" : null;
+    const fType = String(f.type || "").toLowerCase();
+    const [fA, fB] = routeOf(f);
+    const fDay = dayOf(f);
+    const fLoc = normPlace(f.location);
+
+    return (listings || [])
+      .map((l) => {
+        const lCV = String(l?.cerco_vendo || "").toUpperCase();
+        const lType = String(l?.type || "").toLowerCase();
+        const [lA, lB] = routeOf(l);
+
+        const sameType = !!fType && lType === fType;
+        const complementary = !!compCV && lCV === compCV;
+        const sameRoute = fA && fB && lA && lB && fA === lA && fB === lB;
+        const reverseRoute = fA && fB && lA && lB && fA === lB && fB === lA;
+        const sameHotelLoc = fType === "hotel" && fLoc && normPlace(l?.location) === fLoc;
+        const sameDay = !!fDay && dayOf(l) === fDay;
+
+        let s = 35; // base: senza alcuna affinità il candidato è poco rilevante
+        if (sameType) s += 15;
+        if (complementary) s += 20;
+        if (sameRoute || sameHotelLoc) s += 20;
+        else if (reverseRoute) s += 8;
+        if (sameDay) s += 10;
+        if (!sameType) s = Math.min(s, 30); // tipo diverso: mai oltre "irrilevante"
+
+        const bidirectional = complementary && sameType && (sameRoute || sameHotelLoc);
+        if (bidirectional) s = Math.max(s, 90);
+
+        s = Math.max(0, Math.min(100, Math.round(s)));
+        const explanation = bidirectional
+          ? `${lCV} complementare al tuo ${fCV}, stessa ${fType === "hotel" ? "località" : "tratta"}`
+          : "";
+        return { id: l.id, score: s, bidirectional, model: "heuristic", explanation };
+      })
+      .sort((a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id)));
+  }
+
+  // ---- percorso legacy (nessun fromListing): preferenze utente ----
   const prefs = user?.prefs || {};
   const types = new Set(Array.isArray(prefs.types) ? prefs.types : []);
   const maxPrice = Number.isFinite(Number(prefs.maxPrice))

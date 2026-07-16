@@ -38,10 +38,19 @@ export async function aiTrustReview(listing, heur = {}) {
       "ANCHE se la tratta è geograficamente/logisticamente plausibile per il " +
       "mezzo indicato in `type`: per un annuncio treno, origin/destination " +
       "devono essere collegabili da una rete ferroviaria reale (es. due isole " +
-      "minori non collegate da treno sono una tratta impossibile); per un " +
+      "minori non collegate da treno sono una tratta impossibile; la Sardegna " +
+      "non ha collegamento su rotaia col continente); per un " +
       "annuncio hotel, verifica solo che la città/location sia un luogo reale. " +
       "Se la tratta è impossibile o palesemente insensata, aggiungi un flag " +
       "con code:'IMPLAUSIBLE_ROUTE' e un msg che spiega perché. " +
+      "Valuta anche la DURATA del viaggio (depart_at→arrive_at) rispetto alla " +
+      "tratta: se è palesemente incompatibile con la distanza reale (es. " +
+      "Milano→Roma in 20 minuti, o Torino→Bari in 45 minuti), aggiungi un flag " +
+      "con code:'IMPLAUSIBLE_DURATION' e un msg che spiega perché. " +
+      "Se sono presenti immagini, valuta se sono COERENTI con un annuncio di " +
+      "viaggio di questo tipo (biglietto, stazione, hotel, camera, luogo): " +
+      "foto del tutto estranee (cibo, selfie, oggetti non pertinenti) meritano " +
+      "un flag con code:'IRRELEVANT_IMAGES' e un msg che dice cosa mostrano. " +
       "Restituisci SOLO un JSON con la forma: " +
       "{ textScore:number(0-100), imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
       "Usa rigore: nessun testo extra oltre al JSON.",
@@ -63,10 +72,14 @@ export async function aiTrustReview(listing, heur = {}) {
     text: `Listing: ${JSON.stringify(listing)}`,
   });
 
+  // Accetta sia URL https (foto già caricate) sia data URI base64 (foto
+  // ancora locali al momento del Check AI in creazione — prima di questa
+  // modifica le foto non venivano MAI viste dall'AI, perché l'upload
+  // avviene solo alla pubblicazione).
   const imageUrls = Array.isArray(listing?.images)
     ? listing.images
         .map((i) => (i?.url || i?.uri || "").trim())
-        .filter((u) => /^https?:\/\//i.test(u))
+        .filter((u) => /^https?:\/\//i.test(u) || /^data:image\//i.test(u))
     : [];
 
   for (const url of imageUrls.slice(0, 4)) {

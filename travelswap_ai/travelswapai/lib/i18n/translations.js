@@ -1779,8 +1779,8 @@ export const translations = {
       step2: "Detalles y publicación",
 
       type: "Tipo",
-      cercoVendoLabel: "Tipo annuncio",
-      cerco: "Cerco",
+      cercoVendoLabel: "Tipo de anuncio",
+      cerco: "Busco",
       vendo: "Vendo",
       titleLabel: "Título *",
       titlePlaceholderHotel: "Ej. Habitación doble cerca del Duomo",

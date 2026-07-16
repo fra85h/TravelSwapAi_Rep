@@ -93,6 +93,30 @@ let trustScore = Math.round(
   (i * weights.aiImages)
 );
 
+// Tetti per flag gravi: la media pesata 45/45/10 diluisce i problemi
+// oggettivi (una tratta impossibile con punteggio 83% è fuorviante).
+// Un flag grave deve dominare il punteggio, non contribuirvi in media.
+const allFlagCodes = [
+  ...(heur?.flags ?? []),
+  ...(ai?.flags ?? []),
+].map((f) => String(f?.code || '').toUpperCase());
+
+if (allFlagCodes.includes('IMPLAUSIBLE_ROUTE')) {
+  trustScore = Math.min(trustScore, 35);
+}
+if (allFlagCodes.includes('IMPLAUSIBLE_DURATION')) {
+  trustScore = Math.min(trustScore, 45);
+}
+if (allFlagCodes.includes('IRRELEVANT_IMAGES')) {
+  trustScore = Math.min(trustScore, 55);
+}
+if (allFlagCodes.includes('PRICE_OUTLIER') || allFlagCodes.includes('NON_POSITIVE_PRICE')) {
+  trustScore = Math.min(trustScore, 55);
+}
+if (allFlagCodes.includes('SUSPICIOUS_TERMS')) {
+  trustScore = Math.min(trustScore, 45);
+}
+
 // Contenuto segnalato dalla moderazione: è un problema grave e oggettivo,
 // il punteggio non può restare alto — lo forziamo verso il basso.
 if (moderation.flagged) {
