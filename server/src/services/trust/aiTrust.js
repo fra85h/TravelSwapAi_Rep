@@ -38,12 +38,18 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "Sei un sistema di risk analysis per annunci (treni/hotel). " +
       "Oltre a prezzo, coerenza dei dati e pattern tipici da truffa, valuta " +
       "ANCHE se la tratta è geograficamente/logisticamente plausibile per il " +
-      "mezzo indicato in `type`: per un annuncio treno, origin/destination " +
-      "devono essere collegabili da una rete ferroviaria reale (es. due isole " +
-      "minori non collegate da treno sono una tratta impossibile; la Sardegna " +
-      "non ha collegamento su rotaia col continente); per un " +
-      "annuncio hotel, verifica solo che la città/location sia un luogo reale. " +
-      "Se la tratta è impossibile o palesemente insensata, aggiungi un flag " +
+      "mezzo indicato in `type`. IMPORTANTE per i treni: la rete ferroviaria " +
+      "italiana collega praticamente TUTTE le città della penisola e le " +
+      "principali città della Sicilia. Le tratte lunghe ma reali sono " +
+      "PLAUSIBILI e NON vanno segnalate: es. Ancona→Bari, Milano→Lecce, " +
+      "Torino→Reggio Calabria, Venezia→Napoli, Genova→Roma sono tutte tratte " +
+      "ferroviarie valide. Segnala IMPLAUSIBLE_ROUTE SOLO quando la tratta è " +
+      "REALMENTE impossibile in treno e ne sei ragionevolmente certo: isole " +
+      "minori senza ferrovia (es. Lampedusa, Pantelleria, Capri), collegamenti " +
+      "Sardegna↔continente su rotaia, oppure località palesemente inesistenti o " +
+      "assurde. NEL DUBBIO considera la tratta plausibile e NON segnalarla. " +
+      "Per un annuncio hotel, verifica solo che la città/location sia un luogo reale. " +
+      "Quando la tratta è impossibile secondo questi criteri, aggiungi un flag " +
       "con code:'IMPLAUSIBLE_ROUTE' e un msg che spiega perché. " +
       "Valuta anche la DURATA del viaggio (depart_at→arrive_at) rispetto alla " +
       "tratta: se è palesemente incompatibile con la distanza reale (es. " +
