@@ -1,6 +1,6 @@
 // screens/HomeScreen.js — Annunci pubblici (senza tab "Voli")
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, ScrollView } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, ScrollView, Alert } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { listPublicListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
@@ -242,6 +242,18 @@ export default function HomeScreen() {
             <Ionicons name="sparkles" size={15} color={theme.colors.accent} />
             <Text style={styles.perTeTitle}>{tt("esplora.forYouTitle", "Per te")}</Text>
             <View style={styles.aiTag}><Text style={styles.aiTagText}>{tt("matching.aiTag", "AI")}</Text></View>
+            {/* Una sola ⓘ per l'intera sezione: spiega cosa sono i suggerimenti
+                e cosa indica la percentuale di affinità, senza affollare le card. */}
+            <TouchableOpacity
+              onPress={() => Alert.alert(
+                tt("esplora.forYouInfoTitle", "Suggeriti per te"),
+                tt("esplora.forYouInfoMsg", "Annunci scelti dall'AI in base a ciò che cerchi e pubblichi. La percentuale di affinità indica quanto un annuncio è in linea con te: più è alta, meglio è.")
+              )}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={tt("esplora.forYouInfoTitle", "Suggeriti per te")}
+            >
+              <Ionicons name="information-circle-outline" size={16} color={theme.colors.textMuted} />
+            </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate("Matching")}>
             <Text style={styles.seeAll}>{tt("esplora.seeAll", "Vedi tutti")}</Text>
@@ -257,9 +269,11 @@ export default function HomeScreen() {
                 activeOpacity={0.85}
                 onPress={() => navigation.navigate("ListingDetail", { id: p.listingId })}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Ionicons name={isTrain ? "train-outline" : "bed-outline"} size={15} color={theme.colors.boardingText} />
-                  <Text style={styles.pickScore}>{Math.round(p.score)}</Text>
+                {/* Numero etichettato: "Affinità NN%" invece del numero muto,
+                    così si capisce senza spiegazioni cosa rappresenta. */}
+                <View style={styles.affinityPill}>
+                  <Ionicons name={isTrain ? "train-outline" : "bed-outline"} size={13} color={theme.colors.accentOn} />
+                  <Text style={styles.affinityText}>{tt("esplora.affinity", "Affinità {n}%", { n: Math.round(p.score) })}</Text>
                 </View>
                 <Text style={styles.pickTitle} numberOfLines={2}>{stripPriceFromTitle(p.title) || tt("listing.untitled", "Senza titolo")}</Text>
                 {p.location ? <Text style={styles.pickSub} numberOfLines={1}>{p.location}</Text> : null}
@@ -267,6 +281,10 @@ export default function HomeScreen() {
             );
           })}
         </ScrollView>
+
+        {/* Divisore verso il catalogo completo: appare solo quando c'è la
+            striscia "Per te" sopra (renderPerTe è nullo senza suggerimenti). */}
+        <Text style={styles.otherListingsHead}>{tt("esplora.otherListings", "Altri annunci")}</Text>
       </View>
     );
   };
@@ -395,7 +413,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
-  pickScore: { fontSize: 13, fontWeight: "800", color: theme.colors.accent },
+  affinityPill: {
+    flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
+    backgroundColor: theme.colors.accent, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  affinityText: { fontSize: 11, fontWeight: "800", color: theme.colors.accentOn },
   pickTitle: { marginTop: 8, fontWeight: "800", color: theme.colors.boardingText, minHeight: 36 },
   pickSub: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
+  otherListingsHead: { marginTop: 16, marginBottom: 2, fontSize: 15, fontWeight: "800", color: theme.colors.text },
 });
