@@ -93,6 +93,24 @@ export default function AttivitaScreen({ navigation }) {
   const offerKindLabel = (o) =>
     o.type === "buy" ? t("offers.buy", "Acquisto") : t("offers.swap", "Scambio");
 
+  // Blocco scambio: rende esplicito "cosa ricevi ⇄ cosa dai", così dalla card
+  // si capisce chi scambia cosa (prima si vedeva un solo annuncio).
+  const renderExchange = (receiveTitle, giveTitle) => (
+    <View style={styles.exchange}>
+      <View style={styles.exchangeLine}>
+        <Text style={styles.exchangeLabel}>{t("activity.youReceive", "Ricevi")}</Text>
+        <Text style={styles.exchangeValue} numberOfLines={2}>{receiveTitle}</Text>
+      </View>
+      <View style={styles.exchangeArrow}>
+        <Ionicons name="swap-vertical" size={16} color={theme.colors.accent} />
+      </View>
+      <View style={styles.exchangeLine}>
+        <Text style={styles.exchangeLabel}>{t("activity.youGive", "Dai")}</Text>
+        <Text style={styles.exchangeValue} numberOfLines={2}>{giveTitle}</Text>
+      </View>
+    </View>
+  );
+
   const renderToDo = (it) => {
     if (it.kind === "offer_in") {
       const o = it.data;
@@ -100,8 +118,19 @@ export default function AttivitaScreen({ navigation }) {
       return (
         <View key={it.id} style={styles.card}>
           <Text style={styles.cardKicker}>{t("activity.offerReceived", "Proposta ricevuta")} · {offerKindLabel(o)}</Text>
-          <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
-          {o.amount != null ? <Text style={styles.cardMeta}>{Number(o.amount).toFixed(2)} {o.currency || "EUR"}</Text> : null}
+          {o.type === "swap" ? (
+            // Proposta ricevuta: RICEVO il loro annuncio (from_listing), DO il
+            // mio (to_listing, quello che hanno scelto).
+            renderExchange(
+              o.from_listing?.title || t("offerFlow.listing", "Annuncio"),
+              o.to_listing?.title || t("offerFlow.listing", "Annuncio")
+            )
+          ) : (
+            <>
+              <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
+              {o.amount != null ? <Text style={styles.cardMeta}>{Number(o.amount).toFixed(2)} {o.currency || "EUR"}</Text> : null}
+            </>
+          )}
           {o.message ? <Text style={styles.cardMsg}>{o.message}</Text> : null}
           <View style={styles.actionRow}>
             <TouchableOpacity style={[styles.btn, styles.btnAccept, busy && styles.btnDisabled]} disabled={busy} onPress={() => onAccept(o.id)}>
@@ -136,7 +165,16 @@ export default function AttivitaScreen({ navigation }) {
       return (
         <View key={it.id} style={styles.card}>
           <Text style={styles.cardKicker}>{t("activity.offerSent", "Proposta inviata")} · {offerKindLabel(o)}</Text>
-          <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
+          {o.type === "swap" ? (
+            // Proposta inviata: RICEVEREI il loro annuncio (to_listing), DO il
+            // mio (from_listing, quello che ho offerto).
+            renderExchange(
+              o.to_listing?.title || t("offerFlow.listing", "Annuncio"),
+              o.from_listing?.title || t("offerFlow.listing", "Annuncio")
+            )
+          ) : (
+            <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
+          )}
           <View style={styles.actionRow}>
             <View style={styles.statusChip}><Text style={styles.statusChipText}>{t("activity.pending", "In attesa")}</Text></View>
             <TouchableOpacity style={[styles.btn, styles.btnDecline, busy && styles.btnDisabled]} disabled={busy} onPress={() => onCancel(o.id)}>
@@ -173,10 +211,13 @@ export default function AttivitaScreen({ navigation }) {
   const renderHistory = (it) => {
     const tx = it.data;
     const listing = tx.listing || {};
+    const isSwap = tx.ttype === "swap";
+    // In uno scambio non si "vende": si cede il proprio annuncio e si riceve
+    // quello dell'altro. Etichette dedicate per non confondere con una vendita.
     const dir = tx.direction === "sold"
-      ? t("transactions.directionSold", "Venduto")
+      ? (isSwap ? t("transactions.directionSwapGiven", "Ceduto") : t("transactions.directionSold", "Venduto"))
       : t("transactions.directionBought", "Ricevuto");
-    const typeLabel = tx.ttype === "swap" ? t("transactions.typeSwap", "Scambio") : t("transactions.typeSale", "Vendita");
+    const typeLabel = isSwap ? t("transactions.typeSwap", "Scambio") : t("transactions.typeSale", "Vendita");
     return (
       <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(listing.id)} activeOpacity={0.85}>
         <Text style={styles.cardKicker}>🧾 {typeLabel} · {dir}</Text>
@@ -263,6 +304,17 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   cardMeta: { color: theme.colors.textMuted, marginTop: 4 },
   cardMsg: { color: theme.colors.text, marginTop: 8 },
+  exchange: {
+    marginTop: 2, backgroundColor: theme.colors.accentSoft, borderRadius: theme.radius.lg,
+    borderWidth: 1, borderColor: theme.colors.accent, padding: 10, gap: 2,
+  },
+  exchangeLine: { gap: 2 },
+  exchangeLabel: {
+    fontSize: 10, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase",
+    color: theme.colors.accentOn,
+  },
+  exchangeValue: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  exchangeArrow: { alignItems: "center", marginVertical: 2 },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   newDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.accent },
 
