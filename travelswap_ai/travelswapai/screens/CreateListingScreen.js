@@ -63,6 +63,26 @@ function formatAutoTitle(cercoVendo, type, locFrom, locTo, checkIn, checkOut, de
 }
 
 
+/* Divide una tratta "A → B" (o "A-->B") in [da, a]. */
+function splitRoute(loc) {
+  const parts = String(loc || "").split(/-->|→/);
+  if (parts.length === 2) return [parts[0].trim(), parts[1].trim()];
+  return ["", ""];
+}
+
+/* Titolo standard coerente con l'azione scelta dall'utente (mai "Vendo" a
+   prescindere: era il bug per cui un annuncio CERCO usciva col titolo "Vendo
+   treno..."). I titoli restano in italiano come da template lato server. */
+function buildAutoTitle(cercoVendo, type, routeFrom, routeTo, location) {
+  const action = String(cercoVendo || "").toUpperCase() === "CERCO" ? "Cerco" : "Vendo";
+  if (String(type || "").toLowerCase() === "train") {
+    const route = [String(routeFrom || "").trim(), String(routeTo || "").trim()].filter(Boolean).join(" → ");
+    return route ? `${action} treno ${route} solo andata` : "";
+  }
+  const loc = String(location || "").trim();
+  return loc ? `${action} hotel ${loc}` : "";
+}
+
 /* Estrazione CERCO/VENDO dal testo descrizione (fallback locale se l'AI non lo imposta) */
 function guessCercoVendoFromText(text) {
   const s = String(text || "").toLowerCase();
@@ -373,11 +393,16 @@ export default function CreateListingScreen({
   }, []);
 
   // Stato form
+  // location resta il campo per gli hotel; per i treni la tratta vive in due
+  // campi separati routeFrom/routeTo ("Da"/"A") e location viene ricomposta
+  // come "Da → A" solo al salvataggio (compatibilità con DB e resto dell'app).
   const [form, setForm] = useState({
     type: "hotel",
     cercoVendo: "VENDO",
     title: "",
     location: "",
+    routeFrom: "",
+    routeTo: "",
     checkIn: "",
     checkOut: "",
     departAt: "",
@@ -388,6 +413,11 @@ export default function CreateListingScreen({
     description: "",
     price: "",
   });
+
+  // true dopo che l'utente ha toccato esplicitamente il segmento: da quel
+  // momento "Compila con AI" non cambia più il valore in silenzio ma chiede.
+  const userTouchedCercoVendo = useRef(false);
+  const userTouchedType = useRef(false);
 
   const [lastTrustRunAt, setLastTrustRunAt] = useState(0);
   useEffect(() => {
@@ -516,12 +546,15 @@ const initialJsonRef = useRef(null);
           // il PNR non è in listings: si legge dal segreto (solo owner)
           const secretPnr = await getListingSecret(route.params.listingId).catch(() => null);
           if (!cancelled && l) {
+            const [locFrom, locTo] = splitRoute(l.location);
             setForm((prev) => ({
               ...prev,
               type: l.type || prev.type,
               cercoVendo: l.cerco_vendo || l.cercoVendo || prev.cercoVendo,
               title: l.title ?? prev.title,
               location: l.location ?? prev.location,
+              routeFrom: l.route_from || locFrom || "",
+              routeTo: l.route_to || locTo || "",
               description: l.description ?? prev.description,
               price: l.price != null ? String(l.price) : prev.price,
               checkIn: l.check_in || "",
@@ -541,10 +574,13 @@ const initialJsonRef = useRef(null);
         if (route?.params?.draftFromId && typeof getListingById === "function") {
           const l = await getListingById(route.params.draftFromId);
           if (!cancelled && l) {
+            const [locFrom, locTo] = splitRoute(l.location);
             setForm((prev) => ({
               ...prev,
               title: l.title || prev.title,
               location: l.location || prev.location,
+              routeFrom: l.route_from || locFrom || "",
+              routeTo: l.route_to || locTo || "",
               description: l.description || prev.description,
               price: l.price != null ? String(l.price) : prev.price,
               imageUrl: l.image_url || prev.imageUrl,
@@ -558,7 +594,15 @@ const initialJsonRef = useRef(null);
           const raw = await AsyncStorage.getItem(DRAFT_KEY);
           if (raw && mode !== "edit") {
             const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === "object") setForm((p) => ({ ...p, ...parsed }));
+            if (parsed && typeof parsed === "object") {
+              // bozze salvate prima dei campi routeFrom/routeTo: ricava la
+              // tratta dalla vecchia location "A → B"
+              if (parsed.location && !parsed.routeFrom && !parsed.routeTo) {
+                const [a, b] = splitRoute(parsed.location);
+                if (a || b) { parsed.routeFrom = a; parsed.routeTo = b; }
+              }
+              setForm((p) => ({ ...p, ...parsed }));
+            }
           }
         }
       } catch {}
@@ -596,12 +640,25 @@ const initialJsonRef = useRef(null);
   }, [queueAutoSave]);
 
   const onChangeType = (nextType) => {
+    userTouchedType.current = true;
     if (form?.type === nextType) return;
     if (nextType === "hotel") {
       update({ type: "hotel", departAt: "", arriveAt: "", isNamedTicket: false, gender: "", pnr: "" });
     } else {
       update({ type: "train", checkIn: "", checkOut: "" });
     }
+  };
+
+  // Cambio CERCO/VENDO: se il titolo segue il template "Cerco/Vendo …",
+  // adegua la prima parola così titolo e chip non si contraddicono mai.
+  const onChangeCercoVendo = (cv) => {
+    userTouchedCercoVendo.current = true;
+    update((prev) => {
+      const patch = { cercoVendo: cv };
+      const m = String(prev.title || "").match(/^(Cerco|Vendo)\s+(.*)$/i);
+      if (m) patch.title = `${cv === "CERCO" ? "Cerco" : "Vendo"} ${m[2]}`;
+      return patch;
+    });
   };
 
   /* ---------- CHECK AI (comprende ex “Magia IA”) ---------- */
@@ -724,6 +781,152 @@ const initialJsonRef = useRef(null);
     }, AUTO_HIDE_MS);
   }, []);
 
+  /* ---------- COMPILA CON AI (ex "Magia IA", separata dal Check) ----------
+     Legge la descrizione e propone i campi. Regole:
+     - compila SOLO i campi vuoti; se un campo ha già un valore diverso,
+       chiede conferma prima di sovrascrivere;
+     - le DATE inserite dall'utente non vengono MAI toccate;
+     - il titolo rispetta il CERCO/VENDO effettivo (mai "Vendo" forzato). */
+  const [aiFilling, setAiFilling] = useState(false);
+
+  const onAiFill = useCallback(async () => {
+    const text = String(form.description || "").trim();
+    if (text.length < 10) {
+      Alert.alert(
+        t("createListing.aiFillNeedDescTitle", "Descrizione mancante"),
+        t("createListing.aiFillNeedDescMsg", "Scrivi prima una breve descrizione (almeno 10 caratteri): l'AI la userà per compilare i campi.")
+      );
+      return;
+    }
+
+    try {
+      setAiFilling(true);
+      setShowMicroLog(true);
+      setMicroLog([]);
+      setProgress(0);
+      logStep("Analisi descrizione con AI…", 25);
+
+      let parsed = null;
+      try { parsed = await parseListingFromTextAI(text, "it"); } catch {}
+
+      // cerco/vendo: AI > euristica locale sul testo
+      const cercoFromText = guessCercoVendoFromText(text);
+      const detectedCV =
+        (parsed?.cercoVendo === "CERCO" || parsed?.cercoVendo === "VENDO")
+          ? parsed.cercoVendo
+          : cercoFromText;
+
+      // tratta dal parse (origin/destination o location "A-->B")
+      const [parsedFrom, parsedTo] = (parsed?.origin || parsed?.destination)
+        ? [String(parsed.origin || "").trim(), String(parsed.destination || "").trim()]
+        : splitRoute(parsed?.location);
+
+      const isEmpty = (v) => !String(v ?? "").trim();
+
+      // fillPatch: campi vuoti → si applicano subito, in silenzio.
+      // conflicts: campi già valorizzati con suggerimento diverso → si chiede.
+      const fillPatch = {};
+      const conflicts = [];
+      const consider = (key, suggested, label, { neverOverwrite = false } = {}) => {
+        const sugg = String(suggested ?? "").trim();
+        if (!sugg) return;
+        const current = String(form[key] ?? "").trim();
+        if (isEmpty(current)) { fillPatch[key] = sugg; return; }
+        if (current.toLowerCase() === sugg.toLowerCase()) return;
+        if (neverOverwrite) return; // date dell'utente: mai toccate
+        conflicts.push({ key, label, suggested: sugg });
+      };
+
+      // type/cercoVendo: hanno un default, quindi "vuoto" = mai toccato dall'utente
+      const nextType = (parsed?.type === "train" || parsed?.type === "hotel") ? parsed.type : null;
+      if (nextType && nextType !== form.type) {
+        if (!userTouchedType.current) fillPatch.type = nextType;
+        else conflicts.push({ key: "type", label: t("createListing.type", "Tipo"), suggested: nextType });
+      }
+      if (detectedCV && detectedCV !== form.cercoVendo) {
+        if (!userTouchedCercoVendo.current) fillPatch.cercoVendo = detectedCV;
+        else conflicts.push({ key: "cercoVendo", label: t("createListing.cercoVendoLabel", "Tipo annuncio"), suggested: detectedCV });
+      }
+
+      const effType = fillPatch.type || form.type;
+      if (effType === "train") {
+        consider("routeFrom", parsedFrom, t("createListing.routeFrom", "Da"));
+        consider("routeTo", parsedTo, t("createListing.routeTo", "A"));
+        consider("departAt", parsed?.departAt ? parsed.departAt.replace(" ", "T") : null, t("createListing.departAt", "Partenza"), { neverOverwrite: true });
+        consider("arriveAt", parsed?.arriveAt ? parsed.arriveAt.replace(" ", "T") : null, t("createListing.arriveAt", "Arrivo"), { neverOverwrite: true });
+        if (parsed?.pnr) consider("pnr", parsed.pnr, "PNR");
+        if (typeof parsed?.isNamedTicket === "boolean" && !form.isNamedTicket) fillPatch.isNamedTicket = parsed.isNamedTicket;
+        if (parsed?.gender) consider("gender", parsed.gender, t("createListing.train.genderLabel", "Genere"));
+      } else {
+        const parsedLoc = String(parsed?.location || "").trim();
+        if (parsedLoc && !/-->|→/.test(parsedLoc)) consider("location", parsedLoc, t("createListing.locationLabelHotel", "Località"));
+        consider("checkIn", parsed?.checkIn ? normalizeDateStr(parsed.checkIn) : null, t("createListing.checkIn", "Check-in"), { neverOverwrite: true });
+        consider("checkOut", parsed?.checkOut ? normalizeDateStr(parsed.checkOut) : null, t("createListing.checkOut", "Check-out"), { neverOverwrite: true });
+      }
+      if (parsed?.price) consider("price", String(parsed.price).replace(",", "."), t("createListing.price", "Prezzo"));
+
+      // titolo: sempre ricostruito dal template con l'azione EFFETTIVA
+      const effCV = fillPatch.cercoVendo || form.cercoVendo;
+      const autoTitle = buildAutoTitle(
+        effCV,
+        effType,
+        fillPatch.routeFrom || form.routeFrom,
+        fillPatch.routeTo || form.routeTo,
+        fillPatch.location || form.location
+      );
+      if (autoTitle) consider("title", autoTitle, t("createListing.titleLabel", "Titolo").replace(" *", ""));
+
+      const filledCount = Object.keys(fillPatch).length;
+      if (filledCount) {
+        update(fillPatch);
+        logStep(`Compilati ${filledCount} campi dalla descrizione.`, 80);
+      } else {
+        logStep("Nessun campo vuoto da compilare.", 80);
+      }
+
+      if (conflicts.length) {
+        const fieldNames = conflicts.map((c) => c.label).join(", ");
+        logStep("Alcuni campi hanno già un valore: scegli tu.", 95);
+        Alert.alert(
+          t("createListing.aiFillConflictTitle", "Sovrascrivere i campi già compilati?"),
+          t("createListing.aiFillConflictMsg", `L'AI suggerisce valori diversi per: ${fieldNames}. Le date che hai inserito non vengono mai modificate.`, { fields: fieldNames }),
+          [
+            { text: t("createListing.aiFillKeep", "Mantieni i miei dati"), style: "cancel" },
+            {
+              text: t("createListing.aiFillOverwrite", "Usa suggerimenti AI"),
+              onPress: () => {
+                const patch = {};
+                for (const c of conflicts) patch[c.key] = c.suggested;
+                // ricalcola il titolo se cambia qualcosa che lo compone
+                const cv2 = patch.cercoVendo || effCV;
+                const type2 = patch.type || effType;
+                const t2 = buildAutoTitle(
+                  cv2, type2,
+                  patch.routeFrom || fillPatch.routeFrom || form.routeFrom,
+                  patch.routeTo || fillPatch.routeTo || form.routeTo,
+                  patch.location || fillPatch.location || form.location
+                );
+                if (t2 && !conflicts.some((c) => c.key === "title")) patch.title = t2;
+                update(patch);
+              },
+            },
+          ]
+        );
+      }
+
+      logStep("Fatto. Controlla i campi e completa ciò che manca.", 100);
+      clearLogSoon();
+    } catch {
+      logStep("Errore durante la compilazione AI.", 100);
+      clearLogSoon();
+      Alert.alert(t("common.error", "Errore"), t("createListing.aiFillErrorMsg", "Impossibile analizzare la descrizione. Riprova."));
+    } finally {
+      setAiFilling(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, t, update, logStep, clearLogSoon]);
+
+  /* ---------- CHECK AI (solo verifica: non modifica MAI il form) ---------- */
   const onTrustCheck = useCallback(async () => {
     const now = Date.now();
     if (now - lastTrustRunAt < 10_000) {
@@ -737,87 +940,25 @@ const initialJsonRef = useRef(null);
       setShowMicroLog(true);
       setMicroLog([]);
       setProgress(0);
-      logStep("Inizio controllo…", 5);
+      logStep("Inizio controllo…", 10);
 
-      // 1) Analisi descrizione (ex Magia IA)
-      logStep("Analisi descrizione con AI…", 20);
-      const text = String(form.description || "").trim();
-      let parsed = null;
-      if (text) {
-        try {
-          parsed = await parseListingFromTextAI(text, "it");
-        } catch {}
-      }
-
-      // 1.1) Determina cerco/vendo
-      let cercoFromText = guessCercoVendoFromText(text);
-      let nextCercoVendo =
-        (parsed?.cercoVendo === "CERCO" || parsed?.cercoVendo === "VENDO")
-          ? parsed.cercoVendo
-          : (cercoFromText || form.cercoVendo);
-
-      // 1.2) Costruisci patch dai suggerimenti AI
-      const patch = {};
-if (parsed?.type) patch.type = parsed.type;
-      if (parsed?.title) patch.title = parsed.title;
-      if (parsed?.location) patch.location = parsed.location;
-      if (parsed?.checkIn) patch.checkIn = normalizeDateStr(parsed.checkIn);
-      if (parsed?.checkOut) patch.checkOut = normalizeDateStr(parsed.checkOut);
-      if (parsed?.departAt) patch.departAt = parsed.departAt.replace(" ", "T");
-      if (parsed?.arriveAt) patch.arriveAt = parsed.arriveAt.replace(" ", "T");
-      if (typeof parsed?.isNamedTicket === "boolean") patch.isNamedTicket = parsed.isNamedTicket;
-      if (parsed?.gender) patch.gender = parsed.gender;
-      if (parsed?.pnr) patch.pnr = parsed.pnr;
-      
-      // Build route and title from parsed origin/destination when available
-      if (parsed?.origin || parsed?.destination) {
-        const a = String(parsed.origin || "").trim();
-        const b = String(parsed.destination || "").trim();
-        const routeStr = (a && b) ? `${a}-->${b}` : (a || b);
-        if (routeStr) {
-          patch.location = routeStr;
-          patch.title = `Vendo treno ${routeStr} solo andata`;
-        }
-      }
-if (parsed?.price) patch.price = String(parsed.price).replace(",", ".");
-      if (nextCercoVendo) patch.cercoVendo = nextCercoVendo;
-
-      try {
-        const combinedLoc = (patch.location || form.location || "");
-        const hasArrow = /-->/.test(combinedLoc) || /→/.test(combinedLoc);
-        const [locFrom, locTo] = hasArrow ? combinedLoc.split("-->").length>1?combinedLoc.split("-->"):combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
-        const routeStr = (locFrom && locTo) ? `${locFrom}-->${locTo}` : (locFrom || locTo || "");
-if ((patch.type || form.type) === "train" && routeStr) {
-  patch.location = routeStr;
-  patch.title = `Vendo treno ${routeStr} solo andata`;
-}
-      } catch {}
-
-      if (Object.keys(patch).length) {
-        update(patch);
-        logStep("Suggerimenti AI applicati.", 40);
-      } else {
-        logStep("Nessun suggerimento AI da applicare.", 40);
-      }
-
-      // 2) Coerenza/validazioni locali (warning)
-      logStep("Controllo coerenza e date…", 60);
+      // 1) Coerenza/validazioni locali (warning)
+      logStep("Controllo coerenza e date…", 30);
       const localFlags = [];
       const nowDate = new Date();
 
       if (form?.type === "hotel") {
-        const a = parseISODate(normalizeDateStr(patch.checkIn || form.checkIn));
-        const b = parseISODate(normalizeDateStr(patch.checkOut || form.checkOut));
+        const a = parseISODate(normalizeDateStr(form.checkIn));
+        const b = parseISODate(normalizeDateStr(form.checkOut));
         if (a && b) {
-          const ms = b - a;
-          const days = ms / (1000 * 60 * 60 * 24);
+          const days = (b - a) / (1000 * 60 * 60 * 24);
           if (days > 30) localFlags.push({ field: "checkOut", msg: "Durata soggiorno oltre 30 giorni." });
         }
         if (a && a < new Date(nowDate.toDateString())) localFlags.push({ field: "checkIn", msg: "Check-in nel passato." });
         if (b && b < new Date(nowDate.toDateString())) localFlags.push({ field: "checkOut", msg: "Check-out nel passato." });
       } else {
-        const da = parseISODateTime(patch.departAt || form.departAt);
-        const ar = parseISODateTime(patch.arriveAt || form.arriveAt);
+        const da = parseISODateTime(form.departAt);
+        const ar = parseISODateTime(form.arriveAt);
         if (da && ar) {
           const hrs = (ar - da) / (1000 * 60 * 60);
           if (hrs > 48) localFlags.push({ field: "arriveAt", msg: "Durata tratta oltre 48 ore." });
@@ -826,41 +967,45 @@ if ((patch.type || form.type) === "train" && routeStr) {
         if (ar && ar < new Date()) localFlags.push({ field: "arriveAt", msg: "Arrivo nel passato." });
       }
 
-      // 3) TrustScore remoto
-      logStep("Verifica affidabilità annuncio…", 80);
-      const locForTrust = (patch.location || form.location || "");
-      // La tratta può essere stata scritta poco sopra con "-->" (righe 789/791)
-      // invece della freccia "→" digitata dall'utente: riconoscere solo "→"
-      // qui lasciava origin/destination sempre null, quindi l'AI non aveva
-      // alcuna tratta da valutare per la plausibilità geografica.
-      const hasArrow = (patch.type || form?.type) === "train" && (/-->/.test(locForTrust) || /→/.test(locForTrust));
-      const [locFrom, locTo] = hasArrow
-        ? (locForTrust.split("-->").length > 1 ? locForTrust.split("-->") : locForTrust.split("→")).map(s => s.trim())
-        : [null, null];
+      // 2) Foto: incluse nella verifica (moderazione + coerenza col contenuto).
+      //    In creazione sono ancora locali → data URI base64; in modifica
+      //    sono già su storage → URL https.
+      const images = [];
+      for (const a of pendingPhotos) {
+        if (images.length >= 3) break;
+        if (a?.base64) images.push({ url: `data:${a.mimeType || "image/jpeg"};base64,${a.base64}` });
+      }
+      for (const img of existingPhotos) {
+        if (images.length >= 3) break;
+        if (img?.url) images.push({ url: img.url });
+      }
+      if (images.length) logStep(`Analizzo anche ${images.length} foto…`, 45);
 
+      // 3) TrustScore remoto sul form CORRENTE (nessuna patch)
+      logStep("Verifica affidabilità annuncio…", 60);
+      const isTrain = form?.type === "train";
       const payload = {
         id: passedListing?.id || listingId || null,
-        type: patch.type || form?.type,
-        title: patch.title || form.title,
+        type: form?.type,
+        title: form.title,
         description: form.description,
-        origin: (patch.type || form?.type) === "train" ? (locFrom || null) : null,
-        destination: (patch.type || form?.type) === "train"
-          ? (locTo || null)
-          : ((patch.location || form.location) || null),
-        checkIn: (patch.type || form?.type) === "hotel" ? (patch.checkIn || form.checkIn) : null,
-        checkOut: (patch.type || form?.type) === "hotel" ? (patch.checkOut || form.checkOut) : null,
-        departAt: (patch.type || form?.type) === "train" ? (patch.departAt || form.departAt) : null,
-        arriveAt: (patch.type || form?.type) === "train" ? (patch.arriveAt || form.arriveAt) : null,
-        price: (patch.price || form.price) ? Number(String(patch.price || form.price).replace(",", ".")) : null,
+        origin: isTrain ? (String(form.routeFrom || "").trim() || null) : null,
+        destination: isTrain ? (String(form.routeTo || "").trim() || null) : null,
+        // per gli hotel il normalizzatore legge "location" (non destination):
+        // passarla come destination la faceva sparire dal payload verso il server
+        location: !isTrain ? (String(form.location || "").trim() || null) : null,
+        checkIn: !isTrain ? (form.checkIn || null) : null,
+        checkOut: !isTrain ? (form.checkOut || null) : null,
+        departAt: isTrain ? (form.departAt || null) : null,
+        arriveAt: isTrain ? (form.arriveAt || null) : null,
+        price: form.price ? Number(String(form.price).replace(",", ".")) : null,
         currency: "EUR",
+        images,
       };
       const res = await evaluate(payload);
 
-      if (Array.isArray(localFlags) && localFlags.length) {
-        const existing = Array.isArray(res?.flags) ? res.flags : [];
-        const merged = uniqBy([...existing, ...localFlags], f => `${f.field}|${f.msg}`.toLowerCase());
-        localFlags.forEach(f => logStep(`⚠︎ ${f.msg}`, 90));
-        void merged;
+      if (localFlags.length) {
+        localFlags.forEach((f) => logStep(`⚠︎ ${f.msg}`, 90));
       }
 
       logStep("Fatto.", 100);
@@ -877,7 +1022,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
       setLoadingAI(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, lastTrustRunAt, trustError, evaluate, update, logStep, clearLogSoon, passedListing?.id, listingId]);
+  }, [form, lastTrustRunAt, trustError, evaluate, logStep, clearLogSoon, passedListing?.id, listingId, pendingPhotos, existingPhotos]);
 
   const applyAllTrustFixes = () => {
     try {
@@ -887,13 +1032,15 @@ if ((patch.type || form.type) === "train" && routeStr) {
         return;
       }
       const patch = {};
+      const isTrain = form?.type === "train";
       const mapKey = (k) => {
         const key = String(k || "").toLowerCase();
         if (["title","titolo"].includes(key)) return "title";
-        if (["location","località","destinazione","destination"].includes(key)) return "location";
+        if (["origin","partenza","da","route_from","routefrom"].includes(key)) return isTrain ? "routeFrom" : "location";
+        if (["location","località","destinazione","destination","a","route_to","routeto"].includes(key)) return isTrain ? "routeTo" : "location";
         if (["checkin","check_in","check-out","check-in"].includes(key)) return "checkIn";
         if (["checkout","check_out"].includes(key)) return "checkOut";
-        if (["departat","depart_at","departure","partenza"].includes(key)) return "departAt";
+        if (["departat","depart_at","departure"].includes(key)) return "departAt";
         if (["arriveat","arrive_at","arrival","arrivo"].includes(key)) return "arriveAt";
         if (["price","prezzo"].includes(key)) return "price";
         if (["pnr","codiceprenotazione"].includes(key)) return "pnr";
@@ -907,18 +1054,24 @@ if ((patch.type || form.type) === "train" && routeStr) {
         if (k === "price") v = String(v).replace(",", ".");
         if (k === "cercoVendo") v = /cerco/i.test(String(v)) ? "CERCO" : /vendo/i.test(String(v)) ? "VENDO" : null;
         if (v == null) continue;
+        // se il fix porta una tratta intera "A → B", spalmala sui due campi
+        if (k === "routeFrom" || k === "routeTo") {
+          const [a, b] = splitRoute(v);
+          if (a && b) { patch.routeFrom = a; patch.routeTo = b; continue; }
+        }
         patch[k] = String(v);
       }
-      try {
-        const combinedLoc = (patch.location || form.location || "");
-        const hasArrow = /-->/.test(combinedLoc) || /→/.test(combinedLoc);
-        const [locFrom, locTo] = hasArrow ? combinedLoc.split("-->").length>1?combinedLoc.split("-->"):combinedLoc.split("→").map(s => s.trim()) : [combinedLoc, ""];
-        const routeStr = (locFrom && locTo) ? `${locFrom}-->${locTo}` : (locFrom || locTo || "");
-if ((patch.type || form.type) === "train" && routeStr) {
-  patch.location = routeStr;
-  patch.title = `Vendo treno ${routeStr} solo andata`;
-}
-      } catch {}
+      // titolo coerente con l'azione EFFETTIVA (mai "Vendo" forzato)
+      if (!patch.title && (patch.routeFrom || patch.routeTo || patch.location || patch.cercoVendo)) {
+        const t2 = buildAutoTitle(
+          patch.cercoVendo || form.cercoVendo,
+          form.type,
+          patch.routeFrom || form.routeFrom,
+          patch.routeTo || form.routeTo,
+          patch.location || form.location
+        );
+        if (t2) patch.title = t2;
+      }
 
       if (Object.keys(patch).length) {
         update(patch);
@@ -946,7 +1099,12 @@ if ((patch.type || form.type) === "train" && routeStr) {
     const e = {};
 
     if (!form.title.trim()) e.title = t("createListing.errors.titleRequired", "Titolo obbligatorio.");
-    if (!form.location.trim()) e.location = t("createListing.errors.locationRequired", "Località obbligatoria.");
+    if (form?.type === "train") {
+      if (!String(form.routeFrom || "").trim()) e.routeFrom = t("createListing.errors.routeFromRequired", "Stazione di partenza obbligatoria.");
+      if (!String(form.routeTo || "").trim()) e.routeTo = t("createListing.errors.routeToRequired", "Stazione di arrivo obbligatoria.");
+    } else if (!form.location.trim()) {
+      e.location = t("createListing.errors.locationRequired", "Località obbligatoria.");
+    }
 
     if (form?.type === "hotel") {
       if (!ciNorm) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
@@ -993,6 +1151,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
     update({
       title: "",
       location: "",
+      routeFrom: "", routeTo: "",
       description: "",
       type: "train",
       checkIn: "", checkOut: "",
@@ -1082,19 +1241,23 @@ if ((patch.type || form.type) === "train" && routeStr) {
 
       const priceNum = Number(String(form.price).replace(",", "."));
 
+      // Treno: la location salvata è la composizione "Da → A" dei due campi
+      // (compatibilità con card, dettaglio e matching già esistenti).
+      const routeFrom = String(form.routeFrom || "").trim();
+      const routeTo = String(form.routeTo || "").trim();
+      const locationForSave = form?.type === "train"
+        ? [routeFrom, routeTo].filter(Boolean).join(" → ")
+        : form.location.trim();
+
       const basePayload = {
         type: form?.type,
         title: form.title.trim(),
-        location: form.location.trim(),
+        location: locationForSave,
         description: form.description.trim() || null,
         price: Number.isFinite(priceNum) ? priceNum : null,
         cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
         ...(mode !== "edit" ? { status: "active" , trustScore: trustData?.trustScore ?? null,} : {})
       };
-
-      const [routeFrom, routeTo] = form.location.includes("→")
-        ? form.location.split("→").map((s) => s.trim())
-        : [form.location.trim(), ""];
 
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
@@ -1222,10 +1385,13 @@ if ((patch.type || form.type) === "train" && routeStr) {
   const applyImportedData = (data) => {
     if (!data || typeof data !== "object") return;
     if (data.type === "train") {
+      const [impFrom, impTo] = splitRoute(data.location);
       update({
         type: "train",
         title: data.title ?? "",
         location: data.location ?? "",
+        routeFrom: impFrom || "",
+        routeTo: impTo || "",
         departAt: data.departAt ?? "",
         arriveAt: data.arriveAt ?? "",
         isNamedTicket: !!data.isNamedTicket,
@@ -1288,7 +1454,8 @@ if ((patch.type || form.type) === "train" && routeStr) {
           textAlignVertical="top"
         />
 
-        {/* Azioni */}
+        {/* Azioni: "Compila con AI" riempie i campi dalla descrizione,
+            "Check AI" verifica soltanto (non tocca mai il form). */}
         <View style={styles.pillsRow}>
           <AIPill
             title={t("createListing.aiImport", "AI Import 1-click")}
@@ -1296,15 +1463,22 @@ if ((patch.type || form.type) === "train" && routeStr) {
             disabled={importBusy || saving || publishing}
           />
           <AIPill
+            title={t("createListing.aiFill", "Compila con AI")}
+            onPress={onAiFill}
+            disabled={loadingAI || aiFilling || publishing || saving}
+            loading={aiFilling}
+            dark
+          />
+          <AIPill
             title={"Check AI"}
             onPress={onTrustCheck}
-            disabled={trustLoading || loadingAI}
+            disabled={trustLoading || loadingAI || aiFilling}
             loading={loadingAI}
           />
           <AIPill
             title={"Clear all"}
             onPress={clearAll}
-            disabled={loadingAI || publishing || saving}
+            disabled={loadingAI || aiFilling || publishing || saving}
           />
 
         </View>
@@ -1385,7 +1559,7 @@ if ((patch.type || form.type) === "train" && routeStr) {
                         {["CERCO","VENDO"].map((cv) => {
                           const active = form.cercoVendo === cv;
                           return (
-                            <TouchableOpacity key={cv} onPress={() => update({ cercoVendo: cv })} style={[styles.segBtn, active && styles.segBtnActive]}>
+                            <TouchableOpacity key={cv} onPress={() => onChangeCercoVendo(cv)} style={[styles.segBtn, active && styles.segBtnActive]}>
                               <Text style={[styles.segText, active && styles.segTextActive]}>{cv === "CERCO" ? t("createListing.cerco","Cerco") : t("createListing.vendo","Vendo")}</Text>
                             </TouchableOpacity>
                           );
@@ -1469,16 +1643,35 @@ if ((patch.type || form.type) === "train" && routeStr) {
                           <AntDesign name={editableFields.location ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
                         </TouchableOpacity>
                       </View>
-                      <TextInput
-                        editable={editableFields.location}
-                        selectTextOnFocus={!hotelLocLocked && editableFields.location}
-                        value={form.location}
-                        onChangeText={(v) => update({ location: v })}
-                        placeholder={t("createListing.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")}
-                        style={[styles.input, !editableFields.location && styles.inputDisabled, errors.location && styles.inputError]}
-                        placeholderTextColor={theme.colors.textMuted}
-                      />
-                      {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+                      {/* Due campi separati Da/A con freccia fissa: niente più
+                          frecce da digitare a mano nella tratta. */}
+                      <View style={styles.routeRow}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <TextInput
+                            editable={editableFields.location}
+                            selectTextOnFocus={editableFields.location}
+                            value={form.routeFrom}
+                            onChangeText={(v) => update({ routeFrom: v })}
+                            placeholder={t("createListing.routeFromPlaceholder", "Da: es. Milano Centrale")}
+                            style={[styles.input, !editableFields.location && styles.inputDisabled, errors.routeFrom && styles.inputError]}
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                        </View>
+                        <Text style={styles.routeArrow}>→</Text>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <TextInput
+                            editable={editableFields.location}
+                            selectTextOnFocus={editableFields.location}
+                            value={form.routeTo}
+                            onChangeText={(v) => update({ routeTo: v })}
+                            placeholder={t("createListing.routeToPlaceholder", "A: es. Roma Termini")}
+                            style={[styles.input, !editableFields.location && styles.inputDisabled, errors.routeTo && styles.inputError]}
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                        </View>
+                      </View>
+                      {!!errors.routeFrom && <Text style={styles.errorText}>{errors.routeFrom}</Text>}
+                      {!!errors.routeTo && <Text style={styles.errorText}>{errors.routeTo}</Text>}
                     </>
                   ) : (
                     <>
@@ -1802,7 +1995,7 @@ const styles = StyleSheet.create({
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   topTitle: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, color: theme.colors.boardingText },
 
-  pillsRow: { flexDirection: "row", gap: 12, paddingTop: 8, paddingBottom: 6 },
+  pillsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingTop: 8, paddingBottom: 6 },
   pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
   pillLight: { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border },
   pillDark: { backgroundColor: theme.colors.text, borderColor: theme.colors.text },
@@ -1849,6 +2042,10 @@ const styles = StyleSheet.create({
   // row with two equal columns
   row2: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
   col: { flex: 1, minWidth: 0 },
+
+  // tratta treno a due campi con freccia fissa
+  routeRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  routeArrow: { fontSize: 18, fontWeight: "800", color: theme.colors.boardingText },
 
   // common
   card: { backgroundColor: theme.colors.surface, borderRadius: 20, padding: 16, borderWidth: 1, borderColor: theme.colors.border, shadowColor: "#0F172A", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 },

@@ -33,9 +33,9 @@ Regole vincolanti:
 - "location": per i treni deve essere uguale a "route". Per hotel, se non ha senso una tratta, usa la città/località; altrimenti null.
 
 3) Titolo (standardizzato)
-- Treni: il "title" deve essere SEMPRE "<CERCO/VENDO> treno <origin-->destination> solo andata".
-- Hotel: "title" = "<CERCO/VENDO> hotel <location>".
-- Non inserire MAI prezzo o date nel titolo. Se "cercoVendo" è null, usa "Vendo" come default.
+- Treni: il "title" deve essere SEMPRE "<Cerco/Vendo> treno <origin-->destination> solo andata".
+- Hotel: "title" = "<Cerco/Vendo> hotel <location>".
+- Non inserire MAI prezzo o date nel titolo. Se "cercoVendo" è null, NON inventare l'azione: usa "Treno <origin-->destination> solo andata" (o "Hotel <location>") senza prefisso.
 
 4) Date e orari
 - Hotel: "checkIn" e "checkOut" in "YYYY-MM-DD".
@@ -201,15 +201,20 @@ function sanitizeParsed(obj) {
   p.arriveAt = ensureFutureYearDateTime(p.arriveAt);
   p.returnAt = ensureFutureYearDateTime(p.returnAt);
 
-  // Forza titolo secondo specifica
-  const action = p.cercoVendo || "VENDO";
+  // Forza titolo secondo specifica. Se cercoVendo non è chiaro NON si
+  // inventa "Vendo" (bug storico: un annuncio CERCO usciva col titolo
+  // "Vendo treno..."): titolo neutro, l'azione la decide il client
+  // in base alla scelta dell'utente.
+  const actionWord = p.cercoVendo
+    ? p.cercoVendo.charAt(0) + p.cercoVendo.slice(1).toLowerCase()
+    : null;
   if (p.type === "train" && route) {
-    p.title = `${action.charAt(0) + action.slice(1).toLowerCase()} treno ${route} solo andata`;
+    p.title = actionWord ? `${actionWord} treno ${route} solo andata` : `Treno ${route} solo andata`;
   } else if (p.type === "hotel" && location) {
-    p.title = `${action.charAt(0) + action.slice(1).toLowerCase()} hotel ${location}`;
+    p.title = actionWord ? `${actionWord} hotel ${location}` : `Hotel ${location}`;
   } else {
     // fallback minimale senza prezzo
-    p.title = normStr(p.title) || (action.charAt(0) + action.slice(1).toLowerCase());
+    p.title = normStr(p.title) || actionWord;
   }
 
   // Per hotel: azzera campi treno
