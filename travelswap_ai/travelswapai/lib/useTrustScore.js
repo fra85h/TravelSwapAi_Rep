@@ -165,7 +165,7 @@ export function useTrustScore() {
    *  - l'oggetto form completo (quello che usi per salvare l'annuncio)
    *  - oppure direttamente un oggetto listing già nel formato finale
    */
-  const evaluate = useCallback(async (formOrListing) => {
+  const evaluate = useCallback(async (formOrListing, opts = {}) => {
     setLoading(true); setError(null);
     try {
       const listing = normalizeFormToListing(formOrListing);
@@ -175,10 +175,14 @@ export function useTrustScore() {
         throw new Error('Descrizione troppo corta (min 10 caratteri).');
       }
 
+      // locale (it/en/es): il server lo usa per far rispondere l'AI (msg e
+      // suggerimenti) nella lingua dell'utente e localizzare i fix euristici.
+      const locale = ['it', 'en', 'es'].includes(opts.locale) ? opts.locale : 'it';
+
       const res = await fetchJson('/ai/trustscore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }, // in caso fetchJson non lo aggiunga
-        body: JSON.stringify({ listing }),
+        body: JSON.stringify({ listing, locale }),
         // con le foto in base64 la verifica (moderazione + visione AI)
         // può superare i 20s di default
         timeoutMs: 45000,

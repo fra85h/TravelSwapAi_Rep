@@ -33,6 +33,10 @@ trustscoreRouter.post(
       return res.status(400).json({ error: errors.array() });
     }
 
+    // Lingua richiesta dal client (it/en/es): l'AI risponde in questa lingua
+    // e i fix euristici deterministici vengono localizzati di conseguenza.
+    const locale = ['it', 'en', 'es'].includes(req.body?.locale) ? req.body.locale : 'it';
+
     // 🔧 Normalizza input (evita crash su campi opzionali)
     const inListing = req.body?.listing || {};
     const listing = {
@@ -57,7 +61,7 @@ trustscoreRouter.post(
       // 1) Heuristics (isolato)
       let heur = { score: 0, flags: [], suggestedFixes: [], consistencyScore: 0, plausibilityScore: 0, completenessScore: 0 };
       try {
-        heur = computeHeuristicChecks(listing) || heur;
+        heur = computeHeuristicChecks(listing, locale) || heur;
       } catch (e) {
         console.error('[trustscore] heuristics failed:', e);
         heur.flags.push({ code: 'HEUR_ERROR', msg: 'Heuristics non disponibili' });
@@ -66,7 +70,7 @@ trustscoreRouter.post(
       // 2) AI review (isolata, con fallback se manca chiave o modulo)
       let ai = { textScore: heur.score || 50, imageScore: 50, flags: [], suggestedFixes: [] };
       try {
-        ai = (await aiTrustReview(listing, heur)) || ai;
+        ai = (await aiTrustReview(listing, heur, locale)) || ai;
       } catch (e) {
         console.error('[trustscore] aiTrustReview failed:', e?.message || e);
         ai.flags.push({ code: 'AI_ERROR', msg: 'AI non disponibile, uso fallback' });

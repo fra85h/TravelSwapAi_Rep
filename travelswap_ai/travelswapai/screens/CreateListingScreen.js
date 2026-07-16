@@ -349,7 +349,7 @@ export default function CreateListingScreen({
   onSubmitEnd = () => {},
   route,
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const navigation = useNavigation();
   const p = route?.params ?? {};
   const passedListing = p.listing ?? null; // <-- keep same API
@@ -377,20 +377,20 @@ export default function CreateListingScreen({
       const dates = Array.from(text.matchAll(dateRx));
       const hotels = Array.from(text.matchAll(hotelWordRx));
 
-      const t = String(type || "").toLowerCase();
-      if (t === "train") {
-        if (routes.length >= 2) return { two: true, reason: `Rilevate ${routes.length} tratte nel testo.` };
-        if (routes.length === 1 && times.length >= 3) return { two: true, reason: `Rilevati più orari (${times.length}).` };
-      } else if (t === "hotel") {
-        if (dates.length >= 4) return { two: true, reason: `Rilevate più date (${dates.length}).` };
-        if (hotels.length >= 2) return { two: true, reason: `Rilevate più strutture (${hotels.length}).` };
+      const ty = String(type || "").toLowerCase();
+      if (ty === "train") {
+        if (routes.length >= 2) return { two: true, reason: t("createListing.checkAi.reasonRoutes", `Rilevate ${routes.length} tratte nel testo.`, { n: routes.length }) };
+        if (routes.length === 1 && times.length >= 3) return { two: true, reason: t("createListing.checkAi.reasonTimes", `Rilevati più orari (${times.length}).`, { n: times.length }) };
+      } else if (ty === "hotel") {
+        if (dates.length >= 4) return { two: true, reason: t("createListing.checkAi.reasonDates", `Rilevate più date (${dates.length}).`, { n: dates.length }) };
+        if (hotels.length >= 2) return { two: true, reason: t("createListing.checkAi.reasonHotels", `Rilevate più strutture (${hotels.length}).`, { n: hotels.length }) };
       } else {
-        if (routes.length >= 2 || dates.length >= 4) return { two: true, reason: `Rilevati elementi multipli (tratte/date).` };
+        if (routes.length >= 2 || dates.length >= 4) return { two: true, reason: t("createListing.checkAi.reasonMultiple", "Rilevati elementi multipli (tratte/date).") };
       }
-      if (/\b(2|due)\s+bigliett/i.test(text)) return { two: true, reason: `La descrizione cita due biglietti.` };
+      if (/\b(2|due)\s+bigliett/i.test(text)) return { two: true, reason: t("createListing.checkAi.reasonTwoTickets", "La descrizione cita due biglietti.") };
       return { two: false, reason: "" };
     } catch { return { two: false, reason: "" }; }
-  }, []);
+  }, [t]);
 
   // Stato form
   // location resta il campo per gli hotel; per i treni la tratta vive in due
@@ -804,7 +804,7 @@ const initialJsonRef = useRef(null);
       setShowMicroLog(true);
       setMicroLog([]);
       setProgress(0);
-      logStep("Analisi descrizione con AI…", 25);
+      logStep(t("createListing.checkAi.logAnalyzingDesc", "Analisi descrizione con AI…"), 25);
 
       let parsed = null;
       try { parsed = await parseListingFromTextAI(text, "it"); } catch {}
@@ -879,14 +879,14 @@ const initialJsonRef = useRef(null);
       const filledCount = Object.keys(fillPatch).length;
       if (filledCount) {
         update(fillPatch);
-        logStep(`Compilati ${filledCount} campi dalla descrizione.`, 80);
+        logStep(t("createListing.checkAi.logFilledN", `Compilati ${filledCount} campi dalla descrizione.`, { n: filledCount }), 80);
       } else {
-        logStep("Nessun campo vuoto da compilare.", 80);
+        logStep(t("createListing.checkAi.logNothingEmpty", "Nessun campo vuoto da compilare."), 80);
       }
 
       if (conflicts.length) {
         const fieldNames = conflicts.map((c) => c.label).join(", ");
-        logStep("Alcuni campi hanno già un valore: scegli tu.", 95);
+        logStep(t("createListing.checkAi.logSomeConflict", "Alcuni campi hanno già un valore: scegli tu."), 95);
         Alert.alert(
           t("createListing.aiFillConflictTitle", "Sovrascrivere i campi già compilati?"),
           t("createListing.aiFillConflictMsg", `L'AI suggerisce valori diversi per: ${fieldNames}. Le date che hai inserito non vengono mai modificate.`, { fields: fieldNames }),
@@ -914,10 +914,10 @@ const initialJsonRef = useRef(null);
         );
       }
 
-      logStep("Fatto. Controlla i campi e completa ciò che manca.", 100);
+      logStep(t("createListing.checkAi.logAiFillDone", "Fatto. Controlla i campi e completa ciò che manca."), 100);
       clearLogSoon();
     } catch {
-      logStep("Errore durante la compilazione AI.", 100);
+      logStep(t("createListing.checkAi.logAiFillError", "Errore durante la compilazione AI."), 100);
       clearLogSoon();
       Alert.alert(t("common.error", "Errore"), t("createListing.aiFillErrorMsg", "Impossibile analizzare la descrizione. Riprova."));
     } finally {
@@ -940,10 +940,10 @@ const initialJsonRef = useRef(null);
       setShowMicroLog(true);
       setMicroLog([]);
       setProgress(0);
-      logStep("Inizio controllo…", 10);
+      logStep(t("createListing.checkAi.logStart", "Inizio controllo…"), 10);
 
       // 1) Coerenza/validazioni locali (warning)
-      logStep("Controllo coerenza e date…", 30);
+      logStep(t("createListing.checkAi.logCoherenceDates", "Controllo coerenza e date…"), 30);
       const localFlags = [];
       const nowDate = new Date();
 
@@ -952,19 +952,19 @@ const initialJsonRef = useRef(null);
         const b = parseISODate(normalizeDateStr(form.checkOut));
         if (a && b) {
           const days = (b - a) / (1000 * 60 * 60 * 24);
-          if (days > 30) localFlags.push({ field: "checkOut", msg: "Durata soggiorno oltre 30 giorni." });
+          if (days > 30) localFlags.push({ field: "checkOut", msg: t("createListing.checkAi.localStayTooLong", "Durata soggiorno oltre 30 giorni.") });
         }
-        if (a && a < new Date(nowDate.toDateString())) localFlags.push({ field: "checkIn", msg: "Check-in nel passato." });
-        if (b && b < new Date(nowDate.toDateString())) localFlags.push({ field: "checkOut", msg: "Check-out nel passato." });
+        if (a && a < new Date(nowDate.toDateString())) localFlags.push({ field: "checkIn", msg: t("createListing.checkAi.localCheckInPast", "Check-in nel passato.") });
+        if (b && b < new Date(nowDate.toDateString())) localFlags.push({ field: "checkOut", msg: t("createListing.checkAi.localCheckOutPast", "Check-out nel passato.") });
       } else {
         const da = parseISODateTime(form.departAt);
         const ar = parseISODateTime(form.arriveAt);
         if (da && ar) {
           const hrs = (ar - da) / (1000 * 60 * 60);
-          if (hrs > 48) localFlags.push({ field: "arriveAt", msg: "Durata tratta oltre 48 ore." });
+          if (hrs > 48) localFlags.push({ field: "arriveAt", msg: t("createListing.checkAi.localTripTooLong", "Durata tratta oltre 48 ore.") });
         }
-        if (da && da < new Date()) localFlags.push({ field: "departAt", msg: "Partenza nel passato." });
-        if (ar && ar < new Date()) localFlags.push({ field: "arriveAt", msg: "Arrivo nel passato." });
+        if (da && da < new Date()) localFlags.push({ field: "departAt", msg: t("createListing.checkAi.localDepartPast", "Partenza nel passato.") });
+        if (ar && ar < new Date()) localFlags.push({ field: "arriveAt", msg: t("createListing.checkAi.localArrivePast", "Arrivo nel passato.") });
       }
 
       // 2) Foto: incluse nella verifica (moderazione + coerenza col contenuto).
@@ -979,10 +979,10 @@ const initialJsonRef = useRef(null);
         if (images.length >= 3) break;
         if (img?.url) images.push({ url: img.url });
       }
-      if (images.length) logStep(`Analizzo anche ${images.length} foto…`, 45);
+      if (images.length) logStep(t("createListing.checkAi.logAnalyzingPhotos", `Analizzo anche ${images.length} foto…`, { n: images.length }), 45);
 
       // 3) TrustScore remoto sul form CORRENTE (nessuna patch)
-      logStep("Verifica affidabilità annuncio…", 60);
+      logStep(t("createListing.checkAi.logReliability", "Verifica affidabilità annuncio…"), 60);
       const isTrain = form?.type === "train";
       const payload = {
         id: passedListing?.id || listingId || null,
@@ -1003,27 +1003,27 @@ const initialJsonRef = useRef(null);
         currency: "EUR",
         images,
       };
-      const res = await evaluate(payload);
+      const res = await evaluate(payload, { locale });
 
       if (localFlags.length) {
         localFlags.forEach((f) => logStep(`⚠︎ ${f.msg}`, 90));
       }
 
-      logStep("Fatto.", 100);
+      logStep(t("createListing.checkAi.logDone", "Fatto."), 100);
       setLastTrustRunAt(Date.now()); // <-- mark that Check AI has been run
       clearLogSoon();
       if (!res && trustError) {
         Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), trustError);
       }
     } catch (err) {
-      logStep("Errore durante il Check AI.", 100);
+      logStep(t("createListing.checkAi.logError", "Errore durante il Check AI."), 100);
       clearLogSoon();
       Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), t("createListing.trustScoreGenericError", "Qualcosa è andato storto durante la verifica."));
     } finally {
       setLoadingAI(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, lastTrustRunAt, trustError, evaluate, logStep, clearLogSoon, passedListing?.id, listingId, pendingPhotos, existingPhotos]);
+  }, [form, lastTrustRunAt, trustError, evaluate, logStep, clearLogSoon, passedListing?.id, listingId, pendingPhotos, existingPhotos, t, locale]);
 
   const applyAllTrustFixes = () => {
     try {
@@ -1505,37 +1505,37 @@ const initialJsonRef = useRef(null);
             onPress={() => goToSlide(1)}
             style={styles.checkSummary}
             accessibilityRole="button"
-            accessibilityLabel="Riepilogo verifica AI, tocca per i dettagli"
+            accessibilityLabel={t("createListing.checkAi.problemsTitle", "Possibili problemi")}
           >
             <View style={styles.checkSummaryChips}>
               {trustData.aiAvailable === false && (
                 <View style={[styles.sumChip, styles.sumChipRed]}>
-                  <Text style={styles.sumChipText}>Verifica AI non disponibile</Text>
+                  <Text style={styles.sumChipText}>{t("createListing.checkAi.aiUnavailable", "Verifica AI non disponibile")}</Text>
                 </View>
               )}
               {!!flagsNoImg?.length && (
                 <View style={[styles.sumChip, styles.sumChipYellow]}>
-                  <Text style={styles.sumChipText}>{flagsNoImg.length} {flagsNoImg.length === 1 ? "problema" : "problemi"}</Text>
+                  <Text style={styles.sumChipText}>{t(flagsNoImg.length === 1 ? "createListing.checkAi.problemsOne" : "createListing.checkAi.problemsMany", `${flagsNoImg.length} problemi`, { n: flagsNoImg.length })}</Text>
                 </View>
               )}
               {!!fixesNoImg?.length && (
                 <View style={[styles.sumChip, styles.sumChipGreen]}>
-                  <Text style={styles.sumChipText}>{fixesNoImg.length} suggeriment{fixesNoImg.length === 1 ? "o" : "i"}</Text>
+                  <Text style={styles.sumChipText}>{t(fixesNoImg.length === 1 ? "createListing.checkAi.suggestionsOne" : "createListing.checkAi.suggestionsMany", `${fixesNoImg.length} suggerimenti`, { n: fixesNoImg.length })}</Text>
                 </View>
               )}
               {splitDetected && (
                 <View style={[styles.sumChip, styles.sumChipBlue]}>
-                  <Text style={styles.sumChipText}>2 annunci</Text>
+                  <Text style={styles.sumChipText}>{t("createListing.checkAi.twoListings", "2 annunci")}</Text>
                 </View>
               )}
               {trustData.aiAvailable !== false && !flagsNoImg?.length && !fixesNoImg?.length && !splitDetected && (
                 <View style={[styles.sumChip, styles.sumChipGreen]}>
-                  <Text style={styles.sumChipText}>Nessun problema rilevato</Text>
+                  <Text style={styles.sumChipText}>{t("createListing.checkAi.noProblems", "Nessun problema rilevato")}</Text>
                 </View>
               )}
             </View>
             {slideIndex === 0 && (
-              <Text style={styles.checkSummaryLink}>Vedi dettagli ›</Text>
+              <Text style={styles.checkSummaryLink}>{t("createListing.checkAi.seeDetails", "Vedi dettagli ›")}</Text>
             )}
           </TouchableOpacity>
         )}
@@ -1876,9 +1876,9 @@ const initialJsonRef = useRef(null);
                   {/* Box Trust */}
                   {splitDetected && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#DBEAFE', borderWidth: 1, borderColor: '#60A5FA' }}>
-                      <Text style={{ fontWeight: '800', marginBottom: 6 }}>Rilevati 2 annunci distinti</Text>
-                      <Text>In base alla descrizione: {splitReason || 'sono stati rilevati due elementi distinti (tratte/orari/hotel).'}</Text>
-                      <Text style={{ marginTop: 6 }}>Al momento della pubblicazione verranno creati <Text style={{ fontWeight: '700' }}>due annunci separati</Text> con lo stesso prezzo. Potrai modificare i prezzi in seguito.</Text>
+                      <Text style={{ fontWeight: '800', marginBottom: 6 }}>{t("createListing.checkAi.splitTitle", "Rilevati 2 annunci distinti")}</Text>
+                      <Text>{t("createListing.checkAi.splitBasis", `In base alla descrizione: ${splitReason || 'sono stati rilevati due elementi distinti (tratte/orari/hotel).'}`, { reason: splitReason || t("createListing.checkAi.splitFallbackReason", "sono stati rilevati due elementi distinti (tratte/orari/hotel).") })}</Text>
+                      <Text style={{ marginTop: 6 }}>{t("createListing.checkAi.splitNote1", "Al momento della pubblicazione verranno creati ")}<Text style={{ fontWeight: '700' }}>{t("createListing.checkAi.splitNoteBold", "due annunci separati")}</Text>{t("createListing.checkAi.splitNote2", " con lo stesso prezzo. Potrai modificare i prezzi in seguito.")}</Text>
                     </View>
                   )}
                   {trustData && trustData.aiAvailable === false && (
@@ -1901,9 +1901,12 @@ const initialJsonRef = useRef(null);
 
                   {!!flagsNoImg?.length && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
-                      <Text style={{ fontWeight: "800", marginBottom: 6 }}>Possibili problemi</Text>
+                      <Text style={{ fontWeight: "800", marginBottom: 6 }}>{t("createListing.checkAi.problemsTitle", "Possibili problemi")}</Text>
                       {flagsNoImg.map((f, i) => (
-                        <Text key={i}>• {f.msg}</Text>
+                        // Etichetta localizzata per codice; se il codice è ignoto
+                        // resta il messaggio del server (già nella lingua utente
+                        // per i flag AI, che ora rispondono nella locale scelta).
+                        <Text key={i}>• {t(`createListing.checkAi.flags.${f.code}`, f.msg || "")}</Text>
                       ))}
                     </View>
                   )}
@@ -1911,11 +1914,11 @@ const initialJsonRef = useRef(null);
                   {!!fixesNoImg?.length && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#E7F7C5", borderWidth: 1, borderColor: "#84CC16" }}>
                       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                        <Text style={{ fontWeight: "800" }}>Suggerimenti AI</Text>
+                        <Text style={{ fontWeight: "800" }}>{t("createListing.checkAi.suggestionsTitle", "Suggerimenti AI")}</Text>
                       </View>
                       <View style={{ height: 6 }} />
                       {fixesNoImg.map((s, i) => (
-                        <Text key={i}>• {s.field}: {s.suggestion}</Text>
+                        <Text key={i}>• {s.suggestion}</Text>
                       ))}
                     </View>
                   )}

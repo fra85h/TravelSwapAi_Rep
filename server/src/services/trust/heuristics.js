@@ -66,7 +66,45 @@ function isSardiniaPlace(loc) {
   return SARDINIA_PLACES.some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
 }
 
-export function computeHeuristicChecks(listing) {
+// Testi dei suggerimenti (fix) nelle tre lingue. I messaggi dei FLAG restano
+// in italiano perché il client li rimpiazza con etichette localizzate in base
+// al `code`; i suggerimenti invece non hanno un code, quindi li localizziamo
+// qui in base alla lingua richiesta.
+const FIX_TEXT = {
+  requiredField: {
+    it: (f) => `Compila il campo obbligatorio: ${f}`,
+    en: (f) => `Fill in the required field: ${f}`,
+    es: (f) => `Rellena el campo obligatorio: ${f}`,
+  },
+  dateOrder: {
+    it: 'Controlla l’ordine delle date',
+    en: 'Check the order of the dates',
+    es: 'Revisa el orden de las fechas',
+  },
+  pricePositive: {
+    it: 'Inserisci un prezzo maggiore di 0',
+    en: 'Enter a price greater than 0',
+    es: 'Introduce un precio mayor que 0',
+  },
+  addImage: {
+    it: 'Aggiungi almeno 1 immagine reale',
+    en: 'Add at least 1 real photo',
+    es: 'Añade al menos 1 foto real',
+  },
+  checkType: {
+    it: 'Controlla il tipo di annuncio o allinea la descrizione',
+    en: 'Check the listing type or align the description',
+    es: 'Revisa el tipo de anuncio o ajusta la descripción',
+  },
+};
+function fixText(key, locale, arg) {
+  const entry = FIX_TEXT[key];
+  const v = entry?.[locale] ?? entry?.it;
+  return typeof v === 'function' ? v(arg) : v;
+}
+
+export function computeHeuristicChecks(listing, locale = 'it') {
+  const lang = ['it', 'en', 'es'].includes(locale) ? locale : 'it';
   const flags = [];
   const fixes = [];
 
@@ -92,7 +130,7 @@ export function computeHeuristicChecks(listing) {
     if (listing[field] !== undefined && listing[field] !== null && `${listing[field]}`.trim() !== '') {
       present++;
     } else {
-      fixes.push({ field, suggestion: `Compila il campo obbligatorio: ${field}` });
+      fixes.push({ field, suggestion: fixText('requiredField', lang, field) });
     }
   }
   completeness = present / required.length; // 0..1
@@ -105,7 +143,7 @@ export function computeHeuristicChecks(listing) {
     if (isFinite(s) && isFinite(e) && e < s) {
       consistency -= 0.6;
       flags.push({ code: 'DATE_SWAP', msg: 'Data fine anteriore alla data inizio' });
-      fixes.push({ field: 'endDate', suggestion: 'Controlla l’ordine delle date' });
+      fixes.push({ field: 'endDate', suggestion: fixText('dateOrder', lang) });
     }
   }
   // date troppo lontane o passate
@@ -132,7 +170,7 @@ export function computeHeuristicChecks(listing) {
     if (p <= 0) {
       plausibility -= 0.6;
       flags.push({ code: 'NON_POSITIVE_PRICE', msg: 'Prezzo non positivo' });
-      fixes.push({ field: 'price', suggestion: 'Inserisci un prezzo maggiore di 0' });
+      fixes.push({ field: 'price', suggestion: fixText('pricePositive', lang) });
     }
     if (type === 'hotel' && p > 5000) {
       plausibility -= 0.3;
@@ -201,14 +239,14 @@ export function computeHeuristicChecks(listing) {
         code: 'INCOHERENT_TYPE',
         msg: `La descrizione sembra riferirsi a ${declaredTrain ? 'un hotel' : 'un treno'}, ma l'annuncio è di tipo ${declaredTrain ? 'treno' : 'hotel'}`,
       });
-      fixes.push({ field: 'type', suggestion: 'Controlla il tipo di annuncio o allinea la descrizione' });
+      fixes.push({ field: 'type', suggestion: fixText('checkType', lang) });
     }
   }
 
   // 5) Immagini: minimo qualità e quantità
   if (images.length === 0) {
     flags.push({ code: 'NO_IMAGES', msg: 'Nessuna immagine caricata' });
-    fixes.push({ field: 'images', suggestion: 'Aggiungi almeno 1 immagine reale' });
+    fixes.push({ field: 'images', suggestion: fixText('addImage', lang) });
   }
 
   // Score parziali normalizzati 0..1

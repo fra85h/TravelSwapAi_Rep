@@ -16,7 +16,9 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPE
  * - flags: [{ code, msg }]
  * - suggestedFixes: [{ field, suggestion }]
  */
-export async function aiTrustReview(listing, heur = {}) {
+export async function aiTrustReview(listing, heur = {}, locale = 'it') {
+  const lang = ['it', 'en', 'es'].includes(locale) ? locale : 'it';
+  const LANG_NAME = { it: 'italiano', en: 'inglese', es: 'spagnolo' }[lang];
   // Fallback immediato se manca la chiave
   if (!process.env.OPENAI_API_KEY) {
     return {
@@ -61,6 +63,7 @@ export async function aiTrustReview(listing, heur = {}) {
       "discrepanza in modo concreto. " +
       "Restituisci SOLO un JSON con la forma: " +
       "{ textScore:number(0-100), imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
+      `I valori di 'msg' e 'suggestion' devono essere scritti in ${LANG_NAME} (i 'code' restano invariati, in inglese maiuscolo). ` +
       "Usa rigore: nessun testo extra oltre al JSON.",
   });
 
