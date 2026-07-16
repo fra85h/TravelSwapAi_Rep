@@ -56,6 +56,9 @@ export default function HomeScreen() {
   const [me, setMe] = useState(null);
   const [query, setQuery] = useState("");
   const [picks, setPicks] = useState([]);
+  // true quando lo snapshot AI ha finito di caricare (successo o errore):
+  // serve a non far lampeggiare l'empty state "Per te" durante il fetch.
+  const [picksReady, setPicksReady] = useState(false);
 
   // helper i18n con fallback + interpolation
   const tt = (key, fallback, vars) => {
@@ -88,9 +91,14 @@ export default function HomeScreen() {
       setItems(Array.isArray(data) ? data : []);
       // Suggerimenti AI: best effort, non bloccano la lista se falliscono
       if (u?.id) {
+        setPicksReady(false);
         getUserSnapshot(u.id)
           .then((snap) => setPicks(extractPicks(snap)))
-          .catch(() => setPicks([]));
+          .catch(() => setPicks([]))
+          .finally(() => setPicksReady(true));
+      } else {
+        setPicks([]);
+        setPicksReady(true);
       }
     } catch (e) {
       setError(e?.message || String(e));
@@ -234,7 +242,16 @@ export default function HomeScreen() {
   // Tiene l'AI in vetrina anche senza un tab dedicato, e porta alla
   // schermata completa con "Vedi tutti".
   const renderPerTe = () => {
-    if (!picks.length) return null;
+    // Utente sloggato: la sezione personalizzata non ha senso.
+    if (!me?.id) return null;
+    // Snapshot AI ancora in caricamento: non mostrare nulla (niente flicker).
+    if (!picksReady) return null;
+
+    const hasPicks = picks.length > 0;
+    // Se l'utente non ha annunci attivi, il motivo dell'assenza di
+    // suggerimenti è che non ha ancora pubblicato: l'empty state lo guida.
+    const myActiveCount = items.filter((x) => String(x.user_id) === String(me.id)).length;
+
     return (
       <View style={styles.perTeWrap}>
         <View style={styles.perTeHead}>
@@ -256,10 +273,35 @@ export default function HomeScreen() {
               <Ionicons name="information-circle-outline" size={16} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate("Matching")}>
-            <Text style={styles.seeAll}>{tt("esplora.seeAll", "Vedi tutti")}</Text>
-          </TouchableOpacity>
+          {hasPicks ? (
+            <TouchableOpacity onPress={() => navigation.navigate("Matching")}>
+              <Text style={styles.seeAll}>{tt("esplora.seeAll", "Vedi tutti")}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
+
+        {!hasPicks ? (
+          // Empty state compatto e azionabile: la sezione resta visibile
+          // (scoperta + coerenza di layout) ma con una riga utile, non un
+          // cartello morto. Due messaggi a seconda del perché è vuota.
+          <View style={styles.perTeEmpty}>
+            <Text style={styles.perTeEmptyText}>
+              {myActiveCount === 0
+                ? tt("esplora.forYouEmptyNoListings", "Pubblica un annuncio e l'AI inizierà a suggerirti gli scambi più in linea con te.")
+                : tt("esplora.forYouEmptyNoMatches", "Nessun suggerimento per ora: stiamo cercando gli abbinamenti migliori per i tuoi annunci. Ricontrolla tra poco.")}
+            </Text>
+            {myActiveCount === 0 ? (
+              <TouchableOpacity
+                style={styles.perTeEmptyCta}
+                onPress={() => navigation.navigate("CreateListing")}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add" size={16} color={theme.colors.accentOn} />
+                <Text style={styles.perTeEmptyCtaText}>{tt("esplora.forYouEmptyCta", "Crea annuncio")}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 16 }}>
           {picks.map((p) => {
             const isTrain = String(p.type || "").toLowerCase() === "train";
@@ -282,9 +324,10 @@ export default function HomeScreen() {
             );
           })}
         </ScrollView>
+        )}
 
-        {/* Divisore verso il catalogo completo: appare solo quando c'è la
-            striscia "Per te" sopra (renderPerTe è nullo senza suggerimenti). */}
+        {/* Divisore verso il catalogo completo: la sezione "Per te" è sempre
+            presente per un utente loggato (con suggerimenti o empty state). */}
         <Text style={styles.otherListingsHead}>{tt("esplora.otherListings", "Altri annunci")}</Text>
       </View>
     );
@@ -404,6 +447,17 @@ const styles = StyleSheet.create({
   perTeHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
   perTeTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   seeAll: { color: theme.colors.accent, fontWeight: "800", fontSize: 13 },
+  // Empty state "Per te": card slim tono-su-tono oro, non un blocco pieno.
+  perTeEmpty: {
+    backgroundColor: theme.colors.accentSoft, borderWidth: 1, borderColor: theme.colors.accent,
+    borderRadius: theme.radius.lg, padding: 14, gap: 10, alignItems: "flex-start",
+  },
+  perTeEmptyText: { color: theme.colors.text, fontSize: 13, lineHeight: 18 },
+  perTeEmptyCta: {
+    flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start",
+    backgroundColor: theme.colors.accent, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+  },
+  perTeEmptyCtaText: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 13 },
   aiTag: {
     backgroundColor: theme.colors.accentSoft, borderWidth: 1, borderColor: theme.colors.accent,
     borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1,
