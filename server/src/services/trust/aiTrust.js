@@ -67,9 +67,16 @@ export async function aiTrustReview(listing, heur = {}) {
     })}`,
   });
 
+  // IMPORTANTE: NON serializzare le foto dentro al testo. Una foto in
+  // base64 (~1MB) diventa ~300k token di testo grezzo: con 3-4 foto la
+  // richiesta superava 1,2M token e OpenAI la rifiutava con 429 "Request
+  // too large" (limite 200k), facendo fallire l'intero Check AI. Le
+  // immagini vanno SOLO come `image_url` qui sotto, dove vengono
+  // tokenizzate come immagini (poche decine di token), non come testo.
+  const { images: _omitImages, ...listingNoImages } = listing || {};
   userContent.push({
     type: "text",
-    text: `Listing: ${JSON.stringify(listing)}`,
+    text: `Listing: ${JSON.stringify(listingNoImages)}`,
   });
 
   // Accetta sia URL https (foto già caricate) sia data URI base64 (foto
@@ -82,10 +89,13 @@ export async function aiTrustReview(listing, heur = {}) {
         .filter((u) => /^https?:\/\//i.test(u) || /^data:image\//i.test(u))
     : [];
 
-  for (const url of imageUrls.slice(0, 4)) {
+  // detail:"low" → costo fisso ~85 token/immagine: per il controllo di
+  // COERENZA (biglietto/stazione vs cibo/selfie) la bassa risoluzione
+  // basta, e tiene la richiesta piccola e prevedibile.
+  for (const url of imageUrls.slice(0, 3)) {
     userContent.push({
       type: "image_url",
-      image_url: { url },
+      image_url: { url, detail: "low" },
     });
   }
 
