@@ -22,7 +22,7 @@ export async function aiTrustReview(listing, heur = {}) {
     return {
       textScore: Number.isFinite(heur?.score) ? Number(heur.score) : 55,
       imageScore: 50,
-      flags: [{ code: "AI_DISABLED", msg: "OPENAI_API_KEY non impostata: uso fallback" }],
+      flags: [{ code: "AI_DISABLED", msg: "Chiave OpenAI mancante sul server (OPENAI_API_KEY non impostata)" }],
       suggestedFixes: [],
     };
   }
@@ -129,12 +129,18 @@ export async function aiTrustReview(listing, heur = {}) {
 
     return out;
   } catch (e) {
-    console.error("[aiTrustReview] error:", e?.message || e);
+    console.error("[aiTrustReview] error:", e?.status || "", e?.message || e);
+    // Motivo compatto per la diagnosi (mostrato solo nella web di test).
+    // Lo status HTTP dice quasi tutto: 401 chiave errata, 429 quota/credito,
+    // 404/403 modello non abilitato. Nessun segreto: l'SDK non mette mai la
+    // chiave nel messaggio d'errore.
+    const status = e?.status ? ` (${e.status})` : "";
+    const detail = String(e?.message || e || "").slice(0, 160);
     // Fallback: NON far mai fallire l’endpoint
     return {
       textScore: Number.isFinite(heur?.score) ? Number(heur.score) : 55,
       imageScore: imageUrls.length ? 60 : 50,
-      flags: [{ code: "AI_ERROR", msg: "AI non disponibile o risposta non valida: uso fallback" }],
+      flags: [{ code: "AI_ERROR", msg: `Chiamata OpenAI fallita${status}: ${detail}` }],
       suggestedFixes: [],
     };
   }

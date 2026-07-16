@@ -1844,6 +1844,13 @@ const initialJsonRef = useRef(null);
                       <Text>
                         {t("createListing.aiUnavailableMsg", "Il punteggio si basa solo sui controlli di base (prezzo, date, coerenza). L'analisi AI del testo e delle foto non è stata eseguita.")}
                       </Text>
+                      {/* Dettaglio tecnico SOLO su web (versione di test): all'utente
+                          finale dell'app nativa non deve apparire. */}
+                      {Platform.OS === "web" && !!trustData.aiUnavailableReason && (
+                        <Text style={{ marginTop: 8, fontSize: 12, fontStyle: "italic", color: "#7F1D1D" }}>
+                          [debug web] {trustData.aiUnavailableReason}
+                        </Text>
+                      )}
                     </View>
                   )}
 
