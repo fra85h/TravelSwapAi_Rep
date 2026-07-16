@@ -2,7 +2,7 @@
 // screens/CreateListingScreen.js
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById, getListingSecret } from "../lib/db";
 import { theme } from "../lib/theme";
@@ -98,14 +98,25 @@ function guessCercoVendoFromText(text) {
   return null;
 }
 
-function AIPill({ title, onPress, disabled, dark, loading }) {
+// Icone distinte e coerenti col significato di ciascuna azione (la vecchia
+// stella unica era decorativa e su "Clear all" pure fuorviante, perché non
+// è un'azione AI). iconLib: "mci" = MaterialCommunityIcons, "ant" = AntDesign.
+function PillIcon({ iconLib, iconName, color }) {
+  if (iconLib === "ant") {
+    return <AntDesign name={iconName} size={16} style={{ marginRight: 6 }} color={color} />;
+  }
+  return <MaterialCommunityIcons name={iconName} size={17} style={{ marginRight: 6 }} color={color} />;
+}
+
+function AIPill({ title, onPress, disabled, dark, subtle, loading, iconName = "star-four-points", iconLib = "mci" }) {
+  const contentColor = dark ? "#fff" : subtle ? theme.colors.textMuted : theme.colors.boardingText;
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
       style={[
         styles.pill,
-        dark ? styles.pillDark : styles.pillLight,
+        dark ? styles.pillDark : subtle ? styles.pillSubtle : styles.pillLight,
         (disabled || loading) && { opacity: 0.6 }
       ]}
       accessibilityRole="button"
@@ -115,8 +126,8 @@ function AIPill({ title, onPress, disabled, dark, loading }) {
         <ActivityIndicator size="small" color={dark ? "#fff" : "#111827"} />
       ) : (
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <AntDesign name="star" size={16} style={{ marginRight: 6 }} color={dark ? "#fff" : theme.colors.boardingText} />
-          <Text style={[styles.pillText, dark && styles.pillTextDark]} numberOfLines={1}>{title}</Text>
+          <PillIcon iconLib={iconLib} iconName={iconName} color={contentColor} />
+          <Text style={[styles.pillText, dark && styles.pillTextDark, subtle && styles.pillTextSubtle]} numberOfLines={1}>{title}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -1462,6 +1473,8 @@ const initialJsonRef = useRef(null);
             title={t("createListing.aiImport", "AI Import 1-click")}
             onPress={openImport}
             disabled={importBusy || saving || publishing}
+            iconLib="mci"
+            iconName="qrcode-scan"
           />
           <AIPill
             title={t("createListing.aiFill", "Compila con AI")}
@@ -1469,17 +1482,24 @@ const initialJsonRef = useRef(null);
             disabled={loadingAI || aiFilling || publishing || saving}
             loading={aiFilling}
             dark
+            iconLib="mci"
+            iconName="auto-fix"
           />
           <AIPill
             title={"Check AI"}
             onPress={onTrustCheck}
             disabled={trustLoading || loadingAI || aiFilling}
             loading={loadingAI}
+            iconLib="mci"
+            iconName="shield-check"
           />
           <AIPill
             title={"Clear all"}
             onPress={clearAll}
             disabled={loadingAI || aiFilling || publishing || saving}
+            subtle
+            iconLib="mci"
+            iconName="broom"
           />
 
         </View>
@@ -2054,8 +2074,12 @@ const styles = StyleSheet.create({
   pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
   pillLight: { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border },
   pillDark: { backgroundColor: theme.colors.text, borderColor: theme.colors.text },
+  // "Clear all" non è un'azione AI: stile neutro (trasparente, bordo
+  // tratteggiato, testo muto) per staccarlo visivamente dal trio AI.
+  pillSubtle: { backgroundColor: "transparent", borderColor: theme.colors.border, borderStyle: "dashed" },
   pillText: { fontWeight: "800", color: theme.colors.text },
   pillTextDark: { color: "#fff" },
+  pillTextSubtle: { fontWeight: "700", color: theme.colors.textMuted },
 
   inputSurface: { backgroundColor: theme.colors.surface },
 
