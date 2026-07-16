@@ -2230,7 +2230,7 @@ const styles = StyleSheet.create({
   sheetCloseText: { color: theme.colors.textMuted },
   qrOverlay: { flex: 1, backgroundColor: "#000000CC", alignItems: "center", justifyContent: "center", padding: 16 },
   qrFrame: { width: "100%", maxWidth: 480, backgroundColor: theme.colors.primary, borderRadius: 16, padding: 12, gap: 12 },
-  qrTitle: { fontWeight: "800", color: theme.colors.primary, alignSelf: "center" },
+  qrTitle: { fontWeight: "800", color: theme.colors.boardingText, alignSelf: "center" },
   qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: theme.colors.border },
 
   // --- new for price info + AI button

@@ -632,7 +632,7 @@ function ExpandableText({ children, numberOfLines = 4, textColor }) {
         {children}
       </Text>
       <TouchableOpacity onPress={() => setExpanded((v) => !v)} style={{ marginTop: 6 }}>
-        <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>
+        <Text style={{ color: theme.colors.accent, fontWeight: "700" }}>
           {expanded ? "Mostra meno" : "Mostra di più"}
         </Text>
       </TouchableOpacity>
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
   sellerInitials: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
   sellerName: { fontWeight: "800", fontSize: 15 },
   sellerMeta: { color: theme.colors.textMuted, fontSize: 13, marginTop: 2 },
-  sellerLink: { color: theme.colors.primary, fontWeight: "700", marginLeft: 8 },
+  sellerLink: { color: theme.colors.accent, fontWeight: "700", marginLeft: 8 },
   chip: { flexDirection: "row", alignItems: "center", backgroundColor: theme.colors.background, borderWidth: 1,
     borderColor: theme.colors.border, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8, marginBottom: 8 },
   imageWrap: { borderRadius: 20, overflow: "hidden", backgroundColor: theme.colors.surfaceMuted },

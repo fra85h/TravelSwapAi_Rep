@@ -241,7 +241,8 @@ export default function HomeScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Ionicons name="sparkles" size={15} color={theme.colors.accent} />
             <Text style={styles.perTeTitle}>{tt("esplora.forYouTitle", "Per te")}</Text>
-            <View style={styles.aiTag}><Text style={styles.aiTagText}>{tt("matching.aiTag", "AI")}</Text></View>
+            {/* Tag "AI" rimosso: ridondante con le scintille ✨ (che restano il
+                segnale AI) e con la ⓘ; toglierlo alleggerisce e riduce l'oro. */}
             {/* Una sola ⓘ per l'intera sezione: spiega cosa sono i suggerimenti
                 e cosa indica la percentuale di affinità, senza affollare le card. */}
             <TouchableOpacity

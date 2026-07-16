@@ -114,5 +114,5 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
   sub: { marginTop: 4, color: theme.colors.textMuted },
-  price: { marginTop: 6, fontWeight: "800", color: theme.colors.primary },
+  price: { marginTop: 6, fontWeight: "800", color: theme.colors.accent },
 });
