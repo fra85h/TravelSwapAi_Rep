@@ -316,6 +316,7 @@ export default function ProfileScreen() {
       <View style={[styles.card, { paddingVertical: 4, paddingHorizontal: 0 }]}>
         {[
           { icon: "👤", label: t("profile.editProfile", "Modifica profilo"), route: "EditProfile" },
+          { icon: "🎯", label: t("profile.aiSuggestions", "Suggeriti dall'AI"), route: "Matching" },
           { icon: "⭐", label: t("profile.savedListings", "I miei preferiti"), route: "Saved" },
           { icon: "✨", label: t("profile.editPreferences", "Le mie preferenze"), route: "EditPreferences" },
           { icon: "🔗", label: t("profile.chainProposals", "Scambi a 3"), route: "ChainProposals" },

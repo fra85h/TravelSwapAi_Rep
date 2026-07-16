@@ -30,12 +30,16 @@ function toYMDHMS_AMPM(input) {
   if (!input) return "—";
   const d = new Date(String(input));
   if (isNaN(d.getTime())) return String(input);
-  const Y = d.getFullYear();
-  const M = pad2(d.getMonth() + 1);
-  const D = pad2(d.getDate());
-  let h = d.getHours();
-  const m = pad2(d.getMinutes());
-  const s = pad2(d.getSeconds());
+  // Orari "da parete": partenza/arrivo indicano l'ora ALLA STAZIONE e vanno
+  // mostrati identici a come li ha inseriti chi pubblica, per qualunque
+  // fuso di chi guarda. Il valore è salvato naive (interpretato come UTC),
+  // quindi si legge in UTC — altrimenti in Italia comparivano +2 ore.
+  const Y = d.getUTCFullYear();
+  const M = pad2(d.getUTCMonth() + 1);
+  const D = pad2(d.getUTCDate());
+  let h = d.getUTCHours();
+  const m = pad2(d.getUTCMinutes());
+  const s = pad2(d.getUTCSeconds());
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12; if (h === 0) h = 12;
   return `${Y}-${M}-${D} ${pad2(h)}:${m}:${s} ${ampm}`;

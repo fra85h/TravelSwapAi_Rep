@@ -61,12 +61,17 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "un flag con code:'IRRELEVANT_IMAGES' e un msg che dice cosa mostrano. " +
       "Valuta inoltre la COERENZA tra titolo/descrizione e i dati strutturati " +
       "(type, origin/destination, date, price, e l'azione cerco/vendo se " +
-      "presente): se il testo contraddice i campi — es. la descrizione parla " +
-      "di hotel ma type è train, cita una città o tratta diversa da " +
-      "origin/destination, riporta un prezzo molto diverso da price, oppure " +
-      "dice di CERCARE mentre l'annuncio risulta in vendita (o viceversa) — " +
-      "aggiungi un flag con code:'INCOHERENT_LISTING' e un msg che spiega la " +
-      "discrepanza in modo concreto. " +
+      "presente). Segnala INCOHERENT_LISTING SOLO in presenza di una " +
+      "contraddizione EVIDENTE e concreta — es. la descrizione parla di hotel " +
+      "ma type è train, cita una città/tratta chiaramente diversa da " +
+      "origin/destination, riporta un prezzo esplicito molto diverso da price, " +
+      "oppure dice esplicitamente di VENDERE mentre l'annuncio è in CERCA (o " +
+      "viceversa). Una descrizione breve, generica o parziale che semplicemente " +
+      "NON contraddice i campi è COERENTE e NON va segnalata (es. 'Cerco Roma " +
+      "Termini-Firenze' su un annuncio Cerco treno Roma→Firenze è coerente). " +
+      "NEL DUBBIO considera l'annuncio coerente e NON segnalarlo. Quando c'è una " +
+      "contraddizione evidente, aggiungi un flag con code:'INCOHERENT_LISTING' " +
+      "e un msg che spiega la discrepanza in modo concreto. " +
       "Restituisci SOLO un JSON con la forma: " +
       "{ textScore:number(0-100), imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
       `I valori di 'msg' e 'suggestion' devono essere scritti in ${LANG_NAME} (i 'code' restano invariati, in inglese maiuscolo). ` +
