@@ -16,7 +16,9 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPE
  * - flags: [{ code, msg }]
  * - suggestedFixes: [{ field, suggestion }]
  */
-export async function aiTrustReview(listing, heur = {}) {
+export async function aiTrustReview(listing, heur = {}, locale = 'it') {
+  const lang = ['it', 'en', 'es'].includes(locale) ? locale : 'it';
+  const LANG_NAME = { it: 'italiano', en: 'inglese', es: 'spagnolo' }[lang];
   // Fallback immediato se manca la chiave
   if (!process.env.OPENAI_API_KEY) {
     return {
@@ -51,8 +53,17 @@ export async function aiTrustReview(listing, heur = {}) {
       "viaggio di questo tipo (biglietto, stazione, hotel, camera, luogo): " +
       "foto del tutto estranee (cibo, selfie, oggetti non pertinenti) meritano " +
       "un flag con code:'IRRELEVANT_IMAGES' e un msg che dice cosa mostrano. " +
+      "Valuta inoltre la COERENZA tra titolo/descrizione e i dati strutturati " +
+      "(type, origin/destination, date, price, e l'azione cerco/vendo se " +
+      "presente): se il testo contraddice i campi — es. la descrizione parla " +
+      "di hotel ma type è train, cita una città o tratta diversa da " +
+      "origin/destination, riporta un prezzo molto diverso da price, oppure " +
+      "dice di CERCARE mentre l'annuncio risulta in vendita (o viceversa) — " +
+      "aggiungi un flag con code:'INCOHERENT_LISTING' e un msg che spiega la " +
+      "discrepanza in modo concreto. " +
       "Restituisci SOLO un JSON con la forma: " +
       "{ textScore:number(0-100), imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
+      `I valori di 'msg' e 'suggestion' devono essere scritti in ${LANG_NAME} (i 'code' restano invariati, in inglese maiuscolo). ` +
       "Usa rigore: nessun testo extra oltre al JSON.",
   });
 
