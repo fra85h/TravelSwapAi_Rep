@@ -413,11 +413,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
+  // Pillola Match "tenue" (sfondo oro chiaro + bordo + testo navy), stesso
+  // peso della pillola verde Affidabilità: due badge-punteggio coerenti,
+  // invece del blocco d'oro pieno che appesantiva la sezione "Per te".
   affinityPill: {
     flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start",
-    backgroundColor: theme.colors.accent, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: theme.colors.accentSoft, borderWidth: 1, borderColor: theme.colors.accent,
+    borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
   },
-  affinityText: { fontSize: 11, fontWeight: "800", color: theme.colors.accentOn },
+  affinityText: { fontSize: 11, fontWeight: "800", color: theme.colors.boardingText },
   pickTitle: { marginTop: 8, fontWeight: "800", color: theme.colors.boardingText, minHeight: 36 },
   pickSub: { marginTop: 4, color: theme.colors.textMuted, fontSize: 12 },
   otherListingsHead: { marginTop: 16, marginBottom: 2, fontSize: 15, fontWeight: "800", color: theme.colors.text },

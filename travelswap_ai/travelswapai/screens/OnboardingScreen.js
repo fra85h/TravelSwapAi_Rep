@@ -143,6 +143,11 @@ export default function OnboardingScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+        {/* Footer discreto: segnale di proprietà/legittimità al primo contatto.
+            Solo brand (il credito completo con versione e autore è in Profilo). */}
+        <Text style={styles.copyright}>
+          {t("onboarding.copyright", "© {year} TravelSwapAI", { year: new Date().getFullYear() })}
+        </Text>
       </SafeAreaView>
     </View>
   );
@@ -198,6 +203,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   bottomText: { fontSize: 16, fontWeight: "600", color: theme.colors.text },
+  copyright: { textAlign: "center", fontSize: 11, color: theme.colors.textMuted, paddingBottom: 6 },
   // riflesso
   gloss: {
     position: "absolute",
