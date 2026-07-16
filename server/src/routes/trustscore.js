@@ -1,7 +1,7 @@
 // server/src/routes/trustscore.js
 import express from 'express';
 import { body, validationResult } from 'express-validator';
-import { computeHeuristicChecks } from '../services/trust/heuristics.js';
+import { computeHeuristicChecks, isKnownRailCity } from '../services/trust/heuristics.js';
 import { aiTrustReview } from '../services/trust/aiTrust.js';
 import { moderateListing } from '../services/trust/moderation.js';
 import { saveTrustAudit } from '../services/trust/store.js';
@@ -96,6 +96,28 @@ let trustScore = Math.round(
   (t * weights.aiText) +
   (i * weights.aiImages)
 );
+
+// Falsi positivi di tratta: l'AI a volte segnala IMPLAUSIBLE_ROUTE su tratte
+// reali (es. Palermo→Messina, Ancona→Bari). Il layer deterministico è
+// l'autorità sui casi davvero impossibili (isole minori, Sardegna↔continente).
+// Quindi: se la tratta treno è tra due città ferroviarie note e le euristiche
+// NON l'hanno segnalata, l'IMPLAUSIBLE_ROUTE dell'AI è quasi certamente errato
+// → lo rimuoviamo (niente flag mostrato, niente cap del punteggio). Le tratte
+// con una città non in allow-list restano invece valutate dall'AI.
+const heurFlagCodes = (heur?.flags ?? []).map((f) => String(f?.code || '').toUpperCase());
+const isTrainListing = ['train', 'treno'].includes(String(listing.type || '').toLowerCase());
+if (
+  isTrainListing &&
+  isKnownRailCity(listing.origin) &&
+  isKnownRailCity(listing.destination) &&
+  !heurFlagCodes.includes('IMPLAUSIBLE_ROUTE')
+) {
+  const before = (ai?.flags ?? []).length;
+  ai.flags = (ai?.flags ?? []).filter((f) => String(f?.code || '').toUpperCase() !== 'IMPLAUSIBLE_ROUTE');
+  if (ai.flags.length !== before && process.env.NODE_ENV !== 'production') {
+    console.log(`[trustscore] soppresso IMPLAUSIBLE_ROUTE AI (falso positivo): ${listing.origin} → ${listing.destination}`);
+  }
+}
 
 // Tetti per flag gravi: la media pesata 45/45/10 diluisce i problemi
 // oggettivi (una tratta impossibile con punteggio 83% è fuorviante).
