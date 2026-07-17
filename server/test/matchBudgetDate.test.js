@@ -1,7 +1,7 @@
 // Test del modificatore deterministico budget + prossimità data (Fase 2).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { priceFit, dateFit, budgetDateFactor } from '../src/ai/score.js';
+import { priceFit, dateFit, budgetDateFactor, adjustedScore } from '../src/ai/score.js';
 
 const cerco = (price, date) => ({ cerco_vendo: 'CERCO', price, depart_at: date });
 const vendo = (price, date) => ({ cerco_vendo: 'VENDO', price, depart_at: date });
@@ -60,4 +60,20 @@ test('budgetDateFactor: solo fuori budget (data ok) → 0.75', () => {
 test('budgetDateFactor: input mancante → 1', () => {
   assert.equal(budgetDateFactor(null, vendo(50)), 1);
   assert.equal(budgetDateFactor(cerco(60), null), 1);
+});
+
+test('adjustedScore: sempre INTERO (la colonna matches.score è integer)', () => {
+  const d0 = '2026-08-01T10:00:00Z';
+  // 90 * 0.75 = 67.5 → 68 (intero, mai frazionario come "48.172")
+  const s1 = adjustedScore(90, cerco(60, d0), vendo(90, d0)); // solo fuori budget
+  assert.equal(Number.isInteger(s1), true);
+  assert.equal(s1, 68);
+  // caso che generava il bug: base frazionaria per il fattore
+  const s2 = adjustedScore(64, cerco(60, d0), vendo(75, '2026-08-04T22:00:00Z'));
+  assert.equal(Number.isInteger(s2), true);
+});
+
+test('adjustedScore: in budget e stessa data → punteggio base invariato', () => {
+  const d0 = '2026-08-01T10:00:00Z';
+  assert.equal(adjustedScore(90, cerco(60, d0), vendo(50, d0)), 90);
 });
