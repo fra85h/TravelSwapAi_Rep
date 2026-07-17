@@ -563,6 +563,35 @@ const initialJsonRef = useRef(null);
     let cancelled = false;
     (async () => {
       try {
+        // A-2: "Ho questo biglietto" da un annuncio CERCO → precompila un VENDO
+        // con la stessa tratta/date. Mai titolo/descrizione/prezzo del CERCO: il
+        // prezzo lì è il budget dell'altro, il tuo lo scegli tu. Segna come
+        // "toccati" tipo e cerco/vendo così "Compila con AI" non li ribalta.
+        if (route?.params?.prefill && mode !== "edit") {
+          const pf = route.params.prefill;
+          const [locFrom, locTo] = splitRoute(pf.location);
+          const type = (pf.type === "train" || pf.type === "hotel") ? pf.type : "train";
+          const rf = pf.route_from || locFrom || "";
+          const rt = pf.route_to || locTo || "";
+          userTouchedCercoVendo.current = true;
+          userTouchedType.current = true;
+          if (!cancelled) {
+            setForm((prev) => ({
+              ...prev,
+              type,
+              cercoVendo: "VENDO",
+              location: pf.location || prev.location,
+              routeFrom: rf,
+              routeTo: rt,
+              checkIn: pf.check_in || "",
+              checkOut: pf.check_out || "",
+              departAt: tsToWallInput(pf.depart_at),
+              arriveAt: tsToWallInput(pf.arrive_at),
+              title: buildAutoTitle("VENDO", type, rf, rt, pf.location),
+            }));
+          }
+          return;
+        }
         if (mode === "edit" && route?.params?.listingId && typeof getListingById === "function") {
           const l = await getListingById(route.params.listingId);
           // il PNR non è in listings: si legge dal segreto (solo owner)
