@@ -72,14 +72,22 @@ export default function OfferFlow() {
         return;
       }
 
+      // Un'offerta (acquisto o scambio) ha senso SOLO verso un VENDO: un CERCO
+      // è una richiesta, non un biglietto che si possa comprare o ricevere.
+      if (String(l?.cerco_vendo || "").toUpperCase() === "CERCO") {
+        setError(t("offerFlow.targetIsCerco", "Questo è un annuncio di ricerca: non si acquista né si scambia. Se hai il biglietto giusto, pubblicalo come \"Vendo\"."));
+        return;
+      }
+
       // pending esistente
       const p = await getMyPendingOfferFor(listingId);
       setPendingOffer(p);
 
-      // carica i miei annunci per SWAP
+      // carica i miei annunci per SWAP — solo i VENDO: puoi offrire in scambio
+      // solo un biglietto che possiedi, non una tua richiesta (CERCO).
       if (!isBuy && u?.id) {
         const mine = await listMyActiveListings();
-        setMyListings(mine);
+        setMyListings((mine || []).filter((x) => String(x?.cerco_vendo || "").toUpperCase() === "VENDO"));
       }
     } catch (e) {
       setError(e.message || String(e));

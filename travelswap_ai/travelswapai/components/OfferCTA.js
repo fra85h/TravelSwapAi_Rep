@@ -26,6 +26,20 @@ export default function OfferCTAs({ listing, me }) {
     navigation.navigate("OfferFlow", { mode: "swap", listingId: listing.id });
   };
 
+  // Un CERCO è una richiesta (nessun biglietto da comprare o scambiare): non si
+  // offrono acquisto/scambio. Si spiega come collegarsi (pubblicare un VENDO).
+  // Acquisto e scambio hanno senso SOLO verso un VENDO. Gli annunci senza
+  // cerco_vendo (legacy) restano trattati come vendibili.
+  if (String(listing?.cerco_vendo || "").toUpperCase() === "CERCO") {
+    return (
+      <View style={styles.infoBox}>
+        <Text style={styles.infoText}>
+          {t("offers.cercoInfo", "Questo è un annuncio di ricerca: non si acquista né si scambia direttamente. Se hai il biglietto giusto, pubblicalo come “Vendo” — comparirà tra i suoi suggerimenti.")}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.row}>
       <TouchableOpacity onPress={onPurchase} style={[styles.btn, styles.btnGhost]}>
@@ -58,5 +72,18 @@ const styles = StyleSheet.create({
   },
   btnGhostText: {
     color: theme.colors.text,
+  },
+  infoBox: {
+    marginTop: 12,
+    backgroundColor: theme.colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: 12,
+  },
+  infoText: {
+    color: theme.colors.text,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
