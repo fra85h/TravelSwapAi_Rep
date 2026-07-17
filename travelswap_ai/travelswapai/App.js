@@ -24,7 +24,6 @@ import OfferDetailScreen from './screens/OfferDetailScreen';
 import ListingDetailScreen from './screens/ListingDetailScreen';
 import SellerProfileScreen from './screens/SellerProfileScreen';
 import SavedScreen from './screens/SavedScreen';
-import ManageImagesScreen from './screens/ManageImagesScreen';
 import ChainProposalsScreen from './screens/ChainProposalsScreen';
 import SavedSearchesScreen from './screens/SavedSearchesScreen';
 import MatchingScreen from './screens/MatchingScreen';
@@ -154,7 +153,6 @@ function RootNavigator() {
           <Stack.Screen name="SellerProfile" component={SellerProfileScreen} options={{ title: "Venditore" }} />
           <Stack.Screen name="OfferDetail" component={OfferDetailScreen} options={{ title: "Offer" }} />
           <Stack.Screen name="Saved" component={SavedScreen} options={{ title: "Preferiti" }} />
-          <Stack.Screen name="ManageImages" component={ManageImagesScreen} options={{ title: "Foto annuncio" }} />
           <Stack.Screen name="ChainProposals" component={ChainProposalsScreen} options={{ title: "Scambi a 3" }} />
           <Stack.Screen name="SavedSearches" component={SavedSearchesScreen} options={{ title: "Avvisi di ricerca" }} />
           <Stack.Screen name="EditPreferences" options={{ title: "Le tue preferenze" }}>
