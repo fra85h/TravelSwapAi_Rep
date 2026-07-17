@@ -1466,6 +1466,10 @@ const initialJsonRef = useRef(null);
   }, []);
 
   /* ---------- UI ---------- */
+  // Per un "Cerco" il campo prezzo rappresenta il BUDGET MASSIMO (quanto sei
+  // disposto a pagare), non un prezzo di vendita. In Fase 2 l'algoritmo di
+  // match userà questo valore come tetto: un Vendo dentro budget alza il match.
+  const isCerco = String(form.cercoVendo || "").toUpperCase() === "CERCO";
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left','right','bottom']}>
       {/* ===== TOP PANNELLO FISSO ===== */}
@@ -1889,16 +1893,27 @@ const initialJsonRef = useRef(null);
                     </View>
                   )}
 
-                  {/* Prezzo */}
-                  <Text style={styles.label}>{t("createListing.price", "Prezzo *")}</Text>
+                  {/* Prezzo (Vendo) / Budget massimo (Cerco) */}
+                  <Text style={styles.label}>
+                    {isCerco
+                      ? t("createListing.budgetMax", "Budget massimo *")
+                      : t("createListing.price", "Prezzo *")}
+                  </Text>
                   <TextInput
                     value={String(form.price)}
                     onChangeText={(v) => update({ price: v.replace(",", ".") })}
-                    placeholder={t("createListing.pricePlaceholder", "Es. 120")}
+                    placeholder={isCerco
+                      ? t("createListing.budgetMaxPlaceholder", "Es. 60 — quanto vuoi pagare al massimo")
+                      : t("createListing.pricePlaceholder", "Es. 120")}
                     keyboardType="decimal-pad"
                     style={[styles.input, errors.price && styles.inputError]}
                     placeholderTextColor={theme.colors.textMuted}
                   />
+                  {isCerco && (
+                    <Text style={styles.note}>
+                      {t("createListing.budgetMaxHint", "È il prezzo massimo che sei disposto a pagare: lo useremo per proporti gli annunci più in linea con il tuo budget.")}
+                    </Text>
+                  )}
                   {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
 
                   {/* Info + Pulsante Analisi Prezzo con AI */}
