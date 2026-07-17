@@ -48,9 +48,12 @@ function regionOf(cityRaw) {
   const key = normCityKey(cityRaw);
   if (!key) return null;
   if (REGION_BY_CITY[key]) return REGION_BY_CITY[key];
-  // match parziale: "Roma Termini" -> "roma"
-  for (const known of Object.keys(REGION_BY_CITY)) {
-    if (key.includes(known)) return REGION_BY_CITY[known];
+  // match su singola parola (es. "Roma Termini" -> "roma"), non su
+  // sottostringa libera: una sottostringa libera farebbe scambiare per
+  // "centro" una città come "Romano di Lombardia" (nord) solo perché
+  // contiene la sequenza "roma".
+  for (const word of key.split(/\s+/)) {
+    if (REGION_BY_CITY[word]) return REGION_BY_CITY[word];
   }
   return null;
 }
@@ -132,8 +135,12 @@ export function heuristicChainScore(wantListing, candidates, { dateToleranceDays
         return { id: c.id, score: 0, reason: "tipo diverso" };
       }
       const dateOk = withinDateTolerance(wantListing, c, dateToleranceDays);
-      const regionOk = sameRegionRoute(wantListing, c);
       const exactOk = exactRouteMatch(wantListing, c);
+      // L'esatto implica sempre anche l'area, anche quando la città non è
+      // nella mappa statica REGION_BY_CITY (altrimenti regionOf() torna null
+      // e una città identica ma non mappata perderebbe il bonus "stessa area",
+      // restando sotto soglia anche con data vicina).
+      const regionOk = exactOk || sameRegionRoute(wantListing, c);
       const score = 20 + (dateOk ? 15 : 0) + (regionOk ? 40 : 0) + (exactOk ? 25 : 0);
       return {
         id: c.id,

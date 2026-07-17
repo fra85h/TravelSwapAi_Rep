@@ -176,8 +176,9 @@ if (rows.length) {
       from_listing_id: r.from_listing_id,
       to_listing_id: r.to_listing_id,
       score: r.score,
+      bidirectional,
       model,
-      explanation,   
+      explanation,
       created_at: generated_at ?? new Date().toISOString(),    // se vuoi forzare il timestamp
     }));
 
@@ -283,7 +284,7 @@ export async function recomputeUserSnapshotSQL(
     fromListingId: r.from_listing_id,
     toId: r.to_listing_id,
     score: r.score,
-    bidirectional: r.score >= 80,
+    bidirectional: !!r.bidirectional,
     title: r.title,
     type: r.type,
     location: r.location,
