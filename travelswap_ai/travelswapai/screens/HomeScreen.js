@@ -175,6 +175,12 @@ export default function HomeScreen() {
   );
 
   const renderItem = ({ item }) => {
+    // Stesso criterio di ownership usato in OfferCTA/ListingDetail: senza un
+    // segnale in Esplora, toccare il proprio annuncio e non vedere i bottoni
+    // di acquisto/scambio sembrava un bug, non una conseguenza attesa.
+    const isMine =
+      me?.id && (item?.owner_id || item?.user_id || item?.created_by) &&
+      String(me.id) === String(item.owner_id || item.user_id || item.created_by);
     const typeLc = String(item.type || "").toLowerCase();
     const typeLabel =
       typeLc === "train"
@@ -209,6 +215,10 @@ export default function HomeScreen() {
           </View>
           <SaveButton listingId={item.id} size={22} />
         </View>
+
+        {isMine ? (
+          <Text style={styles.mineTag}>{tt("listing.yourListingBadge", "È un tuo annuncio")}</Text>
+        ) : null}
 
         <Text style={styles.cardSub}>
           {typeLabel} • {item.location || item.route_from || "-"}
@@ -428,6 +438,18 @@ const styles = StyleSheet.create({
     padding: 14, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
   cardTitle: { fontWeight: "800", color: theme.colors.boardingText },
+  mineTag: {
+    alignSelf: "flex-start",
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: theme.colors.accentSoft,
+    color: theme.colors.accent,
+    fontSize: 11,
+    fontWeight: "700",
+    overflow: "hidden",
+  },
   cardSub: { color: theme.colors.textMuted, marginTop: 4 },
   cardMeta: { color: theme.colors.text, marginTop: 6, fontWeight: "600" },
   cardPublished: { color: theme.colors.textMuted, marginTop: 8, fontSize: 12 },

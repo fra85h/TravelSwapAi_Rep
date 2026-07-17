@@ -259,6 +259,7 @@ export const translations = {
       type: { hotel: "Hotel", train: "Treno" },
       untitled: "Senza titolo",
       publishedOn: "Pubblicato il",
+      yourListingBadge: "È un tuo annuncio",
       filterPrefix: "Filtro:",
       showAll: "Mostra tutti",
 
@@ -1146,6 +1147,7 @@ export const translations = {
       type: { hotel: "Hotel", train: "Train" },
       untitled: "Untitled",
       publishedOn: "Published on",
+      yourListingBadge: "This is your listing",
       filterPrefix: "Filter:",
       showAll: "Show all",
 
@@ -2012,6 +2014,7 @@ export const translations = {
       type: { hotel: "Hotel", train: "Tren" },
       untitled: "Sin título",
       publishedOn: "Publicado el",
+      yourListingBadge: "Es tu anuncio",
       filterPrefix: "Filtro:",
       showAll: "Mostrar todos",
 
