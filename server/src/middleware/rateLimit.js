@@ -13,10 +13,25 @@ function keyFromReq(req) {
  */
 export function makeRateLimiter({ windowMs = 10 * 60 * 1000, max = 10, name = 'richieste' } = {}) {
   const buckets = new Map(); // key -> { count, resetAt }
+  let lastSweep = Date.now();
+
+  // Senza pulizia, ogni chiave vista anche una sola volta (utente o IP)
+  // resta in memoria per sempre: su un processo long-running con molti
+  // utenti/IP diversi nel tempo è un leak lento. Una sweep delle voci
+  // scadute ogni windowMs (non a ogni richiesta) tiene la Map limitata
+  // senza aggiungere overhead O(n) su ogni singola chiamata.
+  function sweepExpired(now) {
+    if (now - lastSweep < windowMs) return;
+    lastSweep = now;
+    for (const [k, b] of buckets) {
+      if (now > b.resetAt) buckets.delete(k);
+    }
+  }
 
   return function rateLimit(req, res, next) {
     const key = keyFromReq(req);
     const now = Date.now();
+    sweepExpired(now);
 
     let bucket = buckets.get(key);
     if (!bucket || now > bucket.resetAt) {

@@ -58,13 +58,20 @@ trustscoreRouter.post(
     }
 
     try {
-      // 1) Heuristics (isolato)
-      let heur = { score: 0, flags: [], suggestedFixes: [], consistencyScore: 0, plausibilityScore: 0, completenessScore: 0 };
+      // 1) Heuristics (isolato). Punteggio neutro (55, non 0) se il motore
+      // euristico fallisce: le euristiche pesano 45% del punteggio finale,
+      // un default a 0 farebbe crollare fino a 40+ punti il trustScore di un
+      // annuncio legittimo per un bug SERVER, non per un problema reale
+      // dell'annuncio (stesso principio già applicato al fallback AI).
+      const HEUR_NEUTRAL = { score: 55, flags: [], suggestedFixes: [], consistencyScore: 50, plausibilityScore: 50, completenessScore: 50 };
+      let heur = HEUR_NEUTRAL;
+      let heuristicsAvailable = true;
       try {
-        heur = computeHeuristicChecks(listing, locale) || heur;
+        heur = computeHeuristicChecks(listing, locale) || HEUR_NEUTRAL;
       } catch (e) {
         console.error('[trustscore] heuristics failed:', e);
-        heur.flags.push({ code: 'HEUR_ERROR', msg: 'Heuristics non disponibili' });
+        heuristicsAvailable = false;
+        heur = { ...HEUR_NEUTRAL, flags: [{ code: 'HEUR_ERROR', msg: 'Heuristics non disponibili' }] };
       }
 
       // 2) AI review (isolata, con fallback se manca chiave o modulo)
@@ -173,6 +180,7 @@ const response = {
   trustScore,
   aiAvailable,
   aiUnavailableReason,
+  heuristicsAvailable,
   subScores: {
     heuristics: h,
     aiText: t,

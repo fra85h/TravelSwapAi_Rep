@@ -35,11 +35,15 @@ const NO_RAIL_PLACES = [
   'tremiti', 'san domino', 'san nicola',
 ];
 
-// Normalizza una località: minuscolo, senza accenti, spazi compattati.
+// Normalizza una località: minuscolo, senza accenti, apostrofi come spazio
+// (es. "L'Aquila" -> "l aquila", altrimenti l'apostrofo non soddisfa mai il
+// separatore \s+ usato dal match sulle voci multi-parola qui sotto), spazi
+// compattati.
 function normPlace(s) {
   return String(s || '')
     .toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/['’‘`]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
