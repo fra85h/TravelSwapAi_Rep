@@ -29,11 +29,17 @@ test('priceFit: neutro (1) se stesso cerco_vendo o prezzo mancante', () => {
   assert.equal(priceFit(cerco(60), vendo(null)), 1);
 });
 
-test('dateFit: stessa data → 1, a 7 giorni → 0, a 3.5 → 0.5', () => {
+test('dateFit: tolleranza entro 1 giorno, poi calo lineare (finestra 14)', () => {
   const d0 = '2026-08-01T10:00:00Z';
-  assert.equal(dateFit(cerco(60, d0), vendo(50, d0)), 1);
-  assert.equal(dateFit(cerco(60, d0), vendo(50, '2026-08-08T10:00:00Z')), 0);
-  assert.equal(dateFit(cerco(60, d0), vendo(50, '2026-08-04T22:00:00Z')), 0.5);
+  assert.equal(dateFit(cerco(60, d0), vendo(50, d0)), 1);                          // stessa data
+  assert.equal(dateFit(cerco(60, d0), vendo(50, '2026-08-02T10:00:00Z')), 1);      // 1 giorno → tolleranza piena
+  assert.equal(dateFit(cerco(60, d0), vendo(50, '2026-08-09T10:00:00Z')), 0.5);    // 8 giorni → 1-(8-1)/14
+  assert.equal(dateFit(cerco(60, d0), vendo(50, '2026-08-16T10:00:00Z')), 0);      // 15 giorni → 0
+});
+
+test('dateFit: uno scarto di 1 giorno NON penalizza (il caso 79%→0%)', () => {
+  const d0 = '2026-08-01T10:00:00Z';
+  assert.equal(dateFit(cerco(60, d0), vendo(60, '2026-08-02T10:00:00Z')), 1);
 });
 
 test('dateFit: neutro (1) se manca una data', () => {
@@ -45,11 +51,17 @@ test('budgetDateFactor: in budget e stessa data → 1 (nessuna penalità)', () =
   assert.equal(budgetDateFactor(cerco(60, d0), vendo(50, d0)), 1);
 });
 
-test('budgetDateFactor: fuori budget e data lontana → 0.5 (dimezzato)', () => {
+test('budgetDateFactor: fuori budget e data molto lontana → 0.5 (dimezzato)', () => {
   const f = cerco(60, '2026-08-01T10:00:00Z');
-  const l = vendo(90, '2026-08-08T10:00:00Z'); // priceFit 0, dateFit 0
-  // 1 - 0.25*1 - 0.25*1 = 0.5
+  const l = vendo(90, '2026-08-16T10:00:00Z'); // priceFit 0, dateFit 0 (15 giorni)
+  // 1 - 0.25*1 - 0.25*1 = 0.5 → il match non scende mai sotto la metà
   assert.equal(budgetDateFactor(f, l), 0.5);
+});
+
+test('budgetDateFactor: match strutturale a 1 giorno di distanza resta pieno', () => {
+  const f = cerco(60, '2026-08-01T10:00:00Z');
+  const l = vendo(60, '2026-08-02T10:00:00Z'); // in budget, 1 giorno → nessuna penalità
+  assert.equal(budgetDateFactor(f, l), 1);
 });
 
 test('budgetDateFactor: solo fuori budget (data ok) → 0.75', () => {
