@@ -54,6 +54,11 @@ function ChainCard({ chain, onConfirm, onDecline, busyId, t, locale }) {
         {chain.explanation || t("chains.noExplanation", "Abbiamo trovato uno scambio a 3 che ti riguarda.")}
       </Text>
 
+      <Text style={styles.youReceive}>
+        {t("chains.youReceive", "Tu ricevi")}{": "}
+        {describeListing(chain.myReceiveListing, t, locale)}
+      </Text>
+
       <Text style={styles.legsCaption}>{t("chains.legsCaption", "Ecco il giro:")}</Text>
       <View style={styles.legs}>
         {chain.participants.map((p, idx) => (
@@ -267,6 +272,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, fontWeight: "800", color: theme.colors.accentOn },
   progressText: { fontSize: 12, color: theme.colors.textMuted, fontWeight: "600" },
   explanation: { color: theme.colors.text, lineHeight: 20, marginBottom: 12 },
+  youReceive: { color: theme.colors.text, fontWeight: "700", marginBottom: 12 },
   legsCaption: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, marginBottom: 6 },
   legs: { marginBottom: 14 },
   leg: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
