@@ -2301,12 +2301,6 @@ const initialJsonRef = useRef(null);
               <TouchableOpacity onPress={() => setQrVisible(false)} style={[styles.footerBtn, styles.footerGhost, { flex: 1 }]}>
                 <Text style={[styles.footerText, { color: theme.colors.text }]}>{t("common.cancel", "Annulla")}</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => onQrScanned({ data: "Ryanair FR1234 MXP-FCO 10/09/2025 08:10 09:20 PNR ABCDEF €49" })}
-                style={[styles.footerBtn, styles.footerPrimary, { flex: 1 }]}
-              >
-                {importBusy ? <ActivityIndicator color="#fff" /> : <Text style={[styles.footerText, { color: "#fff" }]}>{t("createListing.simulateScan", "Simula scan")}</Text>}
-              </TouchableOpacity>
             </View>
           </View>
         </View>
