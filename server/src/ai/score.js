@@ -276,7 +276,7 @@ export async function scoreWithAI(user, listings) {
     const prompt = buildPrompt(user, batch);
     const raw = await callOpenAIJSON({
       prompt,
-      timeoutMs: 15000,
+      timeoutMs: MATCH_AI_TIMEOUT_MS,
       model: MODEL,
       temperature: TEMPERATURE,
       top_p: TOP_P,
@@ -294,8 +294,18 @@ export async function scoreWithAI(user, listings) {
   const byId = new Map(results.map(r => [r.id, r]));
   const completed = allIds.map(id => byId.get(id) || { id, score: 0, bidirectional: false, model: MODEL });
 
-  completed.sort((a, b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
-  return completed;
+  // Guardrail deterministico: non fidarsi ciecamente del bidirectional
+  // dichiarato dall'AI, verificarlo strutturalmente (vedi structuralBidirectional).
+  const f = user?.fromListing || null;
+  const listingById = new Map(sorted.map(l => [l.id, l]));
+  const guarded = completed.map(r => (
+    r.bidirectional && !structuralBidirectional(f, listingById.get(r.id))
+      ? { ...r, bidirectional: false }
+      : r
+  ));
+
+  guarded.sort((a, b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
+  return guarded;
 }
 
 /**
@@ -346,6 +356,38 @@ function offersWhatWanted(cand, wanted, type) {
   }
   const [ca, cb] = routeOf(cand);
   return !!(wanted.a && wanted.b && ca && cb && ca === wanted.a && cb === wanted.b);
+}
+
+// Verifica strutturale e deterministica di "bidirectional", usata come
+// guardrail sul flag restituito dall'AI: a differenza dello score (corretto
+// SEMPRE da adjustedScore), bidirectional veniva preso per buono così com'è
+// dall'LLM, senza alcun vincolo di codice — un'allucinazione poteva marcare
+// come reciproco un match strutturalmente sbagliato (tipo o tratta diversi).
+// Stesse regole del prompt/di heuristicScore: complementari CERCO↔VENDO con
+// stesso tipo e stessa tratta/località, oppure scambio reciproco reale tra
+// due VENDO.
+function structuralBidirectional(f, l) {
+  if (!f || !l) return false;
+  const fCV = String(f.cerco_vendo || "").toUpperCase();
+  const lCV = String(l.cerco_vendo || "").toUpperCase();
+  if (!fCV || !lCV) return false;
+  const fType = String(f.type || "").toLowerCase();
+  const lType = String(l.type || "").toLowerCase();
+  if (!fType || fType !== lType) return false;
+
+  const [fA, fB] = routeOf(f);
+  const [lA, lB] = routeOf(l);
+  const sameRoute = !!(fA && fB && lA && lB && fA === lA && fB === lB);
+  const sameHotelLoc = fType === "hotel" && !!normPlace(f.location) && normPlace(f.location) === normPlace(l.location);
+
+  const compCV = fCV === "CERCO" ? "VENDO" : fCV === "VENDO" ? "CERCO" : null;
+  if (compCV && lCV === compCV && (sameRoute || sameHotelLoc)) return true;
+
+  const bothVendo = fCV === "VENDO" && lCV === "VENDO";
+  if (!bothVendo) return false;
+  const fWantsL = !!f.accepts_swap && offersWhatWanted(l, swapWantedOf(f), lType);
+  const lWantsF = !!l.accepts_swap && offersWhatWanted(f, swapWantedOf(l), fType);
+  return fWantsL && lWantsF;
 }
 
 // -----------------------------------------------------------------------------

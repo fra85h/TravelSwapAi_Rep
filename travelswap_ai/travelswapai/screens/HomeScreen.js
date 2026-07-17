@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, ScrollView, Alert } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
-import { listPublicListings, getCurrentUser } from "../lib/db";
+import { listPublicListings, listMyListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
 import { subscribeDataChanged } from "../lib/ActivityContext";
 import OfferCTAs from "../components/OfferCTA";
@@ -13,6 +13,19 @@ import SaveButton from "../components/SaveButton";
 import { Ionicons } from "@expo/vector-icons";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Normalizza per la ricerca: minuscolo, senza accenti, apostrofi come spazio
+// (es. "L'Aquila" -> "l aquila", "Città" -> "citta"), come normPlace in
+// heuristics.js/score.js/chainMatch.js — senza questo, cercare "citta" non
+// trovava "Città di Castello" e "laquila" non trovava "L'Aquila".
+function normSearch(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/['’‘`]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 // Estrae i migliori suggerimenti AI dallo snapshot backend, in modo
 // tollerante alla forma della risposta (come fa MatchingScreen). Best
@@ -60,6 +73,12 @@ export default function HomeScreen() {
   // true quando lo snapshot AI ha finito di caricare (successo o errore):
   // serve a non far lampeggiare l'empty state "Per te" durante il fetch.
   const [picksReady, setPicksReady] = useState(false);
+  // Conteggio dedicato (non derivato da items, che è solo un campione degli
+  // ultimi 100 annunci di TUTTA la piattaforma): con abbastanza annunci
+  // altrui, un proprio annuncio più vecchio poteva restare fuori dal
+  // campione, facendo mostrare "Pubblica un annuncio" anche a chi ne aveva
+  // già uno attivo.
+  const [myActiveCount, setMyActiveCount] = useState(0);
 
   // helper i18n con fallback + interpolation
   const tt = (key, fallback, vars) => {
@@ -97,7 +116,11 @@ export default function HomeScreen() {
           .then((snap) => setPicks(extractPicks(snap)))
           .catch(() => setPicks([]))
           .finally(() => setPicksReady(true));
+        listMyListings({ status: "active" })
+          .then((mine) => setMyActiveCount(Array.isArray(mine) ? mine.length : 0))
+          .catch(() => setMyActiveCount(0));
       } else {
+        setMyActiveCount(0);
         setPicks([]);
         setPicksReady(true);
       }
@@ -136,12 +159,12 @@ export default function HomeScreen() {
   }, [navigation, t, locale]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = normSearch(query);
     return items.filter((x) => {
       if (tab !== "all" && String(x.type || "").toLowerCase() !== tab.toLowerCase()) return false;
       if (!q) return true;
       const hay = [x.title, x.location, x.route_from, x.route_to]
-        .map((s) => String(s || "").toLowerCase())
+        .map(normSearch)
         .join(" ");
       return hay.includes(q);
     });
@@ -266,7 +289,9 @@ export default function HomeScreen() {
     const hasPicks = picks.length > 0;
     // Se l'utente non ha annunci attivi, il motivo dell'assenza di
     // suggerimenti è che non ha ancora pubblicato: l'empty state lo guida.
-    const myActiveCount = items.filter((x) => String(x.user_id) === String(me.id)).length;
+    // myActiveCount è nello stato del componente (vedi load()): non va
+    // derivato da items, che è solo un campione degli ultimi 100 annunci
+    // di tutta la piattaforma, non tutti i propri.
 
     return (
       <View style={styles.perTeWrap}>

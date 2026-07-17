@@ -126,7 +126,7 @@ export async function explainChain(cycleListings) {
   }));
 
   const prompt = `Scrivi una spiegazione breve e amichevole (massimo 3 frasi, in italiano) di uno scambio a 3 persone tra biglietti/prenotazioni di viaggio.
-Il ciclo è: chi possiede l'annuncio 1 lo dà a chi possiede l'annuncio 2 e riceve l'annuncio 3; chi possiede l'annuncio 2 lo dà a chi possiede l'annuncio 3 e riceve l'annuncio 1; chi possiede l'annuncio 3 lo dà a chi possiede l'annuncio 1 e riceve l'annuncio 2.
+Il ciclo è: chi possiede l'annuncio 1 lo dà e riceve in cambio l'annuncio 2; chi possiede l'annuncio 2 lo dà e riceve in cambio l'annuncio 3; chi possiede l'annuncio 3 lo dà e riceve in cambio l'annuncio 1.
 Non inventare nomi di persone: parla di "annuncio 1/2/3" o descrivi le tratte/città. Chiudi ricordando che serve la conferma di tutti e 3.
 
 Annunci: ${JSON.stringify(slim)}

@@ -52,10 +52,19 @@ export async function listMyChainProposals() {
     .map((chain) => {
       const rows = (participants || [])
         .filter((p) => p.chain_id === chain.id)
-        .sort((a, b) => a.position - b.position)
+        // Ordine DISCENDENTE per posizione: create_chain_proposal (vedi
+        // 20260712120000_swap_chains.sql) valida che il receive di ognuno sia
+        // il give del SUCCESSIVO in ordine di posizione, cioè la posizione
+        // i riceve da (i+1)%3 — il flusso reale del dare va quindi "al
+        // contrario" rispetto all'ordine crescente. Ordinando al contrario,
+        // la freccia verso il basso tra una riga e la successiva (più il
+        // richiudersi sull'ultima) rispecchia davvero chi dà a chi, invece
+        // di suggerire la direzione opposta.
+        .sort((a, b) => b.position - a.position)
         .map((p) => ({
           ...p,
           listing: listingsById.get(p.give_listing_id) || null,
+          receiveListing: listingsById.get(p.receive_listing_id) || null,
           isMe: p.user_id === user.id,
         }));
       const confirmedCount = rows.filter((r) => r.confirmed).length;
@@ -65,6 +74,7 @@ export async function listMyChainProposals() {
         participants: rows,
         confirmedCount,
         myConfirmed: !!mine?.confirmed,
+        myReceiveListing: mine?.receiveListing || null,
       };
     })
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));

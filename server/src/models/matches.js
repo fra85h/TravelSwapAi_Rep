@@ -8,7 +8,7 @@ import {
   getUserProfile,
   supabase
 } from '../db.js';
-import { listActiveListingsOfUser, listMatchesForFrom, insertUserSnapshot, getLatestUserSnapshot } from '../db.js';
+import { listActiveListingsOfUser, listMatchesForFrom, getLatestUserSnapshot } from '../db.js';
 import { listActiveListings } from './listings.js';
 /**
  * Rigenera i match per userId e salva uno snapshot in tabella `matches`.
@@ -176,8 +176,9 @@ if (rows.length) {
       from_listing_id: r.from_listing_id,
       to_listing_id: r.to_listing_id,
       score: r.score,
+      bidirectional,
       model,
-      explanation,   
+      explanation,
       created_at: generated_at ?? new Date().toISOString(),    // se vuoi forzare il timestamp
     }));
 
@@ -266,52 +267,6 @@ export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTota
     count: items.length,
     reused: false,
   };
-}
-export async function recomputeUserSnapshotSQL(
-  userId,
-  { topPerListing = 3, maxTotal = 50, dedupByToId = true } = {}
-) {
-  if (!isUUID(userId)) throw new Error('Invalid userId');
-
-  const { data, error } = await supabase
-    .rpc('fn_user_top_matches', { p_user_id: userId, p_top_per_listing: topPerListing });
-  if (error) throw error;
-
-  let rows = data || [];
-
-  let items = rows.map(r => ({
-    fromListingId: r.from_listing_id,
-    toId: r.to_listing_id,
-    score: r.score,
-    bidirectional: r.score >= 80,
-    title: r.title,
-    type: r.type,
-    location: r.location,
-    price: r.price,
-    explanation: r.explanation || null,                  // 👈 nuovo
-    model: r.model || null,                              // 👈 nuovo
-    updatedAt: r.updated_at || new Date().toISOString()  // 👈 nuovo
-  }));
-
-  if (dedupByToId) {
-    const best = new Map();
-    for (const it of items) {
-      const prev = best.get(it.toId);
-      if (!prev) { best.set(it.toId, it); continue; }
-      const pick =
-        (it.score > prev.score) ||
-        (it.score === prev.score && it.explanation && !prev.explanation)
-          ? it : prev;
-      best.set(it.toId, pick);
-    }
-    items = Array.from(best.values());
-  }
-
-  items.sort((a, b) => (b.score - a.score) || String(a.toId).localeCompare(String(b.toId)));
-  items = items.slice(0, maxTotal);
-
-  await insertUserSnapshot(userId, items);
-  return { userId, generatedAt: new Date().toISOString(), count: items.length };
 }
 
 

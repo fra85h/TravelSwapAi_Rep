@@ -101,7 +101,7 @@ export async function getLatestUserSnapshot(userId) {
 export async function listMatchesForFrom(fromId, { limit = 100 } = {}) {
   const { data: rows, error } = await supabase
     .from('matches')
-   .select('to_listing_id, score, created_at, explanation, model') // 👈
+   .select('to_listing_id, score, created_at, explanation, model, bidirectional') // 👈
     .eq('from_listing_id', fromId)
     .order('score', { ascending: false })
     .limit(limit);
@@ -127,10 +127,11 @@ export async function listMatchesForFrom(fromId, { limit = 100 } = {}) {
       type: l.type,
       location: l.location,
       price: l.price,
-      score: r.score, 
+      score: r.score,
       updatedAt: r.created_at,
       explanation: r.explanation || null,
       model: r.model || null,
+      bidirectional: !!r.bidirectional,
     };
   }).filter(Boolean);
 }

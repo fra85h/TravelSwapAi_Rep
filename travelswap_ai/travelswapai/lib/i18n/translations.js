@@ -165,6 +165,7 @@ export const translations = {
       unknownListing: "Annuncio non disponibile",
       unknownCity: "città sconosciuta",
       gives: "dà",
+      youReceive: "Tu ricevi",
       legsCaption: "Ecco il giro:",
       backToStart: "torna al primo — il giro si chiude",
       completedTitle: "🎉 Scambio completato!",
@@ -357,7 +358,7 @@ export const translations = {
         splitFallbackReason: "sono stati rilevati due elementi distinti (tratte/orari/hotel).",
         splitNote1: "Al momento della pubblicazione verranno creati ",
         splitNoteBold: "due annunci separati",
-        splitNote2: " con lo stesso prezzo. Potrai modificare i prezzi in seguito.",
+        splitNote2: " con la stessa tratta/data e lo stesso prezzo del primo. Dopo la pubblicazione, apri il secondo annuncio e correggi tratta, data e prezzo con i dati reali del secondo biglietto.",
         // Motivi rilevamento "2 annunci"
         reasonRoutes: "Rilevate {n} tratte nel testo.",
         reasonTimes: "Rilevati più orari ({n}).",
@@ -484,7 +485,6 @@ export const translations = {
       aiImportError: "Impossibile importare dal PNR.",
       aiImportFromQr: "Dati importati dal QR.",
       qrImportError: "Import da QR non riuscito.",
-      simulateScan: "Simula scan",
 
       photoPermissionTitle: "Permesso negato",
       photoPermissionMsg: "Consenti l'accesso alle foto per aggiungerne.",
@@ -517,7 +517,7 @@ export const translations = {
       checkAiRequiredMsg: "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati.",
       checkAiRequiredPhotosMsg: "Hai cambiato le foto: esegui prima il 'Check AI' per verificarle prima di salvare.",
       splitPublishedTitle: "Pubblicati 2 annunci",
-      splitPublishedMsg: "Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito.",
+      splitPublishedMsg: "Sono stati pubblicati due annunci con la stessa tratta/data e lo stesso prezzo. Apri il secondo in \"I miei annunci\" e correggi tratta, data e prezzo con i dati reali del secondo biglietto.",
       draftUnavailableTitle: "Bozza non disponibile",
       draftUnavailableMsg: "Salva direttamente le modifiche.",
 
@@ -559,6 +559,7 @@ export const translations = {
         genderRequired: "Seleziona M o F.",
         priceRequired: "Prezzo obbligatorio.",
         priceInvalid: "Prezzo non valido.",
+        priceNegative: "Il prezzo non può essere negativo.",
       },
     },
 
@@ -656,6 +657,8 @@ export const translations = {
       alreadySentMsg: "Hai già una proposta in attesa per questo annuncio.",
       invalidAmountTitle: "Importo non valido",
       invalidAmountMsg: "Inserisci un importo valido oppure lascia vuoto.",
+      invalidCurrencyTitle: "Valuta non valida",
+      invalidCurrencyMsg: "Inserisci un codice valuta di 3 lettere (es. EUR).",
       selectListingTitle: "Seleziona annuncio",
       selectListingMsg: "Scegli uno dei tuoi annunci da proporre in scambio.",
       sentTitle: "Proposta inviata",
@@ -677,6 +680,7 @@ export const translations = {
       receiveLabel: "Ricevi",
       offerLabel: "Offri",
       buyLabel: "Acquisti",
+      askingPrice: "Prezzo richiesto",
     },
 
     sellerProfile: {
@@ -1054,6 +1058,7 @@ export const translations = {
       unknownListing: "Listing unavailable",
       unknownCity: "unknown city",
       gives: "gives",
+      youReceive: "You receive",
       legsCaption: "Here's the loop:",
       backToStart: "back to the first one — the loop closes",
       completedTitle: "🎉 Swap completed!",
@@ -1239,7 +1244,7 @@ export const translations = {
         splitFallbackReason: "two distinct items were detected (routes/times/hotels).",
         splitNote1: "On publishing, ",
         splitNoteBold: "two separate listings",
-        splitNote2: " will be created with the same price. You can change the prices later.",
+        splitNote2: " will be created with the same route/date and price as the first. After publishing, open the second listing and correct the route, date and price with the real details of the second ticket.",
         reasonRoutes: "{n} routes detected in the text.",
         reasonTimes: "Multiple times detected ({n}).",
         reasonDates: "Multiple dates detected ({n}).",
@@ -1361,7 +1366,6 @@ export const translations = {
       aiImportError: "Unable to import from PNR.",
       aiImportFromQr: "Data imported from QR.",
       qrImportError: "QR import failed.",
-      simulateScan: "Simulate scan",
 
       photoPermissionTitle: "Permission denied",
       photoPermissionMsg: "Allow photo access to add pictures.",
@@ -1394,7 +1398,7 @@ export const translations = {
       checkAiRequiredMsg: "To publish the listing you must first run the 'Check AI' for a quick data check.",
       checkAiRequiredPhotosMsg: "You changed the photos: run the 'Check AI' to verify them before saving.",
       splitPublishedTitle: "2 listings published",
-      splitPublishedMsg: "Two separate listings were published with the same price. You can edit the prices later.",
+      splitPublishedMsg: "Two listings were published with the same route/date and price. Open the second one in \"My listings\" and correct the route, date and price with the real details of the second ticket.",
       draftUnavailableTitle: "Draft unavailable",
       draftUnavailableMsg: "Save the changes directly instead.",
 
@@ -1434,6 +1438,7 @@ export const translations = {
         genderRequired: "Select M or F.",
         priceRequired: "Price is required.",
         priceInvalid: "Invalid price.",
+        priceNegative: "The price cannot be negative.",
       },
     },
 
@@ -1528,6 +1533,8 @@ export const translations = {
       alreadySentMsg: "You already have a pending proposal for this listing.",
       invalidAmountTitle: "Invalid amount",
       invalidAmountMsg: "Enter a valid amount or leave it empty.",
+      invalidCurrencyTitle: "Invalid currency",
+      invalidCurrencyMsg: "Enter a 3-letter currency code (e.g. EUR).",
       selectListingTitle: "Select a listing",
       selectListingMsg: "Choose one of your listings to offer in exchange.",
       sentTitle: "Proposal sent",
@@ -1549,6 +1556,7 @@ export const translations = {
       receiveLabel: "You receive",
       offerLabel: "You offer",
       buyLabel: "You buy",
+      askingPrice: "Asking price",
     },
 
     sellerProfile: {
@@ -1921,6 +1929,7 @@ export const translations = {
       unknownListing: "Anuncio no disponible",
       unknownCity: "ciudad desconocida",
       gives: "da",
+      youReceive: "Tú recibes",
       legsCaption: "Así es el ciclo:",
       backToStart: "vuelve al primero — el ciclo se cierra",
       completedTitle: "🎉 ¡Intercambio completado!",
@@ -2106,7 +2115,7 @@ export const translations = {
         splitFallbackReason: "se detectaron dos elementos distintos (trayectos/horarios/hoteles).",
         splitNote1: "Al publicar se crearán ",
         splitNoteBold: "dos anuncios separados",
-        splitNote2: " con el mismo precio. Podrás cambiar los precios más adelante.",
+        splitNote2: " con la misma ruta/fecha y el mismo precio que el primero. Después de publicar, abre el segundo anuncio y corrige ruta, fecha y precio con los datos reales del segundo billete.",
         reasonRoutes: "{n} trayectos detectados en el texto.",
         reasonTimes: "Varios horarios detectados ({n}).",
         reasonDates: "Varias fechas detectadas ({n}).",
@@ -2231,7 +2240,6 @@ export const translations = {
         "No se puede importar desde el PNR.",
       aiImportFromQr: "Datos importados desde el QR.",
       qrImportError: "Fallo al importar desde QR.",
-      simulateScan: "Simular escaneo",
 
       photoPermissionTitle: "Permiso denegado",
       photoPermissionMsg: "Permite el acceso a las fotos para añadirlas.",
@@ -2264,7 +2272,7 @@ export const translations = {
       checkAiRequiredMsg: "Para publicar el anuncio, primero debes ejecutar el 'Check AI' para una verificación rápida de los datos.",
       checkAiRequiredPhotosMsg: "Has cambiado las fotos: ejecuta primero el 'Check AI' para verificarlas antes de guardar.",
       splitPublishedTitle: "2 anuncios publicados",
-      splitPublishedMsg: "Se publicaron dos anuncios separados con el mismo precio. Puedes modificar los precios más tarde.",
+      splitPublishedMsg: "Se publicaron dos anuncios con la misma ruta/fecha y el mismo precio. Abre el segundo en \"Mis anuncios\" y corrige ruta, fecha y precio con los datos reales del segundo billete.",
       draftUnavailableTitle: "Borrador no disponible",
       draftUnavailableMsg: "Guarda los cambios directamente.",
 
@@ -2310,6 +2318,7 @@ export const translations = {
         genderRequired: "Selecciona M o F.",
         priceRequired: "Precio obligatorio.",
         priceInvalid: "Precio no válido.",
+        priceNegative: "El precio no puede ser negativo.",
       },
     },
 
@@ -2404,6 +2413,8 @@ export const translations = {
       alreadySentMsg: "Ya tienes una propuesta pendiente para este anuncio.",
       invalidAmountTitle: "Importe no válido",
       invalidAmountMsg: "Introduce un importe válido o déjalo vacío.",
+      invalidCurrencyTitle: "Divisa no válida",
+      invalidCurrencyMsg: "Introduce un código de divisa de 3 letras (p. ej. EUR).",
       selectListingTitle: "Selecciona un anuncio",
       selectListingMsg: "Elige uno de tus anuncios para proponer en el intercambio.",
       sentTitle: "Propuesta enviada",
@@ -2425,6 +2436,7 @@ export const translations = {
       receiveLabel: "Recibes",
       offerLabel: "Ofreces",
       buyLabel: "Compras",
+      askingPrice: "Precio solicitado",
     },
 
     sellerProfile: {

@@ -49,8 +49,6 @@ matchesRouter.post("/snapshot/recompute", requireAuth, async (req, res) => {
     if (!isUUID(userId)) return res.status(400).json({ error: "Invalid userId" });
     if (userId !== req.user.id) return res.status(403).json({ error: "Forbidden" });
 
-    // Se hai creato l’RPC v2, preferisci la SQL:
-    // const out = await recomputeUserSnapshotSQL(userId, { topPerListing, maxTotal });
     const out = await recomputeUserSnapshot(userId, { topPerListing, maxTotal });
 
     return res.status(201).json(out);

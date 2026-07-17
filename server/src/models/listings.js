@@ -223,6 +223,18 @@ export async function getListingPublic(id) {
   return data;
 }
 
+// Colonne che il proprietario può modificare via PATCH. Senza whitelist,
+// l'intero req.body finiva spalmato nell'UPDATE eseguito con la
+// SUPABASE_SERVICE_ROLE_KEY (bypassa le RLS): un owner poteva sovrascrivere
+// anche user_id (dirottando la proprietà dell'annuncio) o trust_score/
+// ai_reliability* (falsificando il TrustScore, calcolato SOLO dalla
+// pipeline server-side in routes/trustscore.js).
+const PATCHABLE_FIELDS = [
+  "title", "description", "type", "location", "price", "status", "image_url",
+  "route_from", "route_to", "depart_at", "arrive_at", "check_in", "check_out",
+  "accepts_swap", "swap_wanted",
+];
+
 /**
  * Aggiorna un listing (owner-only). Se pnr è definito, upserta in tabella segreta.
  * NON ritorna mai il PNR.
@@ -232,16 +244,15 @@ export async function updateListing(userId, id, patch) {
   if (!isUUID(id)) throw new Error("Invalid id");
   if (!supabase) throw new Error("Supabase client not configured");
 
-  const {
-    pnr,
-    cerco_vendo,
-    ...pubPatch
-  } = patch || {};
+  const { pnr, cerco_vendo } = patch || {};
 
-  const updatePayload = {
-    ...pubPatch,
-    ...(cerco_vendo !== undefined ? { cerco_vendo: normCV(cerco_vendo) } : {}),
-  };
+  const updatePayload = {};
+  for (const field of PATCHABLE_FIELDS) {
+    if (patch && Object.prototype.hasOwnProperty.call(patch, field)) {
+      updatePayload[field] = patch[field];
+    }
+  }
+  if (cerco_vendo !== undefined) updatePayload.cerco_vendo = normCV(cerco_vendo);
 
   const { data: listing, error } = await supabase
     .from("listings")
