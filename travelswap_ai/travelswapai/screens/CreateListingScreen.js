@@ -1238,6 +1238,25 @@ const initialJsonRef = useRef(null);
         const a = parseISODate(ciNorm), b = parseISODate(coNorm);
         if (a && b && b < a) e.checkOut = t("createListing.errors.checkoutBeforeCheckin", "Il check-out non può precedere il check-in.");
       }
+      // Data nel passato: bloccante SOLO in creazione. Un annuncio NUOVO con
+      // check-in già nel passato non ha senso; un annuncio ESISTENTE la cui
+      // data è nel frattempo trascorsa non deve invece impedire di
+      // correggere un campo non correlato (es. il prezzo) in "Modifica
+      // annuncio". Prima questo controllo esisteva solo come avviso
+      // informativo nel micro-log del Check AI, mai come validazione
+      // bloccante: un annuncio nuovo con data passata poteva comunque essere
+      // pubblicato.
+      if (mode !== "edit") {
+        const todayStart = new Date(new Date().toDateString());
+        if (!e.checkIn && ciNorm) {
+          const a = parseISODate(ciNorm);
+          if (a && a < todayStart) e.checkIn = t("createListing.checkAi.localCheckInPast", "Check-in nel passato.");
+        }
+        if (!e.checkOut && coNorm) {
+          const b = parseISODate(coNorm);
+          if (b && b < todayStart) e.checkOut = t("createListing.checkAi.localCheckOutPast", "Check-out nel passato.");
+        }
+      }
     } else {
       if (!form.departAt.trim()) e.departAt = t("createListing.errors.departRequired", "Data/ora partenza obbligatoria.");
       if (!form.arriveAt.trim()) e.arriveAt = t("createListing.errors.arriveRequired", "Data/ora arrivo obbligatoria.");
@@ -1247,15 +1266,30 @@ const initialJsonRef = useRef(null);
         const a = parseISODateTime(form.departAt), b = parseISODateTime(form.arriveAt);
         if (a && b && b < a) e.arriveAt = t("createListing.errors.arriveBeforeDepart", "L’arrivo non può precedere la partenza.");
       }
+      if (mode !== "edit") {
+        const now = new Date();
+        if (!e.departAt && form.departAt) {
+          const a = parseISODateTime(form.departAt);
+          if (a && a < now) e.departAt = t("createListing.checkAi.localDepartPast", "Partenza nel passato.");
+        }
+        if (!e.arriveAt && form.arriveAt) {
+          const b = parseISODateTime(form.arriveAt);
+          if (b && b < now) e.arriveAt = t("createListing.checkAi.localArrivePast", "Arrivo nel passato.");
+        }
+      }
       if (form.isNamedTicket && !/^(M|F)$/.test(form.gender)) {
         e.gender = t("createListing.errors.genderRequired", "Seleziona M o F.");
       }
     }
     const priceStr = String(form.price || "").trim();
     if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
-    else if (!Number.isFinite(Number(priceStr.replace(",", ".")))) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
+    else {
+      const priceNum = Number(priceStr.replace(",", "."));
+      if (!Number.isFinite(priceNum)) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
+      else if (priceNum < 0) e.price = t("createListing.errors.priceNegative", "Il prezzo non può essere negativo.");
+    }
     return e;
-  }, [form, t]);
+  }, [form, t, mode]);
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
   const validate = () => { const e = computeErrors(); setErrors(e); return Object.keys(e).length === 0; };
 

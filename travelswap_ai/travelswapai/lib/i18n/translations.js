@@ -560,6 +560,7 @@ export const translations = {
         genderRequired: "Seleziona M o F.",
         priceRequired: "Prezzo obbligatorio.",
         priceInvalid: "Prezzo non valido.",
+        priceNegative: "Il prezzo non può essere negativo.",
       },
     },
 
@@ -1439,6 +1440,7 @@ export const translations = {
         genderRequired: "Select M or F.",
         priceRequired: "Price is required.",
         priceInvalid: "Invalid price.",
+        priceNegative: "The price cannot be negative.",
       },
     },
 
@@ -2319,6 +2321,7 @@ export const translations = {
         genderRequired: "Selecciona M o F.",
         priceRequired: "Precio obligatorio.",
         priceInvalid: "Precio no válido.",
+        priceNegative: "El precio no puede ser negativo.",
       },
     },
 
