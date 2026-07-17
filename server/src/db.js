@@ -72,7 +72,7 @@ export async function getLatestMatches(userId) {
 export async function listActiveListingsOfUser(userId, { limit = 200 } = {}) {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, user_id, title, description, type, location, price, status, created_at, cerco_vendo, depart_at, arrive_at, route_from, route_to, check_in, check_out')
+    .select('id, user_id, title, description, type, location, price, status, created_at, cerco_vendo, depart_at, arrive_at, route_from, route_to, check_in, check_out, accepts_swap, swap_wanted')
     .eq('status', 'active').eq('user_id', userId)
     .order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;

@@ -434,6 +434,13 @@ export default function CreateListingScreen({
     pnr: "",
     description: "",
     price: "",
+    // Scambio (B): solo per VENDO. Se attivo, l'utente dichiara cosa cerca in
+    // cambio (tratta per treno, località per hotel) → l'AI abbina scambi reali.
+    acceptsSwap: false,
+    swapWantedFrom: "",
+    swapWantedTo: "",
+    swapWantedLocation: "",
+    swapWantedNote: "",
   });
 
   // true dopo che l'utente ha toccato esplicitamente il segmento: da quel
@@ -618,6 +625,12 @@ const initialJsonRef = useRef(null);
               departAt: tsToWallInput(l.depart_at),
               arriveAt: tsToWallInput(l.arrive_at),
               pnr: secretPnr ?? prev.pnr ?? "",
+              // scambio (B)
+              acceptsSwap: !!l.accepts_swap,
+              swapWantedFrom: l?.swap_wanted?.from || "",
+              swapWantedTo: l?.swap_wanted?.to || "",
+              swapWantedLocation: l?.swap_wanted?.location || "",
+              swapWantedNote: l?.swap_wanted?.note || "",
             }));
           }
           return;
@@ -1301,6 +1314,19 @@ const initialJsonRef = useRef(null);
         ? [routeFrom, routeTo].filter(Boolean).join(" → ")
         : form.location.trim();
 
+      // Scambio (B): solo un VENDO può accettare scambio. swap_wanted racchiude
+      // cosa cerchi in cambio (tratta per treno, località per hotel) + nota.
+      const acceptsSwap = form.cercoVendo !== "CERCO" && !!form.acceptsSwap;
+      const swapWanted = acceptsSwap
+        ? {
+            type: form?.type,
+            from: form?.type === "train" ? (String(form.swapWantedFrom || "").trim() || null) : null,
+            to: form?.type === "train" ? (String(form.swapWantedTo || "").trim() || null) : null,
+            location: form?.type === "hotel" ? (String(form.swapWantedLocation || "").trim() || null) : null,
+            note: String(form.swapWantedNote || "").trim() || null,
+          }
+        : null;
+
       const basePayload = {
         type: form?.type,
         title: form.title.trim(),
@@ -1308,6 +1334,8 @@ const initialJsonRef = useRef(null);
         description: form.description.trim() || null,
         price: Number.isFinite(priceNum) ? priceNum : null,
         cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
+        accepts_swap: acceptsSwap,
+        swap_wanted: swapWanted,
         // In creazione: salva la reliability calcolata (chiave camelCase, la
         // mappa insertListing). In modifica: aggiorna il punteggio salvato
         // SOLO se in questa sessione è stato rilanciato il Check AI — così
@@ -1962,6 +1990,66 @@ const initialJsonRef = useRef(null);
                     </Text>
                   )}
 
+                  {/* Scambio (B): solo per VENDO — "accetti anche uno scambio?" */}
+                  {!isCerco && (
+                    <View style={styles.swapBox}>
+                      <View style={styles.swapHeaderRow}>
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                          <Text style={styles.label}>{t("createListing.swap.title", "Accetti anche uno scambio?")}</Text>
+                          <Text style={styles.note}>{t("createListing.swap.subtitle", "Oltre alla vendita puoi ricevere in cambio un altro biglietto. Indica cosa cerchi: lo useremo per proporti scambi compatibili.")}</Text>
+                        </View>
+                        <Switch
+                          value={!!form.acceptsSwap}
+                          onValueChange={(v) => update({ acceptsSwap: v })}
+                          trackColor={{ true: theme.colors.primary }}
+                        />
+                      </View>
+                      {form.acceptsSwap && (
+                        <View style={{ marginTop: 10 }}>
+                          {form.type === "train" ? (
+                            <>
+                              <Text style={styles.label}>{t("createListing.swap.wantFrom", "Cerco in cambio — Da")}</Text>
+                              <TextInput
+                                value={form.swapWantedFrom}
+                                onChangeText={(v) => update({ swapWantedFrom: v })}
+                                placeholder={t("createListing.swap.wantFromPh", "Es. Roma")}
+                                style={styles.input}
+                                placeholderTextColor={theme.colors.textMuted}
+                              />
+                              <Text style={styles.label}>{t("createListing.swap.wantTo", "Cerco in cambio — A")}</Text>
+                              <TextInput
+                                value={form.swapWantedTo}
+                                onChangeText={(v) => update({ swapWantedTo: v })}
+                                placeholder={t("createListing.swap.wantToPh", "Es. Milano")}
+                                style={styles.input}
+                                placeholderTextColor={theme.colors.textMuted}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <Text style={styles.label}>{t("createListing.swap.wantLocation", "Cerco in cambio — Località")}</Text>
+                              <TextInput
+                                value={form.swapWantedLocation}
+                                onChangeText={(v) => update({ swapWantedLocation: v })}
+                                placeholder={t("createListing.swap.wantLocationPh", "Es. Firenze")}
+                                style={styles.input}
+                                placeholderTextColor={theme.colors.textMuted}
+                              />
+                            </>
+                          )}
+                          <Text style={styles.label}>{t("createListing.swap.note", "Nota (facoltativa)")}</Text>
+                          <TextInput
+                            value={form.swapWantedNote}
+                            onChangeText={(v) => update({ swapWantedNote: v })}
+                            placeholder={t("createListing.swap.notePh", "Es. stesse date, anche alta velocità")}
+                            style={styles.input}
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  )}
+
                   {/* Box Trust */}
                   {splitDetected && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#DBEAFE', borderWidth: 1, borderColor: '#60A5FA' }}>
@@ -2219,6 +2307,15 @@ const styles = StyleSheet.create({
   inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
   errorText: { color: theme.colors.danger, marginTop: 4 },
   note: { fontSize: 12, lineHeight: 16, color: theme.colors.textMuted, marginTop: 6 },
+  swapBox: {
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  swapHeaderRow: { flexDirection: "row", alignItems: "center" },
   photoAddBtn: {
     width: 72, height: 72, borderRadius: 10, borderWidth: 1, borderStyle: "dashed",
     borderColor: theme.colors.textMuted, alignItems: "center", justifyContent: "center",

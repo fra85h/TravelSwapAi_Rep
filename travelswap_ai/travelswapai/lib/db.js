@@ -6,7 +6,7 @@ import { supabase } from "./supabase";
 const LISTING_PUBLIC_COLUMNS =
   "id, user_id, title, description, type, location, price, currency, status, created_at, " +
   "cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, " +
-  "image_url, published_at, trust_score, is_named_ticket, contact_url";
+  "image_url, published_at, trust_score, is_named_ticket, contact_url, accepts_swap, swap_wanted";
 
 /** Utente corrente (o null) */
 export async function getCurrentUser() {
@@ -80,6 +80,10 @@ export async function insertListing(payload) {
     trust_score: payload.trustScore??null,
     // CERCO/VENDO flag
     cerco_vendo: (payload.cerco_vendo === "CERCO" ? "CERCO" : "VENDO"),
+
+    // Scambio (B): solo un VENDO può accettare scambio + dichiarare cosa cerca
+    accepts_swap: payload.cerco_vendo === "CERCO" ? false : !!payload.accepts_swap,
+    swap_wanted: payload.cerco_vendo === "CERCO" ? null : (payload.swap_wanted ?? null),
 
     // hotel
     check_in: payload.type === "hotel" ? normDate(payload.check_in) : null,
