@@ -286,7 +286,7 @@ export const translations = {
         pause: "Metti in pausa",
         activate: "Rendi attivo",
         deleteTitle: "Elimina annuncio",
-        deleteConfirm: "Vuoi eliminare “{title}”?",
+        deleteConfirm: "Vuoi eliminare definitivamente “{title}”? L'operazione non è reversibile (per nasconderlo temporaneamente usa “Metti in pausa”).",
         more: "Azioni",
       },
 
@@ -1144,7 +1144,7 @@ export const translations = {
         pause: "Pause",
         activate: "Activate",
         deleteTitle: "Delete listing",
-        deleteConfirm: "Do you want to delete “{title}”?",
+        deleteConfirm: "Permanently delete “{title}”? This can't be undone (to hide it temporarily use “Pause”).",
         more: "Actions",
       },
 
@@ -1983,7 +1983,7 @@ export const translations = {
         pause: "Pausar",
         activate: "Activar",
         deleteTitle: "Eliminar anuncio",
-        deleteConfirm: "¿Quieres eliminar “{title}”?",
+        deleteConfirm: "¿Eliminar “{title}” de forma permanente? No se puede deshacer (para ocultarlo temporalmente usa “Pausar”).",
         more: "Acciones",
       },
 
