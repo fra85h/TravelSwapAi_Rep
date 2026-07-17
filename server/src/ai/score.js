@@ -382,6 +382,13 @@ export function budgetDateFactor(f, l) {
   return Math.max(0, Math.min(1, factor));
 }
 
+// Punteggio finale = base × fattore, arrotondato a INTERO. La colonna
+// matches.score è di tipo integer: senza arrotondamento l'insert fallirebbe
+// (Postgres rifiuta un valore frazionario come "48.172" con un 400).
+export function adjustedScore(baseScore, f, l) {
+  return Math.round(Number(baseScore || 0) * budgetDateFactor(f, l));
+}
+
 export function heuristicScore(user, listings) {
   const f = user?.fromListing || null;
 
