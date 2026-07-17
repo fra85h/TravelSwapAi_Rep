@@ -60,6 +60,11 @@ function slimListing(l) {
     arrive_at: toISOorNull(l.arrive_at ?? l.arriveAt),
     location: truncate(normText(l.location), 80),
     price: l.price,
+    // Scambio reale (B): un VENDO può dichiarare di accettare uno scambio e
+    // COSA cerca in cambio (swap_wanted). Serve al modello per abbinare due
+    // VENDO che si incastrano (io ho X e voglio Y; tu hai Y e vuoi X).
+    accepts_swap: !!(l.accepts_swap),
+    swap_wanted: l.swap_wanted ?? null,
     description: truncate(normText(l.description), MAX_DESC_CHARS),
   };
 }
@@ -82,9 +87,10 @@ Rispondi SOLO con:
 Regole vincolanti:
 - Un elemento in "scores" per OGNI listing (nessuna omissione).
 - "score" intero 0..100.
-- La complementarità è il criterio principale: se l'annuncio sorgente è CERCO, i candidati VENDO equivalenti valgono molto (e viceversa). Due annunci con lo stesso cerco_vendo NON sono complementari.
-- IMPORTANTE: la vicinanza di DATA/ORARIO e la differenza di PREZZO/budget vengono valutate SEPARATAMENTE, in modo deterministico, DOPO di te. NON abbassare lo score per date diverse o prezzi diversi: uno scarto di pochi giorni o un prezzo un po' più alto NON devono azzerare il match. Valuta SOLO: complementarità (CERCO↔VENDO), stesso tipo, stessa tratta/località.
-- "bidirectional" = true SOLO se (cerco_vendo del sorgente e del candidato sono complementari) E (stesso type) E (stessa tratta route_from→route_to, o stessa località per hotel). Le date NON entrano in questa condizione. Altrimenti false.
+- La complementarità è il criterio principale: se l'annuncio sorgente è CERCO, i candidati VENDO equivalenti valgono molto (e viceversa). Due annunci con lo stesso cerco_vendo NON sono complementari, TRANNE nel caso di SCAMBIO qui sotto.
+- SCAMBIO REALE tra due VENDO: se il sorgente è VENDO con accepts_swap=true, ciò che cerca in cambio è nel campo swap_wanted (tratta from→to per treno, oppure location per hotel). Un candidato VENDO che OFFRE proprio ciò che il sorgente cerca (la sua tratta/località coincide con swap_wanted del sorgente, stesso type) è un buon match di scambio (score alto). Se ANCHE il candidato ha accepts_swap=true e il suo swap_wanted coincide con ciò che il sorgente offre, lo scambio è RECIPROCO (bidirectional=true, score 90+).
+- IMPORTANTE: la vicinanza di DATA/ORARIO e la differenza di PREZZO/budget vengono valutate SEPARATAMENTE, in modo deterministico, DOPO di te. NON abbassare lo score per date diverse o prezzi diversi: uno scarto di pochi giorni o un prezzo un po' più alto NON devono azzerare il match. Valuta SOLO: complementarità (CERCO↔VENDO o incastro di SCAMBIO), stesso tipo, stessa tratta/località.
+- "bidirectional" = true SOLO se: (a) cerco_vendo complementari (CERCO↔VENDO), stesso type, stessa tratta/località; OPPURE (b) scambio reciproco tra due VENDO come descritto sopra. Le date NON entrano in questa condizione. Altrimenti false.
 - Se cerco_vendo del sorgente o del candidato è null ⇒ bidirectional=false.
 - Tipo diverso dal sorgente (train vs hotel) ⇒ score basso (max 30).
 - Stessa tratta/direzione alza molto lo score; tratta diversa o direzione inversa lo riduce.
@@ -323,6 +329,25 @@ function dayOf(l) {
   return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : null;
 }
 
+// Scambio reale (B): cosa un VENDO cerca in cambio (swap_wanted), normalizzato.
+function swapWantedOf(l) {
+  const w = l?.swap_wanted || null;
+  if (!w || typeof w !== "object") return null;
+  return { a: normPlace(w.from), b: normPlace(w.to), loc: normPlace(w.location) };
+}
+
+// Il candidato OFFRE ciò che `wanted` chiede? (per treno confronta la tratta,
+// per hotel la località). Serve una richiesta esplicita: senza tratta/località
+// non si evoca uno scambio, per non inondare di falsi positivi.
+function offersWhatWanted(cand, wanted, type) {
+  if (!wanted) return false;
+  if (String(type).toLowerCase() === "hotel") {
+    return !!wanted.loc && normPlace(cand?.location) === wanted.loc;
+  }
+  const [ca, cb] = routeOf(cand);
+  return !!(wanted.a && wanted.b && ca && cb && ca === wanted.a && cb === wanted.b);
+}
+
 // -----------------------------------------------------------------------------
 // Modificatore deterministico budget + prossimità data (Fase 2)
 // -----------------------------------------------------------------------------
@@ -420,6 +445,15 @@ export function heuristicScore(user, listings) {
         const reverseRoute = fA && fB && lA && lB && fA === lB && fB === lA;
         const sameHotelLoc = fType === "hotel" && fLoc && normPlace(l?.location) === fLoc;
 
+        // Scambio reale (B): entrambi VENDO, stesso tipo. Il sorgente cerca in
+        // cambio ciò che il candidato offre? e (reciprocità) il candidato cerca
+        // ciò che il sorgente offre? Uno scambio reciproco è il match migliore.
+        const bothVendo = fCV === "VENDO" && lCV === "VENDO";
+        const fWantsL = bothVendo && sameType && !!f?.accepts_swap && offersWhatWanted(l, swapWantedOf(f), lType);
+        const lWantsF = bothVendo && sameType && !!l?.accepts_swap && offersWhatWanted(f, swapWantedOf(l), fType);
+        const swapMutual = fWantsL && lWantsF;
+        const swapOneWay = fWantsL || lWantsF;
+
         // Il punteggio base è STRUTTURALE (tipo, complementarità, tratta). La
         // vicinanza di data e il budget sono applicati dopo, in modo
         // deterministico, da budgetDateFactor — così la data non è contata due
@@ -431,13 +465,23 @@ export function heuristicScore(user, listings) {
         else if (reverseRoute) s += 8;
         if (!sameType) s = Math.min(s, 30); // tipo diverso: mai oltre "irrilevante"
 
-        const bidirectional = complementary && sameType && (sameRoute || sameHotelLoc);
-        if (bidirectional) s = Math.max(s, 90);
+        // Lo scambio si somma sopra alla base strutturale: reciproco = eccellente,
+        // a senso unico = buono (il candidato ha ciò che cerchi, ma non ha ancora
+        // dichiarato di volere ciò che offri tu).
+        if (swapMutual) s = Math.max(s, 92);
+        else if (swapOneWay) s = Math.max(s, 72);
+
+        const bidirectional = (complementary && sameType && (sameRoute || sameHotelLoc)) || swapMutual;
+        if (bidirectional && !swapMutual) s = Math.max(s, 90);
 
         s = Math.max(0, Math.min(100, Math.round(s)));
-        const explanation = bidirectional
-          ? `${lCV} complementare al tuo ${fCV}, stessa ${fType === "hotel" ? "località" : "tratta"}`
-          : "";
+        const explanation = swapMutual
+          ? `Scambio reciproco: ha ciò che cerchi e cerca ciò che offri`
+          : swapOneWay
+            ? `Possibile scambio: offre ciò che cerchi in cambio`
+            : bidirectional
+              ? `${lCV} complementare al tuo ${fCV}, stessa ${fType === "hotel" ? "località" : "tratta"}`
+              : "";
         return { id: l.id, score: s, bidirectional, model: "heuristic", explanation };
       })
       .sort((a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id)));

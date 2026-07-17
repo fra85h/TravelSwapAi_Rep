@@ -26,7 +26,7 @@ export async function listActiveListings({
   // 1) Listings base (solo pubblici, senza PNR)
     let q = supabase
     .from("listings")
-    .select("id, user_id, title, description, type, location, price, status, created_at, cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, image_url, published_at")
+    .select("id, user_id, title, description, type, location, price, status, created_at, cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, image_url, published_at, accepts_swap, swap_wanted")
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .range(offset, Math.max(offset, offset + limit - 1)); // ✅ solo range
@@ -113,6 +113,9 @@ export async function createListing(userId, payload) {
     // hotel
     check_in,
     check_out,
+    // scambio (B)
+    accepts_swap,
+    swap_wanted,
   } = payload || {};
 
   const insertPayload = {
@@ -131,6 +134,9 @@ export async function createListing(userId, payload) {
     arrive_at: arrive_at ?? null,
     check_in: check_in ?? null,
     check_out: check_out ?? null,
+    // scambio (B): un VENDO può accettare scambio e dichiarare cosa cerca
+    accepts_swap: !!accepts_swap,
+    swap_wanted: swap_wanted ?? null,
     // meta
     published_at: new Date().toISOString(),
     user_id: userId,
@@ -159,6 +165,8 @@ export async function createListing(userId, payload) {
         "check_out",
         "image_url",
         "published_at",
+        "accepts_swap",
+        "swap_wanted",
       ].join(",")
     )
     .single();
@@ -204,6 +212,8 @@ export async function getListingPublic(id) {
         "check_out",
         "image_url",
         "published_at",
+        "accepts_swap",
+        "swap_wanted",
       ].join(",")
     )
     .eq("id", id)
@@ -258,6 +268,8 @@ export async function updateListing(userId, id, patch) {
         "check_out",
         "image_url",
         "published_at",
+        "accepts_swap",
+        "swap_wanted",
       ].join(",")
     )
     .single();
