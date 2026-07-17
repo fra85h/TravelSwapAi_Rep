@@ -377,11 +377,11 @@ useEffect(() => {
         ) : null}
         {isOwner ? (
           <TouchableOpacity
-            onPress={() => navigation.navigate("ManageImages", { listingId })}
+            onPress={() => navigation.navigate("CreateListing", { mode: "edit", listingId })}
             style={{ alignSelf: "flex-start", marginBottom: 12, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }}
           >
             <Text style={{ fontWeight: "700", color: theme.colors.text }}>
-              📷 {images.length > 0 ? "Gestisci foto" : "Aggiungi foto"}
+              ✏️ {tt("listingDetail.editListing", "Modifica annuncio")}
             </Text>
           </TouchableOpacity>
         ) : null}

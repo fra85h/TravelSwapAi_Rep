@@ -32,6 +32,7 @@ import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
 const DRAFT_KEY = "@tsai:create_listing_draft";
 const AUTO_HIDE_MS = 4500;   // tempo dopo cui spariscono micro log e barra
+const MAX_PHOTOS = 2; // un biglietto/una stanza non ha bisogno di una galleria
 
 function uniqBy(arr, keyFn) {
   try {
@@ -776,7 +777,15 @@ const initialJsonRef = useRef(null);
   const [existingPhotos, setExistingPhotos] = useState([]); // [{ id, url }]
   const [photoBusy, setPhotoBusy] = useState(false);
 
+  // In modifica il salvataggio non richiede di norma un nuovo Check AI (per
+  // non intralciare piccole correzioni di testo/prezzo). Ma le foto sono
+  // valutate SOLO dal Check AI (pertinenza, moderazione): se cambiano dopo
+  // l'ultima verifica, quella verifica non le ha mai viste. Questo flag forza
+  // un nuovo Check AI prima di salvare, solo quando le foto sono cambiate.
+  const [photosDirtySinceCheck, setPhotosDirtySinceCheck] = useState(false);
+
   const editListingId = mode === "edit" ? (passedListing?.id || listingId) : null;
+  const totalPhotoCount = existingPhotos.length + pendingPhotos.length;
 
   useEffect(() => {
     let cancelled = false;
@@ -789,6 +798,14 @@ const initialJsonRef = useRef(null);
 
   const pickPhotos = async () => {
     try {
+      const room = MAX_PHOTOS - totalPhotoCount;
+      if (room <= 0) {
+        Alert.alert(
+          t("createListing.photoLimitTitle", "Limite foto raggiunto"),
+          t("createListing.photoLimitMsg", `Puoi caricare al massimo ${MAX_PHOTOS} foto per annuncio: solo il biglietto o la stanza/prenotazione, niente altro.`, { n: MAX_PHOTOS })
+        );
+        return;
+      }
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
         Alert.alert(t("createListing.photoPermissionTitle", "Permesso negato"), t("createListing.photoPermissionMsg", "Consenti l'accesso alle foto per aggiungerne."));
@@ -797,12 +814,12 @@ const initialJsonRef = useRef(null);
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        selectionLimit: 6,
+        selectionLimit: room,
         quality: 0.7,
         base64: true,
       });
       if (res.canceled) return;
-      const assets = res.assets || [];
+      const assets = (res.assets || []).slice(0, room);
 
       if (editListingId) {
         // annuncio già esistente: carica subito
@@ -812,6 +829,7 @@ const initialJsonRef = useRef(null);
           try {
             const row = await uploadImage(editListingId, a, pos++);
             setExistingPhotos((prev) => [...prev, row]);
+            setPhotosDirtySinceCheck(true);
           } catch (e) {
             Alert.alert(t("createListing.photoUploadErrorTitle", "Errore caricamento"), e?.message || t("createListing.photoUploadErrorMsg", "Impossibile caricare una foto."));
           }
@@ -841,6 +859,7 @@ const initialJsonRef = useRef(null);
           try {
             await deleteImage(img.id, img.url);
             setExistingPhotos((prev) => prev.filter((p) => p.id !== img.id));
+            setPhotosDirtySinceCheck(true);
           } catch (e) {
             Alert.alert(t("common.error", "Errore"), e?.message || t("createListing.photoDeleteErrorMsg", "Impossibile eliminare."));
           } finally {
@@ -1109,6 +1128,7 @@ const initialJsonRef = useRef(null);
 
       logStep(t("createListing.checkAi.logDone", "Fatto."), 100);
       setLastTrustRunAt(Date.now()); // <-- mark that Check AI has been run
+      setPhotosDirtySinceCheck(false); // le foto correnti sono state appena valutate
       clearLogSoon();
       if (!res && trustError) {
         Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), trustError);
@@ -1306,12 +1326,18 @@ const initialJsonRef = useRef(null);
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
-    // Regola: richiedi Check AI prima di pubblicare (solo in create)
+    // Regola: richiedi Check AI prima di pubblicare (sempre in creazione; in
+    // modifica solo se le foto sono cambiate dall'ultima verifica, così una
+    // foto non pertinente non passa mai senza essere valutata, ma correggere
+    // testo/prezzo non richiede di rilanciare tutto il Check AI).
     const hasRunCheckAI = lastTrustRunAt > 0;
-    if (mode !== "edit" && !hasRunCheckAI) {
+    const needsCheckAI = mode !== "edit" ? !hasRunCheckAI : photosDirtySinceCheck;
+    if (needsCheckAI) {
       Alert.alert(
         t("createListing.checkAiRequiredTitle", "Esegui prima il Check AI"),
-        t("createListing.checkAiRequiredMsg", "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati.")
+        mode === "edit"
+          ? t("createListing.checkAiRequiredPhotosMsg", "Hai cambiato le foto: esegui prima il 'Check AI' per verificarle prima di salvare.")
+          : t("createListing.checkAiRequiredMsg", "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati.")
       );
       return;
     }
@@ -1782,7 +1808,9 @@ const initialJsonRef = useRef(null);
                   {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
                   {/* Foto */}
-                  <Text style={styles.label}>{t("createListing.photos", "Foto")}</Text>
+                  <Text style={styles.label}>
+                    {t("createListing.photos", "Foto")} ({totalPhotoCount}/{MAX_PHOTOS})
+                  </Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
                     {existingPhotos.map((img) => (
                       <View key={img.id} style={{ width: 72, height: 72 }}>
@@ -1808,6 +1836,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                     ))}
+                    {totalPhotoCount < MAX_PHOTOS && (
                     <TouchableOpacity
                       onPress={pickPhotos}
                       disabled={photoBusy}
@@ -1819,9 +1848,10 @@ const initialJsonRef = useRef(null);
                         <Text style={{ fontSize: 24, color: theme.colors.boardingText || "#111827" }}>＋</Text>
                       )}
                     </TouchableOpacity>
+                    )}
                   </View>
                   <Text style={styles.note}>
-                    {t("createListing.photosHint", "Aggiungi fino a qualche foto reale: aumentano la fiducia di chi guarda l'annuncio.")}
+                    {t("createListing.photosHint", `Massimo ${MAX_PHOTOS} foto reali: solo il biglietto (treno) o la stanza/prenotazione (hotel). Foto non pertinenti abbassano l'affidabilità.`, { n: MAX_PHOTOS })}
                   </Text>
 
                   {/* Località / Rotta */}

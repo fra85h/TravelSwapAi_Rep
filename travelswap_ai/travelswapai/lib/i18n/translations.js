@@ -427,7 +427,9 @@ export const translations = {
       imageHint: "Aggiungi un URL immagine per vedere l’anteprima",
       imageLoadError: "Impossibile caricare l’immagine",
       photos: "Foto",
-      photosHint: "Aggiungi fino a qualche foto reale: aumentano la fiducia di chi guarda l'annuncio.",
+      photosHint: "Massimo {n} foto reali: solo il biglietto (treno) o la stanza/prenotazione (hotel). Foto non pertinenti abbassano l'affidabilità.",
+      photoLimitTitle: "Limite foto raggiunto",
+      photoLimitMsg: "Puoi caricare al massimo {n} foto per annuncio: solo il biglietto o la stanza/prenotazione, niente altro.",
 
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
@@ -512,6 +514,7 @@ export const translations = {
 
       checkAiRequiredTitle: "Esegui prima il Check AI",
       checkAiRequiredMsg: "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati.",
+      checkAiRequiredPhotosMsg: "Hai cambiato le foto: esegui prima il 'Check AI' per verificarle prima di salvare.",
       splitPublishedTitle: "Pubblicati 2 annunci",
       splitPublishedMsg: "Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito.",
       draftUnavailableTitle: "Bozza non disponibile",
@@ -689,6 +692,7 @@ export const translations = {
       title: "Dettaglio annuncio",
       description: "Descrizione",
       price: "Prezzo",
+      editListing: "Modifica annuncio",
 
       // 🔻 NUOVE CHIAVI
       info: "Informazioni",
@@ -1299,7 +1303,9 @@ export const translations = {
       imageHint: "Add an image URL to preview",
       imageLoadError: "Unable to load image",
       photos: "Photos",
-      photosHint: "Add a few real photos: they increase trust for people viewing the listing.",
+      photosHint: "Up to {n} real photos: only the ticket (train) or the room/booking (hotel). Unrelated photos lower reliability.",
+      photoLimitTitle: "Photo limit reached",
+      photoLimitMsg: "You can upload at most {n} photos per listing: only the ticket or the room/booking, nothing else.",
 
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
@@ -1384,6 +1390,7 @@ export const translations = {
 
       checkAiRequiredTitle: "Run the Check AI first",
       checkAiRequiredMsg: "To publish the listing you must first run the 'Check AI' for a quick data check.",
+      checkAiRequiredPhotosMsg: "You changed the photos: run the 'Check AI' to verify them before saving.",
       splitPublishedTitle: "2 listings published",
       splitPublishedMsg: "Two separate listings were published with the same price. You can edit the prices later.",
       draftUnavailableTitle: "Draft unavailable",
@@ -1556,6 +1563,7 @@ export const translations = {
       title: "Listing detail",
       description: "Description",
       price: "Price",
+      editListing: "Edit listing",
 
       // 🔻 NEW KEYS
       info: "Information",
@@ -2161,7 +2169,9 @@ export const translations = {
       imageHint: "Añade una URL de imagen para previsualizar",
       imageLoadError: "No se puede cargar la imagen",
       photos: "Fotos",
-      photosHint: "Añade algunas fotos reales: aumentan la confianza de quien ve el anuncio.",
+      photosHint: "Máximo {n} fotos reales: solo el billete (tren) o la habitación/reserva (hotel). Las fotos no pertinentes reducen la fiabilidad.",
+      photoLimitTitle: "Límite de fotos alcanzado",
+      photoLimitMsg: "Puedes subir como máximo {n} fotos por anuncio: solo el billete o la habitación/reserva, nada más.",
 
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
@@ -2249,6 +2259,7 @@ export const translations = {
 
       checkAiRequiredTitle: "Ejecuta primero el Check AI",
       checkAiRequiredMsg: "Para publicar el anuncio, primero debes ejecutar el 'Check AI' para una verificación rápida de los datos.",
+      checkAiRequiredPhotosMsg: "Has cambiado las fotos: ejecuta primero el 'Check AI' para verificarlas antes de guardar.",
       splitPublishedTitle: "2 anuncios publicados",
       splitPublishedMsg: "Se publicaron dos anuncios separados con el mismo precio. Puedes modificar los precios más tarde.",
       draftUnavailableTitle: "Borrador no disponible",
@@ -2427,6 +2438,7 @@ export const translations = {
       title: "Detalle del anuncio",
       description: "Descripción",
       price: "Precio",
+      editListing: "Editar anuncio",
 
       // 🔻 CLAVES NUEVAS
       info: "Información",
