@@ -26,23 +26,39 @@ import { usePriceCheck } from "../lib/usePriceCheck";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 
-function toYMDHMS_AMPM(input) {
+// Nomi brevi localizzati (costruiti a mano perché la data va letta in UTC,
+// vedi sotto: toLocale* userebbe il fuso di chi guarda e sposterebbe l'ora).
+const WD_SHORT = {
+  it: ["dom", "lun", "mar", "mer", "gio", "ven", "sab"],
+  en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  es: ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"],
+};
+const MON_SHORT = {
+  it: ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  es: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
+};
+
+// Formato leggibile per chi consulta l'annuncio, es. "sab 18 lug 2026 · 07:31".
+// Orari "da parete": partenza/arrivo indicano l'ora ALLA STAZIONE e vanno
+// mostrati identici a come li ha inseriti chi pubblica, per qualunque fuso di
+// chi guarda. Il valore è salvato naive (interpretato come UTC), quindi si
+// legge in UTC — altrimenti in Italia comparivano +2 ore. Per le date "secche"
+// (check-in/out) withTime=false: mostra solo giorno/mese/anno, senza orario.
+function formatWallClock(input, locale = "it", withTime = true) {
   if (!input) return "—";
   const d = new Date(String(input));
   if (isNaN(d.getTime())) return String(input);
-  // Orari "da parete": partenza/arrivo indicano l'ora ALLA STAZIONE e vanno
-  // mostrati identici a come li ha inseriti chi pubblica, per qualunque
-  // fuso di chi guarda. Il valore è salvato naive (interpretato come UTC),
-  // quindi si legge in UTC — altrimenti in Italia comparivano +2 ore.
+  const lang = ["it", "en", "es"].includes(locale) ? locale : "it";
+  const wd = WD_SHORT[lang][d.getUTCDay()];
+  const day = d.getUTCDate();
+  const mon = MON_SHORT[lang][d.getUTCMonth()];
   const Y = d.getUTCFullYear();
-  const M = pad2(d.getUTCMonth() + 1);
-  const D = pad2(d.getUTCDate());
-  let h = d.getUTCHours();
+  const datePart = `${wd} ${day} ${mon} ${Y}`;
+  if (!withTime) return datePart;
+  const h = pad2(d.getUTCHours());
   const m = pad2(d.getUTCMinutes());
-  const s = pad2(d.getUTCSeconds());
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12; if (h === 0) h = 12;
-  return `${Y}-${M}-${D} ${pad2(h)}:${m}:${s} ${ampm}`;
+  return `${datePart} · ${h}:${m}`;
 }
 
 function timeAgoLocalized(input, locale = "it") {
@@ -404,15 +420,15 @@ useEffect(() => {
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {listing?.type === "hotel" ? (
               <>
-                <Chip icon="📅" label={`${L.checkIn}: ${toYMDHMS_AMPM(checkIn)}`} textColor={textColor} />
-                <Chip icon="📅" label={`${L.checkOut}: ${toYMDHMS_AMPM(checkOut)}`} textColor={textColor} />
+                <Chip icon="📅" label={`${L.checkIn}: ${formatWallClock(checkIn, locale, false)}`} textColor={textColor} />
+                <Chip icon="📅" label={`${L.checkOut}: ${formatWallClock(checkOut, locale, false)}`} textColor={textColor} />
               </>
             ) : null}
 
             {listing?.type === "train" ? (
               <>
-                <Chip icon="🕒" label={`${L.departAt.split(" (")[0]}: ${toYMDHMS_AMPM(departAt)}`} textColor={textColor} />
-                <Chip icon="🕒" label={`${L.arriveAt.split(" (")[0]}: ${toYMDHMS_AMPM(arriveAt)}`} textColor={textColor} />
+                <Chip icon="🕒" label={`${L.departAt.split(" (")[0]}: ${formatWallClock(departAt, locale, true)}`} textColor={textColor} />
+                <Chip icon="🕒" label={`${L.arriveAt.split(" (")[0]}: ${formatWallClock(arriveAt, locale, true)}`} textColor={textColor} />
                 <Chip
                   icon="🎟"
                   label={`${L.tripLabel}: ${
