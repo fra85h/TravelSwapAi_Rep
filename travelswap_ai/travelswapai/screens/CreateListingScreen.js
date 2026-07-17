@@ -527,10 +527,19 @@ export default function CreateListingScreen({
 const initialJsonRef = useRef(null);
   const [errors, setErrors] = useState({});
 
+  // Solo il "nessuna foto caricata" è un promemoria a bassa priorità (le foto
+  // sono facoltative): lo nascondiamo dal riepilogo per non fare rumore. Ma
+  // filtrare per TESTO del messaggio (come prima) nascondeva anche flag reali
+  // — es. IRRELEVANT_IMAGES ("la foto mostra...") — solo perché il messaggio
+  // nomina "foto"/"immagine": un problema che limita il punteggio (55%)
+  // spariva dal riepilogo, mostrando "nessun problema rilevato". Filtrare per
+  // CODICE esatto invece del testo evita di nascondere problemi veri.
+  const HIDDEN_FLAG_CODES = useMemo(() => new Set(["NO_IMAGES"]), []);
+  const HIDDEN_FIX_FIELDS = useMemo(() => new Set(["images"]), []);
+
   const flagsNoImg = useMemo(() => {
-    const rx = /(image|imageurl|image_url|foto|immagine)/i;
     let arr = Array.isArray(trustData?.flags)
-      ? trustData.flags.filter(f => !rx.test(String(f?.field || f?.msg || "")))
+      ? trustData.flags.filter(f => !HIDDEN_FLAG_CODES.has(String(f?.code || "").toUpperCase()))
       : [];
     if (form?.type === "hotel") {
       arr = arr.filter(f => !/depart|arrive/i.test(f.field || ""));
@@ -544,12 +553,11 @@ const initialJsonRef = useRef(null);
       seen.add(key);
       return true;
     });
-  }, [trustData, form?.type]);
+  }, [trustData, form?.type, HIDDEN_FLAG_CODES]);
 
   const fixesNoImg = useMemo(() => {
-    const rx = /(image|imageurl|image_url|foto|immagine)/i;
     let arr = Array.isArray(trustData?.suggestedFixes)
-      ? trustData.suggestedFixes.filter(s => !rx.test(String(s?.field || s?.suggestion || "")))
+      ? trustData.suggestedFixes.filter(s => !HIDDEN_FIX_FIELDS.has(String(s?.field || "").toLowerCase()))
       : [];
     if (form?.type === "hotel") {
       arr = arr.filter(s => !/depart|arrive/i.test(s.field || ""));
@@ -564,6 +572,32 @@ const initialJsonRef = useRef(null);
       return true;
     });
   }, [trustData, form?.type]);
+
+  // Un punteggio basso senza un flag preciso (es. media pesata bassa ma nessuna
+  // soglia superata) lasciava l'utente senza spiegazione. Se non c'è già un
+  // flag a raccontare il motivo, indichiamo la componente più debole tra
+  // controlli di base / testo AI / foto AI — così il "perché" c'è sempre.
+  const trustExplain = useMemo(() => {
+    if (!trustData || trustData.aiAvailable === false) return null;
+    const score = Number(trustData?.trustScore);
+    if (!Number.isFinite(score) || score >= 85) return null;
+    if (flagsNoImg?.length) return null; // già spiegato da un flag puntuale
+    const sub = trustData?.subScores || {};
+    const parts = [
+      { label: t("createListing.checkAi.subHeuristics", "Controlli di base (date, prezzo, coerenza)"), value: sub.heuristics },
+      { label: t("createListing.checkAi.subAiText", "Analisi del testo (AI)"), value: sub.aiText },
+      { label: t("createListing.checkAi.subAiImages", "Analisi delle foto (AI)"), value: sub.aiImages },
+    ].filter(p => Number.isFinite(Number(p.value)));
+    if (!parts.length) return null;
+    parts.sort((a, b) => Number(a.value) - Number(b.value));
+    const weakest = parts[0];
+    const value = Math.round(Number(weakest.value));
+    return t(
+      "createListing.checkAi.explainWeak",
+      `Punteggio non massimo: il punto più debole è "${weakest.label}" (${value}%).`,
+      { label: weakest.label, value }
+    );
+  }, [trustData, flagsNoImg, t]);
 
   // ---------- EDIT MODE: prefill ----------
   useEffect(() => {
@@ -1634,9 +1668,14 @@ const initialJsonRef = useRef(null);
                   <Text style={styles.sumChipText}>{t("createListing.checkAi.twoListings", "2 annunci")}</Text>
                 </View>
               )}
-              {trustData.aiAvailable !== false && !flagsNoImg?.length && !fixesNoImg?.length && !splitDetected && (
+              {trustData.aiAvailable !== false && !flagsNoImg?.length && !fixesNoImg?.length && !splitDetected && !trustExplain && (
                 <View style={[styles.sumChip, styles.sumChipGreen]}>
                   <Text style={styles.sumChipText}>{t("createListing.checkAi.noProblems", "Nessun problema rilevato")}</Text>
+                </View>
+              )}
+              {trustData.aiAvailable !== false && !flagsNoImg?.length && !!trustExplain && (
+                <View style={[styles.sumChip, styles.sumChipYellow]}>
+                  <Text style={styles.sumChipText} numberOfLines={1}>{trustExplain}</Text>
                 </View>
               )}
             </View>
@@ -2085,6 +2124,13 @@ const initialJsonRef = useRef(null);
                         // per i flag AI, che ora rispondono nella locale scelta).
                         <Text key={i}>• {t(`createListing.checkAi.flags.${f.code}`, f.msg || "")}</Text>
                       ))}
+                    </View>
+                  )}
+
+                  {!flagsNoImg?.length && !!trustExplain && (
+                    <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
+                      <Text style={{ fontWeight: "800", marginBottom: 6 }}>{t("createListing.checkAi.whyTitle", "Perché questo punteggio")}</Text>
+                      <Text>{trustExplain}</Text>
                     </View>
                   )}
 
