@@ -83,10 +83,11 @@ Regole vincolanti:
 - Un elemento in "scores" per OGNI listing (nessuna omissione).
 - "score" intero 0..100.
 - La complementarità è il criterio principale: se l'annuncio sorgente è CERCO, i candidati VENDO equivalenti valgono molto (e viceversa). Due annunci con lo stesso cerco_vendo NON sono complementari.
-- "bidirectional" = true SOLO se (cerco_vendo del sorgente e del candidato sono complementari) E (stesso type) E (stessa tratta route_from→route_to, o stessa località per hotel) E (le date coincidono o sono nello stesso giorno). Altrimenti false.
+- IMPORTANTE: la vicinanza di DATA/ORARIO e la differenza di PREZZO/budget vengono valutate SEPARATAMENTE, in modo deterministico, DOPO di te. NON abbassare lo score per date diverse o prezzi diversi: uno scarto di pochi giorni o un prezzo un po' più alto NON devono azzerare il match. Valuta SOLO: complementarità (CERCO↔VENDO), stesso tipo, stessa tratta/località.
+- "bidirectional" = true SOLO se (cerco_vendo del sorgente e del candidato sono complementari) E (stesso type) E (stessa tratta route_from→route_to, o stessa località per hotel). Le date NON entrano in questa condizione. Altrimenti false.
 - Se cerco_vendo del sorgente o del candidato è null ⇒ bidirectional=false.
 - Tipo diverso dal sorgente (train vs hotel) ⇒ score basso (max 30).
-- Stessa tratta/direzione e stesso giorno aumentano molto lo score; tratta diversa o direzione inversa lo riducono.
+- Stessa tratta/direzione alza molto lo score; tratta diversa o direzione inversa lo riduce.
 - Linee guida score: <=30 irrilevante, 50=debole, 70=buona, 85+=eccellente, 90+=reciproco quasi perfetto.
 - "explanation" in italiano, breve e concreta (es. "VENDO complementare al tuo CERCO, stessa tratta Roma→Vienna").
 
@@ -333,7 +334,12 @@ function dayOf(l) {
 //     il punteggio cala (stesso momento = nessuna penalità).
 // Pesi moderati: nel caso peggiore il punteggio si dimezza, così un match
 // strutturale forte (tratta/tipo/complementarità) resta comunque rilevante.
-const DATE_WINDOW_DAYS = Number(process.env.MATCH_DATE_WINDOW_DAYS ?? 7);   // a N giorni → fit 0
+// Data: c'è una TOLLERANZA piena entro DATE_GRACE_DAYS (un match a 1 giorno di
+// distanza non viene penalizzato), poi un calo GRADUALE fino a DATE_WINDOW_DAYS.
+// Anche a distanza massima il match non si azzera: il peso DATE_WEIGHT limita la
+// riduzione (al più −25%). Lo zero secco che si vedeva veniva dall'AI, non da qui.
+const DATE_GRACE_DAYS  = Number(process.env.MATCH_DATE_GRACE_DAYS ?? 1);    // entro N giorni → nessuna penalità
+const DATE_WINDOW_DAYS = Number(process.env.MATCH_DATE_WINDOW_DAYS ?? 14);  // oltre la grazia, calo lineare su N giorni
 const BUDGET_TOLERANCE = Number(process.env.MATCH_BUDGET_TOLERANCE ?? 0.5); // +50% oltre budget → fit 0
 const PRICE_WEIGHT = Number(process.env.MATCH_PRICE_WEIGHT ?? 0.25);
 const DATE_WEIGHT  = Number(process.env.MATCH_DATE_WEIGHT ?? 0.25);
@@ -365,12 +371,15 @@ export function priceFit(f, l) {
   return Math.max(0, 1 - over);
 }
 
-// 0..1: 1 se le date coincidono, cala fino a 0 a DATE_WINDOW_DAYS di distanza.
+// 0..1: 1 entro DATE_GRACE_DAYS (tolleranza piena), poi calo lineare fino a 0 a
+// DATE_GRACE_DAYS + DATE_WINDOW_DAYS. Neutro (1) se manca una data.
 export function dateFit(f, l) {
   const a = dateMs(f), b = dateMs(l);
   if (a == null || b == null) return 1; // se manca una data, nessuna penalità
   const days = Math.abs(a - b) / 86400000;
-  return Math.max(0, 1 - days / DATE_WINDOW_DAYS);
+  if (days <= DATE_GRACE_DAYS) return 1; // qualche giorno di tolleranza
+  const decay = (days - DATE_GRACE_DAYS) / DATE_WINDOW_DAYS;
+  return Math.max(0, 1 - decay);
 }
 
 // Fattore combinato 0..1 da applicare al punteggio base.
@@ -397,7 +406,6 @@ export function heuristicScore(user, listings) {
     const compCV = fCV === "CERCO" ? "VENDO" : fCV === "VENDO" ? "CERCO" : null;
     const fType = String(f.type || "").toLowerCase();
     const [fA, fB] = routeOf(f);
-    const fDay = dayOf(f);
     const fLoc = normPlace(f.location);
 
     return (listings || [])
@@ -411,14 +419,16 @@ export function heuristicScore(user, listings) {
         const sameRoute = fA && fB && lA && lB && fA === lA && fB === lB;
         const reverseRoute = fA && fB && lA && lB && fA === lB && fB === lA;
         const sameHotelLoc = fType === "hotel" && fLoc && normPlace(l?.location) === fLoc;
-        const sameDay = !!fDay && dayOf(l) === fDay;
 
+        // Il punteggio base è STRUTTURALE (tipo, complementarità, tratta). La
+        // vicinanza di data e il budget sono applicati dopo, in modo
+        // deterministico, da budgetDateFactor — così la data non è contata due
+        // volte e uno scarto di pochi giorni non azzera il match.
         let s = 35; // base: senza alcuna affinità il candidato è poco rilevante
         if (sameType) s += 15;
         if (complementary) s += 20;
         if (sameRoute || sameHotelLoc) s += 20;
         else if (reverseRoute) s += 8;
-        if (sameDay) s += 10;
         if (!sameType) s = Math.min(s, 30); // tipo diverso: mai oltre "irrilevante"
 
         const bidirectional = complementary && sameType && (sameRoute || sameHotelLoc);
