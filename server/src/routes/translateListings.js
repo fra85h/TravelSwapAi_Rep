@@ -71,7 +71,17 @@ translateListingsRouter.get("/api/listings/:id/translate", requireAuth, rateLimi
     // testi identici, sembrando rotto.
     const titleOk = tTitle !== null;
     const descOk = tDesc !== null;
-    if (!titleOk && !descOk) {
+
+    // Traduzione "vera" solo se il testo tradotto DIFFERISCE dall'originale.
+    // Se il contenuto è già nella lingua richiesta (es. annuncio italiano con
+    // app in italiano), OpenAI restituisce lo stesso testo: non è una vera
+    // traduzione. Trattarla come tale mostrava "Tradotto automaticamente" + il
+    // toggle "Vedi originale" che, alternando due testi identici, sembrava rotto.
+    const norm = (s) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+    const titleReal = titleOk && norm(tTitle) !== norm(title);
+    const descReal = descOk && norm(tDesc) !== norm(description);
+
+    if (!titleReal && !descReal) {
       return res.json({
         title, description, lang, originalLang,
         translated: false, titleTranslated: false, descriptionTranslated: false, cached: !!cached,
@@ -95,17 +105,18 @@ translateListingsRouter.get("/api/listings/:id/translate", requireAuth, rateLimi
     }
 
     return res.json({
-      title: titleOk ? tTitle : title,
-      description: descOk ? tDesc : description,
+      title: titleReal ? tTitle : title,
+      description: descReal ? tDesc : description,
       lang,
       originalLang,
       translated: true,
       // Flag per-campo: il client deve poter distinguere "tutto tradotto"
       // da "solo un campo tradotto", invece di mostrare un generico
       // "Tradotto automaticamente" che lascerebbe intendere (falsamente)
-      // che anche il campo rimasto in originale sia stato elaborato.
-      titleTranslated: titleOk,
-      descriptionTranslated: descOk,
+      // che anche il campo rimasto in originale sia stato elaborato. Un campo
+      // il cui testo coincide con l'originale NON conta come tradotto.
+      titleTranslated: titleReal,
+      descriptionTranslated: descReal,
       cached: !needTitle && !needDesc,
     });
   } catch (e) {
