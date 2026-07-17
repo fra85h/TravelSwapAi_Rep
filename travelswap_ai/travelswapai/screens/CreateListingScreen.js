@@ -836,8 +836,11 @@ const initialJsonRef = useRef(null);
         }
         setPhotoBusy(false);
       } else {
-        // annuncio non ancora creato: tieni in sospeso, carica dopo la pubblicazione
+        // annuncio non ancora creato: tieni in sospeso, carica dopo la pubblicazione.
+        // Anche qui, come per le foto già salvate sopra, un Check AI già fatto
+        // non ha mai visto queste foto: va invalidato (vedi needsCheckAI).
         setPendingPhotos((prev) => [...prev, ...assets]);
+        setPhotosDirtySinceCheck(true);
       }
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e?.message || t("createListing.photoPickErrorMsg", "Impossibile selezionare le foto."));
@@ -846,6 +849,7 @@ const initialJsonRef = useRef(null);
 
   const removePendingPhoto = (idx) => {
     setPendingPhotos((prev) => prev.filter((_, i) => i !== idx));
+    setPhotosDirtySinceCheck(true);
   };
 
   const removeExistingPhoto = (img) => {
@@ -1326,16 +1330,19 @@ const initialJsonRef = useRef(null);
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
-    // Regola: richiedi Check AI prima di pubblicare (sempre in creazione; in
-    // modifica solo se le foto sono cambiate dall'ultima verifica, così una
-    // foto non pertinente non passa mai senza essere valutata, ma correggere
-    // testo/prezzo non richiede di rilanciare tutto il Check AI).
+    // Regola: richiedi Check AI prima di pubblicare (sempre in creazione, o se
+    // non ancora fatto; in entrambe le modalità anche se le foto sono
+    // cambiate dall'ultima verifica — altrimenti si potrebbe eseguire il
+    // Check AI, poi sostituire le foto con altre mai valutate e pubblicare
+    // comunque, portandosi dietro un trustScore calcolato su foto diverse da
+    // quelle pubblicate. Correggere testo/prezzo in modifica non richiede
+    // invece di rilanciare tutto il Check AI.
     const hasRunCheckAI = lastTrustRunAt > 0;
-    const needsCheckAI = mode !== "edit" ? !hasRunCheckAI : photosDirtySinceCheck;
+    const needsCheckAI = mode !== "edit" ? (!hasRunCheckAI || photosDirtySinceCheck) : photosDirtySinceCheck;
     if (needsCheckAI) {
       Alert.alert(
         t("createListing.checkAiRequiredTitle", "Esegui prima il Check AI"),
-        mode === "edit"
+        (mode === "edit" || (hasRunCheckAI && photosDirtySinceCheck))
           ? t("createListing.checkAiRequiredPhotosMsg", "Hai cambiato le foto: esegui prima il 'Check AI' per verificarle prima di salvare.")
           : t("createListing.checkAiRequiredMsg", "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati.")
       );
