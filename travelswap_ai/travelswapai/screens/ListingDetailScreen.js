@@ -171,6 +171,7 @@ useEffect(() => {
 
   const [images, setImages] = useState([]);
   const [isOwner, setIsOwner] = useState(false);
+  const [myId, setMyId] = useState(null);
   const [seller, setSeller] = useState(null);
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -184,6 +185,7 @@ useEffect(() => {
       ]);
       setImages((imgs || []).map((i) => i.url).filter(Boolean));
       setIsOwner(!!me && !!l && me.id === l.user_id);
+      setMyId(me?.id ?? null);
       // Profilo pubblico del venditore (best-effort, non blocca il dettaglio)
       if (l?.user_id) {
         getPublicProfile(l.user_id).then(setSeller).catch(() => setSeller(null));
@@ -265,10 +267,13 @@ useEffect(() => {
     return Date.now() - d.getTime() < 24 * 60 * 60 * 1000;
   })();
 
-  const meId =
-    route.params?.me?.id ??
-    listing?.me?.id ??
-    listing?.current_user_id ?? null;
+  // myId viene da getCurrentUser() (vedi load()): è l'unica fonte affidabile.
+  // route.params?.me?.id restava come fallback, ma nella pratica non è mai
+  // passato da chi naviga qui (es. da Esplora) — usato da solo, meId era
+  // quasi sempre null, quindi isMine sempre false anche sul proprio annuncio
+  // (bottoni "Proponi acquisto/scambio", o "Ho questo biglietto" per un
+  // CERCO, restavano visibili sul proprio annuncio invece di sparire).
+  const meId = myId ?? route.params?.me?.id ?? null;
 
   const ownerId =
     listing?.owner_id ?? listing?.user_id ?? listing?.created_by ?? listing?.author_id ?? null;
