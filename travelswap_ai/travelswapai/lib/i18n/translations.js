@@ -657,6 +657,8 @@ export const translations = {
       alreadySentMsg: "Hai già una proposta in attesa per questo annuncio.",
       invalidAmountTitle: "Importo non valido",
       invalidAmountMsg: "Inserisci un importo valido oppure lascia vuoto.",
+      invalidCurrencyTitle: "Valuta non valida",
+      invalidCurrencyMsg: "Inserisci un codice valuta di 3 lettere (es. EUR).",
       selectListingTitle: "Seleziona annuncio",
       selectListingMsg: "Scegli uno dei tuoi annunci da proporre in scambio.",
       sentTitle: "Proposta inviata",
@@ -678,6 +680,7 @@ export const translations = {
       receiveLabel: "Ricevi",
       offerLabel: "Offri",
       buyLabel: "Acquisti",
+      askingPrice: "Prezzo richiesto",
     },
 
     sellerProfile: {
@@ -1530,6 +1533,8 @@ export const translations = {
       alreadySentMsg: "You already have a pending proposal for this listing.",
       invalidAmountTitle: "Invalid amount",
       invalidAmountMsg: "Enter a valid amount or leave it empty.",
+      invalidCurrencyTitle: "Invalid currency",
+      invalidCurrencyMsg: "Enter a 3-letter currency code (e.g. EUR).",
       selectListingTitle: "Select a listing",
       selectListingMsg: "Choose one of your listings to offer in exchange.",
       sentTitle: "Proposal sent",
@@ -1551,6 +1556,7 @@ export const translations = {
       receiveLabel: "You receive",
       offerLabel: "You offer",
       buyLabel: "You buy",
+      askingPrice: "Asking price",
     },
 
     sellerProfile: {
@@ -2407,6 +2413,8 @@ export const translations = {
       alreadySentMsg: "Ya tienes una propuesta pendiente para este anuncio.",
       invalidAmountTitle: "Importe no válido",
       invalidAmountMsg: "Introduce un importe válido o déjalo vacío.",
+      invalidCurrencyTitle: "Divisa no válida",
+      invalidCurrencyMsg: "Introduce un código de divisa de 3 letras (p. ej. EUR).",
       selectListingTitle: "Selecciona un anuncio",
       selectListingMsg: "Elige uno de tus anuncios para proponer en el intercambio.",
       sentTitle: "Propuesta enviada",
@@ -2428,6 +2436,7 @@ export const translations = {
       receiveLabel: "Recibes",
       offerLabel: "Ofreces",
       buyLabel: "Compras",
+      askingPrice: "Precio solicitado",
     },
 
     sellerProfile: {

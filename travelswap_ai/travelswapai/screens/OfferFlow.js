@@ -15,10 +15,12 @@ import { useI18n } from "../lib/i18n";
 import { notifyActivityChanged } from "../lib/ActivityContext";
 import { theme } from "../lib/theme";
 
+const fmtMoney = (v, c) => (v == null || isNaN(Number(v)) ? null : `${Number(v).toFixed(2)} ${c || "€"}`);
+
 export default function OfferFlow() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const { mode: modeParam = "BUY", listingId } = route.params || {};
   // normalizza il case: alcuni punti dell'app passano "buy"/"swap" minuscolo
@@ -50,6 +52,21 @@ export default function OfferFlow() {
     const where = from ? (to ? `${from} → ${to}` : from) : (l?.location || "-");
     return typeLabel ? `${typeLabel} • ${where}` : where;
   }, [t]);
+
+  // Data del viaggio/soggiorno: mancava del tutto in questa schermata, che
+  // decide un'offerta di ACQUISTO/SCAMBIO senza mostrare a quale data si
+  // riferisce l'annuncio (né il prezzo richiesto, vedi fmtPrice sotto).
+  const fmtWhen = useCallback((l) => {
+    const raw = String(l?.type || "").toLowerCase() === "hotel" ? l?.check_in : l?.depart_at;
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return null;
+    try {
+      return d.toLocaleDateString(locale || undefined, { day: "2-digit", month: "short", year: "numeric" });
+    } catch {
+      return d.toLocaleDateString();
+    }
+  }, [locale]);
 
   const load = useCallback(async () => {
     try {
@@ -123,7 +140,16 @@ export default function OfferFlow() {
           Alert.alert(t("offerFlow.invalidAmountTitle", "Importo non valido"), t("offerFlow.invalidAmountMsg", "Inserisci un importo valido oppure lascia vuoto."));
           return;
         }
-        await createOfferBuy(listingId, { amount: parsed, currency, message });
+        // Valuta libera senza vincoli finiva così com'è in offers.currency
+        // (minuscolo, valuta inventata, stringa vuota...). Il dominio è
+        // EUR-only: normalizziamo e blocchiamo un formato palesemente errato,
+        // senza rimuovere il campo (potrebbe servire in futuro).
+        const normCurrency = String(currency || "").trim().toUpperCase();
+        if (!/^[A-Z]{3}$/.test(normCurrency)) {
+          Alert.alert(t("offerFlow.invalidCurrencyTitle", "Valuta non valida"), t("offerFlow.invalidCurrencyMsg", "Inserisci un codice valuta di 3 lettere (es. EUR)."));
+          return;
+        }
+        await createOfferBuy(listingId, { amount: parsed, currency: normCurrency, message });
       } else {
         if (!selectedMyListing) {
           Alert.alert(t("offerFlow.selectListingTitle", "Seleziona annuncio"), t("offerFlow.selectListingMsg", "Scegli uno dei tuoi annunci da proporre in scambio."));
@@ -182,6 +208,12 @@ export default function OfferFlow() {
       <View style={s.target}>
         <Text style={s.tTitle}>{target?.title || t("offerFlow.listing", "Annuncio")}</Text>
         <Text style={s.tMeta}>{fmtMeta(target)}</Text>
+        {fmtWhen(target) ? <Text style={s.tMeta}>{fmtWhen(target)}</Text> : null}
+        {fmtMoney(target?.price, target?.currency) ? (
+          <Text style={s.tPrice}>
+            {t("offerFlow.askingPrice", "Prezzo richiesto")}{": "}{fmtMoney(target?.price, target?.currency)}
+          </Text>
+        ) : null}
       </View>
 
       {pendingOffer ? (
@@ -210,7 +242,9 @@ export default function OfferFlow() {
           <Text style={s.label}>{t("offerFlow.currencyLabel", "Valuta")}</Text>
           <TextInput
             value={currency}
-            onChangeText={setCurrency}
+            onChangeText={(v) => setCurrency(v.toUpperCase())}
+            autoCapitalize="characters"
+            maxLength={3}
             style={s.input}
           />
           <Text style={s.label}>{t("offerFlow.messageOptional", "Messaggio (opzionale)")}</Text>
@@ -307,6 +341,7 @@ const s = StyleSheet.create({
   },
   tTitle: { fontWeight: "800" },
   tMeta: { color: theme.colors.textMuted, marginTop: 4 },
+  tPrice: { color: theme.colors.text, fontWeight: "700", marginTop: 6 },
   swapArrow: { alignItems: "center", marginTop: 2, marginBottom: 10 },
   label: { fontWeight: "700", marginTop: 8, marginBottom: 6 },
   input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
