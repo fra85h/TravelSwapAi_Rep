@@ -583,6 +583,7 @@ export const translations = {
       proposePurchase: "Proponi acquisto",   // IT
       proposeSwap: "Proponi scambio",        // IT
       cercoInfo: "Questo è un annuncio di ricerca: non si acquista né si scambia direttamente. Se hai il biglietto giusto, pubblicalo come “Vendo” — comparirà tra i suoi suggerimenti.",
+      sellForCerco: "Ho questo biglietto → Pubblicalo in vendita",
       trains: "Treni",
       hotels: "Hotel",
       flights: "Voli",
@@ -1434,6 +1435,7 @@ export const translations = {
       proposePurchase: "Propose purchase",   // EN
       proposeSwap: "Propose swap",           // EN
       cercoInfo: "This is a wanted ad: it can't be bought or swapped directly. If you have the right ticket, publish it as “Selling” — it'll show up among their suggestions.",
+      sellForCerco: "I have this ticket → List it for sale",
       trains: "Trains",
       hotels: "Hotels",
       flights: "Flights",
@@ -2287,6 +2289,7 @@ export const translations = {
       proposePurchase: "Proponer compra",    // ES
       proposeSwap: "Proponer intercambio",   // ES
       cercoInfo: "Este es un anuncio de búsqueda: no se compra ni se intercambia directamente. Si tienes el billete adecuado, publícalo como “Vendo” — aparecerá entre sus sugerencias.",
+      sellForCerco: "Tengo este billete → Publícalo en venta",
       trains: "Trenes",
       hotels: "Hoteles",
       flights: "Vuelos",
