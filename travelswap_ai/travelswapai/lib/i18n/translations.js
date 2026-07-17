@@ -582,6 +582,7 @@ export const translations = {
       sentOffers: "Offerte inviate",
       proposePurchase: "Proponi acquisto",   // IT
       proposeSwap: "Proponi scambio",        // IT
+      cercoInfo: "Questo è un annuncio di ricerca: non si acquista né si scambia direttamente. Se hai il biglietto giusto, pubblicalo come “Vendo” — comparirà tra i suoi suggerimenti.",
       trains: "Treni",
       hotels: "Hotel",
       flights: "Voli",
@@ -626,6 +627,7 @@ export const translations = {
 
       cantOfferOwn: "Non puoi proporre un'offerta al tuo stesso annuncio.",
       listingNotActive: "Questo annuncio non è attivo.",
+      targetIsCerco: "Questo è un annuncio di ricerca: non si acquista né si scambia. Se hai il biglietto giusto, pubblicalo come “Vendo”.",
       loginRequiredTitle: "Login richiesto",
       loginRequiredMsg: "Accedi per inviare proposte.",
       alreadySentTitle: "Già inviata",
@@ -646,8 +648,8 @@ export const translations = {
       messageOptional: "Messaggio (opzionale)",
       addDetailsOrRequests: "Aggiungi dettagli o richieste",
       chooseOwnListing: "Scegli un tuo annuncio",
-      noActiveListings: "Non hai annunci attivi.",
-      createListingCta: "＋ Crea prima un annuncio da offrire in scambio",
+      noActiveListings: "Non hai annunci in vendita da offrire in scambio.",
+      createListingCta: "＋ Pubblica un annuncio “Vendo” da offrire in scambio",
       addDetailsForSwap: "Aggiungi dettagli per lo scambio",
       sendProposal: "Invia proposta",
       receiveLabel: "Ricevi",
@@ -1431,6 +1433,7 @@ export const translations = {
       sentOffers: "Sent offers",
       proposePurchase: "Propose purchase",   // EN
       proposeSwap: "Propose swap",           // EN
+      cercoInfo: "This is a wanted ad: it can't be bought or swapped directly. If you have the right ticket, publish it as “Selling” — it'll show up among their suggestions.",
       trains: "Trains",
       hotels: "Hotels",
       flights: "Flights",
@@ -1473,6 +1476,7 @@ export const translations = {
 
       cantOfferOwn: "You can't make an offer on your own listing.",
       listingNotActive: "This listing is not active.",
+      targetIsCerco: "This is a wanted ad: it can't be bought or swapped. If you have the right ticket, publish it as “Selling”.",
       loginRequiredTitle: "Login required",
       loginRequiredMsg: "Log in to send proposals.",
       alreadySentTitle: "Already sent",
@@ -1493,8 +1497,8 @@ export const translations = {
       messageOptional: "Message (optional)",
       addDetailsOrRequests: "Add details or requests",
       chooseOwnListing: "Choose one of your listings",
-      noActiveListings: "You have no active listings.",
-      createListingCta: "＋ First create a listing to offer in the swap",
+      noActiveListings: "You have no listings for sale to offer in a swap.",
+      createListingCta: "＋ Publish a “Selling” listing to offer in a swap",
       addDetailsForSwap: "Add details for the swap",
       sendProposal: "Send proposal",
       receiveLabel: "You receive",
@@ -2282,6 +2286,7 @@ export const translations = {
       sentOffers: "Ofertas enviadas",
       proposePurchase: "Proponer compra",    // ES
       proposeSwap: "Proponer intercambio",   // ES
+      cercoInfo: "Este es un anuncio de búsqueda: no se compra ni se intercambia directamente. Si tienes el billete adecuado, publícalo como “Vendo” — aparecerá entre sus sugerencias.",
       trains: "Trenes",
       hotels: "Hoteles",
       flights: "Vuelos",
@@ -2324,6 +2329,7 @@ export const translations = {
 
       cantOfferOwn: "No puedes hacer una oferta a tu propio anuncio.",
       listingNotActive: "Este anuncio no está activo.",
+      targetIsCerco: "Este es un anuncio de búsqueda: no se compra ni se intercambia. Si tienes el billete adecuado, publícalo como “Vendo”.",
       loginRequiredTitle: "Inicio de sesión requerido",
       loginRequiredMsg: "Inicia sesión para enviar propuestas.",
       alreadySentTitle: "Ya enviada",
@@ -2344,8 +2350,8 @@ export const translations = {
       messageOptional: "Mensaje (opcional)",
       addDetailsOrRequests: "Añade detalles o solicitudes",
       chooseOwnListing: "Elige uno de tus anuncios",
-      noActiveListings: "No tienes anuncios activos.",
-      createListingCta: "＋ Crea antes un anuncio para ofrecer en el intercambio",
+      noActiveListings: "No tienes anuncios en venta para ofrecer en un intercambio.",
+      createListingCta: "＋ Publica un anuncio “Vendo” para ofrecer en un intercambio",
       addDetailsForSwap: "Añade detalles para el intercambio",
       sendProposal: "Enviar propuesta",
       receiveLabel: "Recibes",
