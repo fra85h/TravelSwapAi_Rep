@@ -10,7 +10,12 @@
 -- vero.
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION public.fn_user_top_matches(p_user_id uuid, p_top_per_listing integer DEFAULT 3)
+-- CREATE OR REPLACE non basta: cambia il tipo di ritorno (nuova colonna OUT
+-- "bidirectional"), e Postgres rifiuta con 42P13 "cannot change return type
+-- of existing function" se non si fa DROP prima.
+DROP FUNCTION IF EXISTS public.fn_user_top_matches(uuid, integer);
+
+CREATE FUNCTION public.fn_user_top_matches(p_user_id uuid, p_top_per_listing integer DEFAULT 3)
 RETURNS TABLE(
   from_listing_id uuid,
   to_listing_id uuid,
