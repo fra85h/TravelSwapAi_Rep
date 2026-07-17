@@ -1,6 +1,6 @@
 // server/src/models/matches.js
 import { isUUID } from '../util/uuid.js';
-import { scoreWithAI, heuristicScore } from '../ai/score.js';
+import { scoreWithAI, heuristicScore, budgetDateFactor } from '../ai/score.js';
 import {
   //fetchActiveListingsForMatching,
   //insertMatchesSnapshot,
@@ -124,8 +124,17 @@ const tasks = fromListings.map((f) => async () => {
     ? ai
     : heuristicScore(contextUser, useCands);
 
+  // Modificatore deterministico budget + prossimità data (Fase 2): applicato
+  // sopra al punteggio base (AI o euristico). Un VENDO dentro il budget del
+  // CERCO e vicino come data mantiene il punteggio; fuori budget o lontano
+  // come data lo abbassa. Preciso e testabile, indipendente dall'LLM.
+  const candById = new Map(useCands.map((c) => [c.id, c]));
   const scored = base
-    .map(s => ({ ...s, score: Math.round(Number(s.score || 0) * 1000) / 1000 }))
+    .map(s => {
+      const factor = budgetDateFactor(f, candById.get(s.id));
+      const adj = Number(s.score || 0) * factor;
+      return { ...s, score: Math.round(adj * 1000) / 1000 };
+    })
     .sort((a,b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
 
   console.log(`[from ${f.id}] scored:`, scored.length);

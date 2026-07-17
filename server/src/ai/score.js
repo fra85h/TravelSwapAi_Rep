@@ -322,6 +322,66 @@ function dayOf(l) {
   return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : null;
 }
 
+// -----------------------------------------------------------------------------
+// Modificatore deterministico budget + prossimità data (Fase 2)
+// -----------------------------------------------------------------------------
+// Applica un fattore 0..1 al punteggio base (AI o euristico) in base a due
+// segnali NUMERICI, calcolati con precisione invece di affidarli all'LLM:
+//   • budget: per un annuncio CERCO il campo `price` è il budget massimo. Se il
+//     VENDO abbinato costa ENTRO budget → nessuna penalità; più sfora, più cala.
+//   • data/ora: più le date principali (partenza / check-in) sono lontane, più
+//     il punteggio cala (stesso momento = nessuna penalità).
+// Pesi moderati: nel caso peggiore il punteggio si dimezza, così un match
+// strutturale forte (tratta/tipo/complementarità) resta comunque rilevante.
+const DATE_WINDOW_DAYS = Number(process.env.MATCH_DATE_WINDOW_DAYS ?? 7);   // a N giorni → fit 0
+const BUDGET_TOLERANCE = Number(process.env.MATCH_BUDGET_TOLERANCE ?? 0.5); // +50% oltre budget → fit 0
+const PRICE_WEIGHT = Number(process.env.MATCH_PRICE_WEIGHT ?? 0.25);
+const DATE_WEIGHT  = Number(process.env.MATCH_DATE_WEIGHT ?? 0.25);
+
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function dateMs(l) {
+  const v = l?.depart_at ?? l?.departAt ?? l?.check_in ?? l?.checkIn ?? null;
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) ? d.getTime() : null;
+}
+
+// 0..1: 1 se il prezzo di vendita è entro il budget del CERCO, cala oltre.
+// Neutro (1) se manca un dato o non c'è una coppia compratore/venditore chiara.
+export function priceFit(f, l) {
+  const fCV = String(f?.cerco_vendo || "").toUpperCase();
+  const lCV = String(l?.cerco_vendo || "").toUpperCase();
+  let budget = null, sale = null;
+  if (fCV === "CERCO" && lCV === "VENDO") { budget = num(f?.price); sale = num(l?.price); }
+  else if (fCV === "VENDO" && lCV === "CERCO") { budget = num(l?.price); sale = num(f?.price); }
+  else return 1; // stesso cerco_vendo o campi mancanti: prezzo non confrontabile
+  if (budget == null || sale == null || budget <= 0) return 1;
+  if (sale <= budget) return 1;
+  const over = (sale - budget) / (budget * BUDGET_TOLERANCE);
+  return Math.max(0, 1 - over);
+}
+
+// 0..1: 1 se le date coincidono, cala fino a 0 a DATE_WINDOW_DAYS di distanza.
+export function dateFit(f, l) {
+  const a = dateMs(f), b = dateMs(l);
+  if (a == null || b == null) return 1; // se manca una data, nessuna penalità
+  const days = Math.abs(a - b) / 86400000;
+  return Math.max(0, 1 - days / DATE_WINDOW_DAYS);
+}
+
+// Fattore combinato 0..1 da applicare al punteggio base.
+export function budgetDateFactor(f, l) {
+  if (!f || !l) return 1;
+  const p = priceFit(f, l);
+  const d = dateFit(f, l);
+  const factor = 1 - PRICE_WEIGHT * (1 - p) - DATE_WEIGHT * (1 - d);
+  return Math.max(0, Math.min(1, factor));
+}
+
 export function heuristicScore(user, listings) {
   const f = user?.fromListing || null;
 
