@@ -32,7 +32,14 @@ export function findThreeCycles(edges) {
         const as = edges.get(c) || new Set();
         if (!as.has(a)) continue;
 
-        const key = [a, b, c].slice().sort().join("|");
+        // Chiave canonica: ruota la terna per iniziare dall'elemento minimo,
+        // mantenendo l'ORDINE. `.sort()` scartava anche la direzione, non
+        // solo il punto di partenza: confondeva a->b->c->a (rotazione, stesso
+        // ciclo) con a->c->b->a (direzione opposta, un altro scambio con
+        // dare/ricevere invertiti) se esistevano entrambe le triple di archi.
+        const triple = [a, b, c];
+        const minIdx = triple.indexOf(triple.slice().sort()[0]);
+        const key = [...triple.slice(minIdx), ...triple.slice(0, minIdx)].join("|");
         if (seen.has(key)) continue;
         seen.add(key);
         cycles.push([a, b, c]);
