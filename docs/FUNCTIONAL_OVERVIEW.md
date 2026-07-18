@@ -115,7 +115,7 @@ Meccanica (`ai/score.js`, `models/matches.js`):
 - Prompt con regole vincolanti: reciprocità CERCO/VENDO + stessa tratta/giorno ⇒ `bidirectional: true`.
 - Determinismo: temperature 0, ordinamento stabile, seed derivato dall'userId, normalizzazione/dedup/clamping dell'output.
 - Esecuzione parallela con **pool di concorrenza configurabile** (default 4) e retry con backoff su timeout/5xx.
-- **Fallback euristico deterministico** (`heuristicScore`: base 60, +15 tipo preferito, +10 prezzo entro budget, +10 località) — disponibile ma attualmente non collegato nel flusso `recomputeMatches` (cfr. §7).
+- **Fallback euristico deterministico** (`heuristicScore`: base 60, +15 tipo preferito, +10 prezzo entro budget, +10 località) — collegato in `recomputeMatches`: se l'AI non risponde (timeout/chiave mancante/schema invalido) lo sostituisce, invece di lasciare l'utente senza match.
 - Persistenza su tabella `matches` (upsert su `from_listing_id,to_listing_id`) e snapshot JSON su `match_snapshots`, con **skip dello snapshot se identico al precedente**.
 - Esiste anche una variante SQL-first (`fn_user_top_matches` RPC) alternativa al calcolo JS.
 
@@ -128,7 +128,7 @@ Pipeline a due stadi con fusione pesata:
 
 Corredato da: autenticazione bearer (JWT Supabase), **rate limiting** (10 chiamate / 10 minuti per utente), validazione input (express-validator), **audit log** su tabella `trust_audit` (best-effort, non blocca la risposta). Il punteggio più recente per annuncio è esposto dalla vista `v_latest_trustscore`, usata per filtrare/ordinare le liste (`minTrust`, `sort=trust_desc`).
 
-### 4.3 Parsing descrizioni (`/ai/parse-description`, `routes/parseTwo.js`)
+### 4.3 Parsing descrizioni (`/ai/parse-description`, `ai/descriptionParse.js`, protetto da `requireAuth`)
 Estrazione di campi strutturati da testo libero (usata dall'auto-compilazione del form): `asset_type`, `cerco_vendo`, `from/to_location`, date e orari, `price`, `currency`, `is_named_ticket`, `gender`, `pnr`, `notes`. Prompt few-shot, output solo JSON, regola "non inventare: se non deducibile ⇒ null".
 
 ### 4.4 Traduzione annunci (`GET /api/listings/:id/translate?lang=xx`)
@@ -176,7 +176,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `description` text | |
 | `location` text NOT NULL | città hotel o "Roma → Milano" |
 | `price` numeric NOT NULL, `currency` text (default EUR) | |
-| `status` enum `listing_status` | `active` \| `expired` \| `deleted` |
+| `status` enum `listing_status` | `draft` \| `active` \| `paused` \| `sold` \| `exchanged` \| `archived` \| `expired` \| `deleted` \| `pending` \| `reserved` \| `swapped`; `active ⇄ paused` reversibile, `deleted` terminale |
 | `cerco_vendo` text | `CERCO` \| `VENDO` |
 | `route_from`, `route_to` text | solo treno |
 | `depart_at`, `arrive_at` timestamp/date | solo treno |
@@ -252,38 +252,38 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 ## 7. Fix prioritari per andare in produzione
 
-### P0 — Sicurezza (bloccanti)
+### P0 — Sicurezza (bloccanti) — ✅ tutti risolti
 
-1. **Auth bypassata su `parse-description`** — `server/src/index.js:28` definisce `const requireAuth = (req,_res,next)=>next()` e lo passa a `mountParseDescriptionRoute`: l'endpoint OpenAI è pubblico ⇒ chiunque può consumare credito API. Usare il vero middleware `middleware/requireAuth.js`.
-2. **Endpoint di traduzione senza auth né rate limit** (`routes/translateListings.js`) — stesso rischio di abuso costi OpenAI. Aggiungere `requireAuth` + rate limiting.
-3. **PNR in chiaro nella tabella pubblica** — l'ingest Facebook scrive `pnr` direttamente in `listings` (`models/fbIngest.js:130`), mentre il resto del codice lo segrega in `listing_secrets`. In più l'app fa `select("*")` su `listings` (`lib/db.js:126`): se le RLS non mascherano le colonne, il PNR di annunci importati da FB è leggibile da chiunque. Uniformare su `listing_secrets` e sostituire i `select("*")` con liste esplicite di colonne.
-4. **Endpoint di debug esposti in produzione** — `/debug/env` e `/debug/supabase` (`index.js:91-141`) rivelano stato di configurazione e prefissi di token. Proteggerli o montarli solo in dev.
-5. **`ALLOW_UNVERIFIED_WEBHOOK=true` disattiva la verifica firma FB** in qualsiasi ambiente (`index.js:203`): rimuovere il flag o vincolarlo a `NODE_ENV!==production`.
-6. **CORS aperto** (`origin: true` con `credentials: true`, `index.js:24`): restringere agli origin noti.
-7. **Verificare le policy RLS** su `offers`, `matches`, `match_snapshots`, `trust_audit`, `fb_sessions`: il codice client presume che esistano ma nel repo non c'è traccia di migrazioni/policy (nessun file SQL versionato).
+1. ✅ **Auth su `parse-description`** — `mountParseDescriptionRoute(app, [requireAuth, rateLimitParse])` in `index.js`: protetto dal vero middleware.
+2. ✅ **Endpoint di traduzione con auth e rate limit** — `routes/translateListings.js` monta `requireAuth, rateLimitTranslate`.
+3. ✅ **PNR mai più in chiaro nella tabella pubblica** — l'ingest Facebook scrive il PNR in `listing_secrets` (`models/fbIngest.js`), mai in `listings`; `lib/db.js` seleziona solo `LISTING_PUBLIC_COLUMNS` (mai `pnr`).
+4. ✅ **Endpoint di debug solo in dev** — `/debug/env`, `/debug/supabase`, `/dev/*` sono ora montati dentro `if (isDev) { ... }`.
+5. ✅ **`ALLOW_UNVERIFIED_WEBHOOK` vincolato a `NODE_ENV !== 'production'`** — il bypass della firma FB non è più possibile in produzione indipendentemente dal flag.
+6. ✅ **CORS configurabile** — `origin: corsOrigins.length ? corsOrigins : true` (env `CORS_ORIGINS`); resta aperto solo se la variabile non è impostata.
+7. ✅ **Migrazioni e policy RLS versionate** — schema, RLS, RPC e trigger vivono ora in `supabase/migrations/*.sql` (vedi `supabase/README.md`).
 
 ### P1 — Correttezza e robustezza
 
-8. **`ReferenceError` latente nel matching** — `models/matches.js:146` usa `MODEL` che non è definito/importato in quel modulo: se l'AI restituisce un item senza `model`, il ricalcolo crasha.
-9. **Router montati due volte** — `listingsRouter` su `/` e `/api/listings`, `matchesRouter` due volte su `/api/matches` (`index.js:31-33,165-166`): rischio di collisioni di rotte (es. `GET /:id` cattura path arbitrari alla radice) e comportamento difficile da prevedere. Montare ogni router una sola volta sotto prefisso esplicito.
-10. **Fallback euristico non collegato** — in `recomputeMatches` il commento "se vuoi *solo* AI, niente fallback qui" lascia `base=[]` quando l'AI fallisce: l'utente ottiene zero match invece del fallback deterministico già implementato in `heuristicScore`.
-11. **Doppia implementazione offerte** — query dirette su `offers` + tre varianti RPC (`offers.js`, `offers_lists_rpc.js`, `offers_v2_incoming_rpc.js`) e workaround uuid/int: consolidare su un'unica via (preferibilmente RPC) e uniformare il tipo della PK.
-12. **URL hardcoded** — `lib/db.js:3` (`http://0.0.0.0:8080`) e `lib/api.js:4` (URL progetto Supabase in chiaro): centralizzare su env/`app.config`.
-13. **Rate limiter in-memory** (`middleware/rateLimit.js`): non sopravvive al riavvio né scala su più istanze; spostarlo su store condiviso (Postgres/Redis) ed estenderlo agli altri endpoint AI.
-14. **Logging con dati personali** — molti `console.log` stampano body completi, sessioni utente e payload annunci (PNR incluso). Ripulire e adottare un logger con livelli.
-15. **Igiene repository** — `node_modules` committato (~1.300 package.json), commit con messaggi vuoti, `payload.json` di test alla radice del server: aggiungere `.gitignore`, riscrivere la convenzione di commit.
+8. ✅ **`ReferenceError` risolto** — `models/matches.js` usa `s.model || process.env.MATCH_AI_MODEL || 'gpt-4o-mini'`, nessuna variabile `MODEL` indefinita.
+9. ✅ **Router montati una sola volta** — `listingsRouter` su `/api/listings`, `matchesRouter` su `/api/matches`, ciascuno una sola volta.
+10. ✅ **Fallback euristico collegato** — vedi §4.1.
+11. ✅ **Offerte consolidate lato client** — non esistono più file offerte lato server (`offers.js`/`offers_lists_rpc.js`/`offers_v2_incoming_rpc.js`): l'app chiama direttamente le RPC Postgres (`lib/offers.js` → `accept_offer_any`/`decline_offer_any`, tolleranti uuid/int) o aggiorna `offers` via client con RLS.
+12. ✅ **URL non più hardcoded** — `lib/api.js` non esiste più (sostituito da `lib/backendApi.js`, basato su `EXPO_PUBLIC_API_BASE`, lancia errore esplicito se assente); `lib/db.js` non contiene URL hardcoded.
+13. **Rate limiter in-memory** (`middleware/rateLimit.js`): non sopravvive al riavvio né scala su più istanze; spostarlo su store condiviso (Postgres/Redis) resta da fare.
+14. **Logging con dati personali** — da verificare sistematicamente; non riaudita in questo giro.
+15. ✅ **Igiene repository** — `.gitignore` presente (`node_modules/`, `.env*`, build); nessun `node_modules` reale committato (i file `node_modules/` tracciati sono asset font del bundle web esportato, non dipendenze); rimossi `_backup_ui_refactor/`, doppia cartella `components/`, `assets/Untitled file.js`.
 
 ### P2 — Qualità e prodotto
 
-16. **Zero test e zero CI** — aggiungere almeno test su: parser AI (fixture), regole `announceRules`, fusione TrustScore, euristiche; una pipeline GitHub Actions con lint+test.
-17. **Codice morto/duplicato** — `_backup_ui_refactor/`, doppia cartella `components/` (dentro e fuori `travelswapai/`), `assets/Untitled file.js`, route `parseTwo` sovrapposta a `descriptionParse`: rimuovere o consolidare.
-18. **Migrazioni DB versionate** — oggi lo schema esiste solo su Supabase: esportare tabelle, viste, RPC e policy RLS in migrazioni SQL nel repo (`supabase/migrations`).
-19. **TypeScript** — il tsconfig c'è ma il codice è tutto JS; una migrazione graduale (prima `lib/`, poi screens) ridurrebbe gli errori di shape dei dati (già oggi ci sono alias `asset_type/type`, `depart_at/start_date` gestiti a mano).
-20. **Completare i18n** — molte stringhe sono hardcoded in italiano fuori dal dizionario (bot Messenger, titoli navigazione, alert).
+16. ✅ **Test e CI presenti** — `server/test/` (91 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
+17. ✅ **Codice morto/duplicato rimosso** — vedi P1.15; route `parseTwo` consolidata in `ai/descriptionParse.js` (vedi §4.3).
+18. ✅ **Migrazioni DB versionate** — vedi P0.7.
+19. **TypeScript** — il tsconfig c'è ma il codice è ancora tutto JS; una migrazione graduale (prima `lib/`, poi screens) resta da fare.
+20. **i18n** — ampiamente esteso rispetto all'analisi originale (dizionario it/en/es con centinaia di chiavi, parità verificata sistematicamente ad ogni modifica, vedi `docs/IMPROVEMENTS.md` sezione E); alcune stringhe fuori dizionario possono ancora esistere in aree non riauditate.
 21. **Scope futuro accennato nel codice** — supporto `flight`, filtri di ricerca lato Home (oggi solo tab per tipo), notifiche push per nuovi match/offerte: da considerare nella roadmap.
 
 ---
 
 ## 8. Valutazione di maturità
 
-Il progetto è un **MVP funzionante e sorprendentemente completo dal punto di vista funzionale** (4 casi d'uso AI reali + un canale di acquisizione via Facebook), ma **non è pronto per la produzione**: i punti P0 riguardano esposizione di dati riservati (PNR), abuso di costi OpenAI e superfici di debug aperte. Con i fix P0/P1 (stimabili in pochi giorni di lavoro mirato) la base è solida per una beta chiusa.
+Il progetto è un **MVP funzionante e sorprendentemente completo dal punto di vista funzionale** (4 casi d'uso AI reali + un canale di acquisizione via Facebook), con tutti i punti P0 (esposizione PNR, abuso di costi OpenAI, superfici di debug aperte) ormai risolti e coperti da test automatici e CI. Restano aperti solo alcuni P1/P2 di qualità/robustezza (rate limiter condiviso, migrazione TypeScript, logging dati personali da riverificare): la base è solida per una beta chiusa, e diverse aree sono già state oggetto di audit mirati (bug di codice/logici/edge case) documentati nella cronologia dei commit.

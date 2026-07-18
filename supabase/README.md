@@ -11,15 +11,27 @@ Lo schema del database vive in `migrations/`, in ordine di applicazione:
 | `20260711160005_add_missing_listing_statuses.sql` | ⚠️ **Fix critico**: l'enum `listing_status` non conteneva `pending`/`reserved`/`swapped`, valori impostati da `accept_offer_any()` — bloccava l'accettazione di **qualsiasi** offerta (stesso sintomo del fix precedente, causa diversa) |
 | `20260712120000_swap_chains.sql` | **Swap a catena, fase 1** (schema + funzioni): generalizza `accept_offer_any()` a cicli di 3 utenti. `chain_proposals`/`chain_participants` (RLS attiva, visibili solo ai partecipanti), `create_chain_proposal()` (solo `service_role` — pensata per essere chiamata dal motore di matching lato server, non dal client), `confirm_chain_participant()`/`decline_chain_participant()` (chiamabili dall'app), `expire_old_chain_proposals()` (manutenzione periodica). La chiusura è atomica solo quando **tutti e 3** confermano; se nel frattempo un annuncio non è più `active` la catena decade senza toccare nulla. |
 | `20260712180000_chain_explanation.sql` | **Swap a catena, fase 3**: aggiunge `chain_proposals.explanation` (testo), riempita dal server (`server/src/ai/chainExplain.js`) subito dopo la creazione della proposta — spiegazione AI con fallback a un template deterministico. |
+| `20260712200000_saved_searches.sql` | **Avvisi di ricerca (D3)**: tabelle `saved_searches`/`saved_search_matches`, RLS owner-only (nessun backstop SECURITY DEFINER necessario, ogni riga appartiene interamente a un utente). |
+| `20260713040000_fb_messenger_link.sql` | Collegamento identità Messenger↔account TravelSwapAI: `fb_link_codes` (codice monouso, 15 minuti) e `fb_account_links`, entrambe service-role only. |
+| `20260716120000_swap_accept_terminal_state.sql` | `accept_offer_any()`: stato finale corretto per gli annunci coinvolti — `swapped` per gli scambi, `reserved` (in attesa di pagamento) per gli acquisti; prima restavano sempre bloccati su `reserved`. |
+| `20260717120000_offers_require_vendo.sql` | Backstop DB: un'offerta è valida solo verso un VENDO, e uno scambio richiede un VENDO su entrambi i lati — estende `before_insert_offers_enforce`. |
+| `20260717140000_listings_swap_wanted.sql` | Scambio reale tra due VENDO: nuove colonne `listings.accepts_swap`/`swap_wanted`. |
+| `20260717180000_listing_images_max_two.sql` | Backstop DB: limite di 2 foto per annuncio (trigger `before_insert_listing_images_enforce`). |
+| `20260717190000_fn_user_top_matches_bidirectional.sql` | `fn_user_top_matches()` espone anche la colonna `bidirectional` (prima il chiamante la ricostruiva con un proxy grezzo `score >= 80`). |
+| `20260717200000_listings_lock_sensitive_columns.sql` | Trigger che blocca via UPDATE diretto la modifica di colonne sensibili (`user_id`, `trust_score`, `ai_reliability*`), indipendentemente dal client. |
+| `20260717210000_listing_images_max_two_race_fix.sql` | Fix race condition sul limite di 2 foto: lock di riga (`FOR UPDATE` su `listings`) prima del conteggio. |
+| `20260717220000_invalidate_listing_translations_on_edit.sql` | Trigger che invalida la cache `listing_translations` quando titolo/descrizione dell'annuncio cambiano. |
+| `20260717230000_list_my_active_listings_add_cerco_vendo.sql` | `list_my_active_listings()` restituisce anche `cerco_vendo`/`route_to` (mancavano: "Proponi scambio" risultava sempre vuoto). |
+| `20260718100000_fix_chain_swap_buyer_direction.sql` | ⚠️ **Fix critico**: `confirm_chain_participant()` registrava il `buyer_id` sbagliato in `transactions` per gli scambi a catena completati (direzione opposta a quella validata da `create_chain_proposal()`); include fix una-tantum dei dati storici già corrotti. `expire_old_chain_proposals()` ristretta a `service_role`. |
 
-> Le due migrazioni "Fix critico" vanno applicate **subito** sul progetto Supabase reale (non solo nel repo): finché mancano, accettare un'offerta fallisce sempre con un errore Postgres. Scoperte testando in locale la migrazione `transactions_on_accept` prima di consegnarla — non erano mai state esercitate end-to-end.
+> Le migrazioni `fix_offer_status_norm_cast` e `add_missing_listing_statuses` vanno applicate **subito** sul progetto Supabase reale (non solo nel repo): finché mancano, accettare un'offerta fallisce sempre con un errore Postgres. Scoperte testando in locale la migrazione `transactions_on_accept` prima di consegnarla — non erano mai state esercitate end-to-end. Ogni migrazione va comunque applicata non appena disponibile: nessun runner automatico la applica da sola (vedi `CLAUDE.md`).
 
 Tutte le migrazioni sono state validate applicandole in sequenza (nell'ordine reale dei nomi file) a un PostgreSQL 16 pulito, incluso un test end-to-end con due utenti simulati per buy e swap.
 
 ## Ripristino su un nuovo progetto (il vecchio è in pausa non riattivabile)
 
 1. **Crea il progetto**: [dashboard Supabase](https://supabase.com/dashboard) → *New project* (stessa organizzazione va bene). Salva la password del database.
-2. **Applica le migrazioni**: *SQL Editor* → incolla il contenuto di `20260711160000_init.sql` → *Run*; poi ripeti con `20260711160001_security_hardening.sql`.
+2. **Applica le migrazioni**: *SQL Editor* → incolla il contenuto di ciascun file della tabella sopra, **nell'ordine dei timestamp nel nome** (`20260711160000_init.sql` per primo), → *Run* uno alla volta.
    In alternativa con la CLI: `supabase link --project-ref <nuovo-ref>` poi `supabase db push`.
 3. **(Facoltativo) Dati vecchi**: il backup scaricato (`db_cluster*.backup.gz`) contiene i dati di prova (59 annunci, 5 profili). Gli account utente (`auth.users`) si recuperano solo col restore completo del backup, non con queste migrazioni — per una beta conviene ripartire con utenti nuovi.
 4. **Aggiorna le chiavi** (*Settings → API* del nuovo progetto):
