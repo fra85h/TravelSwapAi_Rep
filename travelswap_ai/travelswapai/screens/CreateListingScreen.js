@@ -1333,6 +1333,18 @@ const initialJsonRef = useRef(null);
   };
   const onNextPress = () => goToSlide(Math.min(slideIndex + 1, 2));
   const onBackPress = () => goToSlide(Math.max(slideIndex - 1, 0));
+
+  // Ricava il passo corrente dalla posizione di scroll effettiva: usata sia
+  // da onMomentumScrollEnd sia da onScrollEndDrag, così lo swipe (con o
+  // senza inerzia) aggiorna i pallini con la stessa identica logica del
+  // tasto Avanti/Indietro invece di dipendere da un solo evento non sempre
+  // affidabile (specie su web).
+  const setSlideIndexFromOffset = (nativeEvent) => {
+    const w = nativeEvent.layoutMeasurement?.width || sliderW || 1;
+    const x = nativeEvent.contentOffset?.x || 0;
+    const idx = Math.round(x / w);
+    setSlideIndex(idx);
+  };
   const clearAll = useCallback(() => {
     setMicroLog([]); setProgress(0); setShowMicroLog(false);
     update({
@@ -1899,12 +1911,14 @@ const initialJsonRef = useRef(null);
             onScrollBeginDrag={() => Keyboard.dismiss()}
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             scrollEnabled={!isKbOpen}
-            onMomentumScrollEnd={(e) => {
-              const w = e.nativeEvent.layoutMeasurement.width || sliderW || 1;
-              const x = e.nativeEvent.contentOffset.x || 0;
-              const idx = Math.round(x / w);
-              setSlideIndex(idx);
-            }}
+            // onMomentumScrollEnd da solo non basta: su web (react-native-web)
+            // e su swipe brevi senza inerzia l'evento a volte non scatta,
+            // lasciando i pallini fermi sul passo vecchio anche se la pagina
+            // visibile è già cambiata. onScrollEndDrag scatta sempre al
+            // rilascio del dito, con o senza momentum successivo: stessa
+            // logica su entrambi così i pallini restano allineati in ogni caso.
+            onMomentumScrollEnd={(e) => setSlideIndexFromOffset(e.nativeEvent)}
+            onScrollEndDrag={(e) => setSlideIndexFromOffset(e.nativeEvent)}
             style={{ flex: 1 }}
             contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
           >
