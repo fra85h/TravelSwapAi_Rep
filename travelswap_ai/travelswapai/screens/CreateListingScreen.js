@@ -2181,7 +2181,7 @@ const initialJsonRef = useRef(null);
                   {/* Info + Pulsante Analisi Prezzo con AI */}
                   <View style={styles.infoRow}>
                     <TouchableOpacity onPress={() => setPriceInfoOpen((v) => !v)} style={styles.infoButton}>
-                      <AntDesign name="infocirlceo" size={16} color={theme.colors.boardingText} />
+                      <AntDesign name="info-circle" size={16} color={theme.colors.boardingText} />
                       <Text style={styles.infoLink}> Info</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={analyzePriceAI} disabled={priceLoading} style={[styles.smallAIButton, priceLoading && {opacity:0.7}]}> 
