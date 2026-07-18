@@ -121,6 +121,11 @@ export const translations = {
     savedScreen: {
       emptyText: "Nessun annuncio salvato.\nTocca la stella su un annuncio per aggiungerlo qui.",
       untitledListing: "Annuncio",
+      statusSold: "Venduto",
+      statusExchanged: "Scambiato",
+      statusPaused: "In pausa",
+      statusArchived: "Archiviato",
+      statusUnavailable: "Non disponibile",
     },
     manageImages: {
       addPhoto: "＋ Aggiungi foto",
@@ -1026,6 +1031,11 @@ export const translations = {
     savedScreen: {
       emptyText: "No saved listings yet.\nTap the star on a listing to add it here.",
       untitledListing: "Listing",
+      statusSold: "Sold",
+      statusExchanged: "Exchanged",
+      statusPaused: "Paused",
+      statusArchived: "Archived",
+      statusUnavailable: "Unavailable",
     },
     manageImages: {
       addPhoto: "＋ Add photo",
@@ -1909,6 +1919,11 @@ export const translations = {
     savedScreen: {
       emptyText: "Aún no tienes anuncios guardados.\nToca la estrella en un anuncio para añadirlo aquí.",
       untitledListing: "Anuncio",
+      statusSold: "Vendido",
+      statusExchanged: "Intercambiado",
+      statusPaused: "En pausa",
+      statusArchived: "Archivado",
+      statusUnavailable: "No disponible",
     },
     manageImages: {
       addPhoto: "＋ Añadir foto",
