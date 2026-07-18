@@ -16,7 +16,7 @@ priceCheckRouter.get("/api/listings/:id/price-check", requireAuth, rateLimitPric
 
     const { data: listing, error } = await supabase
       .from("listings")
-      .select("id, type, price, currency, location, route_from, route_to, check_in, check_out, depart_at, arrive_at")
+      .select("id, type, price, currency, location, route_from, route_to, check_in, check_out, depart_at, arrive_at, title, description")
       .eq("id", id)
       .maybeSingle();
     if (error) throw error;

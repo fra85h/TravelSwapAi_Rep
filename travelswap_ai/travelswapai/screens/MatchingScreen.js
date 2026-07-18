@@ -173,9 +173,9 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
   const explText = item.explanation || fallbackExpl;
   const model = item.model ?? null;
   const upd = item.updatedAt || generatedAt || null;
-  
+
   return (
-    <View style={styles.row}>
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={item.title}>
       <View style={[styles.avatar, { backgroundColor: theme.colors.surfaceMuted }]} />
       <View style={{ flex: 1, marginLeft: 10 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -221,7 +221,7 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
           <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -542,13 +542,14 @@ const compatible = useMemo(
           keyExtractor={(it, idx) => String(it.id ?? idx)}
           renderItem={({ item }) => {
             const targetId = item.listingId || item.id;
+            // Tap sulla riga o sulla freccetta: entrambi portano al dettaglio
+            // annuncio vero e proprio (non più a "Dettaglio proposte" —
+            // da lì mancava comunque una via per tornare all'annuncio).
+            // ListingDetail include già i CTA "Proponi scambio/acquisto".
            const safeNavigate = () => {
              if (!targetId) return; // niente tap se manca del tutto
               if (isUUID(targetId)) {
-                navigation.navigate("OfferDetail", {
-                  listingId: targetId,
-                  type: item.type || "hotel",
-                });
+                navigation.navigate("ListingDetail", { id: targetId });
               } else {
                 // Non alzare un alert: semplicemente ignora il tap (rimane visualizzabile la riga)
                 console.log("[MatchingScreen] listingId non-UUID, tap ignorato:", targetId);
@@ -562,15 +563,7 @@ const compatible = useMemo(
                 onToggleInfo={() => toggleExpand(item.id)}
                 onPress={safeNavigate}
                 generatedAt={generatedAt}
-                onPressChevron={() =>
-   navigation.navigate("OfferDetail", {
-     proposalId: item.id,        // id della proposta/match selezionata
-     showOnlyThisProposal: true, // flag esplicito
-     // (opzionale) tieni anche questi, se lo screen li usa per header ecc.
-     listingId: item.listingId || item.id || null,
-     type: item.type || "hotel",
-   })
-    }
+                onPressChevron={safeNavigate}
               />
             );
           }}

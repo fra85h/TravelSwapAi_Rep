@@ -181,7 +181,7 @@ export default function AttivitaScreen({ navigation }) {
       const o = it.data;
       const busy = busyIds.has(o.id);
       return (
-        <View key={it.id} style={styles.card}>
+        <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(o.to_listing?.id)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={o.to_listing?.title || t("offerFlow.listing", "Annuncio")}>
           <View style={styles.rowBetween}>
             <KickerRow icon="arrow-down-circle-outline">{t("activity.offerReceived", "Proposta ricevuta")} · {offerKindLabel(o)}</KickerRow>
             <OfferExpiryBadge expiresAt={o.expires_at} />
@@ -208,7 +208,7 @@ export default function AttivitaScreen({ navigation }) {
               {busy ? <ActivityIndicator size="small" color="#991B1B" /> : <Text style={styles.btnDeclineTxt}>{t("offers.decline", "Rifiuta")}</Text>}
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       );
     }
     // chain to confirm
@@ -231,7 +231,7 @@ export default function AttivitaScreen({ navigation }) {
       const o = it.data;
       const busy = busyIds.has(o.id);
       return (
-        <View key={it.id} style={styles.card}>
+        <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(o.to_listing?.id)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={o.to_listing?.title || t("offerFlow.listing", "Annuncio")}>
           <KickerRow icon="paper-plane-outline">{t("activity.offerSent", "Proposta inviata")} · {offerKindLabel(o)}</KickerRow>
           {o.type === "swap" ? (
             // Proposta inviata: RICEVEREI il loro annuncio (to_listing), DO il
@@ -249,7 +249,7 @@ export default function AttivitaScreen({ navigation }) {
               {busy ? <ActivityIndicator size="small" color="#991B1B" /> : <Text style={styles.btnDeclineTxt}>{t("offers.cancel", "Cancella")}</Text>}
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       );
     }
     const c = it.data;

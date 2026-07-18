@@ -1,9 +1,10 @@
 // screens/HomeScreen.js — Annunci pubblici (senza tab "Voli")
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView, Alert, RefreshControl } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { listPublicListings, listMyListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
+import { getMyPrefs } from "../lib/preferences";
 import { subscribeDataChanged } from "../lib/ActivityContext";
 import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
@@ -41,6 +42,16 @@ function normSearch(s) {
     .trim();
 }
 
+// Stessa soglia "migliori per te" di MatchingScreen (isPerfect): reciproco
+// >=80%, non reciproco >=90%. Senza questa soglia il widget "Per te" pescava
+// semplicemente i primi 6 disponibili qualunque fosse lo score, mostrando
+// anche match deboli (es. 8%) sotto un'etichetta che promette personalizzazione
+// — mentre la lista completa "I migliori per te" li scarta correttamente in
+// "Altri in linea con te". Le due sezioni devono restare coerenti.
+function isTopPick(p) {
+  return (p.bidirectional === true && p.score >= 80) || (p.bidirectional === false && p.score >= 90);
+}
+
 // Estrae i migliori suggerimenti AI dallo snapshot backend, in modo
 // tollerante alla forma della risposta (come fa MatchingScreen). Best
 // effort: se manca o è malformato, la striscia "Per te" resta nascosta.
@@ -50,15 +61,21 @@ function extractPicks(snap) {
   return items
     .map((raw) => {
       const listingId = raw.listingId ?? raw.listing_id ?? raw.toId ?? raw.to_id ?? raw.id;
+      const b = raw.bidirectional ?? raw.is_bidirectional ?? raw.match_type;
+      const bidirectional = typeof b === "string"
+        ? ["true", "t", "1", "bidirectional"].includes(b.toLowerCase())
+        : typeof b === "number" ? b === 1 : !!b;
       return {
         listingId,
         title: raw.title ?? raw.name ?? "—",
         location: raw.location ?? raw.city ?? raw.destination ?? "",
         type: raw.type ?? raw.listing_type ?? "",
         score: Number(raw.score ?? raw.score_pct ?? 0) || 0,
+        bidirectional,
       };
     })
     .filter((p) => typeof p.listingId === "string" && UUID_RE.test(p.listingId))
+    .filter(isTopPick)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
 }
@@ -86,6 +103,15 @@ export default function HomeScreen() {
   // campione, facendo mostrare "Pubblica un annuncio" anche a chi ne aveva
   // già uno attivo.
   const [myActiveCount, setMyActiveCount] = useState(0);
+  // Preferenze di profilo (tipo/località preferiti): usate SOLO per
+  // preselezionare il tab e dare priorità in lista agli annunci nella zona
+  // preferita — non entrano nel matching AI (vedi score.js: quello si basa
+  // sul tuo annuncio pubblicato, un segnale più preciso e già presente).
+  const [prefs, setPrefs] = useState(null);
+  // Il tab preferito va applicato una sola volta (al primo caricamento
+  // utile): altrimenti ogni refresh/focus schermata annullerebbe la scelta
+  // manuale dell'utente riportandolo sempre al tab preferito.
+  const appliedPrefsTabRef = useRef(false);
 
   // helper i18n con fallback + interpolation
   const tt = (key, fallback, vars) => {
@@ -126,10 +152,23 @@ export default function HomeScreen() {
         listMyListings({ status: "active" })
           .then((mine) => setMyActiveCount(Array.isArray(mine) ? mine.length : 0))
           .catch(() => setMyActiveCount(0));
+        getMyPrefs()
+          .then((p) => {
+            setPrefs(p || null);
+            if (!appliedPrefsTabRef.current) {
+              appliedPrefsTabRef.current = true;
+              const types = Array.isArray(p?.types) ? p.types : [];
+              if (types.length === 1 && (types[0] === "hotel" || types[0] === "train")) {
+                setTab(types[0]);
+              }
+            }
+          })
+          .catch(() => setPrefs(null));
       } else {
         setMyActiveCount(0);
         setPicks([]);
         setPicksReady(true);
+        setPrefs(null);
       }
     } catch (e) {
       setError(e?.message || String(e));
@@ -177,7 +216,7 @@ export default function HomeScreen() {
 
   const filtered = useMemo(() => {
     const q = normSearch(query);
-    return items.filter((x) => {
+    const base = items.filter((x) => {
       if (tab !== "all" && String(x.type || "").toLowerCase() !== tab.toLowerCase()) return false;
       if (!q) return true;
       const hay = [x.title, x.location, x.route_from, x.route_to]
@@ -185,7 +224,15 @@ export default function HomeScreen() {
         .join(" ");
       return hay.includes(q);
     });
-  }, [items, tab, query]);
+
+    // Località preferita salvata in profilo: gli annunci che la citano
+    // salgono in cima (ordinamento soft, nessuno viene escluso).
+    const prefLoc = normSearch(prefs?.location);
+    if (!prefLoc) return base;
+    const matchesPrefLoc = (x) =>
+      [x.location, x.route_from, x.route_to].some((s) => normSearch(s).includes(prefLoc));
+    return [...base].sort((a, b) => Number(matchesPrefLoc(b)) - Number(matchesPrefLoc(a)));
+  }, [items, tab, query, prefs]);
 
   const renderTabs = () => (
     <View style={styles.tabs}>
