@@ -8,14 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { getPublicProfile, listSellerActiveListings } from "../lib/db.js";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
-
-function stripPriceFromTitle(s) {
-  if (!s) return s;
-  let out = String(s);
-  out = out.replace(/\s*[-–—]?\s*(?:€|\bEUR\b)?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  return out.trim();
-}
+import { stripPriceFromTitle } from "../lib/listingTitle";
 
 export default function SellerProfileScreen() {
   const route = useRoute();
