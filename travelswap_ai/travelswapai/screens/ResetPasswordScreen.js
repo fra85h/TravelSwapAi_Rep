@@ -35,18 +35,6 @@ export default function ResetPasswordScreen({ navigation }) {
     const applySessionFromUrl = async (url) => {
       if (!url || doneRef.current) return false;
       if (__DEV__) console.log("[ResetPassword] raw url:", url);
-
-      // Sul web, gli screen non mappati in App.js linking.config.screens
-      // (Login, Profile, MainTabs, ...) non aggiornano la barra indirizzi:
-      // se restasse su /auth/reset, un logout successivo (che smonta e
-      // ricrea lo Stack.Navigator per il cambio di `session`) rilegge
-      // quell'URL rimasto fermo e ripiomba qui invece che su Login, pur
-      // non essendoci alcun link di reset in corso. Ripulita subito dopo
-      // aver letto l'URL, non dopo — l'informazione serve solo qui sotto.
-      if (typeof window !== "undefined" && window.history?.replaceState) {
-        window.history.replaceState(null, "", "/");
-      }
-
       const parsed = Linking.parse(url);
 
       const code = parsed?.queryParams?.code;
@@ -84,6 +72,20 @@ export default function ResetPasswordScreen({ navigation }) {
       doneRef.current = true;
       setReady(true);
     };
+
+    // Sul web, gli screen non mappati in App.js linking.config.screens
+    // (Login, Profile, MainTabs, ...) non aggiornano la barra indirizzi:
+    // se restasse su /auth/reset, un logout successivo (che smonta e
+    // ricrea lo Stack.Navigator per il cambio di `session`) rilegge
+    // quell'URL rimasto fermo e ripiomba qui invece che su Login, pur
+    // non essendoci alcun link di reset in corso. Va ripulita SEMPRE
+    // al mount di questo screen, non solo quando arriva un url reale:
+    // se si arriva qui per il riaggancio dell'URL vecchio (non per un
+    // vero evento di deep link), Linking.getInitialURL() qui sotto
+    // torna null, quindi il ramo "url valido" non scatterebbe mai.
+    if (typeof window !== "undefined" && window.history?.replaceState) {
+      window.history.replaceState(null, "", "/");
+    }
 
     (async () => {
       if (!isFocused) return;
