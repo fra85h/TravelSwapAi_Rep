@@ -25,9 +25,14 @@ async function handleOAuthCallback(returnUrl) {
   const parsed = Linking.parse(returnUrl);
 
   // A) PKCE: ?code=...
+  // exchangeCodeForSession(authCode: string) vuole il codice come stringa
+  // nuda: passarlo dentro un oggetto { authCode: code } (com'era prima)
+  // corrompe il body della richiesta al server (auth_code diventa l'intero
+  // oggetto serializzato, non il codice), facendo fallire lo scambio ogni
+  // volta — login Google/Facebook di fatto mai completabile.
   const code = parsed?.queryParams?.code;
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession({ authCode: code });
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       console.error("[OAuth] exchange error", error);
       throw error;

@@ -13,13 +13,16 @@ export default function OAuthCallbackScreen({ navigation }) {
   useEffect(() => {
     let alive = true;
 
-    const hasAuthParams = (url) => {
+    // In un flusso PKCE il code_verifier NON arriva mai nell'URL di
+    // callback (resta solo lato client, nello storage locale: è l'intero
+    // scopo di PKCE) — richiederlo qui faceva sì che questa funzione
+    // scartasse ogni callback OAuth reale, che porta solo "code".
+    const extractCode = (url) => {
       try {
         const parsed = Linking.parse(url);
-        const qp = parsed?.queryParams || {};
-        return !!(qp.code && (qp.code_verifier || qp.codeVerifier));
+        return parsed?.queryParams?.code || null;
       } catch {
-        return false;
+        return null;
       }
     };
 
@@ -28,10 +31,14 @@ export default function OAuthCallbackScreen({ navigation }) {
       // url contiene il code PKCE: lo logghiamo solo in dev
       if (__DEV__) console.log("[OAuthCallback] raw url:", url);
 
-      if (!hasAuthParams(url)) return false;
+      const code = extractCode(url);
+      if (!code) return false;
 
       try {
-        const { data, error } = await supabase.auth.exchangeCodeForSession(url);
+        // exchangeCodeForSession(authCode: string) vuole il codice nudo,
+        // non l'URL intero: passare url corrompeva la richiesta al server
+        // (auth_code diventava l'URL, non il codice).
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           console.error("[OAuthCallback] exchange error:", error.message || String(error));
           return false;
