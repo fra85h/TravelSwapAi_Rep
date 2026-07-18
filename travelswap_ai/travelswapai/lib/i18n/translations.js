@@ -252,6 +252,8 @@ export const translations = {
       notAuthenticated: "Non autenticato",
       changePhoto: "Cambia foto profilo",
       avatarUploadError: "Impossibile caricare la foto profilo.",
+      usernameTakenTitle: "Username già in uso",
+      usernameTakenMsg: "Questo username è già stato scelto da qualcun altro. Provane un altro.",
     },
 
     matchingScreen: {
@@ -1162,6 +1164,8 @@ export const translations = {
       notAuthenticated: "Not authenticated",
       changePhoto: "Change profile photo",
       avatarUploadError: "Unable to upload profile photo.",
+      usernameTakenTitle: "Username already taken",
+      usernameTakenMsg: "This username is already taken. Please choose another one.",
     },
 
     matchingScreen: {
@@ -2050,6 +2054,8 @@ export const translations = {
       notAuthenticated: "No autenticado",
       changePhoto: "Cambiar foto de perfil",
       avatarUploadError: "No se pudo subir la foto de perfil.",
+      usernameTakenTitle: "Usuario ya en uso",
+      usernameTakenMsg: "Este usuario ya ha sido elegido por otra persona. Prueba con otro.",
     },
 
     matchingScreen: {
