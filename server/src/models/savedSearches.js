@@ -18,12 +18,21 @@ function normCity(s) {
 // Tollera varianti dello stesso nome città (es. "Roma" vs "Roma Termini")
 // in entrambe le direzioni, senza richiedere una corrispondenza esatta
 // della stringa. Un filtro vuoto/assente non restringe nulla.
+//
+// Confronto per singola PAROLA, non sottostringa libera: una sottostringa
+// libera farebbe scattare falsi positivi tipo "Roma" dentro "Romagnano
+// Sesia" (Piemonte, nulla a che vedere con Roma) o "Bari" dentro
+// "Barisardo" (Sardegna) — stesso bug già corretto in ai/chainMatch.js.
 function cityMatches(wanted, actual) {
   const w = normCity(wanted);
   if (!w) return true;
   const a = normCity(actual);
   if (!a) return false;
-  return a === w || a.includes(w) || w.includes(a);
+  const wWords = w.split(/\s+/);
+  const aWords = a.split(/\s+/);
+  const wInA = wWords.every((ww) => aWords.includes(ww));
+  const aInW = aWords.every((aw) => wWords.includes(aw));
+  return wInA || aInW;
 }
 
 /**
