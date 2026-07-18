@@ -1,7 +1,8 @@
 // screens/PreferencesOnboardingScreen.js — D4: preferenze subito dopo la
-// registrazione, per alimentare da subito il matching AI (server/src/ai/
-// score.js legge prefs.types/maxPrice/location per il fallback euristico,
-// e l'AI vera li usa come contesto).
+// registrazione. NON alimentano il matching AI: quello si basa sul tuo
+// annuncio pubblicato (tipo/tratta/budget), un segnale già più preciso.
+// Qui servono a personalizzare Esplora (tab preselezionato in base al tipo,
+// annunci della zona preferita in cima) — vedi HomeScreen.js.
 import React, { useEffect, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView,
@@ -105,6 +106,13 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
             : t("prefsOnboarding.subtitle", "Aiutaci a trovarti gli scambi giusti — puoi cambiarle quando vuoi dal profilo.")}
         </Text>
 
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle-outline" size={16} color={theme.colors.textMuted} style={{ marginTop: 1 }} />
+          <Text style={styles.infoBoxText}>
+            {t("prefsOnboarding.usageInfo", "Come le usiamo: tipo e località preferiti preselezionano i filtri e mettono in cima gli annunci della tua zona in Esplora. Non influenzano i punteggi di match, calcolati sul tuo annuncio pubblicato.")}
+          </Text>
+        </View>
+
         <Text style={styles.sectionLabel}>{t("prefsOnboarding.typeLabel", "Cosa ti interessa di più?")}</Text>
         <View style={styles.typeRow}>
           {TYPE_OPTIONS.map((opt) => {
@@ -185,6 +193,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: { color: theme.colors.textMuted, lineHeight: 20, marginBottom: 24 },
+  infoBox: {
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: theme.colors.surfaceMuted,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    padding: 12,
+    marginBottom: 20,
+  },
+  infoBoxText: { flex: 1, color: theme.colors.textMuted, fontSize: 12.5, lineHeight: 18 },
   sectionLabel: { fontWeight: "700", color: theme.colors.text, marginBottom: 10 },
   typeRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
   typeChip: {
