@@ -219,7 +219,7 @@ export default function ProfileScreen() {
                 {String(item.status).toLowerCase() === "sold" ? t("listing.state.sold", "Venduto")
                   : ["swapped","traded","exchanged"].includes(String(item.status).toLowerCase()) ? t("listing.state.swapped", "Scambiato")
                   : String(item.status).toLowerCase() === "reserved" ? t("listing.state.reserved", "Riservato")
-                  : ["pending","review"].includes(String(item.status).toLowerCase()) ? t("listing.state.pending", "In revisione")
+                  : ["pending","review"].includes(String(item.status).toLowerCase()) ? t("listing.state.pending", "Proposte in corso")
                   : String(item.status).toLowerCase() === "expired" ? t("listing.state.expired", "Scaduto")
                   : String(item.status).toLowerCase() === "paused" ? t("listing.state.paused", "In pausa")
                   : t("listing.state.active", "Attivo")}
@@ -378,7 +378,7 @@ export default function ProfileScreen() {
             onPress={() => setStatusFilter(statusFilter === "reserved" ? null : "reserved")}
           />
           <StatItem
-            label={t("listing.filters.pending", "In revisione")}
+            label={t("listing.filters.pending", "Proposte in corso")}
             icon="🕑"
             value={stats.pending}
             active={statusFilter === "pending"}
@@ -406,7 +406,7 @@ export default function ProfileScreen() {
                 : statusFilter === "reserved"
                 ? t("listing.filters.reserved", "Riservati")
                 : statusFilter === "pending"
-                ? t("listing.filters.pending", "In revisione")
+                ? t("listing.filters.pending", "Proposte in corso")
                 : t("listing.filters.expired", "Scaduti")}
             </Text>
             <TouchableOpacity onPress={() => setStatusFilter(null)} style={styles.clearBtn}>
