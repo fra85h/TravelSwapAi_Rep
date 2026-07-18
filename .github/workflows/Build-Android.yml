@@ -15,17 +15,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
+          # Rimossa la riga della cache di npm che causava il blocco
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps # Forza l'installazione anche senza lockfile
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle' # Gestisce la cache in modo nativo qui
+          # Rimossa la riga della cache di gradle per sicurezza
 
       - name: Make Gradle Executable
         run: chmod +x android/gradlew
@@ -40,3 +40,4 @@ jobs:
         with:
           name: app-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
