@@ -27,6 +27,7 @@ import DateTimeField from "../components/DateTimeField";
 import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI parser (server-side)
 import { Image } from "react-native";
 import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
+import { parseLocalizedNumber } from "../lib/number";
 
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
@@ -1120,7 +1121,7 @@ const initialJsonRef = useRef(null);
         checkOut: !isTrain ? (form.checkOut || null) : null,
         departAt: isTrain ? (form.departAt || null) : null,
         arriveAt: isTrain ? (form.arriveAt || null) : null,
-        price: form.price ? Number(String(form.price).replace(",", ".")) : null,
+        price: form.price ? parseLocalizedNumber(form.price) : null,
         currency: "EUR",
         images,
       };
@@ -1284,7 +1285,7 @@ const initialJsonRef = useRef(null);
     const priceStr = String(form.price || "").trim();
     if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
     else {
-      const priceNum = Number(priceStr.replace(",", "."));
+      const priceNum = parseLocalizedNumber(priceStr) ?? NaN;
       if (!Number.isFinite(priceNum)) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
       else if (priceNum < 0) e.price = t("createListing.errors.priceNegative", "Il prezzo non può essere negativo.");
     }
@@ -1327,7 +1328,7 @@ const initialJsonRef = useRef(null);
     try {
       setPriceLoading(true);
       // Simulazione di analisi AI locale: stima semplice basata su durata
-      let suggestion = Number(String(form.price || "").replace(",", "."));
+      let suggestion = parseLocalizedNumber(form.price) ?? 0;
       if (!Number.isFinite(suggestion) || suggestion <= 0) suggestion = 0;
 
       if (form.type === "hotel") {
@@ -1405,7 +1406,7 @@ const initialJsonRef = useRef(null);
         return;
       }
 
-      const priceNum = Number(String(form.price).replace(",", "."));
+      const priceNum = parseLocalizedNumber(form.price) ?? NaN;
 
       // Treno: la location salvata è la composizione "Da → A" dei due campi
       // (compatibilità con card, dettaglio e matching già esistenti).
