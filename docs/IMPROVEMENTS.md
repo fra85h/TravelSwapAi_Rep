@@ -22,6 +22,18 @@ Implementato: `insertListing`/`updateListing` salvano ora il PNR in `listing_sec
 ### B2. Login Google via proxy deprecato
 Il redirect usa `auth.expo.io` (proxy Expo dismesso) → il login non si completa. **Fix definitivo:** redirect basato sullo scheme dell'app (`travelswap://auth/callback`) tramite una **development build**, dove diventa stabile. (già in agenda con te)
 
+### B3. Logout finiva su "Link non valido" — ✅ FATTO
+Causa reale (non la prima ipotizzata): `StackRouter` di React Navigation, al cambio dei route names disponibili, ricade su `routeNames[0]` — cioè il primo `<Stack.Screen>` dichiarato — quando nessuna rotta della vecchia stack sopravvive. `ResetPassword` era dichiarato per primo. Fix: riordinati gli screen in `App.js`.
+
+### B4. App in inglese/spagnolo si comportava come se fosse sempre in italiano — ✅ FATTO
+`ListingDetailScreen` destrutturava `lang` da `useI18n()`, che restituisce invece `locale` — `lang` era sempre `undefined`, quindi l'intero schermo (formattazione data/ora, "pubblicato Xh fa", traduzione automatica della descrizione, lingua della spiegazione AI dell'analisi prezzo) ricadeva sempre su italiano a prescindere dalla lingua scelta. Corretto il rilevamento lingua e propagato `locale` fino al prompt AI lato server (`ai/priceCheck.js`, prima assente anche lì).
+
+### B5. "Proponi scambio" falliva con errore Postgres — ✅ FATTO (regressione)
+`before_insert_offers_enforce()` era già stato corretto in una migration precedente (cast `_norm(o.status::text)`), ma una migration successiva l'ha riscritta per il controllo VENDO/CERCO ripartendo dalla versione vecchia, perdendo il fix — bloccava tutte le proposte di scambio (non gli acquisti) con `function _norm(offer_status) does not exist`. Dettagli in `supabase/README.md`.
+
+### B6. Storico scambi: annuncio "ricevuto" mostrava "Annuncio" invece del titolo — ✅ FATTO
+La policy RLS `listings_read_all_active` non includeva gli stati `swapped`/`reserved` (aggiunti all'enum dopo la policy stessa) tra quelli leggibili da un utente non proprietario — la join embedded di `listMyTransactions()` falliva silenziosamente per RLS. Dettagli in `supabase/README.md`.
+
 ---
 
 ## C. Funzionalità già predisposte nel DB ma non sfruttate (alto valore)
@@ -141,6 +153,12 @@ Non risolve (né potrebbe): leggere automaticamente i post/Reels già pubblicati
 
 Messo in coda dopo D5: ha senso partire solo dopo aver verificato che il bot Messenger funzioni bene nella pratica.
 
+### D7. Timeout automatico delle proposte pending — ✅ FATTO
+Una proposta (buy o swap) non risposta entro **48 ore** scade da sola: colonna `offers.expires_at`, scadenza "pigra" applicata al primo tocco/lettura (nessun cron necessario per la correttezza), più `expire_old_offers()` per manutenzione batch facoltativa. Evidenziato in UI con un conto alla rovescia (`components/OfferExpiryBadge.js`) che si scalda di colore avvicinandosi alla scadenza, in Attività e nel dettaglio offerta. Dettagli in `supabase/README.md`.
+
+### D8. Import annuncio da conferma di prenotazione — ✅ FATTO (parte 1)
+Nel modale "AI Import 1-click" di Creazione annuncio, terza modalità oltre a QR/PNR: incollare il testo della conferma (email di Booking.com, Trenitalia, ecc.). A differenza di QR/PNR — mock locale via regex, non AI reale nonostante l'etichetta — questa passa dal parser AI reale (`/ai/parse-description`), esteso per riconoscere anche il fornitore. Parte 2 della richiesta originale (indicare se la prenotazione è trasferibile, procedura, costo di cambio) valutata e scartata: nessuna API ufficiale Booking.com/Trenitalia la rende verificabile in modo affidabile.
+
 ---
 
 ## F. Restyling "Swap Gold" — ✅ prima tranche applicata
@@ -179,11 +197,22 @@ Direzione scelta dopo confronto visivo di 3 varianti (indigo raffinato / indigo 
 
 ---
 
-## Ordine consigliato — aggiornato 13 luglio 2026
+## G. Valutazione UX per schermata — ✅ Profilo/Attività/Esplora
 
-Tutto A/B/C/D0/D3/D4/D5 e la valutazione UX completa (nuova architettura a 4 tab, restyle oro, quality check) sono ✅ fatti. Quello che resta:
+Rework mirato di 3 schermate su richiesta esplicita, stesso schema per ciascuna: valutazione a punti (alto/medio/basso impatto) seguita da implementazione completa.
 
-1. **Provare su un dispositivo reale** ciò che è stato costruito senza mai poterlo eseguire in questo ambiente — priorità sopra qualunque nuova feature, prima di continuare a costruire su basi non ancora viste dal vivo
+- **Profilo**: header (dati utente + menu + logout) reso indipendente dal caricamento annunci (prima l'intera schermata restava bloccata dietro uno spinner); menu raggruppato per concetto (Account/Attività/Impostazioni) invece di un'unica lista piatta; filtro "In pausa" aggiunto (era tracciato ma non filtrabile — annunci in pausa di fatto irraggiungibili) + chip "Tutti"; badge di stato annuncio colorati per tipo; conferma prima del logout; icone Ionicons al posto delle emoji nel menu.
+- **Attività**: conferma prima di "Accetta" (azione irreversibile per lo scambio); kicker icona+testo uniforme su tutte le card (prima emoji sparse + card offerta senza icona); skeleton al primo caricamento invece dello spinner a schermo intero; conteggio per sezione, rosso solo su "Da fare". Etichetta di stato "In revisione"/"Pending review" (suggeriva una moderazione inesistente) rinominata in "Proposte in corso"/"Offers in progress" — significa "2+ proposte di scambio uscenti senza risposta", non un controllo editoriale.
+- **Esplora**: lo spinner a schermo intero non sostituisce più l'intera pagina (ricerca+filtri) a ogni ricarica automatica (che avviene a ogni focus della tab e a ogni evento globale, non solo al mount) — solo il primo caricamento mostra lo skeleton; aggiunto pull-to-refresh esplicito (prima assente); empty state di ricerca con CTA diretta "Crea avviso"; empty state per filtro tipo con "Mostra tutti"; icone sui bottoni Proponi acquisto/scambio.
+- **Trasversale**: `formatMoney()` (nuovo, `lib/number.js`) uniforma la valuta nelle tre schermate — prima coesistevano 3 formati diversi nella stessa app ("120.00 EUR", "45€", "45 €"). `accessibilityRole`/`accessibilityLabel`/`accessibilityState` aggiunti sistematicamente su bottoni, tab e card navigabili.
+
+---
+
+## Ordine consigliato — aggiornato 18 luglio 2026
+
+Tutto A/B/C/D0/D3/D4/D5/D7/D8, la valutazione UX completa (nuova architettura a 4 tab, restyle oro, quality check, sezione G) e un primo giro di test su dispositivo reale (bug trovati e corretti: B3-B6) sono ✅ fatti. Quello che resta:
+
+1. **Continuare il test su dispositivo reale**, anche sulle schermate non ancora toccate in questo giro (Matching, OfferFlow, ManageImages…) — ha già prodotto la maggior parte dei fix recenti, vale la pena proseguirlo prima di nuove feature
 2. **Attivare per davvero D5** (Pagina Facebook + Meta for Developers) — codice pronto, manca solo la configurazione
 3. **Development build (EAS)** → sblocca **B2 Google**, **D1 notifiche push**, e rende D6/il "Condividi" nativo più facili
 4. **D6 Instagram** (dopo aver verificato D5 nella pratica)

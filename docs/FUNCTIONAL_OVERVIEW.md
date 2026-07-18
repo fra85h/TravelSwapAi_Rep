@@ -77,25 +77,30 @@ TravelSwapAi_Rep/
 - Profilo utente (`ProfileScreen`, ~550 righe) con modifica dati (`EditProfileScreen`) su tabella `profiles`.
 
 ### 3.2 Navigazione principale (bottom tabs)
-1. **Home / Annunci** — lista annunci pubblici attivi (esclusi i propri), filtro per tipo (tutti / hotel / treno), badge TrustScore, icone per tipologia, CTA per fare offerte, pulizia automatica del prezzo dal titolo.
-2. **Offerte** — offerte in entrata e in uscita, con accettazione/rifiuto/cancellazione.
-3. **Matching** — schermata più complessa (~880 righe): ricalcolo on-demand dei match AI via backend, visualizzazione con score, spiegazione e flag di reciprocità (match bidirezionale).
-4. **Profilo** — dati utente, i propri annunci, impostazioni lingua (`LanguageSwitcher`).
+1. **Esplora** (`HomeScreen`) — annunci pubblici attivi (esclusi i propri), ricerca testuale, filtro per tipo (tutti / hotel / treno), striscia "Per te" con i migliori suggerimenti AI (con empty state azionabile), badge TrustScore, CTA per fare offerte, pulizia automatica del prezzo dal titolo, pull-to-refresh.
+2. **Vendi** — non una schermata propria: scorciatoia diretta verso la creazione annuncio.
+3. **Attività** (`AttivitaScreen`) — casella unica per tutto ciò che riguarda l'utente: proposte ricevute ("Da fare", con conferma prima di accettare/annuncio irreversibile), proposte inviate ("In attesa", con conto alla rovescia prima della scadenza), scambi a 3 da confermare, annunci trovati dagli avvisi di ricerca, storico transazioni.
+4. **Profilo** — dati utente, i propri annunci con filtri di stato (attivi/scambiati/venduti/riservati/proposte in corso/in pausa/scaduti), menu raggruppato (account, suggeriti dall'AI, preferiti, scambi a 3, collega Messenger), impostazioni lingua (`LanguageSwitcher`).
 
-### 3.3 Creazione annuncio (`CreateListingScreen`, ~1.600 righe)
-- Form guidato differenziato treno/hotel (tratta+date/orari vs località+check-in/out).
+`MatchingScreen` (suggerimenti AI completi, ricalcolo on-demand, raggiungibile da Profilo) e `SavedSearchesScreen` (avvisi di ricerca, raggiungibile dall'icona campanella in Esplora) non sono tab principali.
+
+### 3.3 Creazione annuncio (`CreateListingScreen`, ~2.500 righe)
+- Pannello fisso in alto (Tipo/Tipo annuncio/Titolo/barra AI) + 3 tab numerati sotto: 1) Foto+Descrizione, 2) Tratta/Località+Date, 3) Prezzo+Particolari treno+Scambio+esito Check AI. Navigazione libera tra i tab, validazione solo alla pubblicazione.
 - **Titolo auto-generato** dai campi compilati.
 - **Bozza persistente** in AsyncStorage (`@tsai:create_listing_draft`).
-- **Compilazione automatica via AI**: l'utente incolla un testo libero e il parser server-side estrae tipo, CERCO/VENDO, tratta, date, prezzo, PNR ecc.
-- **Scanner QR/barcode** con fotocamera (QR, EAN-13/8, Code128, Code39, PDF417, UPC) per importare i dati del biglietto, con simulatore di scansione in dev.
+- **Compilazione automatica via AI reale** ("Compila con AI"): l'utente scrive/incolla un testo e il parser server-side (`/ai/parse-description`, GPT-4o-mini) estrae tipo, CERCO/VENDO, tratta, date, prezzo, PNR, fornitore ecc.
+- **Import 1-click**, 3 modalità nello stesso modale: scanner QR/barcode e inserimento manuale del PNR (euristica locale via regex, nessuna chiamata AI reale nonostante l'etichetta) oppure **incolla la conferma di prenotazione** (email di Booking.com, Trenitalia, ecc. — questa passa davvero dal parser AI, che riconosce anche il fornitore).
+- **Scambio reale**: per un VENDO, switch "Accetti anche uno scambio?" con cosa si cerca in cambio (`listings.accepts_swap`/`swap_wanted`).
 - Calcolo e visualizzazione del **TrustScore** in fase di creazione (`useTrustScore`, `TrustScoreBadge`, `TrustInfo`).
 
 ### 3.4 Offerte e scambi
 - **BUY**: proposta di acquisto verso un annuncio, con importo e messaggio (`createOfferBuy`).
 - **SWAP**: scambio "offro il mio annuncio X per il tuo Y" (`createOfferSwap`), con flusso dedicato di selezione (`OfferFlow`).
-- Accettazione/rifiuto tramite RPC Postgres (`accept_offer_any` / `decline_offer_any`, tolleranti su tipo id uuid/int).
+- Accettazione/rifiuto tramite RPC Postgres (`accept_offer_any` / `decline_offer_any`, tolleranti su tipo id uuid/int); accettare uno scambio è immediato e finale (`swapped`), un acquisto accettato passa a `reserved` in attesa di pagamento.
+- **Timeout automatico (48h)**: una proposta pending non risposta entro 48 ore scade da sola (scadenza "pigra" sul primo tocco/lettura); conto alla rovescia visibile in Attività, colore che si scalda avvicinandosi alla scadenza.
 - Cancellazione della propria offerta pending; dettaglio offerta (`OfferDetailScreen`).
-- Liste incoming/outgoing sia con query dirette sia con RPC dedicate (`list_incoming_offers_any`, `list_outgoing_offers_any`) — doppia implementazione, cfr. §7.
+- Liste incoming/outgoing con RPC dedicate (`list_incoming_offers_any`, `list_outgoing_offers_any`) usate da Attività; query dirette su `offers` per il dettaglio per-annuncio (`OfferDetailScreen`).
+- **Scambio a 3** (`ChainProposalsScreen`): cicli chiusi di 3 utenti trovati dal motore lato server (`server/src/models/chains.js`), proposti via `create_chain_proposal()`, chiusi solo quando **tutti e 3 confermano esplicitamente** (`confirm_chain_participant()`); nessuna esecuzione automatica, nessun soldo coinvolto.
 
 ### 3.5 Internazionalizzazione e traduzione
 - i18n con dizionari **it / en / es** (`lib/i18n`), default italiano, fallback e interpolazione variabili.
@@ -129,7 +134,7 @@ Pipeline a due stadi con fusione pesata:
 Corredato da: autenticazione bearer (JWT Supabase), **rate limiting** (10 chiamate / 10 minuti per utente), validazione input (express-validator), **audit log** su tabella `trust_audit` (best-effort, non blocca la risposta). Il punteggio più recente per annuncio è esposto dalla vista `v_latest_trustscore`, usata per filtrare/ordinare le liste (`minTrust`, `sort=trust_desc`).
 
 ### 4.3 Parsing descrizioni (`/ai/parse-description`, `ai/descriptionParse.js`, protetto da `requireAuth`)
-Estrazione di campi strutturati da testo libero (usata dall'auto-compilazione del form): `asset_type`, `cerco_vendo`, `from/to_location`, date e orari, `price`, `currency`, `is_named_ticket`, `gender`, `pnr`, `notes`. Prompt few-shot, output solo JSON, regola "non inventare: se non deducibile ⇒ null".
+Estrazione di campi strutturati da testo libero (usata sia da "Compila con AI" sia dall'import da conferma di prenotazione, cfr. §3.3): `type`, `cercoVendo`, `origin/destination/route`, date e orari, `price`, `isNamedTicket`, `gender`, `pnr`, `provider` (fornitore riconosciuto nel testo, es. Booking.com/Trenitalia, o `null` se non chiaro). Output solo JSON (json_schema strict), regola "non inventare: se non deducibile ⇒ null", tetto di 8000 caratteri sul testo in ingresso.
 
 ### 4.4 Traduzione annunci (`GET /api/listings/:id/translate?lang=xx`)
 Traduzione titolo+descrizione via OpenAI (source auto-detect) con **cache su tabella `listing_translations`** (best-effort: se la tabella non esiste, traduce comunque).
@@ -158,6 +163,9 @@ Webhook Meta (`/webhooks/facebook`) con verifica firma HMAC-SHA256 sul raw body,
 ### 4.7 Endpoint di servizio
 `/health`, `/dev/ping`, `/debug/env`, `/debug/supabase`, `/dev/token-check` (solo dev), mini-logger richieste in dev.
 
+### 4.8 Analisi prezzo con AI (`GET /api/listings/:id/price-check?locale=xx`, `ai/priceCheck.js`)
+Parere `low`/`fair`/`high` con spiegazione breve, basato sulla sola conoscenza generale del modello (nessun dato di mercato in tempo reale); risposta localizzata it/en/es in base al `locale` passato dal client.
+
 ---
 
 ## 5. Modello dati ricostruito (Supabase / Postgres)
@@ -183,6 +191,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `check_in`, `check_out` date | solo hotel |
 | `image_url` text | |
 | `is_named_ticket` bool, `gender` text, `pnr` text | scritti dall'ingest FB ⚠️ (cfr. §7: il PNR dovrebbe stare solo in `listing_secrets`) |
+| `accepts_swap` bool, `swap_wanted` jsonb | solo VENDO: accetta anche uno scambio, e cosa cerca in cambio (tratta o località) |
 | `trust_score` numeric | scritto dall'app alla creazione (ridondante con `trust_audit`) |
 | `source`, `external_id`, `contact_url` | provenienza FB; **UNIQUE(source, external_id)** |
 | `published_at`, `created_at` timestamptz | |
@@ -199,8 +208,11 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `proposer_id` uuid | chi propone |
 | `amount` numeric, `currency` | solo buy |
 | `message` text | |
-| `status` | `pending` \| `accepted` \| `declined` \| `cancelled` |
+| `status` | `pending` \| `accepted` \| `declined` \| `cancelled` \| `expired` |
+| `expires_at` timestamptz | default 48h da `created_at`; scadenza "pigra" applicata al primo tocco/lettura dopo il termine |
 | `created_at` | |
+
+> Schema completo (incluse `chain_proposals`/`chain_participants` per lo scambio a 3, `saved_searches`/`saved_search_matches`, `transactions`, `listing_images`, `fb_link_codes`/`fb_account_links`) in `supabase/README.md`, mantenuto allineato a ogni migration.
 
 **`profiles`** — profilo utente: `id` (= auth.users.id), `full_name`, altri campi anagrafici usati da `ProfileScreen`.
 
@@ -237,6 +249,8 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `OPENAI_API_KEY` | tutte le funzioni AI |
 | `MATCH_AI_MODEL` (default `gpt-4o-mini`), `MATCH_AI_TEMP`, `MATCH_AI_TOP_P`, `MATCH_AI_BATCH`, `MATCH_AI_TIMEOUT_MS`, `MATCH_AI_CONCURRENCY`, `MATCH_AI_DETERMINISTIC`, `MATCH_AI_SEED_MODE`, `MATCH_INSERT_CHUNK` | tuning matching |
 | `OPENAI_TRUST_MODEL` | modello per il TrustScore |
+| `OPENAI_PRICE_MODEL` (default `gpt-4o-mini`) | modello per l'analisi prezzo |
+| `CHAIN_CRON_SECRET` | secret condiviso per gli endpoint di manutenzione periodica (`/api/chains/recompute`, `/api/saved-searches/recompute`, `/api/offers/recompute`), richiesto via header `X-Cron-Secret`; fail-closed se assente |
 | `FB_VERIFY_TOKEN`, `FB_APP_SECRET`, `FB_PAGE_ACCESS_TOKEN` | webhook + Send API Messenger |
 | `ALLOW_UNVERIFIED_WEBHOOK` | ⚠️ bypass verifica firma FB |
 | `DEFAULT_LISTING_OWNER_ID` | owner degli annunci importati da FB |
@@ -280,10 +294,10 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 18. ✅ **Migrazioni DB versionate** — vedi P0.7.
 19. **TypeScript** — il tsconfig c'è ma il codice è ancora tutto JS; una migrazione graduale (prima `lib/`, poi screens) resta da fare.
 20. **i18n** — ampiamente esteso rispetto all'analisi originale (dizionario it/en/es con centinaia di chiavi, parità verificata sistematicamente ad ogni modifica, vedi `docs/IMPROVEMENTS.md` sezione E); alcune stringhe fuori dizionario possono ancora esistere in aree non riauditate.
-21. **Scope futuro accennato nel codice** — supporto `flight`, filtri di ricerca lato Home (oggi solo tab per tipo), notifiche push per nuovi match/offerte: da considerare nella roadmap.
+21. **Scope futuro accennato nel codice** — supporto `flight`, filtri di ricerca oltre al tipo (prezzo/data) in Esplora, notifiche push per nuovi match/offerte: da considerare nella roadmap. Gli avvisi "avvisami quando compare" esistono già (`SavedSearchesScreen`, matching deterministico periodico) e sono un meccanismo diverso dalle notifiche push, ancora assenti.
 
 ---
 
 ## 8. Valutazione di maturità
 
-Il progetto è un **MVP funzionante e sorprendentemente completo dal punto di vista funzionale** (4 casi d'uso AI reali + un canale di acquisizione via Facebook), con tutti i punti P0 (esposizione PNR, abuso di costi OpenAI, superfici di debug aperte) ormai risolti e coperti da test automatici e CI. Restano aperti solo alcuni P1/P2 di qualità/robustezza (rate limiter condiviso, migrazione TypeScript, logging dati personali da riverificare): la base è solida per una beta chiusa, e diverse aree sono già state oggetto di audit mirati (bug di codice/logici/edge case) documentati nella cronologia dei commit.
+Il progetto è un **MVP funzionante e sorprendentemente completo dal punto di vista funzionale** (matching, TrustScore, parsing descrizioni/conferme, analisi prezzo, spiegazione scambi a catena + un canale di acquisizione via Facebook), con tutti i punti P0 (esposizione PNR, abuso di costi OpenAI, superfici di debug aperte) ormai risolti e coperti da test automatici e CI. Restano aperti solo alcuni P1/P2 di qualità/robustezza (rate limiter condiviso, migrazione TypeScript, logging dati personali da riverificare): la base è solida per una beta chiusa, e diverse aree sono già state oggetto di audit mirati (bug di codice/logici/edge case) documentati nella cronologia dei commit.
