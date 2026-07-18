@@ -121,6 +121,11 @@ export const translations = {
     savedScreen: {
       emptyText: "Nessun annuncio salvato.\nTocca la stella su un annuncio per aggiungerlo qui.",
       untitledListing: "Annuncio",
+      statusSold: "Venduto",
+      statusExchanged: "Scambiato",
+      statusPaused: "In pausa",
+      statusArchived: "Archiviato",
+      statusUnavailable: "Non disponibile",
     },
     manageImages: {
       addPhoto: "＋ Aggiungi foto",
@@ -247,6 +252,8 @@ export const translations = {
       notAuthenticated: "Non autenticato",
       changePhoto: "Cambia foto profilo",
       avatarUploadError: "Impossibile caricare la foto profilo.",
+      usernameTakenTitle: "Username già in uso",
+      usernameTakenMsg: "Questo username è già stato scelto da qualcun altro. Provane un altro.",
     },
 
     matchingScreen: {
@@ -1026,6 +1033,11 @@ export const translations = {
     savedScreen: {
       emptyText: "No saved listings yet.\nTap the star on a listing to add it here.",
       untitledListing: "Listing",
+      statusSold: "Sold",
+      statusExchanged: "Exchanged",
+      statusPaused: "Paused",
+      statusArchived: "Archived",
+      statusUnavailable: "Unavailable",
     },
     manageImages: {
       addPhoto: "＋ Add photo",
@@ -1152,6 +1164,8 @@ export const translations = {
       notAuthenticated: "Not authenticated",
       changePhoto: "Change profile photo",
       avatarUploadError: "Unable to upload profile photo.",
+      usernameTakenTitle: "Username already taken",
+      usernameTakenMsg: "This username is already taken. Please choose another one.",
     },
 
     matchingScreen: {
@@ -1909,6 +1923,11 @@ export const translations = {
     savedScreen: {
       emptyText: "Aún no tienes anuncios guardados.\nToca la estrella en un anuncio para añadirlo aquí.",
       untitledListing: "Anuncio",
+      statusSold: "Vendido",
+      statusExchanged: "Intercambiado",
+      statusPaused: "En pausa",
+      statusArchived: "Archivado",
+      statusUnavailable: "No disponible",
     },
     manageImages: {
       addPhoto: "＋ Añadir foto",
@@ -2035,6 +2054,8 @@ export const translations = {
       notAuthenticated: "No autenticado",
       changePhoto: "Cambiar foto de perfil",
       avatarUploadError: "No se pudo subir la foto de perfil.",
+      usernameTakenTitle: "Usuario ya en uso",
+      usernameTakenMsg: "Este usuario ya ha sido elegido por otra persona. Prueba con otro.",
     },
 
     matchingScreen: {

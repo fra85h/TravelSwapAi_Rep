@@ -7,7 +7,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
   ScrollView,
   Platform,
   Image,
@@ -22,7 +22,6 @@ import LanguageSwitcher from "./LanguageSwitcher";
 
 // --- util una sola volta ---
 const markSeen = () => AsyncStorage.setItem("hasSeenOnboarding", "1").catch(() => {});
-const { width } = Dimensions.get("window");
 
 // solo CHIAVI i18n: i testi veri li prende t()
 const SLIDES = [
@@ -36,6 +35,10 @@ export default function OnboardingScreen() {
   const nav = useNavigation();
   const scrollRef = useRef(null);
   const [index, setIndex] = useState(0);
+  // Non Dimensions.get("window") una tantum al caricamento del modulo:
+  // dopo una rotazione o un resize della finestra (rilevante sul web)
+  // restava la larghezza vecchia, disallineando lo swipe dalle slide.
+  const { width } = useWindowDimensions();
 
   // animazione rotazione asse Y (ruota su se stessa, effetto moneta)
   const spinValue = useRef(new Animated.Value(0)).current;

@@ -21,6 +21,7 @@ import { listImages } from "../lib/listingImages";
 import { useI18n } from "../lib/i18n";
 import { useListingTranslation } from "../lib/useListingTranslation";
 import { usePriceCheck } from "../lib/usePriceCheck";
+import { stripPriceFromTitle } from "../lib/listingTitle";
 
 /* ========= Utils ========= */
 
@@ -92,14 +93,6 @@ function timeAgoLocalized(input, locale = "it") {
 const safeStr = (v) => (v == null || v === "" ? "—" : String(v));
 const fmtMoney = (v, c) => (v == null || isNaN(Number(v)) ? "—" : `${Number(v).toFixed(2)} ${c || "€"}`);
 
-/** rimuove prezzi nel titolo */
-function stripPriceFromTitle(s) {
-  if (!s) return s;
-  let out = String(s);
-  out = out.replace(/\s*[-–—]?\s*(?:€|\bEUR\b)?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  return out.trim();
-}
 
 /* ========= Screen ========= */
 

@@ -19,6 +19,20 @@ function subtitle(item) {
   return icon + place;
 }
 
+// listSavedListings() non filtra per status: un annuncio salvato resta nei
+// Preferiti anche dopo essere stato venduto/scambiato/messo in pausa, dove
+// altrimenti sarebbe indistinguibile da uno ancora attivo e acquistabile.
+function statusLabel(status, t) {
+  if (!status || status === "active") return null;
+  const labels = {
+    sold: t("savedScreen.statusSold", "Venduto"),
+    exchanged: t("savedScreen.statusExchanged", "Scambiato"),
+    paused: t("savedScreen.statusPaused", "In pausa"),
+    archived: t("savedScreen.statusArchived", "Archiviato"),
+  };
+  return labels[status] || t("savedScreen.statusUnavailable", "Non disponibile");
+}
+
 export default function SavedScreen() {
   const { t } = useI18n();
   const navigation = useNavigation();
@@ -38,6 +52,10 @@ export default function SavedScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const handleUnsaved = useCallback((listingId) => {
+    setItems((prev) => prev.filter((it) => it.id !== listingId));
+  }, []);
 
   if (loading) {
     return (
@@ -64,26 +82,34 @@ export default function SavedScreen() {
       keyExtractor={(it) => String(it.id)}
       contentContainerStyle={{ padding: 16 }}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
-      renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate("ListingDetail", { id: item.id })}
-        >
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={styles.title} numberOfLines={2}>
-              {item.title || t("savedScreen.untitledListing", "Annuncio")}
-            </Text>
-            <Text style={styles.sub}>{subtitle(item)}</Text>
-            {item.price != null ? (
-              <Text style={styles.price}>
-                {item.price} {item.currency || "€"}
+      renderItem={({ item }) => {
+        const badge = statusLabel(item.status, t);
+        return (
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("ListingDetail", { id: item.id })}
+          >
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.title} numberOfLines={2}>
+                {item.title || t("savedScreen.untitledListing", "Annuncio")}
               </Text>
-            ) : null}
-          </View>
-          <SaveButton listingId={item.id} initialSaved={true} />
-        </TouchableOpacity>
-      )}
+              <Text style={styles.sub}>{subtitle(item)}</Text>
+              {badge ? <Text style={styles.statusBadge}>{badge}</Text> : null}
+              {item.price != null ? (
+                <Text style={styles.price}>
+                  {item.price} {item.currency || "€"}
+                </Text>
+              ) : null}
+            </View>
+            <SaveButton
+              listingId={item.id}
+              initialSaved={true}
+              onChange={(saved) => { if (!saved) handleUnsaved(item.id); }}
+            />
+          </TouchableOpacity>
+        );
+      }}
     />
   );
 }
@@ -114,5 +140,6 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
   sub: { marginTop: 4, color: theme.colors.textMuted },
+  statusBadge: { marginTop: 4, color: theme.colors.danger, fontSize: 12, fontWeight: "700" },
   price: { marginTop: 6, fontWeight: "800", color: theme.colors.accent },
 });

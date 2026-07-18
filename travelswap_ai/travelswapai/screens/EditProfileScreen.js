@@ -89,7 +89,14 @@ const navigation = useNavigation();
       Alert.alert(t("editProfileScreen.savedTitle", "Salvato"), t("editProfileScreen.savedMsg", "Profilo aggiornato con successo."));
       navigation.goBack();  // torna al tab Profilo
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e.message || String(e));
+      // 23505 = violazione unique index (profiles.username già preso da un
+      // altro utente) — senza questo controllo l'utente vedeva l'errore
+      // Postgres grezzo invece di un messaggio comprensibile.
+      if (e?.code === "23505") {
+        Alert.alert(t("editProfileScreen.usernameTakenTitle", "Username già in uso"), t("editProfileScreen.usernameTakenMsg", "Questo username è già stato scelto da qualcun altro. Provane un altro."));
+      } else {
+        Alert.alert(t("common.error", "Errore"), e.message || String(e));
+      }
     } finally {
       setSaving(false);
     }

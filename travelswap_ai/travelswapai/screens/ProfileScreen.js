@@ -27,17 +27,9 @@ import TrustScoreBadge from '../components/TrustScoreBadge';
 import ActionSheet from "../components/ui/ActionSheet";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
+import { stripPriceFromTitle } from "../lib/listingTitle";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
-
-// --- Helper: rimuove eventuali prezzi dal titolo (come in HomeScreen)
-function stripPriceFromTitle(s) {
-  if (!s) return s;
-  let out = String(s);
-  out = out.replace(/\s*[-–—]?\s*(?:€|\bEUR\b)?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  return out.trim();
-}
 
 function StatItem({ label, icon, value, active, onPress }) {
   return (

@@ -11,8 +11,11 @@ const SAVED_COLOR = theme.colors.accent;
  * @param {string} listingId
  * @param {number} [size=24]
  * @param {boolean} [initialSaved]  se noto, evita la fetch iniziale
+ * @param {(saved: boolean) => void} [onChange]  chiamato dopo un toggle riuscito
+ *   (es. per rimuovere subito la riga da una lista di preferiti, invece di
+ *   aspettare il prossimo focus/refresh della schermata)
  */
-export default function SaveButton({ listingId, size = 24, initialSaved }) {
+export default function SaveButton({ listingId, size = 24, initialSaved, onChange }) {
   const [saved, setSaved] = useState(!!initialSaved);
   const [busy, setBusy] = useState(false);
 
@@ -34,6 +37,7 @@ export default function SaveButton({ listingId, size = 24, initialSaved }) {
     try {
       const now = await toggleSaved(listingId, prev);
       setSaved(now);
+      onChange?.(now);
     } catch (e) {
       setSaved(prev); // rollback in caso di errore
     } finally {

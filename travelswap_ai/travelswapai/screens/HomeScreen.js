@@ -11,6 +11,7 @@ import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
 import SaveButton from "../components/SaveButton";
 import { Ionicons } from "@expo/vector-icons";
+import { stripPriceFromTitle } from "../lib/listingTitle";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -49,14 +50,6 @@ function extractPicks(snap) {
     .slice(0, 6);
 }
 
-// --- Helper: rimuove eventuali prezzi dal titolo
-function stripPriceFromTitle(s) {
-  if (!s) return s;
-  let out = String(s);
-  out = out.replace(/\s*[-–—]?\s*(?:€|\bEUR\b)?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  out = out.replace(/\s*(?:prezzo|price)\s*[:\-]?\s*\d{1,5}(?:[\.,]\d{2})?\s*(?:€|\bEUR\b)?\s*$/i, "");
-  return out.trim();
-}
 
 export default function HomeScreen() {
   const navigation = useNavigation();
