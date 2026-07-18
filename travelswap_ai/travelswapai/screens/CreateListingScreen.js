@@ -137,6 +137,29 @@ function AIPill({ title, onPress, disabled, dark, subtle, loading, iconName = "s
   );
 }
 
+// Versione icona-sola di AIPill, per il gruppo di azioni secondarie della
+// toolbar AI compatta (Import/Check/Pulisci): stessa icona di prima, senza
+// etichetta — l'accessibilityLabel resta il titolo completo per lettori
+// schermo. "Compila con AI" resta un AIPill normale, è l'azione primaria.
+function AIIconButton({ onPress, disabled, loading, iconName = "star-four-points", iconLib = "mci", accessibilityLabel }) {
+  const Icon = iconLib === "ant" ? AntDesign : MaterialCommunityIcons;
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={[styles.aiIconBtn, (disabled || loading) && { opacity: 0.6 }]}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+    >
+      {loading ? (
+        <ActivityIndicator size="small" color={theme.colors.boardingText} />
+      ) : (
+        <Icon name={iconName} size={18} color={theme.colors.textMuted} />
+      )}
+    </TouchableOpacity>
+  );
+}
+
 const TYPES = [
   { key: "hotel", labelKey: "listing.type.hotel" },
   { key: "train", labelKey: "listing.type.train" },
@@ -1641,55 +1664,99 @@ const initialJsonRef = useRef(null);
           </View>
         </View>
 
-        {/* Descrizione */}
-        <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
-        <TextInput
-          value={form.description}
-          onChangeText={(v) => update({ description: v })}
-          placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
-          style={[styles.input, styles.multiline, styles.inputSurface]}
-          placeholderTextColor={theme.colors.textMuted}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
+        {/* Tipo, Tipo annuncio e Titolo: spostati qui (prima erano più in
+            basso, nella prima pagina scorrevole) così sono visibili senza
+            scroll appena si apre lo schermo — sono gli unici campi
+            bloccanti per andare avanti. La Descrizione (facoltativa) è
+            scesa nella pagina scorrevole subito sotto, insieme alla Foto. */}
+        <View style={styles.row2}>
+          <View style={styles.col}>
+            <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
+            <View style={styles.segment}>
+              {TYPES.map((tt) => {
+                const active = form?.type === tt.key;
+                return (
+                  <TouchableOpacity key={tt.key} onPress={() => onChangeType(tt.key)} style={[styles.segBtn, active && styles.segBtnActive]}>
+                    <Text style={[styles.segText, active && styles.segTextActive]}>{t(tt.labelKey, tt.key === "hotel" ? "Hotel" : "Treno")}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+          <View style={styles.col}>
+            <Text style={styles.label}>{t("createListing.cercoVendoLabel", "Tipo annuncio")}</Text>
+            <View style={styles.segment}>
+              {["CERCO","VENDO"].map((cv) => {
+                const active = form.cercoVendo === cv;
+                return (
+                  <TouchableOpacity key={cv} onPress={() => onChangeCercoVendo(cv)} style={[styles.segBtn, active && styles.segBtnActive]}>
+                    <Text style={[styles.segText, active && styles.segTextActive]}>{cv === "CERCO" ? t("createListing.cerco","Cerco") : t("createListing.vendo","Vendo")}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
 
-        {/* Azioni: "Compila con AI" riempie i campi dalla descrizione,
-            "Check AI" verifica soltanto (non tocca mai il form). */}
-        <View style={styles.pillsRow}>
-          <AIPill
-            title={t("createListing.aiImport", "AI Import 1-click")}
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
+          <TouchableOpacity accessibilityLabel="Modifica titolo" onPress={() => toggleEditable("title")} style={styles.iconBtn}>
+            <AntDesign name={editableFields.title ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          editable={editableFields.title}
+          selectTextOnFocus={editableFields.title}
+          value={form.title}
+          onChangeText={(v) => update({ title: v })}
+          placeholder={
+            form?.type === "hotel"
+              ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
+              : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
+          }
+          style={[styles.input, !editableFields.title && styles.inputDisabled, errors.title && styles.inputError]}
+          placeholderTextColor={theme.colors.textMuted}
+        />
+        {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+
+        {/* Strumenti AI: "Compila con AI" resta un'azione a tutta larghezza
+            (è quella più usata), le altre tre diventano icone sulla stessa
+            riga invece di una griglia 2×2 — libera spazio verticale sopra
+            ai campi obbligatori. */}
+        <View style={styles.aiToolbar}>
+          <View style={{ flex: 1 }}>
+            <AIPill
+              title={t("createListing.aiFill", "Compila con AI")}
+              onPress={onAiFill}
+              disabled={loadingAI || aiFilling || publishing || saving}
+              loading={aiFilling}
+              dark
+              iconLib="mci"
+              iconName="auto-fix"
+            />
+          </View>
+          <AIIconButton
+            accessibilityLabel={t("createListing.aiImport", "AI Import 1-click")}
             onPress={openImport}
             disabled={importBusy || saving || publishing}
             iconLib="mci"
             iconName="qrcode-scan"
           />
-          <AIPill
-            title={t("createListing.aiFill", "Compila con AI")}
-            onPress={onAiFill}
-            disabled={loadingAI || aiFilling || publishing || saving}
-            loading={aiFilling}
-            dark
-            iconLib="mci"
-            iconName="auto-fix"
-          />
-          <AIPill
-            title={"Check AI"}
+          <AIIconButton
+            accessibilityLabel={"Check AI"}
             onPress={onTrustCheck}
             disabled={trustLoading || loadingAI || aiFilling}
             loading={loadingAI}
             iconLib="mci"
             iconName="shield-check"
           />
-          <AIPill
-            title={"Clear all"}
+          <AIIconButton
+            accessibilityLabel={"Clear all"}
             onPress={clearAll}
             disabled={loadingAI || aiFilling || publishing || saving}
-            subtle
             iconLib="mci"
             iconName="broom"
           />
-
         </View>
 
         {/* Micro log + progress bar */}
@@ -1795,59 +1862,22 @@ const initialJsonRef = useRef(null);
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
                 >
-                  {/* Tipo + Cerco/Vendo */}
-                  <View style={styles.row2}>
-                    <View style={styles.col}>
-                      <Text style={styles.label}>{t("createListing.type", "Tipo")}</Text>
-                      <View style={styles.segment}>
-                        {TYPES.map((tt) => {
-                          const active = form?.type === tt.key;
-                          return (
-                            <TouchableOpacity key={tt.key} onPress={() => onChangeType(tt.key)} style={[styles.segBtn, active && styles.segBtnActive]}>
-                              <Text style={[styles.segText, active && styles.segTextActive]}>{t(tt.labelKey, tt.key === "hotel" ? "Hotel" : "Treno")}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                      
-                    </View>
-                    <View style={styles.col}>
-                      <Text style={styles.label}>{t("createListing.cercoVendoLabel", "Tipo annuncio")}</Text>
-                      <View style={styles.segment}>
-                        {["CERCO","VENDO"].map((cv) => {
-                          const active = form.cercoVendo === cv;
-                          return (
-                            <TouchableOpacity key={cv} onPress={() => onChangeCercoVendo(cv)} style={[styles.segBtn, active && styles.segBtnActive]}>
-                              <Text style={[styles.segText, active && styles.segTextActive]}>{cv === "CERCO" ? t("createListing.cerco","Cerco") : t("createListing.vendo","Vendo")}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Titolo */}
-                  {/* Titolo (bloccato di default con matita) */}
-                  <View style={styles.labelRow}>
-                    <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
-                    <TouchableOpacity accessibilityLabel="Modifica titolo" onPress={() => toggleEditable("title")} style={styles.iconBtn}>
-                      <AntDesign name={editableFields.title ? "unlock" : "edit"} size={18} color={theme.colors.boardingText || "#111827"} />
-                    </TouchableOpacity>
-                  </View>
+                  {/* Descrizione (facoltativa): scesa qui da quando Tipo/Tipo
+                      annuncio/Titolo sono saliti nel pannello fisso in alto —
+                      resta comunque a un solo scroll di distanza, e "Compila
+                      con AI"/"Check AI" restano raggiungibili da lassù in
+                      qualunque momento. */}
+                  <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
                   <TextInput
-                    editable={editableFields.title}
-                    selectTextOnFocus={editableFields.title}
-                    value={form.title}
-                    onChangeText={(v) => update({ title: v })}
-                    placeholder={
-                      form?.type === "hotel"
-                        ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
-                        : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
-                    }
-                    style={[styles.input, !editableFields.title && styles.inputDisabled, errors.title && styles.inputError]}
+                    value={form.description}
+                    onChangeText={(v) => update({ description: v })}
+                    placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
+                    style={[styles.input, styles.multiline]}
                     placeholderTextColor={theme.colors.textMuted}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
                   />
-                  {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
 
                   {/* Foto */}
                   <Text style={styles.label}>
@@ -2339,7 +2369,6 @@ const styles = StyleSheet.create({
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   topTitle: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, color: theme.colors.boardingText },
 
-  pillsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingTop: 8, paddingBottom: 6 },
   pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
   pillLight: { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border },
   pillDark: { backgroundColor: theme.colors.text, borderColor: theme.colors.text },
@@ -2350,7 +2379,12 @@ const styles = StyleSheet.create({
   pillTextDark: { color: "#fff" },
   pillTextSubtle: { fontWeight: "700", color: theme.colors.textMuted },
 
-  inputSurface: { backgroundColor: theme.colors.surface },
+  // Toolbar AI compatta: "Compila con AI" a tutta larghezza + 3 icone.
+  aiToolbar: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8, paddingBottom: 6 },
+  aiIconBtn: {
+    width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
+    backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border,
+  },
 
   // Sommario Check AI (chip a semaforo, stessi colori dei box di dettaglio)
   checkSummary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8, marginBottom: 2 },
