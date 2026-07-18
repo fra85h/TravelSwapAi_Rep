@@ -31,6 +31,16 @@ export default function OAuthCallbackScreen({ navigation }) {
       // url contiene il code PKCE: lo logghiamo solo in dev
       if (__DEV__) console.log("[OAuthCallback] raw url:", url);
 
+      // Sul web, gli screen non mappati in App.js linking.config.screens
+      // (Login, Profile, MainTabs, ...) non aggiornano la barra indirizzi:
+      // se restasse su /auth/callback, un cambio di sessione successivo
+      // (che smonta e ricrea lo Stack.Navigator) potrebbe rileggere
+      // quell'URL rimasto fermo. Ripulita subito dopo averla letta, non
+      // dopo — l'informazione serve solo qui sotto.
+      if (typeof window !== "undefined" && window.history?.replaceState) {
+        window.history.replaceState(null, "", "/");
+      }
+
       const code = extractCode(url);
       if (!code) return false;
 
