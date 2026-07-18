@@ -112,6 +112,17 @@ export function isKnownRailCity(loc) {
   return RAIL_CITIES.some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
 }
 
+// Notti tra check-in e check-out, o null se le date mancano/non sono valide
+// o l'ordine è invertito (quel caso è già coperto dal flag DATE_SWAP sopra).
+function nightsBetween(startDate, endDate) {
+  if (!startDate || !endDate) return null;
+  const s = new Date(startDate);
+  const e = new Date(endDate);
+  if (!isFinite(s) || !isFinite(e)) return null;
+  const nights = Math.round((e - s) / (1000 * 60 * 60 * 24));
+  return nights > 0 ? nights : null;
+}
+
 // Testi dei suggerimenti (fix) nelle tre lingue. I messaggi dei FLAG restano
 // in italiano perché il client li rimpiazza con etichette localizzate in base
 // al `code`; i suggerimenti invece non hanno un code, quindi li localizziamo
@@ -218,9 +229,21 @@ export function computeHeuristicChecks(listing, locale = 'it') {
       flags.push({ code: 'NON_POSITIVE_PRICE', msg: 'Prezzo non positivo' });
       fixes.push({ field: 'price', suggestion: fixText('pricePositive', lang) });
     }
-    if (type === 'hotel' && p > 5000) {
-      plausibility -= 0.3;
-      flags.push({ code: 'PRICE_OUTLIER', msg: 'Prezzo hotel anomalo' });
+    if (type === 'hotel') {
+      // Il prezzo hotel è il TOTALE del soggiorno, non a notte: una soglia
+      // fissa flaggava come anomalo anche un soggiorno lungo perfettamente
+      // legittimo (es. 15 notti > 5000€ totali). Confrontiamo invece il
+      // prezzo a notte con una soglia generosa, tenendo 5000€ come minimo
+      // assoluto per i soggiorni brevi o senza date valide.
+      const nights = nightsBetween(startDate, endDate);
+      const cap = nights ? Math.max(5000, nights * 500) : 5000;
+      if (p > cap) {
+        plausibility -= 0.3;
+        flags.push({
+          code: 'PRICE_OUTLIER',
+          msg: nights ? `Prezzo hotel anomalo per ${nights} notti` : 'Prezzo hotel anomalo',
+        });
+      }
     }
     if ((type === 'train' || type === 'treno' || type === 'bus') && p > 400) {
       plausibility -= 0.3;
