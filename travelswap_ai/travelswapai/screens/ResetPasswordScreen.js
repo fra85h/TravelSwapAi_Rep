@@ -35,6 +35,18 @@ export default function ResetPasswordScreen({ navigation }) {
     const applySessionFromUrl = async (url) => {
       if (!url || doneRef.current) return false;
       if (__DEV__) console.log("[ResetPassword] raw url:", url);
+
+      // Sul web, gli screen non mappati in App.js linking.config.screens
+      // (Login, Profile, MainTabs, ...) non aggiornano la barra indirizzi:
+      // se restasse su /auth/reset, un logout successivo (che smonta e
+      // ricrea lo Stack.Navigator per il cambio di `session`) rilegge
+      // quell'URL rimasto fermo e ripiomba qui invece che su Login, pur
+      // non essendoci alcun link di reset in corso. Ripulita subito dopo
+      // aver letto l'URL, non dopo — l'informazione serve solo qui sotto.
+      if (typeof window !== "undefined" && window.history?.replaceState) {
+        window.history.replaceState(null, "", "/");
+      }
+
       const parsed = Linking.parse(url);
 
       const code = parsed?.queryParams?.code;
