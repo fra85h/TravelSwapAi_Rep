@@ -31,9 +31,49 @@ import { stripPriceFromTitle } from "../lib/listingTitle";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
+// Colori per stato annuncio: prima tutti i badge erano grigi identici, così
+// lo stato si leggeva solo parola per parola. Un minimo di colore permette la
+// scansione a colpo d'occhio (verde=attivo, rosso=scaduto, ambra=in trattativa…).
+const STATUS_COLORS = {
+  active:   { bg: "#DCFCE7", border: "#86EFAC", fg: "#166534" },
+  swapped:  { bg: "#E0E7FF", border: "#A5B4FC", fg: "#3730A3" },
+  sold:     { bg: "#DBEAFE", border: "#93C5FD", fg: "#1E40AF" },
+  reserved: { bg: "#FEF3C7", border: "#FCD34D", fg: "#92400E" },
+  pending:  { bg: "#FEF3C7", border: "#FCD34D", fg: "#92400E" },
+  paused:   { bg: "#F3F4F6", border: "#D1D5DB", fg: "#4B5563" },
+  expired:  { bg: "#FEE2E2", border: "#FCA5A5", fg: "#991B1B" },
+};
+
+// Normalizza lo stato grezzo del DB (con i suoi alias) in una chiave canonica,
+// usata sia per il colore del badge sia per la chiave i18n listing.state.*.
+function normStatusKey(status) {
+  const s = String(status || "").toLowerCase();
+  if (["swapped", "traded", "exchanged"].includes(s)) return "swapped";
+  if (["pending", "review"].includes(s)) return "pending";
+  if (s === "sold") return "sold";
+  if (s === "reserved") return "reserved";
+  if (s === "expired") return "expired";
+  if (s === "paused") return "paused";
+  return "active"; // default e stringa vuota
+}
+
+const CURRENCY_SYMBOL = { EUR: "€", USD: "$", GBP: "£" };
+function fmtCurrency(v, c) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  const sym = CURRENCY_SYMBOL[String(c || "EUR").toUpperCase()] || c || "€";
+  return `${n.toFixed(2)} ${sym}`;
+}
+
 function StatItem({ label, icon, value, active, onPress }) {
   return (
-    <TouchableOpacity onPress={onPress} style={[styles.statBox, active && styles.statBoxActive]}>
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.statBox, active && styles.statBoxActive]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!active }}
+      accessibilityLabel={`${label}: ${value}`}
+    >
       <Text style={styles.statIcon}>{icon}</Text>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
@@ -185,6 +225,7 @@ export default function ProfileScreen() {
       if (statusFilter === "sold") return st === "sold";
       if (statusFilter === "reserved") return st === "reserved";
       if (statusFilter === "pending") return st === "pending" || st === "review";
+      if (statusFilter === "paused") return st === "paused";
       if (statusFilter === "expired") return st === "expired";
       return true;
     };
@@ -213,34 +254,34 @@ export default function ProfileScreen() {
 
         {/* Stato + overflow */}
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          {!!item.status && (
-            <View style={styles.stateBadge}>
-              <Text style={styles.stateBadgeText}>
-                {String(item.status).toLowerCase() === "sold" ? t("listing.state.sold", "Venduto")
-                  : ["swapped","traded","exchanged"].includes(String(item.status).toLowerCase()) ? t("listing.state.swapped", "Scambiato")
-                  : String(item.status).toLowerCase() === "reserved" ? t("listing.state.reserved", "Riservato")
-                  : ["pending","review"].includes(String(item.status).toLowerCase()) ? t("listing.state.pending", "Proposte in corso")
-                  : String(item.status).toLowerCase() === "expired" ? t("listing.state.expired", "Scaduto")
-                  : String(item.status).toLowerCase() === "paused" ? t("listing.state.paused", "In pausa")
-                  : t("listing.state.active", "Attivo")}
-              </Text>
-            </View>
-          )}
-          <TouchableOpacity onPress={() => onOverflow(item)} style={styles.overflowBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          {!!item.status && (() => {
+            const k = normStatusKey(item.status);
+            const c = STATUS_COLORS[k] || STATUS_COLORS.active;
+            return (
+              <View style={[styles.stateBadge, { backgroundColor: c.bg, borderColor: c.border }]}>
+                <Text style={[styles.stateBadgeText, { color: c.fg }]}>
+                  {t(`listing.state.${k}`, k)}
+                </Text>
+              </View>
+            );
+          })()}
+          <TouchableOpacity onPress={() => onOverflow(item)} style={styles.overflowBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t("listing.actions.more", "Azioni")}>
             <Text style={styles.overflowIcon}>⋯</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Sottotitolo */}
-      <Text style={styles.listCardSub}>
-        {item.type} • {item.location || item.route_from || "—"}
+      {/* Sottotitolo: solo località/tratta — il tipo è già dato dall'icona
+          accanto al titolo (prima qui compariva anche l'enum grezzo, es.
+          "train • Bologna", ridondante e non tradotto). */}
+      <Text style={styles.listCardSub} numberOfLines={1}>
+        {item.location || item.route_from || "—"}
       </Text>
 
       {/* Prezzo su riga separata */}
       {"price" in item && item.price != null && (
         <Text style={styles.listCardMeta}>
-          {Number(item.price).toFixed(2)} {item.currency || "€"}
+          {fmtCurrency(item.price, item.currency)}
         </Text>
       )}
 
@@ -273,7 +314,7 @@ export default function ProfileScreen() {
   // reset verso "Login" avveniva quando quella rotta non era ancora
   // registrata (esiste solo senza sessione) e produceva un errore di
   // navigazione, facendo atterrare sul carosello di onboarding.
-  const handleLogout = async () => {
+  const doLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -282,24 +323,88 @@ export default function ProfileScreen() {
     }
   };
 
+  // Conferma prima di uscire: un tap accidentale sulla voce rossa buttava
+  // fuori l'utente senza rete di sicurezza.
+  const handleLogout = () => {
+    Alert.alert(
+      t("profile.logoutConfirmTitle", "Uscire dall'account?"),
+      t("profile.logoutConfirmMsg", "Dovrai reinserire le credenziali al prossimo accesso."),
+      [
+        { text: t("common.cancel", "Annulla"), style: "cancel" },
+        { text: t("profile.logout", "Esci"), style: "destructive", onPress: doLogout },
+      ]
+    );
+  };
+
+  // Menu raggruppato per concetto: prima Account/Attività/Impostazioni erano
+  // mescolati in un'unica lista, con le feature core (Suggeriti dall'AI,
+  // Scambi a 3…) sepolte tra le impostazioni. Icone Ionicons coerenti con il
+  // resto della card (prima erano emoji, che stonavano col chevron Ionicons
+  // sulla stessa riga e rendono diversamente per OS).
+  const menuGroups = [
+    {
+      title: t("profile.sectionAccount", "Account"),
+      items: [
+        { icon: "person-outline", label: t("profile.editProfile", "Modifica profilo"), route: "EditProfile" },
+        { icon: "options-outline", label: t("profile.editPreferences", "Le mie preferenze"), route: "EditPreferences" },
+      ],
+    },
+    {
+      title: t("profile.sectionActivity", "Attività"),
+      items: [
+        { icon: "sparkles-outline", label: t("profile.aiSuggestions", "Suggeriti dall'AI"), route: "Matching" },
+        { icon: "star-outline", label: t("profile.savedListings", "I miei preferiti"), route: "Saved" },
+        { icon: "git-network-outline", label: t("profile.chainProposals", "Scambi a 3"), route: "ChainProposals" },
+      ],
+    },
+    {
+      title: t("profile.sectionSettings", "Impostazioni"),
+      items: [
+        { icon: "chatbubble-ellipses-outline", label: t("profile.linkMessenger", "Collega Messenger"), route: "LinkMessenger" },
+      ],
+    },
+  ];
+
+  const goTo = (route) => {
+    navigation.navigate?.(route);
+    navigation.getParent?.()?.navigate?.(route);
+  };
+
+  const STAT_CHIPS = [
+    { key: "active", icon: "🟢", label: t("listing.filters.active", "Attivi") },
+    { key: "swapped", icon: "🔁", label: t("listing.filters.swapped", "Scambiati") },
+    { key: "sold", icon: "💰", label: t("listing.filters.sold", "Venduti") },
+    { key: "reserved", icon: "🔒", label: t("listing.filters.reserved", "Riservati") },
+    { key: "pending", icon: "🕑", label: t("listing.filters.pending", "Proposte in corso") },
+    { key: "paused", icon: "⏸️", label: t("listing.filters.paused", "In pausa") },
+    { key: "expired", icon: "⛔️", label: t("listing.filters.expired", "Scaduti") },
+  ];
+
   const ListHeader = (
     <>
-      {/* ✅ TITOLO: niente spazio extra + localizzato */}
+      {/* Titolo della pagina: è il Profilo (dati personali + menu). "I miei
+          annunci" è ora una sezione più in basso, subito sopra la lista. */}
       <View style={{ alignItems: "center", marginBottom: 8, marginTop: 0, paddingVertical: 0 }}>
         <Text style={styles.myListingsTitle}>
-          {t("profile.myListings", "I miei annunci")}
+          {t("profile.title", "Profilo")}
         </Text>
       </View>
 
       {/* Dati personali + bandierine */}
       <View style={[styles.card, { marginTop: 0, paddingTop: 16 }]}>
         <View style={styles.profileRow}>
-          <TouchableOpacity onPress={() => navigation.navigate("EditProfile")} accessibilityLabel={t("profile.editProfile", "Modifica profilo")}>
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-            ) : (
-              <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
-            )}
+          <TouchableOpacity onPress={() => navigation.navigate("EditProfile")} accessibilityRole="button" accessibilityLabel={t("profile.editProfile", "Modifica profilo")}>
+            <View>
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              ) : (
+                <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
+              )}
+              {/* Segnale che l'avatar è toccabile (prima il tap era invisibile) */}
+              <View style={styles.avatarEditBadge}>
+                <Ionicons name="pencil" size={11} color={theme.colors.boardingText} />
+              </View>
+            </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">{profile?.full_name  || "—"}</Text>
@@ -313,101 +418,72 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      {/* Menu: righe a tutta larghezza, non più pulsantini impilati
-          accanto all'avatar (era il problema n.3 della valutazione UX,
-          stava tornando a ogni nuova voce aggiunta). */}
+      {/* Menu raggruppato: ogni gruppo è una card con una micro-etichetta */}
+      {menuGroups.map((group) => (
+        <View key={group.title}>
+          <Text style={styles.menuGroupLabel}>{group.title}</Text>
+          <View style={[styles.card, { paddingVertical: 4, paddingHorizontal: 0, marginBottom: 12 }]}>
+            {group.items.map((item, idx, arr) => (
+              <TouchableOpacity
+                key={item.route}
+                style={[styles.menuRow, idx < arr.length - 1 && styles.menuRowBorder]}
+                onPress={() => goTo(item.route)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+              >
+                <Ionicons name={item.icon} size={20} color={theme.colors.boardingText} style={styles.menuIcon} />
+                <Text style={styles.menuLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ))}
+
+      {/* Logout: card a sé, separata dalla navigazione */}
       <View style={[styles.card, { paddingVertical: 4, paddingHorizontal: 0 }]}>
-        {[
-          { icon: "👤", label: t("profile.editProfile", "Modifica profilo"), route: "EditProfile" },
-          { icon: "🎯", label: t("profile.aiSuggestions", "Suggeriti dall'AI"), route: "Matching" },
-          { icon: "⭐", label: t("profile.savedListings", "I miei preferiti"), route: "Saved" },
-          { icon: "✨", label: t("profile.editPreferences", "Le mie preferenze"), route: "EditPreferences" },
-          { icon: "🔗", label: t("profile.chainProposals", "Scambi a 3"), route: "ChainProposals" },
-          { icon: "💬", label: t("profile.linkMessenger", "Collega Messenger"), route: "LinkMessenger" },
-        ].map((item, idx, arr) => (
-          <TouchableOpacity
-            key={item.route}
-            style={[styles.menuRow, idx < arr.length - 1 && styles.menuRowBorder]}
-            onPress={() => {
-              navigation.navigate?.(item.route);
-              navigation.getParent?.()?.navigate?.(item.route);
-            }}
-          >
-            <Text style={styles.menuIcon}>{item.icon}</Text>
-            <Text style={styles.menuLabel}>{item.label}</Text>
-            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
-          </TouchableOpacity>
-        ))}
-        <TouchableOpacity style={[styles.menuRow, styles.menuRowTopBorder]} onPress={handleLogout}>
-          <Text style={styles.menuIcon}>🚪</Text>
+        <TouchableOpacity style={styles.menuRow} onPress={handleLogout} accessibilityRole="button" accessibilityLabel={t("profile.logout", "Esci")}>
+          <Ionicons name="log-out-outline" size={20} color={theme.colors.danger} style={styles.menuIcon} />
           <Text style={[styles.menuLabel, { color: theme.colors.danger, fontWeight: "800" }]}>
             {t("profile.logout", "Esci")}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Indicatori */}
+      {/* Sezione annunci */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{t("profile.myListings", "I miei annunci")}</Text>
+      </View>
+
+      {/* Indicatori + filtri (le chip fungono anche da filtro sulla lista) */}
       <View style={[styles.card, styles.statsCard]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsRow}>
+          {/* Chip "Tutti": azzera il filtro ed è attiva quando non filtri —
+              rende esplicito che le chip sono filtri, non solo contatori. */}
           <StatItem
-            label={t("listing.filters.active", "Attivi")}
-            icon="🟢"
-            value={stats.active}
-            active={statusFilter === "active"}
-            onPress={() => setStatusFilter(statusFilter === "active" ? null : "active")}
+            label={t("listing.filters.all", "Tutti")}
+            icon="🗂️"
+            value={myListings.length}
+            active={statusFilter === null}
+            onPress={() => setStatusFilter(null)}
           />
-          <StatItem
-            label={t("listing.filters.swapped", "Scambiati")}
-            icon="🔁"
-            value={stats.swapped}
-            active={statusFilter === "swapped"}
-            onPress={() => setStatusFilter(statusFilter === "swapped" ? null : "swapped")}
-          />
-          <StatItem
-            label={t("listing.filters.sold", "Venduti")}
-            icon="💰"
-            value={stats.sold}
-            active={statusFilter === "sold"}
-            onPress={() => setStatusFilter(statusFilter === "sold" ? null : "sold")}
-          />
-          <StatItem
-            label={t("listing.filters.reserved", "Riservati")}
-            icon="🔒"
-            value={stats.reserved}
-            active={statusFilter === "reserved"}
-            onPress={() => setStatusFilter(statusFilter === "reserved" ? null : "reserved")}
-          />
-          <StatItem
-            label={t("listing.filters.pending", "Proposte in corso")}
-            icon="🕑"
-            value={stats.pending}
-            active={statusFilter === "pending"}
-            onPress={() => setStatusFilter(statusFilter === "pending" ? null : "pending")}
-          />
-          <StatItem
-            label={t("listing.filters.expired", "Scaduti")}
-            icon="⛔️"
-            value={stats.expired}
-            active={statusFilter === "expired"}
-            onPress={() => setStatusFilter(statusFilter === "expired" ? null : "expired")}
-          />
+          {STAT_CHIPS.map((chip) => (
+            <StatItem
+              key={chip.key}
+              label={chip.label}
+              icon={chip.icon}
+              value={stats[chip.key] || 0}
+              active={statusFilter === chip.key}
+              onPress={() => setStatusFilter(statusFilter === chip.key ? null : chip.key)}
+            />
+          ))}
         </ScrollView>
 
         {statusFilter && (
           <View style={styles.filterBar}>
             <Text style={styles.filterText}>
               {t("listing.filterPrefix", "Filtro:")}{" "}
-              {statusFilter === "active"
-                ? t("listing.filters.active", "Attivi")
-                : statusFilter === "swapped"
-                ? t("listing.filters.swapped", "Scambiati")
-                : statusFilter === "sold"
-                ? t("listing.filters.sold", "Venduti")
-                : statusFilter === "reserved"
-                ? t("listing.filters.reserved", "Riservati")
-                : statusFilter === "pending"
-                ? t("listing.filters.pending", "Proposte in corso")
-                : t("listing.filters.expired", "Scaduti")}
+              {t(`listing.filters.${statusFilter}`, statusFilter)}
             </Text>
             <TouchableOpacity onPress={() => setStatusFilter(null)} style={styles.clearBtn}>
               <Text style={styles.clearBtnText}>{t("common.clear", "Pulisci")}</Text>
@@ -425,7 +501,19 @@ export default function ProfileScreen() {
     </>
   );
 
-  const ListEmpty = !loading ? (
+  // Durante il primo caricamento mostriamo gli scheletri DENTRO la lista, non
+  // al posto dell'intera schermata: così la card profilo, il menu e il logout
+  // restano subito raggiungibili anche se gli annunci sono lenti a caricare
+  // (prima l'header era gated dietro la query annunci).
+  const showSkeletons = loading && myListings.length === 0;
+
+  const ListEmpty = showSkeletons ? (
+    <View>
+      {[...Array(4)].map((_, i) => (
+        <View key={i} style={{ marginBottom: 10 }}><SkeletonRow /></View>
+      ))}
+    </View>
+  ) : (
     <View style={styles.emptyWrap}>
       <Text style={styles.emptyTitle}>
         {statusFilter ? t("listing.emptyForFilter", "Nessun annuncio per questo stato") : t("listing.empty", "Non hai ancora annunci")}
@@ -442,54 +530,46 @@ export default function ProfileScreen() {
         </>
       )}
     </View>
-  ) : null;
+  );
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      {loading && myListings.length === 0 ? (
-        <View style={{ padding: 16 }}>
-          {[...Array(6)].map((_, i) => <SkeletonRow key={i} />)}
-        </View>
-      ) : (
-        <>
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={renderMine}
-            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-            ListHeaderComponent={ListHeader}
-            ListEmptyComponent={ListEmpty}
-            ListFooterComponent={
-              <Text style={styles.footerCredits}>
-                {t("profile.credits", "TravelSwapAI v{version} · © {year} Francesco Giacalone", {
-                  version: APP_VERSION,
-                  year: new Date().getFullYear(),
-                })}
-              </Text>
-            }
-            contentContainerStyle={{
-              paddingTop: 0,
-              paddingBottom: (tabBarHeight || 0) + 24 + 72,
-              paddingHorizontal: 16,
-            }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          />
+      <FlatList
+        data={showSkeletons ? [] : filtered}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderMine}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={
+          <Text style={styles.footerCredits}>
+            {t("profile.credits", "TravelSwapAI v{version} · © {year} Francesco Giacalone", {
+              version: APP_VERSION,
+              year: new Date().getFullYear(),
+            })}
+          </Text>
+        }
+        contentContainerStyle={{
+          paddingTop: 0,
+          paddingBottom: (tabBarHeight || 0) + 24 + 72,
+          paddingHorizontal: 16,
+        }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      />
 
-          {/* FAB “+” */}
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate("CreateListing")}
-            style={[
-              styles.fabWrap,
-              { bottom: (tabBarHeight || 0) + (insets.bottom || 0) + 8 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={t("profile.publishListing", "Pubblica annuncio")}
-          >
-            <View style={styles.fab}><Text style={styles.fabPlus}>+</Text></View>
-          </TouchableOpacity>
-        </>
-      )}
+      {/* FAB “+” */}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate("CreateListing")}
+        style={[
+          styles.fabWrap,
+          { bottom: (tabBarHeight || 0) + (insets.bottom || 0) + 8 },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={t("profile.publishListing", "Pubblica annuncio")}
+      >
+        <View style={styles.fab}><Text style={styles.fabPlus}>+</Text></View>
+      </TouchableOpacity>
 
       <ActionSheet
         visible={!!actionSheetItem}
@@ -537,6 +617,13 @@ const styles = StyleSheet.create({
   profileRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center" },
   avatarText: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 16 },
+  avatarEditBadge: {
+    position: "absolute", right: -2, bottom: -2,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: theme.colors.primary,
+    borderWidth: 2, borderColor: theme.colors.surface,
+    alignItems: "center", justifyContent: "center",
+  },
   name: { fontFamily: theme.fonts.headingExtraBold, fontSize: 16, color: theme.colors.boardingText},
   metaText: { color: theme.colors.textMuted },
   bioText: { color: theme.colors.text, marginTop: 12, lineHeight: 20 },
@@ -548,9 +635,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   menuRowBorder: { borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  menuRowTopBorder: { borderTopWidth: 1, borderTopColor: theme.colors.border },
-  menuIcon: { fontSize: 16, width: 24, textAlign: "center" },
+  menuIcon: { width: 24, textAlign: "center" },
   menuLabel: { flex: 1, fontWeight: "700", color: theme.colors.text, fontSize: 15 },
+  menuGroupLabel: {
+    fontSize: 12, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.5,
+    color: theme.colors.textMuted, marginLeft: 4, marginBottom: 6,
+  },
 
   // stats
   statsCard: { marginTop: 12 },

@@ -116,6 +116,11 @@ export const translations = {
       premium: "Abbonati Premium",
       saved: "Profilo aggiornato",
       credits: "TravelSwapAI v{version} · © {year} Francesco Giacalone",
+      sectionAccount: "Account",
+      sectionActivity: "Attività",
+      sectionSettings: "Impostazioni",
+      logoutConfirmTitle: "Uscire dall'account?",
+      logoutConfirmMsg: "Dovrai reinserire le credenziali al prossimo accesso.",
     },
 
     savedScreen: {
@@ -283,11 +288,13 @@ export const translations = {
         paused: "In pausa",
       },
       filters: {
+        all: "Tutti",
         active: "Attivi",
         swapped: "Scambiati",
         sold: "Venduti",
         reserved: "Riservati",
         pending: "Proposte in corso",
+        paused: "In pausa",
         expired: "Scaduti",
       },
 
@@ -1042,6 +1049,11 @@ export const translations = {
       premium: "Go Premium",
       saved: "Profile updated",
       credits: "TravelSwapAI v{version} · © {year} Francesco Giacalone",
+      sectionAccount: "Account",
+      sectionActivity: "Activity",
+      sectionSettings: "Settings",
+      logoutConfirmTitle: "Log out?",
+      logoutConfirmMsg: "You'll need to sign in again next time.",
     },
 
     savedScreen: {
@@ -1207,11 +1219,13 @@ export const translations = {
         paused: "Paused",
       },
       filters: {
+        all: "All",
         active: "Active",
         swapped: "Swapped",
         sold: "Sold",
         reserved: "Reserved",
         pending: "Offers in progress",
+        paused: "Paused",
         expired: "Expired",
       },
 
@@ -1946,6 +1960,11 @@ export const translations = {
       premium: "Hazte Premium",
       saved: "Perfil actualizado",
       credits: "TravelSwapAI v{version} · © {year} Francesco Giacalone",
+      sectionAccount: "Cuenta",
+      sectionActivity: "Actividad",
+      sectionSettings: "Ajustes",
+      logoutConfirmTitle: "¿Cerrar sesión?",
+      logoutConfirmMsg: "Tendrás que iniciar sesión de nuevo la próxima vez.",
     },
 
     savedScreen: {
@@ -2111,11 +2130,13 @@ export const translations = {
         paused: "En pausa",
       },
       filters: {
+        all: "Todos",
         active: "Activos",
         swapped: "Intercambiados",
         sold: "Vendidos",
         reserved: "Reservados",
         pending: "Propuestas en curso",
+        paused: "En pausa",
         expired: "Caducados",
       },
 
