@@ -143,12 +143,6 @@ function RootNavigator() {
         //headerBackTitleVisible: false,
       }}
     >
-      {/* Fuori dal ramo session/no-session: il link di reset password
-          stabilisce una sessione di recupero mentre lo schermo è aperto,
-          e se questa route esistesse solo in uno dei due rami il flip di
-          `session` la smonterebbe subito, buttando l'utente su MainTabs o
-          Login prima che possa scegliere la nuova password. */}
-      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: "Nuova password" }} />
       {session ? (
         <>
           {/* NB: MainTabs tiene il suo header interno: qui rimane nascosto */}
@@ -173,12 +167,31 @@ function RootNavigator() {
         </>
       ) : (
         <>
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
+          {/* Login per primo (non Onboarding): quando lo Stack.Navigator
+              ricalcola le route disponibili per un cambio di `session` e
+              nessuna route della schermata attiva sopravvive (es. si era
+              su Profile e si fa logout), react-navigation ripiega sulla
+              PRIMA Stack.Screen dichiarata in questo elenco — non su
+              initialRouteName, che viene fissato una sola volta al primo
+              render del Navigator e resta "congelato" da lì in poi. Con
+              Onboarding per primo, un logout da una schermata profonda
+              finiva lì invece che su Login. */}
           <Stack.Screen name="Login" component={LoginScreen} options={{ title: "Accedi" }} />
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
           <Stack.Screen name="OAuthCallback" component={OAuthCallbackScreen} options={{ title: "Accesso…" }} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: "Password dimenticata" }} />
         </>
       )}
+      {/* Fuori dal ramo session/no-session, e dichiarata PER ULTIMA (non
+          per prima): il link di reset password stabilisce una sessione di
+          recupero mentre lo schermo è aperto, e se questa route esistesse
+          solo in uno dei due rami il flip di `session` la smonterebbe
+          subito. Essendo comunque sempre presente, il nome "ResetPassword"
+          sopravvive al ricalcolo delle route quando è lo screen
+          attivo — ma se fosse la PRIMA dichiarata, diventerebbe lei stessa
+          il ripiego di cui sopra per QUALUNQUE cambio di sessione (anche
+          un logout da tutt'altra schermata), che è il bug osservato. */}
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: "Nuova password" }} />
     </Stack.Navigator>
   );
 }
