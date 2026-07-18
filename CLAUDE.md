@@ -94,7 +94,22 @@ nome file (`YYYYMMDDHHMMSS_descrizione.sql`).
   doverlo chiedere di nuovo.
 - **Trabocchetto enum**: confrontare una colonna enum con un letterale non
   presente nell'enum fallisce con `22P02` (es. `type = 'treno'` quando
-  l'enum ha `'train'`). Fix: castare a testo, `col::text in (...)`.
+  l'enum ha `'train'`). Fix: castare a testo, `col::text in (...)`. Stessa
+  famiglia: chiamare `_norm(s text)` passandole una colonna enum
+  (`offers.status`) senza `::text` fallisce con "function _norm(offer_status)
+  does not exist" — non un errore silenzioso, ma blocca la query.
+- **Prima di riscrivere una funzione/trigger esistente** (`CREATE OR REPLACE
+  FUNCTION`): `grep` il nome su **tutti** i file in `supabase/migrations/*.sql`
+  e usa come base la versione cronologicamente più recente (l'ultima per nome
+  file), mai `init.sql` o una versione intermedia a memoria. Regola nata da una
+  regressione reale: `before_insert_offers_enforce()` era stato corretto in
+  `20260711160004` (cast `_norm(o.status::text)`), ma `20260717120000` l'ha
+  riscritta ripartendo dalla versione vecchia per aggiungere il controllo
+  VENDO/CERCO e ha perso il fix, rompendo *tutte* le proposte di scambio in
+  produzione finché non è stato corretto di nuovo in `20260718120000`. Dopo
+  ogni fix di questo tipo, fai anche un secondo giro: cerca lo stesso pattern
+  di bug (`_norm(` senza `::text` su colonne enum, letterali fuori enum, ecc.)
+  nelle altre funzioni collegate, non solo in quella segnalata.
 - Le regole di business critiche (coerenza CERCO/VENDO, limite foto, ecc.)
   vanno sempre applicate anche via trigger DB, non solo lato client: è la
   difesa da qualunque client, non solo dall'app ufficiale.
