@@ -12,6 +12,7 @@ priceCheckRouter.get("/api/listings/:id/price-check", requireAuth, rateLimitPric
   try {
     const id = String(req.params.id || "");
     if (!id) return res.status(400).json({ available: false, reason: "missing_id" });
+    const locale = ["it", "en", "es"].includes(req.query.locale) ? req.query.locale : "it";
 
     const { data: listing, error } = await supabase
       .from("listings")
@@ -21,7 +22,7 @@ priceCheckRouter.get("/api/listings/:id/price-check", requireAuth, rateLimitPric
     if (error) throw error;
     if (!listing) return res.status(404).json({ available: false, reason: "not_found" });
 
-    const result = await checkPriceWithAI(listing);
+    const result = await checkPriceWithAI(listing, locale);
     return res.json(result);
   } catch (e) {
     console.error("[price-check][server] error", e);

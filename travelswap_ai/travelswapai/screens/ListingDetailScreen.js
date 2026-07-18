@@ -101,9 +101,7 @@ export default function ListingDetailScreen() {
   const navigation = useNavigation();
   const listingId = route.params?.listingId ?? route.params?.id;
 
-  //const { t, locale } = (typeof useI18n === "function" ? useI18n() : { t: (s)=>s, locale: "it" });
-const { t, lang } = (typeof useI18n === "function" ? useI18n() : { t: (s)=>s, lang: "it" });
- const locale = lang || "it";
+  const { t, locale } = (typeof useI18n === "function" ? useI18n() : { t: (s)=>s, locale: "it" });
   const tt = (key, fallback, vars) => {
     try {
       const raw = t ? t(key) : undefined;
@@ -534,7 +532,7 @@ useEffect(() => {
 
           <TouchableOpacity
             onPress={async () => {
-              const res = await checkPrice(listingId);
+              const res = await checkPrice(listingId, locale);
               if (res?.available) {
                 const verdictLabel = res.verdict === "low" ? L.aiPriceVerdictLow
                   : res.verdict === "high" ? L.aiPriceVerdictHigh

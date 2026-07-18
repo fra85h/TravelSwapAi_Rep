@@ -10,13 +10,25 @@ const client = process.env.OPENAI_API_KEY
 
 const MODEL = process.env.OPENAI_PRICE_MODEL || "gpt-4o-mini";
 
-const SYSTEM_PROMPT =
-  "Sei un valutatore prezzi per un marketplace italiano dove privati rivendono " +
-  "biglietti treno e prenotazioni hotel non più utilizzabili. Dai un parere onesto " +
-  "e prudente basato sulla tua conoscenza generale dei prezzi tipici in Italia — " +
-  "non hai accesso a dati di mercato in tempo reale, quindi resta cauto se l'informazione " +
-  "è insufficiente. Rispondi SOLO con JSON valido: " +
-  '{ "verdict": "low"|"fair"|"high", "explanation": string } — explanation in italiano, max 2 frasi.';
+const LOCALE_LANG_NAME = { it: "italiano", en: "English", es: "español" };
+
+function systemPromptFor(locale) {
+  const langName = LOCALE_LANG_NAME[locale] || LOCALE_LANG_NAME.it;
+  return (
+    "Sei un valutatore prezzi per un marketplace dove privati rivendono " +
+    "biglietti treno e prenotazioni hotel non più utilizzabili (mercato italiano). Dai un parere onesto " +
+    "e prudente basato sulla tua conoscenza generale dei prezzi tipici in Italia — " +
+    "non hai accesso a dati di mercato in tempo reale, quindi resta cauto se l'informazione " +
+    "è insufficiente. Rispondi SOLO con JSON valido: " +
+    `{ "verdict": "low"|"fair"|"high", "explanation": string } — explanation in ${langName}, max 2 frasi.`
+  );
+}
+
+const FALLBACK_EXPLANATION = {
+  it: "Analisi completata, ma senza una spiegazione dettagliata.",
+  en: "Analysis completed, but without a detailed explanation.",
+  es: "Análisis completado, pero sin una explicación detallada.",
+};
 
 function describeListing(listing) {
   const { type, location, route_from, route_to, check_in, check_out, depart_at, arrive_at } = listing || {};
@@ -29,9 +41,10 @@ function describeListing(listing) {
 
 /**
  * @param {object} listing - riga della tabella listings (type, price, currency, location, route_from, route_to, check_in, check_out, depart_at, arrive_at)
+ * @param {string} locale - "it" | "en" | "es", lingua della spiegazione restituita
  * @returns {Promise<{available:true, verdict:"low"|"fair"|"high", explanation:string} | {available:false, reason:string}>}
  */
-export async function checkPriceWithAI(listing) {
+export async function checkPriceWithAI(listing, locale = "it") {
   if (!client) {
     return { available: false, reason: "OPENAI_API_KEY non configurata sul server" };
   }
@@ -51,7 +64,7 @@ export async function checkPriceWithAI(listing) {
       response_format: { type: "json_object" },
       temperature: 0.3,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPromptFor(locale) },
         { role: "user", content: user },
       ],
     });
@@ -63,7 +76,7 @@ export async function checkPriceWithAI(listing) {
     const verdict = ["low", "fair", "high"].includes(parsed.verdict) ? parsed.verdict : "fair";
     const explanation = (typeof parsed.explanation === "string" && parsed.explanation.trim())
       ? parsed.explanation.trim()
-      : "Analisi completata, ma senza una spiegazione dettagliata.";
+      : (FALLBACK_EXPLANATION[locale] || FALLBACK_EXPLANATION.it);
 
     return { available: true, verdict, explanation };
   } catch (e) {

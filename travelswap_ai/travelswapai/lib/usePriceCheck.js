@@ -7,16 +7,16 @@ import { fetchJson } from "./backendApi";
  * GET /api/listings/:id/price-check
  *
  * Ritorna: { checkPrice, loading }
- * - checkPrice(listingId) -> { available:true, verdict, explanation } | { available:false, reason }
+ * - checkPrice(listingId, locale) -> { available:true, verdict, explanation } | { available:false, reason }
  */
 export function usePriceCheck() {
   const [loading, setLoading] = useState(false);
 
-  const checkPrice = useCallback(async (listingId) => {
+  const checkPrice = useCallback(async (listingId, locale = "it") => {
     if (!listingId) return { available: false, reason: "missing_id" };
     setLoading(true);
     try {
-      const path = `/api/listings/${encodeURIComponent(listingId)}/price-check`;
+      const path = `/api/listings/${encodeURIComponent(listingId)}/price-check?locale=${encodeURIComponent(locale)}`;
       const res = await fetchJson(path, { method: "GET" });
       return res || { available: false, reason: "empty_response" };
     } catch (e) {
