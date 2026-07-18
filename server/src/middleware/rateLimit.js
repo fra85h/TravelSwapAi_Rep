@@ -71,3 +71,7 @@ export const rateLimitReportNotify = makeRateLimiter({ windowMs: 10 * 60 * 1000,
 // (nessun login utente, quindi il bucket è per IP), gli mancava un freno di
 // frequenza sui tentativi di indovinare X-Cron-Secret.
 export const rateLimitChains = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'richieste cron' });
+
+// Stesso principio di rateLimitChains: endpoint cron avvisi di ricerca,
+// protetto solo dal secret condiviso, senza freno di frequenza.
+export const rateLimitSavedSearches = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'richieste cron' });
