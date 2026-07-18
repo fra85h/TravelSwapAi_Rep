@@ -73,12 +73,26 @@ export async function tryLinkFromMessage(senderId, text) {
   if (row.used_at) return { linked: false, reason: "already_used" };
   if (new Date(row.expires_at).getTime() < Date.now()) return { linked: false, reason: "expired" };
 
+  // Consumo atomico: la select sopra da sola non basta a escludere due
+  // richieste quasi simultanee con lo stesso codice (es. inoltrato per
+  // errore a un altro sender) — un check-poi-update in due passi
+  // lascerebbe entrambe passare il controllo `used_at` prima che una
+  // delle due lo aggiorni. Con `used_at IS NULL` come condizione
+  // dell'UPDATE, solo una richiesta può "vincere" la riga.
+  const { data: consumed, error: consumeErr } = await supabase
+    .from("fb_link_codes")
+    .update({ used_at: new Date().toISOString() })
+    .eq("code", code)
+    .is("used_at", null)
+    .select("code")
+    .maybeSingle();
+  if (consumeErr) throw consumeErr;
+  if (!consumed) return { linked: false, reason: "already_used" };
+
   const { error: linkErr } = await supabase
     .from("fb_account_links")
     .upsert({ sender_id: senderId, user_id: row.user_id }, { onConflict: "sender_id" });
   if (linkErr) throw linkErr;
-
-  await supabase.from("fb_link_codes").update({ used_at: new Date().toISOString() }).eq("code", code);
 
   return { linked: true, userId: row.user_id };
 }
