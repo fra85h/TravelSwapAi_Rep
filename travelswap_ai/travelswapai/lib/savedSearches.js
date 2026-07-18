@@ -1,5 +1,6 @@
 // lib/savedSearches.js — avvisi di ricerca (D3): CRUD + match trovati
 import { supabase } from "./supabase";
+import { parseLocalizedNumber } from "./number";
 
 export async function listMySavedSearches() {
   const { data, error } = await supabase
@@ -21,7 +22,10 @@ export async function createSavedSearch({ type, routeFrom, routeTo, location, ma
     route_from: type === "hotel" ? null : (routeFrom || null),
     route_to: type === "hotel" ? null : (routeTo || null),
     location: type === "hotel" ? (location || null) : null,
-    max_price: maxPrice === "" || maxPrice == null ? null : Number(maxPrice),
+    // parseLocalizedNumber gestisce sia "45" che "45,50" (virgola decimale
+    // italiana): un semplice Number(maxPrice) tornava NaN per qualunque
+    // prezzo con la virgola, mai gestita prima d'ora in questo punto.
+    max_price: parseLocalizedNumber(maxPrice),
   };
 
   const { data, error } = await supabase
