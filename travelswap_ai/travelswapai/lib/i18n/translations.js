@@ -444,7 +444,7 @@ export const translations = {
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
       aiImportDesc:
-        "Importa automaticamente i dati dell’annuncio leggendo un QR code oppure inserendo il PNR.",
+        "Importa automaticamente i dati dell’annuncio leggendo un QR code, inserendo il PNR oppure incollando il testo della conferma di prenotazione.",
       aiMagic: "Magia AI ✨",
       ai: {
         title: "Magia AI ✨",
@@ -493,6 +493,15 @@ export const translations = {
       aiImportError: "Impossibile importare dal PNR.",
       aiImportFromQr: "Dati importati dal QR.",
       qrImportError: "Import da QR non riuscito.",
+
+      orPasteConfirmation: "Oppure incolla la conferma di prenotazione",
+      confirmationPlaceholder: "Incolla qui il testo della conferma (email di Booking.com, Trenitalia, ecc.)",
+      importFromConfirmation: "Importa dalla conferma",
+      confirmationMissingTitle: "Testo mancante",
+      confirmationMissingMsg: "Incolla il testo della conferma di prenotazione (almeno qualche riga).",
+      confirmationImportError: "Impossibile leggere la conferma. Riprova o compila i campi a mano.",
+      aiImportFromText: "Dati importati dalla conferma.",
+      aiImportFromTextWithProvider: "Dati importati dalla conferma. Fornitore rilevato: {provider}.",
 
       photoPermissionTitle: "Permesso negato",
       photoPermissionMsg: "Consenti l'accesso alle foto per aggiungerne.",
@@ -1349,7 +1358,7 @@ export const translations = {
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
       aiImportDesc:
-        "Automatically import listing data by scanning a QR code or entering a PNR.",
+        "Automatically import listing data by scanning a QR code, entering a PNR, or pasting the booking confirmation text.",
       aiMagic: "AI Magic ✨",
       ai: {
         title: "AI Magic ✨",
@@ -1398,6 +1407,15 @@ export const translations = {
       aiImportError: "Unable to import from PNR.",
       aiImportFromQr: "Data imported from QR.",
       qrImportError: "QR import failed.",
+
+      orPasteConfirmation: "Or paste the booking confirmation",
+      confirmationPlaceholder: "Paste the confirmation text here (Booking.com email, Trenitalia, etc.)",
+      importFromConfirmation: "Import from confirmation",
+      confirmationMissingTitle: "Missing text",
+      confirmationMissingMsg: "Paste the booking confirmation text (at least a few lines).",
+      confirmationImportError: "Couldn't read the confirmation. Try again or fill in the fields manually.",
+      aiImportFromText: "Details imported from the confirmation.",
+      aiImportFromTextWithProvider: "Details imported from the confirmation. Provider detected: {provider}.",
 
       photoPermissionTitle: "Permission denied",
       photoPermissionMsg: "Allow photo access to add pictures.",
@@ -2244,7 +2262,7 @@ export const translations = {
       aiImport: "AI Import 1-click",
       aiImportTitle: "AI Import",
       aiImportDesc:
-        "Importa automáticamente los datos del anuncio escaneando un QR o introduciendo un PNR.",
+        "Importa automáticamente los datos del anuncio escaneando un QR, introduciendo un PNR o pegando el texto de la confirmación de reserva.",
       aiMagic: "Magia IA ✨",
       ai: {
         title: "Magia IA ✨",
@@ -2296,6 +2314,15 @@ export const translations = {
         "No se puede importar desde el PNR.",
       aiImportFromQr: "Datos importados desde el QR.",
       qrImportError: "Fallo al importar desde QR.",
+
+      orPasteConfirmation: "O pega la confirmación de la reserva",
+      confirmationPlaceholder: "Pega aquí el texto de la confirmación (email de Booking.com, Trenitalia, etc.)",
+      importFromConfirmation: "Importar desde la confirmación",
+      confirmationMissingTitle: "Falta el texto",
+      confirmationMissingMsg: "Pega el texto de la confirmación de reserva (al menos unas líneas).",
+      confirmationImportError: "No se pudo leer la confirmación. Inténtalo de nuevo o completa los campos manualmente.",
+      aiImportFromText: "Datos importados de la confirmación.",
+      aiImportFromTextWithProvider: "Datos importados de la confirmación. Proveedor detectado: {provider}.",
 
       photoPermissionTitle: "Permiso denegado",
       photoPermissionMsg: "Permite el acceso a las fotos para añadirlas.",

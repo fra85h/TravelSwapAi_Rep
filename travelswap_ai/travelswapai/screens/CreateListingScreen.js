@@ -790,6 +790,7 @@ const initialJsonRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [importSheet, setImportSheet] = useState(false);
   const [pnrInput, setPnrInput] = useState("");
+  const [confirmationText, setConfirmationText] = useState("");
   const [importBusy, setImportBusy] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
@@ -1640,6 +1641,43 @@ const initialJsonRef = useRef(null);
     }
   };
 
+  // Import da testo libero (conferma di prenotazione incollata): a
+  // differenza di QR/PNR (mock locale, vedi aiImportFromPNR/aiImportFromQR
+  // sopra) questo passa davvero dal backend AI (stesso parser di "Compila
+  // con AI", parseListingFromTextAI -> /ai/parse-description), che ora
+  // riconosce anche il fornitore. cercoVendo forzato a VENDO: una conferma
+  // reale è sempre un bene reale da vendere, mai una richiesta (CERCO).
+  const handleConfirmationImport = async () => {
+    const text = String(confirmationText || "").trim();
+    if (text.length < 20) {
+      Alert.alert(
+        t("createListing.confirmationMissingTitle", "Testo mancante"),
+        t("createListing.confirmationMissingMsg", "Incolla il testo della conferma di prenotazione (almeno qualche riga).")
+      );
+      return;
+    }
+    try {
+      setImportBusy(true);
+      const parsed = await parseListingFromTextAI(text, locale);
+      applyImportedData(parsed);
+      update({ cercoVendo: "VENDO" });
+      setConfirmationText("");
+      closeImport();
+      const provider = String(parsed?.provider || "").trim();
+      Alert.alert(
+        t("createListing.aiImportTitle", "AI Import"),
+        provider
+          ? t("createListing.aiImportFromTextWithProvider", "Dati importati dalla conferma. Fornitore rilevato: {provider}.", { provider })
+          : t("createListing.aiImportFromText", "Dati importati dalla conferma.")
+      );
+      goToSlide(2);
+    } catch {
+      Alert.alert(t("common.error", "Errore"), t("createListing.confirmationImportError", "Impossibile leggere la conferma. Riprova o compila i campi a mano."));
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -2308,10 +2346,13 @@ const initialJsonRef = useRef(null);
 
       {/* -------- Modal AI Import -------- */}
       <Modal visible={importSheet} animationType="slide" transparent onRequestClose={closeImport}>
-        <View style={styles.sheetBackdrop}>
-          <View style={styles.sheetCard}>
+        <KeyboardAvoidingView
+          behavior={Platform.select({ ios: "padding", android: undefined })}
+          style={styles.sheetBackdrop}
+        >
+          <ScrollView style={{ width: "100%" }} contentContainerStyle={styles.sheetCard} keyboardShouldPersistTaps="handled">
             <Text style={styles.sheetTitle}>{t("createListing.aiImport", "AI Import 1-click")}</Text>
-            <Text style={styles.sheetText}>{t("createListing.aiImportDesc", "Importa automaticamente i dati dell’annuncio leggendo un QR code oppure inserendo il PNR.")}</Text>
+            <Text style={styles.sheetText}>{t("createListing.aiImportDesc", "Importa automaticamente i dati dell’annuncio leggendo un QR code, inserendo il PNR oppure incollando il testo della conferma di prenotazione.")}</Text>
 
             <View style={{ height: 8 }} />
 
@@ -2333,11 +2374,26 @@ const initialJsonRef = useRef(null);
               {importBusy ? <ActivityIndicator /> : <Text style={styles.sheetBtnText}>{t("createListing.importFromPnr", "Importa da PNR")}</Text>}
             </TouchableOpacity>
 
+            <View style={{ height: 10 }} />
+            <Text style={styles.label}>{t("createListing.orPasteConfirmation", "Oppure incolla la conferma di prenotazione")}</Text>
+            <TextInput
+              value={confirmationText}
+              onChangeText={setConfirmationText}
+              placeholder={t("createListing.confirmationPlaceholder", "Incolla qui il testo della conferma (email di Booking.com, Trenitalia, ecc.)")}
+              placeholderTextColor={theme.colors.textMuted}
+              style={[styles.input, styles.confirmationInput]}
+              multiline
+              textAlignVertical="top"
+            />
+            <TouchableOpacity onPress={handleConfirmationImport} disabled={importBusy} style={[styles.sheetBtn, styles.sheetBtnGhost, importBusy && { opacity: 0.6 }]}>
+              {importBusy ? <ActivityIndicator /> : <Text style={styles.sheetBtnText}>{t("createListing.importFromConfirmation", "Importa dalla conferma")}</Text>}
+            </TouchableOpacity>
+
             <TouchableOpacity onPress={closeImport} style={styles.sheetClose}>
               <Text style={styles.sheetCloseText}>{t("common.close", "Chiudi")}</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* -------- Scanner QR (expo-camera) -------- */}
@@ -2503,6 +2559,7 @@ const styles = StyleSheet.create({
   },
   photoRemoveText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   multiline: { minHeight: 96 },
+  confirmationInput: { height: 110 },
   segment: { flexDirection: "row", gap: 8 },
   segBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceMuted },
   segBtnActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.text },

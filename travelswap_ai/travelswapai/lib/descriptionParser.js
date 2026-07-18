@@ -141,6 +141,11 @@ const isNamedTicketRaw = pick(payload, "isNamedTicket", "is_named_ticket");
     const pnr = normStr(pick(payload, "pnr", "bookingCode", "booking_code"));
     const price = normPrice(pick(payload, "price", "amount", "total"));
     const imageUrl = normStr(pick(payload, "imageUrl", "image_url", "image"));
+    const provider = normStr(pick(payload, "provider"));
+    const cercoVendo = (() => {
+      const v = String(pick(payload, "cercoVendo", "cerco_vendo") ?? "").toUpperCase();
+      return v === "CERCO" || v === "VENDO" ? v : null;
+    })();
 
     return {
       type: type ?? null,
@@ -155,6 +160,8 @@ const isNamedTicketRaw = pick(payload, "isNamedTicket", "is_named_ticket");
       pnr: pnr ?? null,
       price: price ?? null,
       imageUrl: imageUrl ?? null,
+      provider: provider ?? null,
+      cercoVendo,
     };
   } catch (err) {
     // In errore: ritorna oggetto vuoto ma con chiavi previste (evita crash nel caller)
@@ -162,7 +169,8 @@ const isNamedTicketRaw = pick(payload, "isNamedTicket", "is_named_ticket");
       type: null, title: null, location: null,
       checkIn: null, checkOut: null,
       departAt: null, arriveAt: null,
-      isNamedTicket: null, gender: null, pnr: null, price: null, imageUrl: null
+      isNamedTicket: null, gender: null, pnr: null, price: null, imageUrl: null,
+      provider: null, cercoVendo: null,
     };
   }
 }

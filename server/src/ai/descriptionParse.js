@@ -58,6 +58,9 @@ Regole vincolanti:
 - Mantieni accenti, maiuscole/minuscole naturali e trattini dei nomi luogo/stazione.
 - Rimuovi ripetizioni, spazi doppi ed etichette non necessarie nella "route".
 - Restituisci SOLO JSON (nessun testo extra). Nessuna chiave aggiuntiva rispetto allo schema.
+
+8) Fornitore
+- "provider": se il testo è chiaramente una conferma di prenotazione di un fornitore riconoscibile (es. "Booking.com", "Trenitalia", "Italo", "Ryanair", "EasyJet", "Airbnb", "Expedia", "Trainline"), indicalo col nome comune del fornitore. Se il testo non lo indica chiaramente, metti null: non inventare mai un fornitore.
 `;
 
 // Schema con chiavi estese (origin, destination, route, imageUrl)
@@ -87,7 +90,8 @@ const JSON_SCHEMA = {
     pnr: { type: ["string", "null"] },
     price: { type: ["string", "null", "number"] },
 
-    imageUrl: { type: ["string", "null"] }
+    imageUrl: { type: ["string", "null"] },
+    provider: { type: ["string", "null"], description: "Es. Booking.com, Trenitalia, Italo, Ryanair" }
   },
   required: [
     "cercoVendo","type","title",
@@ -95,7 +99,7 @@ const JSON_SCHEMA = {
     "checkIn","checkOut",
     "departAt","arriveAt","returnAt",
     "isNamedTicket","gender","pnr","price",
-    "imageUrl"
+    "imageUrl","provider"
   ]
 };
 
@@ -121,7 +125,8 @@ const EMPTY = {
   pnr: null,
   price: null,
 
-  imageUrl: null
+  imageUrl: null,
+  provider: null
 };
 
 // ---- Helpers di normalizzazione lato server (senza regex di parsing sul testo utente)
@@ -196,6 +201,8 @@ function sanitizeParsed(obj) {
   // prezzo in stringa, MAI nel titolo
   if (typeof p.price === "number") p.price = String(p.price);
 
+  p.provider = normStr(p.provider);
+
   // Rollover futuro per il treno (safety-net, la regola è già nel prompt)
   p.departAt = ensureFutureYearDateTime(p.departAt);
   p.arriveAt = ensureFutureYearDateTime(p.arriveAt);
@@ -232,10 +239,18 @@ function sanitizeParsed(obj) {
   return p;
 }
 
+// Tetto di sicurezza sui caratteri in ingresso: una descrizione scritta a
+// mano sta ben sotto, ma una conferma di prenotazione incollata per intero
+// (email HTML->testo, con footer/legali) può arrivare a decine di migliaia
+// di caratteri — tronca per tenere sotto controllo costo/latenza della
+// chiamata, il contenuto utile (tratta/date/PNR/prezzo) è quasi sempre
+// nelle prime righe.
+const MAX_INPUT_CHARS = 8000;
+
 export async function parseDescriptionWithAI(text, locale = "it") {
   if (!client) throw new Error("OPENAI_API_KEY non configurata sul server");
 
-  const user = String(text ?? "").trim();
+  const user = String(text ?? "").trim().slice(0, MAX_INPUT_CHARS);
   if (!user) return { ...EMPTY };
 
   const today = nowIsoMinutes();
