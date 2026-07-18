@@ -1,8 +1,18 @@
 // server/src/models/fbIngest.js
 import { supabase } from '../db.js';
+import { computeFullTrustScore } from '../services/trust/computeTrustScore.js';
+import { saveTrustAudit } from '../services/trust/store.js';
 
 // NB: lo schema richiede: user_id (not null), type (not null), title (not null), location (not null), price (not null)
 const DEFAULT_LISTING_OWNER_ID = (process.env.DEFAULT_LISTING_OWNER_ID || '').trim();
+
+// Sotto questa soglia, un annuncio dal canale Feed non viene pubblicato (solo
+// loggato): il Feed ingerisce da post/commenti di CHIUNQUE sulla Pagina,
+// senza alcuna conferma umana come garantisce invece il flusso guidato di
+// Messenger (missingFields in announceRules.js, conferma esplicita prima di
+// PUB_CONFERMA) — la stessa soglia usata altrove per "annuncio confuso/poco
+// affidabile" (vedi INCOHERENT_TYPE in routes/trustscore.js).
+const FB_FEED_MIN_TRUST_SCORE = Number(process.env.FB_FEED_MIN_TRUST_SCORE ?? 50);
 
 function pick(v, fb) {
   // fallback semplice
@@ -125,6 +135,43 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
   if (!pres.type) throw new Error('Missing type');
   if (!pres.location || pres.location === '—') throw new Error('Missing location');
   if (pres.price == null) throw new Error('Missing price');
+  // CERCO/VENDO ambiguo: prima si assumeva silenziosamente VENDO ("cerco_vendo:
+  // pres.az || 'VENDO'"), cioè si dichiarava di avere un biglietto REALE da
+  // vendere anche quando l'AI non aveva capito l'intento del testo (es. un
+  // commento non pertinente) — un annuncio con la direzione del denaro
+  // inventata, pubblicato senza che nessuno l'avesse mai confermata.
+  if (!pres.az) throw new Error('Missing cerco_vendo (ambiguous)');
+
+  // Il Feed pubblica da post/commenti di CHIUNQUE interagisca con la Pagina,
+  // senza alcuna conferma umana (Messenger invece guida l'utente e chiede
+  // conferma esplicita prima di pubblicare, vedi PUB_CONFERMA in index.js):
+  // far passare anche questi annunci dalla stessa pipeline Check AI/TrustScore
+  // già obbligatoria per chi pubblica dall'app, invece di andare live senza
+  // nessuna verifica. Sotto soglia (o contenuto segnalato dalla moderazione):
+  // non pubblicare, solo loggare.
+  let trustAuditPayload = null;
+  if (channel === 'facebook:feed') {
+    const scored = await computeFullTrustScore({
+      title: pres.title,
+      type: pres.type,
+      origin: pres.from,
+      destination: pres.to,
+      location: pres.location,
+      startDate: parsed?.start_date || parsed?.check_in || null,
+      endDate: parsed?.end_date || parsed?.check_out || null,
+      price: pres.price,
+      currency: parsed?.currency || 'EUR',
+      images: parsed?.image_url ? [{ url: parsed.image_url }] : [],
+    }, 'it');
+
+    if (scored.moderationFlagged || scored.trustScore < FB_FEED_MIN_TRUST_SCORE) {
+      console.log('[fbIngest] Feed listing scartato (TrustScore basso o contenuto segnalato):', {
+        externalId, trustScore: scored.trustScore, moderationFlagged: scored.moderationFlagged,
+      });
+      return { id: null, skipped: true, reason: scored.moderationFlagged ? 'moderation_flagged' : 'low_trust_score', trustScore: scored.trustScore };
+    }
+    trustAuditPayload = scored;
+  }
 
   // Mappatura campi sul tuo schema
   const baseRow = {
@@ -145,7 +192,7 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
     currency: parsed?.currency || 'EUR',
     route_from: pres.from || null,
     route_to: pres.to || null,
-    cerco_vendo: pres.az || 'VENDO',
+    cerco_vendo: pres.az,
     published_at: new Date().toISOString(),
     source: channel ?? null,
     external_id: externalId ?? null,
@@ -160,6 +207,14 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
     .single();
 
   if (error) throw error;
+
+  if (trustAuditPayload) {
+    try {
+      await saveTrustAudit({ userId: resolvedOwnerId, listingId: data.id, payload: trustAuditPayload });
+    } catch (e) {
+      console.error('[fbIngest] saveTrustAudit failed:', e?.message || e);
+    }
+  }
 
   // Il PNR è un dato riservato: va nella tabella segregata, mai in `listings`
   if (parsed?.pnr) {

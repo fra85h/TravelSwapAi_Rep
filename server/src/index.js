@@ -297,7 +297,11 @@ app.post('/webhooks/facebook', async (req, res) => {
               rawText: text,
               parsed,
             });
-            console.log('[FB FEED] Inserito listing id=', result?.id, 'extId=', externalId);
+            if (result?.skipped) {
+              console.log('[FB FEED] Scartato (non pubblicato) extId=', externalId, 'reason=', result.reason, 'trustScore=', result.trustScore);
+            } else {
+              console.log('[FB FEED] Inserito listing id=', result?.id, 'extId=', externalId);
+            }
           } catch (e) {
             console.error('[FB FEED] Error during ingest:', e);
           }
