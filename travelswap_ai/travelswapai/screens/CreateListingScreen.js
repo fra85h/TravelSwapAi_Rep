@@ -1325,8 +1325,8 @@ const initialJsonRef = useRef(null);
     }
     setSlideIndex(idx);
   };
-  const onNextPress = () => goToSlide(1);
-  const onBackPress = () => goToSlide(0);
+  const onNextPress = () => goToSlide(Math.min(slideIndex + 1, 2));
+  const onBackPress = () => goToSlide(Math.max(slideIndex - 1, 0));
   const clearAll = useCallback(() => {
     setMicroLog([]); setProgress(0); setShowMicroLog(false);
     update({
@@ -1557,7 +1557,7 @@ const initialJsonRef = useRef(null);
       applyImportedData(data);
       closeImport();
       Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportSuccess", "Dati importati correttamente."));
-      goToSlide(1);
+      goToSlide(2);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.aiImportError", "Impossibile importare dal PNR."));
     } finally {
@@ -1593,7 +1593,7 @@ const initialJsonRef = useRef(null);
       setQrVisible(false);
       closeImport();
       Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportFromQr", "Dati importati dal QR."));
-      goToSlide(1);
+      goToSlide(2);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.qrImportError", "Import da QR non riuscito."));
     } finally {
@@ -1772,12 +1772,13 @@ const initialJsonRef = useRef(null);
         )}
 
         {/* Sommario "a semaforo" del Check AI: resta visibile nel pannello
-            fisso (entrambi i tab) così l'utente si accorge subito degli esiti,
-            che nel dettaglio vivono nel secondo tab. Un tap porta ai dettagli. */}
+            fisso (tutti e tre i tab) così l'utente si accorge subito degli
+            esiti, che nel dettaglio vivono nel terzo tab. Un tap porta ai
+            dettagli. */}
         {lastTrustRunAt > 0 && trustData && (
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => goToSlide(1)}
+            onPress={() => goToSlide(2)}
             style={styles.checkSummary}
             accessibilityRole="button"
             accessibilityLabel={t("createListing.checkAi.problemsTitle", "Possibili problemi")}
@@ -1814,7 +1815,7 @@ const initialJsonRef = useRef(null);
                 </View>
               )}
             </View>
-            {slideIndex === 0 && (
+            {slideIndex !== 2 && (
               <Text style={styles.checkSummaryLink}>{t("createListing.checkAi.seeDetails", "Vedi dettagli ›")}</Text>
             )}
           </TouchableOpacity>
@@ -1828,11 +1829,22 @@ const initialJsonRef = useRef(null);
         keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
       >
         <View style={styles.sliderWrap} onLayout={(e) => setSliderW(e.nativeEvent.layout.width)}>
-          {/* Dots */}
+          {/* Tab numerati: navigazione libera, la validazione blocca solo
+              in fase di pubblicazione (come già faceva onPublishOrSave). */}
           <View style={styles.stepRow}>
-            <View style={[styles.stepDot, slideIndex >= 0 && styles.stepDotActive]} />
-            <View style={[styles.stepBar, slideIndex >= 1 && styles.stepBarActive]} />
-            <View style={[styles.stepDot, slideIndex >= 1 && styles.stepDotActive]} />
+            {[0, 1, 2].map((idx) => (
+              <React.Fragment key={idx}>
+                {idx > 0 && <View style={[styles.stepBar, slideIndex >= idx && styles.stepBarActive]} />}
+                <TouchableOpacity
+                  onPress={() => goToSlide(idx)}
+                  style={[styles.stepDot, slideIndex >= idx && styles.stepDotActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Vai al passo ${idx + 1}`}
+                >
+                  <Text style={[styles.stepDotText, slideIndex >= idx && styles.stepDotTextActive]}>{idx + 1}</Text>
+                </TouchableOpacity>
+              </React.Fragment>
+            ))}
           </View>
 
           {/* Pagine orizzontali */}
@@ -1926,6 +1938,20 @@ const initialJsonRef = useRef(null);
                     {t("createListing.photosHint", `Massimo ${MAX_PHOTOS} foto reali: solo il biglietto (treno) o la stanza/prenotazione (hotel). Foto non pertinenti abbassano l'affidabilità.`, { n: MAX_PHOTOS })}
                   </Text>
 
+                  <View style={{ height: 2 }} />
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* ===== SLIDE 2 ===== */}
+            <View style={[styles.slide, { width: sliderW }]}>
+              <View style={styles.slideCard}>
+                <ScrollView
+                  contentContainerStyle={{ paddingBottom: FOOTER_H + 40 }}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                >
                   {/* Località / Rotta */}
                   {form?.type === "train" ? (
                     <>
@@ -2035,7 +2061,7 @@ const initialJsonRef = useRef(null);
               </View>
             </View>
 
-            {/* ===== SLIDE 2 ===== */}
+            {/* ===== SLIDE 3 ===== */}
             <View style={[styles.slide, { width: sliderW }]}>
               <View style={styles.slideCard}>
                 <ScrollView
@@ -2267,7 +2293,7 @@ const initialJsonRef = useRef(null);
               </TouchableOpacity>
             )}
 
-            {slideIndex === 0 ? (
+            {slideIndex < 2 ? (
               <TouchableOpacity onPress={onNextPress} style={[styles.footerBtn, styles.footerPrimary]}>
                 <Text style={[styles.footerText, { color: theme.colors.accentOn }]}>{t("common.next", "Avanti")}</Text>
               </TouchableOpacity>
@@ -2406,9 +2432,14 @@ const styles = StyleSheet.create({
   // --- slider ---
   sliderWrap: { flex: 1 },
   stepRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginVertical: 10 },
-  stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.colors.primary },
-  stepDotActive: { backgroundColor: theme.colors.boardingText },
-  stepBar: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.primary },
+  stepDot: {
+    width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center",
+    backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border,
+  },
+  stepDotActive: { backgroundColor: theme.colors.boardingText, borderColor: theme.colors.boardingText },
+  stepDotText: { fontSize: 13, fontWeight: "700", color: theme.colors.textMuted },
+  stepDotTextActive: { color: theme.colors.accentOn || "#fff" },
+  stepBar: { width: 28, height: 3, borderRadius: 2, backgroundColor: theme.colors.border },
   stepBarActive: { backgroundColor: theme.colors.boardingText },
 
   slide: {
