@@ -1,6 +1,6 @@
 // screens/HomeScreen.js — Annunci pubblici (senza tab "Voli")
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput, ScrollView, Alert } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView, Alert, RefreshControl } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { listPublicListings, listMyListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
@@ -12,6 +12,19 @@ import TrustScoreBadge from "../components/TrustScoreBadge";
 import SaveButton from "../components/SaveButton";
 import { Ionicons } from "@expo/vector-icons";
 import { stripPriceFromTitle } from "../lib/listingTitle";
+import { formatMoney } from "../lib/number";
+
+function SkeletonCard() {
+  return (
+    <View style={styles.card}>
+      <View style={[styles.skel, { width: "60%", height: 16, borderRadius: 6 }]} />
+      <View style={{ height: 8 }} />
+      <View style={[styles.skel, { width: "40%", height: 12, borderRadius: 6 }]} />
+      <View style={{ height: 12 }} />
+      <View style={[styles.skel, { width: "100%", height: 40, borderRadius: 10 }]} />
+    </View>
+  );
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -57,6 +70,7 @@ export default function HomeScreen() {
   const { t, locale } = useI18n();
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState("all"); // "all" | "hotel" | "train"
@@ -135,6 +149,16 @@ export default function HomeScreen() {
   // non si faceva refresh manuale, anche se la tab era già aperta.
   useEffect(() => subscribeDataChanged(() => { load(); }), [load]);
 
+  // Pull-to-refresh esplicito: usa un flag SEPARATO da `loading` (stesso
+  // pattern di Profilo/Attività). `loading` guida solo lo skeleton del primo
+  // caricamento — se pilotasse anche il pull-to-refresh, ogni ricarica
+  // automatica (focus della tab, evento globale) farebbe lampeggiare lo
+  // spinner in cima anche quando l'utente non ha tirato giù nulla.
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  };
+
   useEffect(() => {
     navigation.setOptions?.({
       title: tt("esplora.title", "Esplora"),
@@ -180,6 +204,7 @@ export default function HomeScreen() {
             onPress={() => setTab(tKey)}
             accessibilityRole="button"
             accessibilityLabel={label}
+            accessibilityState={{ selected: tab === tKey }}
           >
             <Text style={[styles.tabText, tab === tKey && styles.tabTextActive]}>
               {label}
@@ -242,7 +267,7 @@ export default function HomeScreen() {
 
         {item.price != null && (
           <Text style={styles.cardMeta}>
-            {Number(item.price).toFixed(2)} {item.currency || "€"}
+            {formatMoney(item.price, item.currency)}
           </Text>
         )}
 
@@ -367,16 +392,18 @@ export default function HomeScreen() {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-        <Text style={styles.loadingText}>{tt("common.loading", "Caricamento…")}</Text>
-      </View>
-    );
-  }
+  // Skeleton solo al PRIMO caricamento: `load()` viene richiamato a ogni
+  // focus della tab e a ogni evento globale (es. accetti un'offerta in
+  // Attività) — se lo spinner sostituisse l'intera pagina anche in quei
+  // casi, ricerca e filtri sparirebbero per un lampo ogni volta che si
+  // torna su Esplora. A ricariche successive la UI resta visibile; il pull
+  // to refresh esplicito ha il proprio indicatore (refreshing, sopra).
+  const showSkeletons = loading && items.length === 0;
 
-  if (error) {
+  // Un errore su una ricarica in background (tab focus, evento globale) non
+  // deve cancellare contenuti già mostrati — solo il fallimento del primo
+  // caricamento, quando non c'è nulla da mostrare, occupa tutto lo schermo.
+  if (error && items.length === 0) {
     return (
       <View style={styles.errorBox}>
         <Text style={styles.error}>{error}</Text>
@@ -386,6 +413,42 @@ export default function HomeScreen() {
       </View>
     );
   }
+
+  const EmptyState = showSkeletons ? (
+    <View>
+      {[...Array(4)].map((_, i) => <View key={i} style={{ marginBottom: 10 }}><SkeletonCard /></View>)}
+    </View>
+  ) : (
+    <View style={styles.emptyWrap}>
+      <Text style={styles.emptyText}>
+        {query.trim()
+          ? tt("esplora.noResults", "Nessun risultato per “{query}”", { query: query.trim() })
+          : tab !== "all"
+          ? tt("esplora.emptyForType", "Nessun annuncio di questo tipo al momento.")
+          : tt("esplora.emptyAll", "Ancora nessun annuncio in giro.")}
+      </Text>
+      <Text style={styles.emptySub}>
+        {query.trim()
+          ? tt("esplora.tryOther", "Prova con un'altra città o tratta — o crea un avviso con la campanella in alto: ti avvisiamo noi quando compare.")
+          : tab !== "all"
+          ? tt("listing.tryChangeFilter", "Prova a cambiare filtro.")
+          : tt("esplora.emptyAllSub", "Torna a trovarci tra poco — o pubblica tu il primo dal tab Vendi.")}
+      </Text>
+      {query.trim() ? (
+        <TouchableOpacity
+          style={styles.pillBtn}
+          onPress={() => navigation.navigate("SavedSearches")}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.pillBtnText}>{tt("esplora.createAlertCta", "Crea avviso")}</Text>
+        </TouchableOpacity>
+      ) : tab !== "all" ? (
+        <TouchableOpacity style={styles.pillBtn} onPress={() => setTab("all")} activeOpacity={0.85}>
+          <Text style={styles.pillBtnText}>{tt("listing.showAll", "Mostra tutti")}</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -403,7 +466,12 @@ export default function HomeScreen() {
           autoCorrect={false}
         />
         {query ? (
-          <TouchableOpacity onPress={() => setQuery("")} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            onPress={() => setQuery("")}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={tt("esplora.clearSearchA11y", "Cancella ricerca")}
+          >
             <Ionicons name="close-circle" size={18} color={theme.colors.textMuted} />
           </TouchableOpacity>
         ) : null}
@@ -412,29 +480,13 @@ export default function HomeScreen() {
       {renderTabs()}
 
       <FlatList
-        data={filtered}
+        data={showSkeletons ? [] : filtered}
         keyExtractor={(it) => String(it.id)}
         renderItem={renderItem}
-        ListHeaderComponent={query ? null : renderPerTe}
+        ListHeaderComponent={query || showSkeletons ? null : renderPerTe}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>
-              {query.trim()
-                ? tt("esplora.noResults", "Nessun risultato per “{query}”", { query: query.trim() })
-                : tab !== "all"
-                ? tt("esplora.emptyForType", "Nessun annuncio di questo tipo al momento.")
-                : tt("esplora.emptyAll", "Ancora nessun annuncio in giro.")}
-            </Text>
-            <Text style={styles.emptySub}>
-              {query.trim()
-                ? tt("esplora.tryOther", "Prova con un'altra città o tratta — o crea un avviso con la campanella in alto: ti avvisiamo noi quando compare.")
-                : tab !== "all"
-                ? tt("listing.tryChangeFilter", "Prova a cambiare filtro.")
-                : tt("esplora.emptyAllSub", "Torna a trovarci tra poco — o pubblica tu il primo dal tab Vendi.")}
-            </Text>
-          </View>
-        }
+        ListEmptyComponent={EmptyState}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
       />
     </View>
@@ -443,8 +495,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
-  loadingText: { marginTop: 8, color: theme.colors.text },
   title: { fontSize: 22, fontWeight: "800", color: theme.colors.text, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 },
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, marginBottom: 12 },
   tab: { borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 },
@@ -478,6 +528,10 @@ const styles = StyleSheet.create({
   emptyWrap: { paddingVertical: 32, alignItems: "center", paddingHorizontal: 16 },
   emptyText: { color: theme.colors.textMuted, textAlign: "center", fontWeight: "700" },
   emptySub: { color: theme.colors.textMuted, textAlign: "center", marginTop: 6 },
+  pillBtn: { marginTop: 14, backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999 },
+  pillBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
+
+  skel: { backgroundColor: theme.colors.border },
 
   searchWrap: {
     flexDirection: "row", alignItems: "center", gap: 8,

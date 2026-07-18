@@ -2,6 +2,7 @@
 import React from "react";
 import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 
@@ -63,10 +64,12 @@ export default function OfferCTAs({ listing, me }) {
 
   return (
     <View style={styles.row}>
-      <TouchableOpacity onPress={onPurchase} style={[styles.btn, styles.btnGhost]}>
+      <TouchableOpacity onPress={onPurchase} style={[styles.btn, styles.btnGhost]} accessibilityRole="button" accessibilityLabel={labelPurchase}>
+        <Ionicons name="pricetag-outline" size={16} color={theme.colors.text} style={{ marginRight: 6 }} />
         <Text style={[styles.btnText, styles.btnGhostText]}>{labelPurchase}</Text>
       </TouchableOpacity>
-      <TouchableOpacity onPress={onSwap} style={styles.btn}>
+      <TouchableOpacity onPress={onSwap} style={styles.btn} accessibilityRole="button" accessibilityLabel={labelSwap}>
+        <Ionicons name="swap-horizontal-outline" size={16} color={theme.colors?.boardingText || "#fff"} style={{ marginRight: 6 }} />
         <Text style={styles.btnText}>{labelSwap}</Text>
       </TouchableOpacity>
     </View>
@@ -77,10 +80,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10, marginTop: 12 },
   btn: {
     flex: 1,
+    flexDirection: "row",
     backgroundColor: theme.colors?.primary || "#111827",
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
   btnText: {
     color: theme.colors?.boardingText || "#fff",
