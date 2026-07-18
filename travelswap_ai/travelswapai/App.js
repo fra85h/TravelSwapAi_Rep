@@ -15,6 +15,7 @@ import OfferFlow from './screens/OfferFlow';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import MainTabs from './screens/MainTabs';
 import CreateListingScreen from './screens/CreateListingScreen';
 import OAuthCallbackScreen from './screens/OAuthCallbackScreen';
@@ -90,6 +91,7 @@ const linking = {
   config: {
     screens: {
       OAuthCallback: 'auth/callback',
+      ResetPassword: 'auth/reset',
     },
   },
 };
@@ -141,6 +143,12 @@ function RootNavigator() {
         //headerBackTitleVisible: false,
       }}
     >
+      {/* Fuori dal ramo session/no-session: il link di reset password
+          stabilisce una sessione di recupero mentre lo schermo è aperto,
+          e se questa route esistesse solo in uno dei due rami il flip di
+          `session` la smonterebbe subito, buttando l'utente su MainTabs o
+          Login prima che possa scegliere la nuova password. */}
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: "Nuova password" }} />
       {session ? (
         <>
           {/* NB: MainTabs tiene il suo header interno: qui rimane nascosto */}
