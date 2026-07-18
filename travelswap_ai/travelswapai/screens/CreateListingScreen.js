@@ -1911,14 +1911,19 @@ const initialJsonRef = useRef(null);
             onScrollBeginDrag={() => Keyboard.dismiss()}
             keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
             scrollEnabled={!isKbOpen}
-            // onMomentumScrollEnd da solo non basta: su web (react-native-web)
-            // e su swipe brevi senza inerzia l'evento a volte non scatta,
-            // lasciando i pallini fermi sul passo vecchio anche se la pagina
-            // visibile è già cambiata. onScrollEndDrag scatta sempre al
-            // rilascio del dito, con o senza momentum successivo: stessa
-            // logica su entrambi così i pallini restano allineati in ogni caso.
+            // onMomentumScrollEnd/onScrollEndDrag bastano su iOS/Android, ma
+            // react-native-web NON li implementa affatto (ScrollViewBase.js
+            // del pacchetto: gestisce solo `onScroll`, il resto degli event
+            // prop RN-only viene spalmato su un <div> che non li capisce e
+            // non li emette mai) — su web quei due handler sono no-op, ecco
+            // perché lì i pallini restavano fermi anche dopo il primo fix.
+            // onScroll invece è implementato su TUTTE le piattaforme (su web
+            // scatta anche a scroll fermo, grazie al debounce interno del
+            // pacchetto), quindi è l'unico modo affidabile ovunque.
             onMomentumScrollEnd={(e) => setSlideIndexFromOffset(e.nativeEvent)}
             onScrollEndDrag={(e) => setSlideIndexFromOffset(e.nativeEvent)}
+            onScroll={(e) => setSlideIndexFromOffset(e.nativeEvent)}
+            scrollEventThrottle={16}
             style={{ flex: 1 }}
             contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
           >
