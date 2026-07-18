@@ -20,6 +20,7 @@ import { sendFbText, sendFbQuickReplies } from './lib/fbSend.js'; // quick repli
 import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.js';
 import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
 import { looksLikeLinkCode, tryLinkFromMessage, getLinkedUserId } from './models/fbLink.js';
+import { parseLocalizedNumber } from './util/number.js';
 import { fbLinkRouter } from './routes/fbLink.js';
 import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
 import { translateListingsRouter } from "./routes/translateListings.js";
@@ -107,8 +108,8 @@ function normalizeSession(s) {
   if (t === 'albergo') out.asset_type = 'hotel';
   // normalizza numeri prezzo tipo "45€"
   if (out.price != null) {
-    const n = Number(String(out.price).replace(',', '.').replace(/[^\d.]/g, ''));
-    if (Number.isFinite(n)) out.price = n;
+    const n = parseLocalizedNumber(out.price);
+    if (n != null) out.price = n;
   }
   return out;
 }

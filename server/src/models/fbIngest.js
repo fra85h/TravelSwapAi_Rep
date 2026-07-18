@@ -2,6 +2,7 @@
 import { supabase } from '../db.js';
 import { computeFullTrustScore } from '../services/trust/computeTrustScore.js';
 import { saveTrustAudit } from '../services/trust/store.js';
+import { parseLocalizedNumber } from '../util/number.js';
 
 // NB: lo schema richiede: user_id (not null), type (not null), title (not null), location (not null), price (not null)
 const DEFAULT_LISTING_OWNER_ID = (process.env.DEFAULT_LISTING_OWNER_ID || '').trim();
@@ -29,9 +30,7 @@ function onlyDateStr(d) {
 }
 
 function priceNumber(p) {
-  if (p == null) return null;
-  const n = Number(String(p).replace(',', '.').replace(/[^\d.]/g, ''));
-  return Number.isFinite(n) ? n : null;
+  return parseLocalizedNumber(p);
 }
 
 function cap(s) {

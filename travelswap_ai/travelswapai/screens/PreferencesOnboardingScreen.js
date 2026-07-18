@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import { getMyPrefs, saveMyPrefs, skipPrefsOnboarding } from "../lib/preferences";
+import { parseLocalizedNumber } from "../lib/number";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 
@@ -54,7 +55,7 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
   const onSave = async () => {
     setSaving(true);
     try {
-      const priceNum = Number(String(maxPrice).replace(",", "."));
+      const priceNum = parseLocalizedNumber(maxPrice) ?? NaN;
       await saveMyPrefs({
         types,
         maxPrice: Number.isFinite(priceNum) && priceNum > 0 ? priceNum : undefined,

@@ -1,6 +1,7 @@
 // travelswapai/lib/useTrustScore.js
 import { useState, useCallback } from 'react';
 import { fetchJson } from './backendApi';
+import { parseLocalizedNumber } from './number';
 
 /**
  * Normalizza i valori della form nello schema atteso da POST /ai/trustscore
@@ -79,10 +80,7 @@ function normalizeFormToListing(input) {
 
   // Prezzo/currency
   const rawPrice = prezzo ?? price;
-  const parsedPrice =
-    rawPrice == null
-      ? undefined
-      : Number(String(rawPrice).replace(',', '.').replace(/[^\d.]/g, ''));
+  const parsedPrice = rawPrice == null ? undefined : parseLocalizedNumber(rawPrice);
   const curr = (valuta || currency || (parsedPrice != null ? 'EUR' : undefined)) || undefined;
 
   // Immagini
