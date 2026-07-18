@@ -11,7 +11,8 @@ import { View, Text, ActivityIndicator, ScrollView, StyleSheet, Alert, Touchable
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { getListingById, listOffersForListing, getCurrentUser } from "../lib/db";
 import { acceptOffer, declineOffer } from "../lib/offers";
-import { useI18n } from "../lib/i18n"; 
+import OfferExpiryBadge from "../components/OfferExpiryBadge";
+import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 export default function OfferDetailScreen() {
   const route = useRoute();
@@ -229,6 +230,7 @@ export default function OfferDetailScreen() {
               <View style={[s.badgeWrap]}>
                 <Text style={s.badgeTxt}>{t(`offers.status.${String(o.status || "").toLowerCase()}`, o.status || "")}</Text>
               </View>
+              {pending && <OfferExpiryBadge expiresAt={o.expires_at} />}
 
               {isOwner && pending && (
                 <View style={[s.row, { marginLeft: "auto" }]}>

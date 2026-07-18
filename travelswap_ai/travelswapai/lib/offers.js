@@ -85,11 +85,35 @@ function normalizeOfferRow(row) {
     currency: row.currency,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    expires_at: row.expires_at,
     to_listing: { id: row.to_listing_id, title: row.to_listing_title },
     from_listing: row.from_listing_id
       ? { id: row.from_listing_id, title: row.from_listing_title }
       : null,
   };
+}
+
+// Finestra di validità di una proposta pending prima di scadere da sola
+// (vedi supabase/migrations/20260718110001_offers_timeout.sql — stesso
+// valore usato per chain_proposals.expires_at).
+export const OFFER_TIMEOUT_HOURS = 48;
+
+/**
+ * Tempo restante prima che una proposta pending scada. Ritorna null se
+ * manca expiresAt (proposte non più pending non ne hanno più bisogno).
+ * urgency: "expired" | "danger" (&lt;1h) | "warning" (&lt;6h) | "normal".
+ */
+export function getOfferExpiryInfo(expiresAt) {
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (Number.isNaN(ms)) return null;
+  if (ms <= 0) return { urgency: "expired", days: 0, hours: 0, minutes: 0 };
+  const totalMinutes = Math.floor(ms / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const urgency = ms <= 60 * 60 * 1000 ? "danger" : ms <= 6 * 60 * 60 * 1000 ? "warning" : "normal";
+  return { urgency, days, hours, minutes };
 }
 
 /** Offerte ricevute (inbox) via RPC tollerante uuid/int */

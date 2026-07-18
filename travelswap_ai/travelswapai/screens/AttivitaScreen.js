@@ -14,6 +14,7 @@ import { acceptOffer, declineOffer, cancelOffer } from "../lib/offers";
 import { markMatchSeen } from "../lib/savedSearches";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
+import OfferExpiryBadge from "../components/OfferExpiryBadge";
 
 function formatDate(iso, locale) {
   if (!iso) return "";
@@ -137,7 +138,10 @@ export default function AttivitaScreen({ navigation }) {
       const busy = busyIds.has(o.id);
       return (
         <View key={it.id} style={styles.card}>
-          <Text style={styles.cardKicker}>{t("activity.offerReceived", "Proposta ricevuta")} · {offerKindLabel(o)}</Text>
+          <View style={styles.rowBetween}>
+            <Text style={styles.cardKicker}>{t("activity.offerReceived", "Proposta ricevuta")} · {offerKindLabel(o)}</Text>
+            <OfferExpiryBadge expiresAt={o.expires_at} />
+          </View>
           {o.type === "swap" ? (
             // Proposta ricevuta: RICEVO il loro annuncio (from_listing), DO il
             // mio (to_listing, quello che hanno scelto).
@@ -196,7 +200,7 @@ export default function AttivitaScreen({ navigation }) {
             <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
           )}
           <View style={styles.actionRow}>
-            <View style={styles.statusChip}><Text style={styles.statusChipText}>{t("activity.pending", "In attesa")}</Text></View>
+            <OfferExpiryBadge expiresAt={o.expires_at} pill />
             <TouchableOpacity style={[styles.btn, styles.btnDecline, busy && styles.btnDisabled]} disabled={busy} onPress={() => onCancel(o.id)}>
               <Text style={styles.btnDeclineTxt}>{busy ? "…" : t("offers.cancel", "Cancella")}</Text>
             </TouchableOpacity>
@@ -345,8 +349,6 @@ const styles = StyleSheet.create({
   btnDecline: { backgroundColor: "#FEE2E2" },
   btnDeclineTxt: { color: "#991B1B", fontWeight: "800" },
   btnDisabled: { opacity: 0.6 },
-  statusChip: { flex: 1, backgroundColor: theme.colors.surfaceMuted, borderRadius: 999, paddingVertical: 8, alignItems: "center" },
-  statusChipText: { fontWeight: "700", color: theme.colors.textMuted },
 
   linkRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10 },
   linkText: { color: theme.colors.accent, fontWeight: "800" },

@@ -75,3 +75,7 @@ export const rateLimitChains = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 
 // Stesso principio di rateLimitChains: endpoint cron avvisi di ricerca,
 // protetto solo dal secret condiviso, senza freno di frequenza.
 export const rateLimitSavedSearches = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'richieste cron' });
+
+// Stesso principio di rateLimitChains: endpoint cron scadenza proposte,
+// protetto solo dal secret condiviso, senza freno di frequenza.
+export const rateLimitOffers = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'richieste cron' });
