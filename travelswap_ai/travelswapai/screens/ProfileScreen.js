@@ -28,6 +28,7 @@ import ActionSheet from "../components/ui/ActionSheet";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { stripPriceFromTitle } from "../lib/listingTitle";
+import { formatMoney } from "../lib/number";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
@@ -55,14 +56,6 @@ function normStatusKey(status) {
   if (s === "expired") return "expired";
   if (s === "paused") return "paused";
   return "active"; // default e stringa vuota
-}
-
-const CURRENCY_SYMBOL = { EUR: "€", USD: "$", GBP: "£" };
-function fmtCurrency(v, c) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return "—";
-  const sym = CURRENCY_SYMBOL[String(c || "EUR").toUpperCase()] || c || "€";
-  return `${n.toFixed(2)} ${sym}`;
 }
 
 function StatItem({ label, icon, value, active, onPress }) {
@@ -281,7 +274,7 @@ export default function ProfileScreen() {
       {/* Prezzo su riga separata */}
       {"price" in item && item.price != null && (
         <Text style={styles.listCardMeta}>
-          {fmtCurrency(item.price, item.currency)}
+          {formatMoney(item.price, item.currency)}
         </Text>
       )}
 

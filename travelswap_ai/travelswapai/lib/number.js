@@ -28,3 +28,16 @@ export function parseLocalizedNumber(raw) {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
+
+const CURRENCY_SYMBOL = { EUR: '€', USD: '$', GBP: '£' };
+
+// Formatta un importo con simbolo valuta, coerente in tutta l'app: prima ogni
+// schermata lo faceva a modo suo ("120.00 EUR", "45€", "45 €"). Ritorna "—"
+// se il valore non è un numero valido.
+export function formatMoney(value, currency = 'EUR') {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '—';
+  const code = String(currency || 'EUR').toUpperCase();
+  const sym = CURRENCY_SYMBOL[code] || currency || '€';
+  return `${n.toFixed(2)} ${sym}`;
+}

@@ -15,6 +15,30 @@ import { markMatchSeen } from "../lib/savedSearches";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import OfferExpiryBadge from "../components/OfferExpiryBadge";
+import { formatMoney } from "../lib/number";
+
+// Kicker uniforme: icona + testo. Prima alcune card avevano un'emoji
+// (🔗🔔🧾) e le card offerta nessuna icona — sistema visivo incoerente.
+function KickerRow({ icon, color, children }) {
+  return (
+    <View style={styles.kickerRow}>
+      <Ionicons name={icon} size={14} color={color || theme.colors.textMuted} style={{ marginRight: 5 }} />
+      <Text style={styles.cardKicker} numberOfLines={1}>{children}</Text>
+    </View>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <View style={styles.card}>
+      <View style={[styles.skel, { width: "40%", height: 12, borderRadius: 6 }]} />
+      <View style={{ height: 10 }} />
+      <View style={[styles.skel, { width: "70%", height: 16, borderRadius: 6 }]} />
+      <View style={{ height: 12 }} />
+      <View style={[styles.skel, { width: "100%", height: 36, borderRadius: 10 }]} />
+    </View>
+  );
+}
 
 function formatDate(iso, locale) {
   if (!iso) return "";
@@ -38,12 +62,18 @@ function describeListing(listing, t, locale) {
   return d ? `${from} → ${to} · ${d}` : `${from} → ${to}`;
 }
 
-function Section({ title, hint, count, children }) {
+function Section({ title, hint, count, urgent, children }) {
   return (
     <View style={styles.section}>
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        {count > 0 ? <View style={styles.countPill}><Text style={styles.countPillText}>{count}</Text></View> : null}
+        {count > 0 ? (
+          // Rosso solo per la sezione che richiede un'azione ("Da fare");
+          // altrove un conteggio rosso suggerirebbe un'urgenza inesistente.
+          <View style={[styles.countPill, !urgent && styles.countPillNeutral]}>
+            <Text style={[styles.countPillText, !urgent && styles.countPillTextNeutral]}>{count}</Text>
+          </View>
+        ) : null}
       </View>
       {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
       {children}
@@ -78,12 +108,26 @@ export default function AttivitaScreen({ navigation }) {
   // (vedi ActivityContext.js), quindi chiamare refresh() qui in più
   // duplicherebbe inutilmente il caricamento (5 query in parallelo) ad ogni
   // accetta/rifiuta/annulla.
-  const onAccept = useCallback(async (offerId) => {
+  const doAccept = useCallback(async (offerId) => {
     setBusy(offerId, true);
     try { await acceptOffer(offerId); notifyActivityChanged(); Alert.alert(t("common.ok", "OK"), t("offers.accepted", "Proposta accettata")); }
     catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
     finally { setBusy(offerId, false); }
   }, [setBusy, t]);
+
+  // Conferma prima di accettare: accettare conclude la trattativa (per lo
+  // scambio è irreversibile — annuncio -> swapped + transazione registrata) e
+  // rifiuta le altre proposte in sospeso. Un tap accidentale costava caro.
+  const onAccept = useCallback((offerId) => {
+    Alert.alert(
+      t("activity.acceptConfirmTitle", "Accettare la proposta?"),
+      t("activity.acceptConfirmMsg", "Accettando, questa proposta viene confermata e le altre proposte in sospeso sullo stesso annuncio verranno rifiutate."),
+      [
+        { text: t("common.cancel", "Annulla"), style: "cancel" },
+        { text: t("offers.accept", "Accetta"), onPress: () => doAccept(offerId) },
+      ]
+    );
+  }, [t, doAccept]);
 
   const onDecline = useCallback(async (offerId) => {
     setBusy(offerId, true);
@@ -139,7 +183,7 @@ export default function AttivitaScreen({ navigation }) {
       return (
         <View key={it.id} style={styles.card}>
           <View style={styles.rowBetween}>
-            <Text style={styles.cardKicker}>{t("activity.offerReceived", "Proposta ricevuta")} · {offerKindLabel(o)}</Text>
+            <KickerRow icon="arrow-down-circle-outline">{t("activity.offerReceived", "Proposta ricevuta")} · {offerKindLabel(o)}</KickerRow>
             <OfferExpiryBadge expiresAt={o.expires_at} />
           </View>
           {o.type === "swap" ? (
@@ -152,16 +196,16 @@ export default function AttivitaScreen({ navigation }) {
           ) : (
             <>
               <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
-              {o.amount != null ? <Text style={styles.cardMeta}>{Number(o.amount).toFixed(2)} {o.currency || "EUR"}</Text> : null}
+              {o.amount != null ? <Text style={styles.cardMeta}>{formatMoney(o.amount, o.currency)}</Text> : null}
             </>
           )}
           {o.message ? <Text style={styles.cardMsg}>{o.message}</Text> : null}
           <View style={styles.actionRow}>
-            <TouchableOpacity style={[styles.btn, styles.btnAccept, busy && styles.btnDisabled]} disabled={busy} onPress={() => onAccept(o.id)}>
-              <Text style={styles.btnAcceptTxt}>{busy ? "…" : t("offers.accept", "Accetta")}</Text>
+            <TouchableOpacity style={[styles.btn, styles.btnAccept, busy && styles.btnDisabled]} disabled={busy} onPress={() => onAccept(o.id)} accessibilityRole="button" accessibilityLabel={t("offers.accept", "Accetta")}>
+              {busy ? <ActivityIndicator size="small" color="#166534" /> : <Text style={styles.btnAcceptTxt}>{t("offers.accept", "Accetta")}</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, styles.btnDecline, busy && styles.btnDisabled]} disabled={busy} onPress={() => onDecline(o.id)}>
-              <Text style={styles.btnDeclineTxt}>{busy ? "…" : t("offers.decline", "Rifiuta")}</Text>
+            <TouchableOpacity style={[styles.btn, styles.btnDecline, busy && styles.btnDisabled]} disabled={busy} onPress={() => onDecline(o.id)} accessibilityRole="button" accessibilityLabel={t("offers.decline", "Rifiuta")}>
+              {busy ? <ActivityIndicator size="small" color="#991B1B" /> : <Text style={styles.btnDeclineTxt}>{t("offers.decline", "Rifiuta")}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -170,8 +214,8 @@ export default function AttivitaScreen({ navigation }) {
     // chain to confirm
     const c = it.data;
     return (
-      <TouchableOpacity key={it.id} style={styles.card} onPress={goChain} activeOpacity={0.85}>
-        <Text style={styles.cardKicker}>🔗 {t("chains.badge", "Scambio a 3")}</Text>
+      <TouchableOpacity key={it.id} style={styles.card} onPress={goChain} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t("activity.chainToConfirm", "Uno scambio a 3 aspetta la tua conferma")}>
+        <KickerRow icon="git-network-outline" color={theme.colors.accent}>{t("chains.badge", "Scambio a 3")}</KickerRow>
         <Text style={styles.cardTitle}>{t("activity.chainToConfirm", "Uno scambio a 3 aspetta la tua conferma")}</Text>
         <Text style={styles.cardMeta}>{t("chains.confirmedCount", "{count} di 3 hanno confermato", { count: c.confirmedCount || 0 })}</Text>
         <View style={styles.linkRow}>
@@ -188,7 +232,7 @@ export default function AttivitaScreen({ navigation }) {
       const busy = busyIds.has(o.id);
       return (
         <View key={it.id} style={styles.card}>
-          <Text style={styles.cardKicker}>{t("activity.offerSent", "Proposta inviata")} · {offerKindLabel(o)}</Text>
+          <KickerRow icon="paper-plane-outline">{t("activity.offerSent", "Proposta inviata")} · {offerKindLabel(o)}</KickerRow>
           {o.type === "swap" ? (
             // Proposta inviata: RICEVEREI il loro annuncio (to_listing), DO il
             // mio (from_listing, quello che ho offerto).
@@ -201,8 +245,8 @@ export default function AttivitaScreen({ navigation }) {
           )}
           <View style={styles.actionRow}>
             <OfferExpiryBadge expiresAt={o.expires_at} pill />
-            <TouchableOpacity style={[styles.btn, styles.btnDecline, busy && styles.btnDisabled]} disabled={busy} onPress={() => onCancel(o.id)}>
-              <Text style={styles.btnDeclineTxt}>{busy ? "…" : t("offers.cancel", "Cancella")}</Text>
+            <TouchableOpacity style={[styles.btn, styles.btnDecline, busy && styles.btnDisabled]} disabled={busy} onPress={() => onCancel(o.id)} accessibilityRole="button" accessibilityLabel={t("offers.cancel", "Cancella")}>
+              {busy ? <ActivityIndicator size="small" color="#991B1B" /> : <Text style={styles.btnDeclineTxt}>{t("offers.cancel", "Cancella")}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -210,8 +254,8 @@ export default function AttivitaScreen({ navigation }) {
     }
     const c = it.data;
     return (
-      <TouchableOpacity key={it.id} style={styles.card} onPress={goChain} activeOpacity={0.85}>
-        <Text style={styles.cardKicker}>🔗 {t("chains.badge", "Scambio a 3")}</Text>
+      <TouchableOpacity key={it.id} style={styles.card} onPress={goChain} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t("activity.chainWaiting", "Hai confermato — in attesa degli altri")}>
+        <KickerRow icon="git-network-outline" color={theme.colors.accent}>{t("chains.badge", "Scambio a 3")}</KickerRow>
         <Text style={styles.cardTitle}>{t("activity.chainWaiting", "Hai confermato — in attesa degli altri")}</Text>
         <Text style={styles.cardMeta}>{t("chains.confirmedCount", "{count} di 3 hanno confermato", { count: c.confirmedCount || 0 })}</Text>
       </TouchableOpacity>
@@ -221,13 +265,13 @@ export default function AttivitaScreen({ navigation }) {
   const renderFound = (it) => {
     const m = it.data;
     return (
-      <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(m.listing_id, !m.seen ? m.id : null)} activeOpacity={0.85}>
+      <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(m.listing_id, !m.seen ? m.id : null)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={describeListing(m.listing, t, locale)}>
         <View style={styles.rowBetween}>
-          <Text style={styles.cardKicker}>🔔 {t("activity.matchFound", "Trovato per un tuo avviso")}</Text>
+          <KickerRow icon="notifications-outline">{t("activity.matchFound", "Trovato per un tuo avviso")}</KickerRow>
           {!m.seen ? <View style={styles.newDot} /> : null}
         </View>
         <Text style={styles.cardTitle}>{describeListing(m.listing, t, locale)}</Text>
-        {m.listing?.price != null ? <Text style={styles.cardMeta}>{Number(m.listing.price)}€</Text> : null}
+        {m.listing?.price != null ? <Text style={styles.cardMeta}>{formatMoney(m.listing.price, m.listing.currency)}</Text> : null}
       </TouchableOpacity>
     );
   };
@@ -243,10 +287,10 @@ export default function AttivitaScreen({ navigation }) {
       : t("transactions.directionBought", "Ricevuto");
     const typeLabel = isSwap ? t("transactions.typeSwap", "Scambio") : t("transactions.typeSale", "Vendita");
     return (
-      <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(listing.id)} activeOpacity={0.85}>
-        <Text style={styles.cardKicker}>🧾 {typeLabel} · {dir}</Text>
+      <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(listing.id)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={listing.title || t("savedScreen.untitledListing", "Annuncio")}>
+        <KickerRow icon="receipt-outline">{typeLabel} · {dir}</KickerRow>
         <Text style={styles.cardTitle} numberOfLines={2}>{listing.title || t("savedScreen.untitledListing", "Annuncio")}</Text>
-        <Text style={styles.cardMeta}>{formatDate(tx.created_at, locale)}{tx.price != null ? ` · ${tx.price} €` : ""}</Text>
+        <Text style={styles.cardMeta}>{formatDate(tx.created_at, locale)}{tx.price != null ? ` · ${formatMoney(tx.price, tx.currency)}` : ""}</Text>
       </TouchableOpacity>
     );
   };
@@ -254,7 +298,11 @@ export default function AttivitaScreen({ navigation }) {
   const total = summary.toDo.length + summary.waiting.length + summary.found.length + summary.history.length;
 
   if (loading && total === 0) {
-    return <View style={styles.center}><ActivityIndicator /></View>;
+    return (
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+      </ScrollView>
+    );
   }
 
   if (total === 0) {
@@ -278,27 +326,28 @@ export default function AttivitaScreen({ navigation }) {
       refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
     >
       {summary.toDo.length ? (
-        <Section title={t("activity.sectionToDo", "Da fare")} count={summary.toDo.length}
+        <Section title={t("activity.sectionToDo", "Da fare")} count={summary.toDo.length} urgent
           hint={t("activity.sectionToDoHint", "Aspettano una tua risposta.")}>
           {summary.toDo.map(renderToDo)}
         </Section>
       ) : null}
 
       {summary.waiting.length ? (
-        <Section title={t("activity.sectionWaiting", "In attesa")}>
+        <Section title={t("activity.sectionWaiting", "In attesa")} count={summary.waiting.length}
+          hint={t("activity.sectionWaitingHint", "Aspetti una risposta dagli altri.")}>
           {summary.waiting.map(renderWaiting)}
         </Section>
       ) : null}
 
       {summary.found.length ? (
-        <Section title={t("activity.sectionFound", "Trovati per te")}
+        <Section title={t("activity.sectionFound", "Trovati per te")} count={summary.found.length}
           hint={t("activity.sectionFoundHint", "Annunci nuovi che soddisfano i tuoi avvisi.")}>
           {summary.found.map(renderFound)}
         </Section>
       ) : null}
 
       {summary.history.length ? (
-        <Section title={t("activity.sectionHistory", "Storico")}>
+        <Section title={t("activity.sectionHistory", "Storico")} count={summary.history.length}>
           {summary.history.map(renderHistory)}
         </Section>
       ) : null}
@@ -307,7 +356,6 @@ export default function AttivitaScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.background },
   emptyWrap: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: 28, backgroundColor: theme.colors.background },
   emptyTitle: { fontSize: 17, fontWeight: "800", color: theme.colors.text, marginTop: 10 },
   emptyText: { color: theme.colors.textMuted, textAlign: "center", marginTop: 8, lineHeight: 20 },
@@ -318,13 +366,16 @@ const styles = StyleSheet.create({
   sectionHint: { color: theme.colors.textMuted, fontSize: 13, marginTop: 2, marginBottom: 10 },
   countPill: { backgroundColor: theme.colors.danger, borderRadius: 999, minWidth: 20, height: 20, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" },
   countPillText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  countPillNeutral: { backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border },
+  countPillTextNeutral: { color: theme.colors.textMuted },
 
   card: {
     backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg,
     borderWidth: 1, borderColor: theme.colors.border, padding: 14, marginBottom: 10,
     ...theme.shadow.sm,
   },
-  cardKicker: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, marginBottom: 4 },
+  kickerRow: { flexDirection: "row", alignItems: "center", marginBottom: 4, flexShrink: 1 },
+  cardKicker: { fontSize: 12, fontWeight: "700", color: theme.colors.textMuted, flexShrink: 1 },
   cardTitle: { fontSize: 15, fontWeight: "800", color: theme.colors.text },
   cardMeta: { color: theme.colors.textMuted, marginTop: 4 },
   cardMsg: { color: theme.colors.text, marginTop: 8 },
@@ -352,4 +403,6 @@ const styles = StyleSheet.create({
 
   linkRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10 },
   linkText: { color: theme.colors.accent, fontWeight: "800" },
+
+  skel: { backgroundColor: theme.colors.border },
 });
