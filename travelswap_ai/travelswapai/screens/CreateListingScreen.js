@@ -429,8 +429,13 @@ export default function CreateListingScreen({
         if (routes.length >= 2) return { two: true, reason: t("createListing.checkAi.reasonRoutes", `Rilevate ${routes.length} tratte nel testo.`, { n: routes.length }) };
         if (routes.length === 1 && times.length >= 3) return { two: true, reason: t("createListing.checkAi.reasonTimes", `Rilevati più orari (${times.length}).`, { n: times.length }) };
       } else if (ty === "hotel") {
-        if (dates.length >= 4) return { two: true, reason: t("createListing.checkAi.reasonDates", `Rilevate più date (${dates.length}).`, { n: dates.length }) };
-        if (hotels.length >= 2) return { two: true, reason: t("createListing.checkAi.reasonHotels", `Rilevate più strutture (${hotels.length}).`, { n: hotels.length }) };
+        // Soglie più alte che per il treno: una normale conferma di
+        // prenotazione (prenotato il / check-in / check-out / scadenza
+        // cancellazione gratuita) cita già 4 date e la parola "hotel" 2+
+        // volte per UN SOLO soggiorno — con soglie basse veniva segnalata
+        // come "2 annunci distinti" una prenotazione singola legittima.
+        if (dates.length >= 6) return { two: true, reason: t("createListing.checkAi.reasonDates", `Rilevate più date (${dates.length}).`, { n: dates.length }) };
+        if (hotels.length >= 3) return { two: true, reason: t("createListing.checkAi.reasonHotels", `Rilevate più strutture (${hotels.length}).`, { n: hotels.length }) };
       } else {
         if (routes.length >= 2 || dates.length >= 4) return { two: true, reason: t("createListing.checkAi.reasonMultiple", "Rilevati elementi multipli (tratte/date).") };
       }

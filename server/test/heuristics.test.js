@@ -119,6 +119,31 @@ test('allow-list città ferroviarie: casi impossibili/ignoti restano fuori', () 
   assert.equal(isKnownRailCity(null), false);
 });
 
+test('hotel: soggiorno lungo con totale alto ma prezzo/notte ragionevole NON è PRICE_OUTLIER', () => {
+  const out = computeHeuristicChecks({
+    ...goodHotel,
+    startDate: inDays(30),
+    endDate: inDays(45), // 15 notti
+    price: 6000, // 400€/notte, sotto la soglia 500€/notte
+  });
+  assert.equal(out.flags.some(f => f.code === 'PRICE_OUTLIER'), false);
+});
+
+test('hotel: prezzo/notte spropositato resta PRICE_OUTLIER anche su soggiorno breve', () => {
+  const out = computeHeuristicChecks({
+    ...goodHotel,
+    startDate: inDays(30),
+    endDate: inDays(32), // 2 notti: cap = max(5000, 2*500) = 5000
+    price: 6000, // 3000€/notte, sopra il cap
+  });
+  assert.ok(out.flags.some(f => f.code === 'PRICE_OUTLIER'));
+});
+
+test('hotel: senza date valide resta il minimo assoluto di 5000€', () => {
+  const out = computeHeuristicChecks({ ...goodHotel, startDate: null, endDate: null, price: 6000 });
+  assert.ok(out.flags.some(f => f.code === 'PRICE_OUTLIER'));
+});
+
 test('tratta treno Palermo→Messina: il deterministico NON la segnala', () => {
   const out = computeHeuristicChecks({
     type: 'train',
