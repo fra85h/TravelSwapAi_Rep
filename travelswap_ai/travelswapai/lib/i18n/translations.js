@@ -197,6 +197,7 @@ export const translations = {
       deleteTitle: "Elimina avviso",
       deleteMsg: "Non riceverai più notifiche per questa ricerca.",
       deleteError: "Impossibile eliminare l'avviso.",
+      maxPriceNegative: "Il prezzo massimo non può essere negativo.",
     },
 
     linkMessenger: {
@@ -1101,6 +1102,7 @@ export const translations = {
       deleteTitle: "Delete alert",
       deleteMsg: "You'll no longer get notified for this search.",
       deleteError: "Unable to delete the alert.",
+      maxPriceNegative: "The maximum price can't be negative.",
     },
 
     linkMessenger: {
@@ -1983,6 +1985,7 @@ export const translations = {
       deleteTitle: "Eliminar aviso",
       deleteMsg: "Ya no recibirás notificaciones para esta búsqueda.",
       deleteError: "No se pudo eliminar el aviso.",
+      maxPriceNegative: "El precio máximo no puede ser negativo.",
     },
 
     linkMessenger: {

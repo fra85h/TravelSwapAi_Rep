@@ -2,6 +2,7 @@
 
 // Usa il Page Access Token della Pagina
 const PAGE_ACCESS_TOKEN = (process.env.FB_PAGE_ACCESS_TOKEN || '').trim();
+const SEND_TIMEOUT_MS = 10000;
 
 /**
  * Chiama la Send API di Facebook
@@ -13,11 +14,16 @@ async function callSendAPI(body) {
   }
 
   const url = `https://graph.facebook.com/v18.0/me/messages?access_token=${encodeURIComponent(PAGE_ACCESS_TOKEN)}`;
+  // Senza timeout, una risposta appesa di Facebook blocca la richiesta
+  // (e con essa il webhook che l'ha innescata) a tempo indeterminato.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SEND_TIMEOUT_MS);
   try {
     const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal,
     });
 
     // Facebook risponde sempre 200/OK anche con errori applicativi nel JSON
@@ -29,6 +35,8 @@ async function callSendAPI(body) {
   } catch (e) {
     console.error('[sendFb] Exception:', e);
     throw e;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

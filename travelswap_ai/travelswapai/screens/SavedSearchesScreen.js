@@ -11,6 +11,7 @@ import {
   listMySavedSearches, createSavedSearch, setSavedSearchActive,
   deleteSavedSearch, listMyMatches, markMatchSeen,
 } from "../lib/savedSearches";
+import { parseLocalizedNumber } from "../lib/number";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import Button from "../components/ui/Button";
@@ -63,6 +64,14 @@ function NewSearchForm({ onCreated, t }) {
 
   const handleSave = async () => {
     if (!canSave) return;
+    // Il DB blocca max_price < 0 con un CHECK (saved_searches_max_price_check),
+    // ma senza questo controllo l'utente vedrebbe l'errore Postgres grezzo
+    // invece di un messaggio comprensibile.
+    const parsedMaxPrice = parseLocalizedNumber(maxPrice);
+    if (parsedMaxPrice != null && parsedMaxPrice < 0) {
+      Alert.alert(t("common.error", "Errore"), t("savedSearches.maxPriceNegative", "Il prezzo massimo non può essere negativo."));
+      return;
+    }
     setSaving(true);
     try {
       await createSavedSearch({ type, routeFrom, routeTo, location, maxPrice });

@@ -53,33 +53,50 @@ function Section({ title, hint, count, children }) {
 export default function AttivitaScreen({ navigation }) {
   const { t, locale } = useI18n();
   const { summary, loading, refresh } = useActivity();
-  const [busyId, setBusyId] = useState(null);
+  // Set, non un singolo id: con un solo busyId, avviare un'azione su una
+  // SECONDA card (es. rifiuta offerta B) mentre la prima (accetta offerta
+  // A) è ancora in volo faceva sì che i bottoni di A tornassero cliccabili
+  // — busyId ormai puntava a B — permettendo un doppio invio della stessa
+  // azione su A prima che la prima risposta fosse arrivata.
+  const [busyIds, setBusyIds] = useState(() => new Set());
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
+  const setBusy = useCallback((id, isBusy) => {
+    setBusyIds((prev) => {
+      const next = new Set(prev);
+      if (isBusy) next.add(id); else next.delete(id);
+      return next;
+    });
+  }, []);
+
   // notifyActivityChanged() propaga il cambiamento anche fuori dalla casella
   // Attività (es. Esplora): dopo accettare/rifiutare/annullare uno scambio la
-  // disponibilità degli annunci cambia, e il feed si aggiorna da solo.
+  // disponibilità degli annunci cambia, e il feed si aggiorna da solo. Il
+  // provider di questa stessa schermata è anche in ascolto su quel canale
+  // (vedi ActivityContext.js), quindi chiamare refresh() qui in più
+  // duplicherebbe inutilmente il caricamento (5 query in parallelo) ad ogni
+  // accetta/rifiuta/annulla.
   const onAccept = useCallback(async (offerId) => {
-    setBusyId(offerId);
-    try { await acceptOffer(offerId); await refresh(); notifyActivityChanged(); Alert.alert(t("common.ok", "OK"), t("offers.accepted", "Proposta accettata")); }
+    setBusy(offerId, true);
+    try { await acceptOffer(offerId); notifyActivityChanged(); Alert.alert(t("common.ok", "OK"), t("offers.accepted", "Proposta accettata")); }
     catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
-    finally { setBusyId(null); }
-  }, [refresh, t]);
+    finally { setBusy(offerId, false); }
+  }, [setBusy, t]);
 
   const onDecline = useCallback(async (offerId) => {
-    setBusyId(offerId);
-    try { await declineOffer(offerId); await refresh(); notifyActivityChanged(); }
+    setBusy(offerId, true);
+    try { await declineOffer(offerId); notifyActivityChanged(); }
     catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
-    finally { setBusyId(null); }
-  }, [refresh, t]);
+    finally { setBusy(offerId, false); }
+  }, [setBusy, t]);
 
   const onCancel = useCallback(async (offerId) => {
-    setBusyId(offerId);
-    try { await cancelOffer(offerId); await refresh(); notifyActivityChanged(); }
+    setBusy(offerId, true);
+    try { await cancelOffer(offerId); notifyActivityChanged(); }
     catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
-    finally { setBusyId(null); }
-  }, [refresh, t]);
+    finally { setBusy(offerId, false); }
+  }, [setBusy, t]);
 
   const goChain = useCallback(() => {
     navigation?.navigate?.("ChainProposals");
@@ -117,7 +134,7 @@ export default function AttivitaScreen({ navigation }) {
   const renderToDo = (it) => {
     if (it.kind === "offer_in") {
       const o = it.data;
-      const busy = busyId === o.id;
+      const busy = busyIds.has(o.id);
       return (
         <View key={it.id} style={styles.card}>
           <Text style={styles.cardKicker}>{t("activity.offerReceived", "Proposta ricevuta")} · {offerKindLabel(o)}</Text>
@@ -164,7 +181,7 @@ export default function AttivitaScreen({ navigation }) {
   const renderWaiting = (it) => {
     if (it.kind === "offer_out") {
       const o = it.data;
-      const busy = busyId === o.id;
+      const busy = busyIds.has(o.id);
       return (
         <View key={it.id} style={styles.card}>
           <Text style={styles.cardKicker}>{t("activity.offerSent", "Proposta inviata")} · {offerKindLabel(o)}</Text>
