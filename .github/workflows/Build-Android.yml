@@ -25,9 +25,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Cache Gradle
-        uses: actions/setup-gradle@v4
+          cache: 'gradle' # Gestisce la cache in modo nativo qui
 
       - name: Make Gradle Executable
         run: chmod +x android/gradlew
@@ -42,4 +40,3 @@ jobs:
         with:
           name: app-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
-
