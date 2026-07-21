@@ -5,7 +5,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { loadActivity } from "./activity";
 
-const EMPTY = { toDo: [], waiting: [], resolved: [], found: [], history: [], expired: [] };
+const EMPTY = { toDo: [], waiting: [], resolved: [], found: [], history: [], expired: [], chats: [] };
 
 // Canale per le schermate FUORI dal provider (Scambi a 3, invio proposta:
 // vivono nello Stack radice, non dentro i tab): dopo un'azione che cambia
@@ -31,6 +31,7 @@ const ActivityContext = createContext({
   summary: EMPTY,
   toDoCount: 0,
   resolvedCount: 0,
+  unreadChatCount: 0,
   loading: true,
   refresh: () => {},
 });
@@ -42,7 +43,7 @@ export function ActivityProvider({ children }) {
   const refresh = useCallback(async () => {
     try {
       const s = await loadActivity();
-      setSummary({ toDo: s.toDo, waiting: s.waiting, resolved: s.resolved, found: s.found, history: s.history, expired: s.expired });
+      setSummary({ toDo: s.toDo, waiting: s.waiting, resolved: s.resolved, found: s.found, history: s.history, expired: s.expired, chats: s.chats });
     } catch (e) {
       if (__DEV__) console.log("[Activity] refresh error", e?.message || e);
     } finally {
@@ -59,7 +60,14 @@ export function ActivityProvider({ children }) {
 
   return (
     <ActivityContext.Provider
-      value={{ summary, toDoCount: summary.toDo.length, resolvedCount: summary.resolved.length, loading, refresh }}
+      value={{
+        summary,
+        toDoCount: summary.toDo.length,
+        resolvedCount: summary.resolved.length,
+        unreadChatCount: (summary.chats || []).reduce((n, c) => n + (c.unreadCount || 0), 0),
+        loading,
+        refresh,
+      }}
     >
       {children}
     </ActivityContext.Provider>

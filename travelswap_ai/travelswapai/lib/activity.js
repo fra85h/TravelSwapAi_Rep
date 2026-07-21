@@ -5,6 +5,7 @@ import { listIncomingOffersAny, listOutgoingOffersAny } from "./offers";
 import { listMyChainProposals } from "./chains";
 import { listMyMatches } from "./savedSearches";
 import { listMyTransactions } from "./transactions";
+import { listMyChats } from "./chat";
 
 // Stessi stati che lib/offers.js considera "pendenti": una proposta
 // in_review deve comparire in Attività come una pending.
@@ -31,17 +32,19 @@ function isResolvedOffer(status) {
  *  - toDo:     richiede una tua azione (proposte ricevute, catene da confermare)
  *  - waiting:  in attesa degli altri (proposte inviate ancora pending, catene già confermate)
  *  - resolved: proposte INVIATE appena accettate/rifiutate, non ancora viste
+ *  - chats:    chat delle proposte accettate (con conteggio non letti)
  *  - found:    annunci trovati dai tuoi avvisi di ricerca
  *  - history:  scambi/vendite conclusi
  *  - expired:  proposte (ricevute o inviate) scadute senza risposta
  */
 export async function loadActivity() {
-  const [incoming, outgoing, chains, matches, tx] = await Promise.all([
+  const [incoming, outgoing, chains, matches, tx, chats] = await Promise.all([
     listIncomingOffersAny().catch(() => []),
     listOutgoingOffersAny().catch(() => []),
     listMyChainProposals().catch(() => []),
     listMyMatches().catch(() => []),
     listMyTransactions().catch(() => []),
+    listMyChats().catch(() => []),
   ]);
 
   const toDo = [];
@@ -84,9 +87,13 @@ export async function loadActivity() {
   const byNewest = (a, b) => new Date(b.sort || 0) - new Date(a.sort || 0);
   [toDo, waiting, resolved, found, history, expired].forEach((arr) => arr.sort(byNewest));
 
+  // Le chat arrivano già ordinate per ultimo messaggio (list_my_chats).
+  const unreadChatCount = chats.reduce((n, c) => n + (c.unreadCount || 0), 0);
+
   return {
-    toDo, waiting, resolved, found, history, expired,
+    toDo, waiting, resolved, found, history, expired, chats,
     toDoCount: toDo.length,
     resolvedCount: resolved.length,
+    unreadChatCount,
   };
 }

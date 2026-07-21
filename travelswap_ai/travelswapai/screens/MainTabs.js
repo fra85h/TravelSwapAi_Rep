@@ -43,11 +43,11 @@ function VendiButton() {
 
 function MainTabsInner() {
   const { t } = useI18n();
-  const { toDoCount, resolvedCount } = useActivity();
+  const { toDoCount, resolvedCount, unreadChatCount } = useActivity();
   // Numeretto rosso = cose da fare + esiti non ancora visti delle proprie
-  // proposte (accettata/rifiutata): prima solo il "da fare" contava, chi
-  // proponeva un'offerta non aveva alcun segnale quando riceveva risposta.
-  const badgeCount = toDoCount + resolvedCount;
+  // proposte (accettata/rifiutata) + messaggi chat non letti: tutto ciò che
+  // aspetta l'utente vive in Attività, il tab deve rifletterlo.
+  const badgeCount = toDoCount + resolvedCount + unreadChatCount;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
