@@ -119,13 +119,30 @@ function normalizeFormToListing(input) {
     return undefined;
   };
 
+  // Per il treno partenza/arrivo sono un ISTANTE preciso, non solo una data:
+  // troncare all'ora (toIsoDate) rendeva impossibile per il controllo di
+  // coerenza lato server ("arrivo non successivo alla partenza", vedi
+  // heuristics.js) accorgersi di un arrivo coincidente o precedente alla
+  // partenza nello STESSO giorno — bug reale: annuncio con orari identici,
+  // TrustScore 86% senza alcuna segnalazione. Per l'hotel invece check-in/out
+  // restano concetti "di giornata": toIsoDate va bene.
+  const toIsoDateTime = (d) => {
+    if (!d) return undefined;
+    try {
+      if (d instanceof Date) return d.toISOString();
+      const dt = new Date(String(d).trim());
+      if (!isNaN(dt.getTime())) return dt.toISOString();
+    } catch {}
+    return undefined;
+  };
+
   let startDate, endDate;
   if (t === 'hotel') {
     startDate = toIsoDate(ci);
     endDate = toIsoDate(co);
   } else if (t === 'train') {
-    startDate = toIsoDate(dep);
-    endDate = toIsoDate(arr);
+    startDate = toIsoDateTime(dep);
+    endDate = toIsoDateTime(arr);
   }
 
   // Oggetto finale nel formato richiesto dal backend

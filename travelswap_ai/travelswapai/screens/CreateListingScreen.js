@@ -604,14 +604,15 @@ const initialJsonRef = useRef(null);
     });
   }, [trustData, form?.type]);
 
-  // Un punteggio basso senza un flag preciso (es. media pesata bassa ma nessuna
-  // soglia superata) lasciava l'utente senza spiegazione. Se non c'è già un
-  // flag a raccontare il motivo, indichiamo la componente più debole tra
-  // controlli di base / testo AI / foto AI — così il "perché" c'è sempre.
+  // Il "perché" del punteggio deve essere SEMPRE visibile, non solo quando è
+  // basso (regola di prodotto): prima la soglia score>=85 nascondeva questa
+  // spiegazione anche a un 86% senza alcun flag, facendo mostrare "Nessun
+  // problema rilevato" — fuorviante, perché 86% non è 100% e un motivo per
+  // cui non lo è esiste sempre. Ora si nasconde solo a punteggio pieno (100).
   const trustExplain = useMemo(() => {
     if (!trustData || trustData.aiAvailable === false) return null;
     const score = Number(trustData?.trustScore);
-    if (!Number.isFinite(score) || score >= 85) return null;
+    if (!Number.isFinite(score) || score >= 100) return null;
     if (flagsNoImg?.length) return null; // già spiegato da un flag puntuale
     const sub = trustData?.subScores || {};
     const parts = [
