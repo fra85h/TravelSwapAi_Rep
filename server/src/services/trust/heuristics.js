@@ -197,9 +197,13 @@ export function computeHeuristicChecks(listing, locale = 'it') {
   if (startDate && endDate) {
     const s = new Date(startDate);
     const e = new Date(endDate);
-    if (isFinite(s) && isFinite(e) && e < s) {
+    // <= (non solo <): un arrivo COINCIDENTE con la partenza (stesso istante,
+    // tipico di una tratta in giornata con solo la data troncata) è una
+    // tratta impossibile quanto un arrivo precedente, ma prima passava
+    // inosservato perché la condizione era solo "e < s".
+    if (isFinite(s) && isFinite(e) && e <= s) {
       consistency -= 0.6;
-      flags.push({ code: 'DATE_SWAP', msg: 'Data fine anteriore alla data inizio' });
+      flags.push({ code: 'DATE_SWAP', msg: 'Arrivo non successivo alla partenza (stesso istante o precedente)' });
       fixes.push({ field: 'endDate', suggestion: fixText('dateOrder', lang) });
     }
   }
