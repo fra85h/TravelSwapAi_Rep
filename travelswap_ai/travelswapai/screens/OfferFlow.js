@@ -255,6 +255,12 @@ export default function OfferFlow() {
             style={[s.input, { height: 100, textAlignVertical: "top" }]}
             multiline
           />
+          {/* Teaser chat: dice subito che il canale di contatto arriverà
+              DOPO l'accettazione — gestisce l'aspettativa e tiene l'accordo
+              dentro l'app invece che su contatti esterni. */}
+          <Text style={s.chatTeaser}>
+            {t("chat.teaserSend", "Dopo l'accettazione potrai chattare con l'altra persona per organizzare lo scambio.")}
+          </Text>
           <TouchableOpacity
             style={[s.btn, s.cta, !canSubmit && s.btnDisabled]}
             disabled={!canSubmit}
@@ -313,6 +319,9 @@ export default function OfferFlow() {
             multiline
           />
 
+          <Text style={s.chatTeaser}>
+            {t("chat.teaserSend", "Dopo l'accettazione potrai chattare con l'altra persona per organizzare lo scambio.")}
+          </Text>
           <TouchableOpacity
             style={[s.btn, s.cta, !canSubmit && s.btnDisabled]}
             disabled={!canSubmit}
@@ -335,6 +344,7 @@ const s = StyleSheet.create({
     fontSize: 11, fontWeight: "800", letterSpacing: 0.6, textTransform: "uppercase",
     color: theme.colors.textMuted, marginBottom: 6,
   },
+  chatTeaser: { color: theme.colors.textMuted, fontSize: 12, fontStyle: "italic", marginTop: 8, marginBottom: 8 },
   target: {
     borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.lg,
     padding: 14, marginBottom: 12, backgroundColor: theme.colors.surface, ...theme.shadow.sm,

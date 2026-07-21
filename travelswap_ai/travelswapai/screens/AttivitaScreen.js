@@ -118,10 +118,23 @@ export default function AttivitaScreen({ navigation }) {
   // accetta/rifiuta/annulla.
   const doAccept = useCallback(async (offerId) => {
     setBusy(offerId, true);
-    try { await acceptOffer(offerId); notifyActivityChanged(); Alert.alert(t("common.ok", "OK"), t("offers.accepted", "Proposta accettata")); }
+    try {
+      await acceptOffer(offerId);
+      notifyActivityChanged();
+      // Momento di massimo bisogno: appena accettata, le due parti devono
+      // organizzare lo scambio — la chat si apre da qui con un tap.
+      Alert.alert(
+        t("offers.acceptedTitle", "Proposta accettata"),
+        t("offers.acceptedChatMsg", "Ora potete organizzare lo scambio: apri la chat per accordarti con l'altra persona."),
+        [
+          { text: t("common.close", "Chiudi"), style: "cancel" },
+          { text: t("chat.open", "Apri la chat"), onPress: () => navigation?.navigate?.("Chat", { offerId }) },
+        ]
+      );
+    }
     catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
     finally { setBusy(offerId, false); }
-  }, [setBusy, t]);
+  }, [setBusy, t, navigation]);
 
   // Conferma prima di accettare: accettare conclude la trattativa (per lo
   // scambio è irreversibile — annuncio -> swapped + transazione registrata) e
@@ -251,6 +264,10 @@ export default function AttivitaScreen({ navigation }) {
           ) : (
             <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
           )}
+          {/* Teaser chat: gestisce l'aspettativa e tiene l'accordo in app */}
+          <Text style={styles.chatTeaser}>
+            {t("chat.teaserWaiting", "Potrai chattare con l'altra persona quando la proposta sarà accettata.")}
+          </Text>
           <View style={styles.actionRow}>
             <OfferExpiryBadge expiresAt={o.expires_at} pill />
             <TouchableOpacity style={[styles.btn, styles.btnDecline, busy && styles.btnDisabled]} disabled={busy} onPress={() => onCancel(o.id)} accessibilityRole="button" accessibilityLabel={t("offers.cancel", "Cancella")}>
@@ -274,15 +291,61 @@ export default function AttivitaScreen({ navigation }) {
   // segnale per il proponente quando l'altra parte accettava o rifiutava,
   // il flusso si fermava lì. Sparisce da qui alla prossima apertura di
   // Attività (markMyResolvedOffersSeen la marca vista, vedi useFocusEffect).
+  // Se accettata, il tap apre direttamente la chat (la card della sezione
+  // Chat resta comunque l'ingresso stabile anche dopo).
   const renderResolved = (it) => {
     const o = it.data;
     const accepted = String(o.status || "").toLowerCase() === "accepted";
     return (
-      <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(o.to_listing?.id)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={o.to_listing?.title || t("offerFlow.listing", "Annuncio")}>
+      <TouchableOpacity
+        key={it.id}
+        style={styles.card}
+        onPress={() => accepted ? navigation?.navigate?.("Chat", { offerId: o.id, title: o.to_listing?.title }) : goListing(o.to_listing?.id)}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={o.to_listing?.title || t("offerFlow.listing", "Annuncio")}
+      >
         <KickerRow icon={accepted ? "checkmark-circle-outline" : "close-circle-outline"} color={accepted ? "#166534" : "#991B1B"}>
           {accepted ? t("activity.offerWasAccepted", "La tua proposta è stata accettata") : t("activity.offerWasDeclined", "La tua proposta è stata rifiutata")}
         </KickerRow>
         <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
+        {accepted ? (
+          <View style={styles.linkRow}>
+            <Ionicons name="chatbubble-ellipses-outline" size={15} color={theme.colors.accent} />
+            <Text style={styles.linkText}>{t("chat.open", "Apri la chat")}</Text>
+          </View>
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
+
+  // Chat delle proposte accettate: l'ingresso STABILE alla conversazione
+  // (le card di esito spariscono una volta viste, questa resta).
+  const renderChat = (c) => {
+    const isSwap = String(c.type || "").toLowerCase() === "swap";
+    return (
+      <TouchableOpacity
+        key={"chat_" + c.offerId}
+        style={styles.card}
+        onPress={() => navigation?.navigate?.("Chat", { offerId: c.offerId, title: c.toListingTitle })}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={c.toListingTitle || t("offerFlow.listing", "Annuncio")}
+      >
+        <View style={styles.rowBetween}>
+          <KickerRow icon="chatbubble-ellipses-outline" color={theme.colors.accent}>
+            {isSwap ? t("offers.swap", "Scambio") : t("offers.buy", "Acquisto")}
+          </KickerRow>
+          {c.unreadCount > 0 ? (
+            <View style={styles.countPill}>
+              <Text style={styles.countPillText}>{c.unreadCount}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.cardTitle} numberOfLines={2}>{c.toListingTitle || t("offerFlow.listing", "Annuncio")}</Text>
+        <Text style={styles.cardMeta} numberOfLines={1}>
+          {c.lastBody || t("chat.noMessagesYet", "Nessun messaggio: inizia tu.")}
+        </Text>
       </TouchableOpacity>
     );
   };
@@ -337,7 +400,8 @@ export default function AttivitaScreen({ navigation }) {
   };
 
   const total = summary.toDo.length + summary.waiting.length + summary.resolved.length
-    + summary.found.length + summary.history.length + summary.expired.length;
+    + summary.found.length + summary.history.length + summary.expired.length
+    + (summary.chats?.length || 0);
 
   if (loading && total === 0) {
     return (
@@ -385,6 +449,17 @@ export default function AttivitaScreen({ navigation }) {
         <Section title={t("activity.sectionResolved", "Esito delle tue proposte")} count={summary.resolved.length} urgent
           hint={t("activity.sectionResolvedHint", "Novità: una tua proposta ha ricevuto risposta.")}>
           {summary.resolved.map(renderResolved)}
+        </Section>
+      ) : null}
+
+      {summary.chats?.length ? (
+        <Section
+          title={t("activity.sectionChats", "Chat")}
+          count={(summary.chats || []).reduce((n, c) => n + (c.unreadCount || 0), 0)}
+          urgent
+          hint={t("activity.sectionChatsHint", "Organizza qui lo scambio con l'altra persona.")}
+        >
+          {summary.chats.map(renderChat)}
         </Section>
       ) : null}
 
@@ -459,6 +534,7 @@ const styles = StyleSheet.create({
 
   linkRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10 },
   linkText: { color: theme.colors.accent, fontWeight: "800" },
+  chatTeaser: { color: theme.colors.textMuted, fontSize: 12, marginTop: 8, fontStyle: "italic" },
 
   skel: { backgroundColor: theme.colors.border },
 });
