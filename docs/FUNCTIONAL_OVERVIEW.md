@@ -77,7 +77,7 @@ TravelSwapAi_Rep/
 - Profilo utente (`ProfileScreen`, ~550 righe) con modifica dati (`EditProfileScreen`) su tabella `profiles`.
 
 ### 3.2 Navigazione principale (bottom tabs)
-1. **Home / Annunci** — lista annunci pubblici attivi (esclusi i propri), filtro per tipo (tutti / hotel / treno), badge TrustScore, icone per tipologia, CTA per fare offerte, pulizia automatica del prezzo dal titolo.
+1. **Home / Annunci** — lista annunci pubblici attivi (esclusi i propri), filtro per tipo (tutti / hotel / treno) preselezionato in base alle preferenze di profilo se impostate, annunci della località preferita in evidenza, badge TrustScore, icone per tipologia, CTA per fare offerte, pulizia automatica del prezzo dal titolo.
 2. **Offerte** — offerte in entrata e in uscita, con accettazione/rifiuto/cancellazione.
 3. **Matching** — schermata più complessa (~880 righe): ricalcolo on-demand dei match AI via backend, visualizzazione con score, spiegazione e flag di reciprocità (match bidirezionale).
 4. **Profilo** — dati utente, i propri annunci, impostazioni lingua (`LanguageSwitcher`).
@@ -115,7 +115,7 @@ Meccanica (`ai/score.js`, `models/matches.js`):
 - Prompt con regole vincolanti: reciprocità CERCO/VENDO + stessa tratta/giorno ⇒ `bidirectional: true`.
 - Determinismo: temperature 0, ordinamento stabile, seed derivato dall'userId, normalizzazione/dedup/clamping dell'output.
 - Esecuzione parallela con **pool di concorrenza configurabile** (default 4) e retry con backoff su timeout/5xx.
-- **Fallback euristico deterministico** (`heuristicScore`: base 60, +15 tipo preferito, +10 prezzo entro budget, +10 località) — collegato in `recomputeMatches`: se l'AI non risponde (timeout/chiave mancante/schema invalido) lo sostituisce, invece di lasciare l'utente senza match.
+- **Fallback euristico deterministico** (`heuristicScore`, ramo reale con l'annuncio sorgente `fromListing`: base 35, +15 stesso tipo, +20 complementare CERCO/VENDO, +20 stessa tratta/località, ≥90 se tutte e tre, più bonus per scambio reale VENDO↔VENDO) — collegato in `recomputeMatches`: se l'AI non risponde (timeout/chiave mancante/schema invalido) lo sostituisce, invece di lasciare l'utente senza match. Esiste anche un ramo "legacy" basato su `profiles.prefs`, ma non viene mai raggiunto in produzione (`recomputeMatches` passa sempre un annuncio sorgente) — vedi `docs/IMPROVEMENTS.md` §D4.
 - Persistenza su tabella `matches` (upsert su `from_listing_id,to_listing_id`) e snapshot JSON su `match_snapshots`, con **skip dello snapshot se identico al precedente**.
 - Esiste anche una variante SQL-first (`fn_user_top_matches` RPC) alternativa al calcolo JS.
 
@@ -275,7 +275,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 ### P2 — Qualità e prodotto
 
-16. ✅ **Test e CI presenti** — `server/test/` (91 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
+16. ✅ **Test e CI presenti** — `server/test/` (94 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
 17. ✅ **Codice morto/duplicato rimosso** — vedi P1.15; route `parseTwo` consolidata in `ai/descriptionParse.js` (vedi §4.3).
 18. ✅ **Migrazioni DB versionate** — vedi P0.7.
 19. **TypeScript** — il tsconfig c'è ma il codice è ancora tutto JS; una migrazione graduale (prima `lib/`, poi screens) resta da fare.

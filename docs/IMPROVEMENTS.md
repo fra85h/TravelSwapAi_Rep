@@ -107,7 +107,11 @@ Analisi di mercato con simulazione sintetica (300 utenti, 10 run): il matching r
 ### D4. Onboarding con preferenze — ✅ FATTO
 Implementato: `screens/PreferencesOnboardingScreen.js` + `lib/preferences.js`. Mostrata **una sola volta per account**, subito dopo la registrazione (o al primo login se non era mai stata vista) — non ad ogni avvio: il segnale è `profiles.prefs.onboarded`, assente finché l'utente non salva o salta. Renderizzata fuori dallo Stack Navigator (nessuna nuova route da gestire), come passaggio intermedio tra login e `MainTabs`.
 
-Raccoglie esattamente i 3 campi già letti dal matcher euristico esistente (`server/src/ai/score.js`: `prefs.types`/`prefs.maxPrice`/`prefs.location`) — **zero modifiche al backend/DB**, la colonna `profiles.prefs` (jsonb) esisteva già mai popolata in modo guidato. "Salta per ora" scrive comunque `{onboarded:true}` per non ripresentare il prompt ad ogni avvio, senza impostare preferenze funzionali (comportamento del matching invariato per chi salta).
+Raccoglie gli stessi 3 campi che il matcher euristico *legacy* leggerebbe (`server/src/ai/score.js`: `prefs.types`/`prefs.maxPrice`/`prefs.location`) — **zero modifiche al backend/DB**, la colonna `profiles.prefs` (jsonb) esisteva già mai popolata in modo guidato.
+
+⚠️ **Scoperto e corretto in una sessione successiva**: quel ramo euristico non viene mai raggiunto in produzione — `recomputeMatches` passa sempre un annuncio sorgente (`fromListing`), quindi il matcher usa sempre l'altro ramo (basato sull'annuncio pubblicato, non sul profilo), e `getUserProfile` lato server non selezionava nemmeno la colonna `profiles.prefs` dal DB. Le preferenze restavano quindi salvate ma inerti. Anziché ricollegarle al matching duplicando un segnale che l'annuncio pubblicato fornisce già meglio (tipo/tratta/budget reali, rischio di confonderlo con un budget più vecchio o vago), ora personalizzano **Esplora** (`HomeScreen.js`): tab preselezionato in base al tipo preferito, annunci della zona preferita in cima alla lista — il matching resta interamente basato sull'annuncio pubblicato dall'utente. Box informativo onesto aggiunto nella pagina preferenze che spiega questo utilizzo reale.
+
+"Salta per ora" scrive comunque `{onboarded:true}` per non ripresentare il prompt ad ogni avvio, senza impostare preferenze funzionali.
 
 Tradotto interamente in it/en/es dall'inizio (12 chiavi nuove in `prefsOnboarding.*`, parità verificata).
 

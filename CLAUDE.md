@@ -20,7 +20,7 @@ treno e prenotazioni hotel non utilizzati. Monorepo con due progetti:
 
 | Cosa | Comando |
 |---|---|
-| Test backend | `cd server && node --test` (91 test, devono passare tutti) |
+| Test backend | `cd server && node --test` (94 test, devono passare tutti) |
 | Syntax check file server | `node --check <file>` |
 | Parse-check file RN (JSX) | `node -e "require('@babel/parser').parse(require('fs').readFileSync('<file>','utf8'),{sourceType:'module',plugins:['jsx']})"` |
 | Parità traduzioni it/en/es | vedi script sotto |
