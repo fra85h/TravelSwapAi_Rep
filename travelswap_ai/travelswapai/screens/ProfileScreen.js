@@ -29,34 +29,9 @@ import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { formatMoney } from "../lib/number";
+import { STATUS_COLORS, normStatusKey, isConcludedStatus } from "../lib/listingStatus";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
-
-// Colori per stato annuncio: prima tutti i badge erano grigi identici, così
-// lo stato si leggeva solo parola per parola. Un minimo di colore permette la
-// scansione a colpo d'occhio (verde=attivo, rosso=scaduto, ambra=in trattativa…).
-const STATUS_COLORS = {
-  active:   { bg: "#DCFCE7", border: "#86EFAC", fg: "#166534" },
-  swapped:  { bg: "#E0E7FF", border: "#A5B4FC", fg: "#3730A3" },
-  sold:     { bg: "#DBEAFE", border: "#93C5FD", fg: "#1E40AF" },
-  reserved: { bg: "#FEF3C7", border: "#FCD34D", fg: "#92400E" },
-  pending:  { bg: "#FEF3C7", border: "#FCD34D", fg: "#92400E" },
-  paused:   { bg: "#F3F4F6", border: "#D1D5DB", fg: "#4B5563" },
-  expired:  { bg: "#FEE2E2", border: "#FCA5A5", fg: "#991B1B" },
-};
-
-// Normalizza lo stato grezzo del DB (con i suoi alias) in una chiave canonica,
-// usata sia per il colore del badge sia per la chiave i18n listing.state.*.
-function normStatusKey(status) {
-  const s = String(status || "").toLowerCase();
-  if (["swapped", "traded", "exchanged"].includes(s)) return "swapped";
-  if (["pending", "review"].includes(s)) return "pending";
-  if (s === "sold") return "sold";
-  if (s === "reserved") return "reserved";
-  if (s === "expired") return "expired";
-  if (s === "paused") return "paused";
-  return "active"; // default e stringa vuota
-}
 
 function StatItem({ label, icon, value, active, onPress }) {
   return (
@@ -386,7 +361,7 @@ export default function ProfileScreen() {
     { key: "swapped", icon: "🔁", label: t("listing.filters.swapped", "Scambiati") },
     { key: "sold", icon: "💰", label: t("listing.filters.sold", "Venduti") },
     { key: "reserved", icon: "🔒", label: t("listing.filters.reserved", "Riservati") },
-    { key: "pending", icon: "🕑", label: t("listing.filters.pending", "Proposte in corso") },
+    { key: "pending", icon: "🕑", label: t("listing.filters.pending", "In trattativa") },
     { key: "paused", icon: "⏸️", label: t("listing.filters.paused", "In pausa") },
     { key: "expired", icon: "⛔️", label: t("listing.filters.expired", "Scaduti") },
   ];
@@ -599,7 +574,12 @@ export default function ProfileScreen() {
                 onPress: () => toggleStatus(actionSheetItem),
               }]
             : []),
-          { label: t("common.edit", "Modifica"), onPress: () => onEdit(actionSheetItem) },
+          // Venduto/scambiato: transazione conclusa, annuncio non più
+          // modificabile (prima "Modifica" restava sempre visibile anche su
+          // questi stati, mentre "Pausa/Riattiva" sopra li esclude già).
+          ...(!isConcludedStatus(actionSheetItem.status)
+            ? [{ label: t("common.edit", "Modifica"), onPress: () => onEdit(actionSheetItem) }]
+            : []),
           { label: t("common.delete", "Elimina"), destructive: true, onPress: () => onDeleteConfirm(actionSheetItem) },
         ] : []}
       />

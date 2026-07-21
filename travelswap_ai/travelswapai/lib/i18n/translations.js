@@ -307,7 +307,7 @@ export const translations = {
         swapped: "Scambiati",
         sold: "Venduti",
         reserved: "Riservati",
-        pending: "Proposte in corso",
+        pending: "In trattativa",
         paused: "In pausa",
         expired: "Scaduti",
       },
@@ -606,6 +606,8 @@ export const translations = {
       saveError: "Impossibile salvare le modifiche.",
       savedTitle: "Modifiche salvate",
       savedMsg: "L'annuncio è stato aggiornato.",
+      concludedTitle: "Annuncio non modificabile",
+      concludedMsg: "Questo annuncio è già venduto o scambiato: la transazione è conclusa e non può più essere modificata.",
     },
 
     // --- Offerte ---
@@ -1252,7 +1254,7 @@ export const translations = {
         swapped: "Swapped",
         sold: "Sold",
         reserved: "Reserved",
-        pending: "Offers in progress",
+        pending: "Under negotiation",
         paused: "Paused",
         expired: "Expired",
       },
@@ -1539,6 +1541,8 @@ export const translations = {
       saveError: "Unable to save changes.",
       savedTitle: "Changes saved",
       savedMsg: "The listing has been updated.",
+      concludedTitle: "Listing not editable",
+      concludedMsg: "This listing has already been sold or swapped: the deal is closed and it can no longer be edited.",
     },
 
     offers: {
@@ -2177,7 +2181,7 @@ export const translations = {
         swapped: "Intercambiados",
         sold: "Vendidos",
         reserved: "Reservados",
-        pending: "Propuestas en curso",
+        pending: "En negociación",
         paused: "En pausa",
         expired: "Caducados",
       },
@@ -2473,6 +2477,8 @@ export const translations = {
       saveError: "No se pudieron guardar los cambios.",
       savedTitle: "Cambios guardados",
       savedMsg: "El anuncio se ha actualizado.",
+      concludedTitle: "Anuncio no editable",
+      concludedMsg: "Este anuncio ya se ha vendido o intercambiado: la transacción está cerrada y ya no se puede modificar.",
     },
 
     offers: {
