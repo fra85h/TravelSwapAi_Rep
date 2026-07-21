@@ -23,6 +23,7 @@ import { useListingTranslation } from "../lib/useListingTranslation";
 import { usePriceCheck } from "../lib/usePriceCheck";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { normStatusKey, isConcludedStatus } from "../lib/listingStatus";
+import TrustBadges from "../components/TrustBadges";
 
 /* ========= Utils ========= */
 
@@ -473,6 +474,7 @@ useEffect(() => {
                 <Text style={[styles.sellerName, { color: textColor }]} numberOfLines={1}>
                   {sellerName || "—"}
                 </Text>
+                <TrustBadges emailVerified={seller?.email_verified} salesCount={sellerSalesCount} />
                 {sellerSince ? (
                   <Text style={styles.sellerMeta} numberOfLines={1}>{L.sellerSince(sellerSince)}</Text>
                 ) : null}
