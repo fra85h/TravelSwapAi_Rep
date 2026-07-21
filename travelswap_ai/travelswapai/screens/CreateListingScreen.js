@@ -22,9 +22,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useI18n } from "../lib/i18n";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+// API legacy: readAsStringAsync per la lettura base64 su nativo (la nuova
+// File API di SDK 54 non serve qui; su web si passa da FileReader).
+import * as FileSystem from "expo-file-system/legacy";
 import DateField from "../components/DateField";
 import DateTimeField from "../components/DateTimeField";
-import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI parser (server-side)
+import { parseListingFromTextAI, parseListingFromPdfAI } from "../lib/descriptionParser"; // OpenAI parser (server-side)
 import { Image } from "react-native";
 import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 import { parseLocalizedNumber } from "../lib/number";
@@ -1861,6 +1865,85 @@ const initialJsonRef = useRef(null);
     }
   };
 
+  // Import da PDF del biglietto (assist anti-bagarinaggio): l'AI legge il
+  // documento, precompila i campi e — punto chiave — il prezzo estratto è il
+  // prezzo REALE pagato: finisce nel campo "prezzo di acquisto" (il tetto di
+  // vendita). Se l'utente aveva dichiarato un prezzo di acquisto diverso da
+  // quello del documento, la discrepanza viene segnalata. È un assist, non
+  // una prova di autenticità: il PDF resta falsificabile, il vincolo duro è
+  // il CHECK a DB (price <= purchase_price).
+  const handlePdfImport = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: "application/pdf",
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (res?.canceled) return;
+      const asset = res?.assets?.[0];
+      if (!asset?.uri) return;
+
+      setImportBusy(true);
+
+      let b64 = null;
+      if (Platform.OS === "web") {
+        if (asset.file) {
+          b64 = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(String(fr.result).split(",")[1] || null);
+            fr.onerror = reject;
+            fr.readAsDataURL(asset.file);
+          });
+        } else if (String(asset.uri).startsWith("data:")) {
+          b64 = String(asset.uri).split(",")[1] || null;
+        }
+      } else {
+        b64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: "base64" });
+      }
+      if (!b64) throw new Error("read failed");
+
+      // prezzo di acquisto dichiarato PRIMA dell'import: serve al confronto
+      const declared = parseLocalizedNumber(String(form.purchasePrice || "").trim());
+
+      const parsed = await parseListingFromPdfAI(b64, locale);
+      applyImportedData(parsed);
+
+      // Una conferma/biglietto reale è sempre un bene da vendere (mai CERCO)
+      const patch = { cercoVendo: "VENDO" };
+      const pdfPrice = parsed?.price != null ? Number(String(parsed.price).replace(",", ".")) : NaN;
+      if (Number.isFinite(pdfPrice) && pdfPrice > 0) {
+        patch.purchasePrice = String(pdfPrice);
+      }
+      update(patch);
+      closeImport();
+
+      if (Number.isFinite(pdfPrice) && pdfPrice > 0 && Number.isFinite(declared) && declared !== pdfPrice) {
+        Alert.alert(
+          t("createListing.pdfPriceMismatchTitle", "Prezzo diverso dal documento"),
+          t("createListing.pdfPriceMismatchMsg", "Nel PDF risulta un prezzo pagato di {pdf}€, ma avevi dichiarato {declared}€. Ho aggiornato il prezzo di acquisto col valore del documento.", { pdf: pdfPrice, declared })
+        );
+      } else {
+        const provider = String(parsed?.provider || "").trim();
+        Alert.alert(
+          t("createListing.aiImportTitle", "AI Import"),
+          provider
+            ? t("createListing.aiImportFromTextWithProvider", "Dati importati dalla conferma. Fornitore rilevato: {provider}.", { provider })
+            : t("createListing.aiImportFromPdf", "Dati importati dal PDF del biglietto.")
+        );
+      }
+      goToSlide(2);
+    } catch (e) {
+      Alert.alert(
+        t("common.error", "Errore"),
+        e?.message?.includes?.("413") || /troppo grande/i.test(String(e?.message || ""))
+          ? t("createListing.pdfTooLarge", "PDF troppo grande (max ~6MB).")
+          : t("createListing.pdfImportError", "Impossibile leggere il PDF. Riprova o compila i campi a mano.")
+      );
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
@@ -2569,6 +2652,15 @@ const initialJsonRef = useRef(null);
             <TouchableOpacity onPress={requestQrPermissionAndOpen} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
               <Text style={[styles.sheetBtnText, { color: "#fff" }]}>{t("createListing.scanQr", "Scansiona QR")}</Text>
             </TouchableOpacity>
+
+            <View style={{ height: 8 }} />
+
+            <TouchableOpacity onPress={handlePdfImport} disabled={importBusy} style={[styles.sheetBtn, styles.sheetBtnGhost, importBusy && { opacity: 0.6 }]}>
+              {importBusy ? <ActivityIndicator /> : <Text style={styles.sheetBtnText}>{t("createListing.importFromPdf", "Importa PDF del biglietto")}</Text>}
+            </TouchableOpacity>
+            <Text style={styles.note}>
+              {t("createListing.importFromPdfHint", "L'AI legge il documento e usa il prezzo pagato come prezzo di acquisto (tetto di vendita).")}
+            </Text>
 
             <View style={{ height: 10 }} />
             <Text style={styles.label}>{t("createListing.orEnterPnr", "Oppure inserisci PNR")}</Text>

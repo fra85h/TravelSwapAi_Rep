@@ -112,7 +112,43 @@ export async function parseListingFromTextAI(text, locale = "it") {
       body: JSON.stringify(body),
       headers: { "Content-Type": "application/json" },
     });
+    return normalizeParsedPayload(res);
+  } catch (err) {
+    return emptyParsed();
+  }
+}
 
+/**
+ * Parsing AI di un PDF di biglietto/conferma (base64, senza prefisso data:).
+ * Stesso schema di risposta di parseListingFromTextAI. Il `price` estratto è
+ * il prezzo REALE pagato indicato nel documento: il chiamante lo usa per
+ * precompilare il prezzo di acquisto (assist anti-bagarinaggio).
+ * A differenza del parser testuale, qui l'errore viene PROPAGATO (non
+ * inghiottito): se il PDF non si può leggere l'utente deve saperlo, non
+ * ritrovarsi un form silenziosamente vuoto.
+ */
+export async function parseListingFromPdfAI(pdfBase64, locale = "it") {
+  const res = await fetchJson("/ai/parse-ticket-pdf", {
+    method: "POST",
+    body: JSON.stringify({ pdfBase64, locale }),
+    headers: { "Content-Type": "application/json" },
+    // il modello deve leggere l'intero documento: più lento del testo
+    timeoutMs: 90000,
+  });
+  return normalizeParsedPayload(res);
+}
+
+function emptyParsed() {
+  return {
+    type: null, title: null, location: null,
+    checkIn: null, checkOut: null,
+    departAt: null, arriveAt: null,
+    isNamedTicket: null, gender: null, pnr: null, price: null, imageUrl: null,
+    provider: null, cercoVendo: null,
+  };
+}
+
+function normalizeParsedPayload(res) {
     // Se fetchJson già fa throw su 4xx/5xx, qui arriviamo solo con res valido.
     // In alcuni progetti fetchJson ritorna { ok, data }. In altri ritorna direttamente il payload.
     const payload = res?.data ?? res ?? {};
@@ -163,14 +199,4 @@ const isNamedTicketRaw = pick(payload, "isNamedTicket", "is_named_ticket");
       provider: provider ?? null,
       cercoVendo,
     };
-  } catch (err) {
-    // In errore: ritorna oggetto vuoto ma con chiavi previste (evita crash nel caller)
-    return {
-      type: null, title: null, location: null,
-      checkIn: null, checkOut: null,
-      departAt: null, arriveAt: null,
-      isNamedTicket: null, gender: null, pnr: null, price: null, imageUrl: null,
-      provider: null, cercoVendo: null,
-    };
-  }
 }

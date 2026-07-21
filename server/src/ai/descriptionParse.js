@@ -295,6 +295,78 @@ export async function parseDescriptionWithAI(text, locale = "it") {
   }
 }
 
+// ---- Import da PDF (biglietto/conferma) — assist anti-bagarinaggio ----
+// Stesso schema/prompt del parser testuale: il PDF viene passato direttamente
+// al modello come input_file (niente estrazione testo locale, nessuna
+// dipendenza in più). L'esito è un ASSIST, non un giudizio di autenticità:
+// un PDF si può falsificare, quindi il prezzo estratto precompila il campo
+// "prezzo di acquisto" e segnala le discrepanze, ma il vincolo duro resta
+// il CHECK a DB (price <= purchase_price).
+// Tetto dimensione: un biglietto reale pesa pochi KB–2MB; oltre è sospetto
+// e costoso. 6MB binari ≈ 8M caratteri base64.
+const MAX_PDF_BASE64_CHARS = 8_000_000;
+
+export async function parseTicketPdfWithAI(pdfBase64, locale = "it") {
+  if (!client) throw new Error("OPENAI_API_KEY non configurata sul server");
+
+  const b64 = String(pdfBase64 ?? "").trim();
+  if (!b64) return { ...EMPTY };
+  if (b64.length > MAX_PDF_BASE64_CHARS) {
+    const err = new Error("PDF troppo grande (max ~6MB)");
+    err.status = 413;
+    throw err;
+  }
+
+  const today = nowIsoMinutes();
+
+  const resp = await client.responses.create({
+    model: MODEL,
+    temperature: TEMPERATURE,
+    input: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text:
+              `Oggi è: ${today}\n` +
+              `Lingua: ${locale}\n` +
+              `Il documento allegato è un biglietto o una conferma di prenotazione. ` +
+              `Estrai i campi dal documento. Il "price" è il prezzo effettivamente pagato indicato nel documento. ` +
+              `Rispondi SOLO con JSON conforme allo schema.`,
+          },
+          {
+            type: "input_file",
+            filename: "ticket.pdf",
+            file_data: `data:application/pdf;base64,${b64}`,
+          },
+        ],
+      },
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "ParsedListing",
+        strict: true,
+        schema: JSON_SCHEMA
+      },
+    },
+  });
+
+  const out =
+    resp?.output_text ||
+    resp?.output?.[0]?.content?.[0]?.text ||
+    "";
+
+  try {
+    return sanitizeParsed(JSON.parse(out || "{}") || {});
+  } catch {
+    console.warn("[AI] JSON parse PDF fallita, ritorno EMPTY. Raw:", out?.slice?.(0, 200));
+    return { ...EMPTY };
+  }
+}
+
 // Route HTTP
 export function mountParseDescriptionRoute(app, requireAuth) {
   app.post("/ai/parse-description", requireAuth, async (req, res) => {
@@ -306,6 +378,21 @@ export function mountParseDescriptionRoute(app, requireAuth) {
     } catch (err) {
       console.error("[/ai/parse-description] error:", err);
       // Per resilienza UI: niente 500; restituisco ok:true + EMPTY
+      return res.json({ ok: true, data: { ...EMPTY } });
+    }
+  });
+
+  app.post("/ai/parse-ticket-pdf", requireAuth, async (req, res) => {
+    console.log("[DEV] POST /ai/parse-ticket-pdf");
+    try {
+      const { pdfBase64, locale = "it" } = req.body || {};
+      const data = await parseTicketPdfWithAI(pdfBase64, locale);
+      return res.json({ ok: true, data });
+    } catch (err) {
+      console.error("[/ai/parse-ticket-pdf] error:", err?.message || err);
+      // Il 413 (PDF troppo grande) è un errore d'uso: va mostrato all'utente,
+      // non mascherato con EMPTY come i fallimenti del modello.
+      if (err?.status === 413) return res.status(413).json({ ok: false, error: err.message });
       return res.json({ ok: true, data: { ...EMPTY } });
     }
   });
