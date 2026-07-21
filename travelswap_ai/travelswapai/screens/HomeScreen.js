@@ -52,6 +52,16 @@ function isTopPick(p) {
   return (p.bidirectional === true && p.score >= 80) || (p.bidirectional === false && p.score >= 90);
 }
 
+// Data breve per la card ("24 lug"), senza dover aprire il dettaglio.
+function formatShortDate(iso, locale) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(locale || undefined, { day: "2-digit", month: "short" });
+  } catch {
+    return "";
+  }
+}
+
 // Estrae i migliori suggerimenti AI dallo snapshot backend, in modo
 // tollerante alla forma della risposta (come fa MatchingScreen). Best
 // effort: se manca o è malformato, la striscia "Per te" resta nascosta.
@@ -346,15 +356,23 @@ export default function HomeScreen() {
           new Date(item.created_at).toLocaleDateString(locale || undefined)
         : null;
 
+    // Date del viaggio/soggiorno, visibili in card senza dover aprire il
+    // dettaglio: prima comparivano solo tratta+tipo, mai le date effettive.
+    const dateLine = typeLc === "hotel"
+      ? [formatShortDate(item.check_in, locale), formatShortDate(item.check_out, locale)].filter(Boolean).join(" → ")
+      : formatShortDate(item.depart_at, locale);
+
     return (
       <TouchableOpacity
         onPress={() => navigation.navigate("ListingDetail", { id: item.id })}
         activeOpacity={0.8}
         style={styles.card}
       >
-        {/* Titolo con icona tipo (in alto a sx) */}
+        {/* Titolo con icona tipo (in alto a sx); "tuo annuncio" ridotto a
+            pill accanto al salva (prima riga intera sotto il titolo) e
+            tratta+prezzo sulla stessa riga per guadagnare spazio verticale. */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", flexShrink: 1, marginRight: 8 }}>
             {typeLc === "train" ? (
               <Ionicons name="train-outline" size={18} color={theme.colors.boardingText} style={{ marginRight: 6 }} />
             ) : typeLc === "hotel" ? (
@@ -364,22 +382,28 @@ export default function HomeScreen() {
               {stripPriceFromTitle(item.title) || tt("listing.untitled", "Senza titolo")}
             </Text>
           </View>
-          <SaveButton listingId={item.id} size={22} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            {isMine ? (
+              <View style={styles.mineBadge}>
+                <Text style={styles.mineBadgeText} numberOfLines={1}>{tt("listing.yourListingBadge", "È un tuo annuncio")}</Text>
+              </View>
+            ) : null}
+            <SaveButton listingId={item.id} size={22} />
+          </View>
         </View>
 
-        {isMine ? (
-          <Text style={styles.mineTag}>{tt("listing.yourListingBadge", "È un tuo annuncio")}</Text>
-        ) : null}
-
-        <Text style={styles.cardSub}>
-          {typeLabel} • {item.location || item.route_from || "-"}
-        </Text>
-
-        {item.price != null && (
-          <Text style={styles.cardMeta}>
-            {formatMoney(item.price, item.currency)}
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Text style={[styles.cardSub, { flex: 1, flexShrink: 1, marginRight: 8 }]} numberOfLines={1}>
+            {typeLabel} • {item.location || item.route_from || "-"}
           </Text>
-        )}
+          {item.price != null ? (
+            <Text style={styles.cardMeta} numberOfLines={1}>
+              {formatMoney(item.price, item.currency)}
+            </Text>
+          ) : null}
+        </View>
+
+        {dateLine ? <Text style={styles.cardDates}>{dateLine}</Text> : null}
 
         {published ? (
           <Text style={styles.cardPublished}>{published}</Text>
@@ -621,20 +645,23 @@ const styles = StyleSheet.create({
     padding: 14, backgroundColor: theme.colors.surface, ...theme.shadow.sm,
   },
   cardTitle: { fontWeight: "800", color: theme.colors.boardingText },
-  mineTag: {
-    alignSelf: "flex-start",
-    marginTop: 6,
-    paddingHorizontal: 8,
+  // Pill piccola accanto al salva (prima riga intera sotto il titolo):
+  // guadagna una riga di spazio verticale nella card.
+  mineBadge: {
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 999,
     backgroundColor: theme.colors.accentSoft,
+    maxWidth: 90,
+  },
+  mineBadgeText: {
     color: theme.colors.accent,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    overflow: "hidden",
   },
   cardSub: { color: theme.colors.textMuted, marginTop: 4 },
-  cardMeta: { color: theme.colors.text, marginTop: 6, fontWeight: "600" },
+  cardMeta: { color: theme.colors.text, fontWeight: "600" },
+  cardDates: { color: theme.colors.textMuted, marginTop: 4, fontSize: 12, fontWeight: "600" },
   cardPublished: { color: theme.colors.textMuted, marginTop: 8, fontSize: 12 },
   errorBox: { flex: 1, alignItems: "center", justifyContent: "center", padding: 16, backgroundColor: theme.colors.background },
   error: { color: theme.colors.danger, marginBottom: 8, textAlign: "center" },
