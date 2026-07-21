@@ -202,22 +202,44 @@ export async function getPublicProfile(userId) {
   return data || null;
 }
 
+// Un annuncio 'active' con la data del viaggio/soggiorno già passata non è
+// più azionabile (nessuno può comprare un biglietto per un treno già
+// partito): va escluso dalle liste pubbliche anche se lo status in DB non è
+// ancora stato aggiornato a 'expired' (la scadenza è lazy, vedi RPC
+// expire_my_stale_listings — questo filtro è la difesa lato lettura,
+// indipendente da quando/se quella RPC gira).
+function excludeExpiredByDate(q) {
+  const nowIso = new Date().toISOString();
+  const today = new Date().toISOString().slice(0, 10);
+  return q.or(
+    `and(type.eq.train,depart_at.gte.${nowIso}),and(type.eq.hotel,check_in.gte.${today})`
+  );
+}
+
 /** Annunci attivi di uno specifico venditore (per il profilo pubblico) */
 export async function listSellerActiveListings(ownerId, { limit = 50 } = {}) {
   if (!ownerId) return [];
-  const { data, error } = await supabase
+  let q = supabase
     .from("listings")
     .select(LISTING_PUBLIC_COLUMNS)
     .eq("user_id", ownerId)
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(limit);
+  q = excludeExpiredByDate(q);
+  const { data, error } = await q;
   if (error) throw error;
   return data || [];
 }
 
-/** Lista annunci pubblici (status=active). Se loggato, esclude i miei */
-export async function listPublicListings({ limit = 50, excludeMine = true } = {}) {
+/**
+ * Lista annunci pubblici (status=active, data non ancora passata). Se
+ * loggato, esclude i miei. `before` (created_at ISO dell'ultimo elemento già
+ * caricato) abilita la paginazione a cursore: senza, la Esplora restava
+ * fissa a un campione dei soli ultimi `limit` annunci di tutta la
+ * piattaforma, senza alcun modo di vedere oltre.
+ */
+export async function listPublicListings({ limit = 50, excludeMine = true, before } = {}) {
   const me = await getCurrentUser().catch(() => null);
   let q = supabase
     .from("listings")
@@ -225,8 +247,10 @@ export async function listPublicListings({ limit = 50, excludeMine = true } = {}
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(limit);
+  q = excludeExpiredByDate(q);
 
   if (excludeMine && me?.id) q = q.neq("user_id", me.id);
+  if (before) q = q.lt("created_at", before);
   const { data, error } = await q;
   if (error) throw error;
   return data || [];

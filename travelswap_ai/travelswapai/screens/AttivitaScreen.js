@@ -10,7 +10,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useActivity, notifyActivityChanged } from "../lib/ActivityContext";
-import { acceptOffer, declineOffer, cancelOffer } from "../lib/offers";
+import { acceptOffer, declineOffer, cancelOffer, markMyResolvedOffersSeen } from "../lib/offers";
 import { markMatchSeen } from "../lib/savedSearches";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
@@ -91,7 +91,15 @@ export default function AttivitaScreen({ navigation }) {
   // azione su A prima che la prima risposta fosse arrivata.
   const [busyIds, setBusyIds] = useState(() => new Set());
 
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  // L'ordine conta: prima refresh() legge le proposte risolte non ancora
+  // viste (per mostrarle in questa visita), SOLO DOPO le marchiamo viste —
+  // al contrario sparirebbero prima ancora di essere mostrate.
+  useFocusEffect(useCallback(() => {
+    (async () => {
+      await refresh();
+      markMyResolvedOffersSeen().catch(() => {});
+    })();
+  }, [refresh]));
 
   const setBusy = useCallback((id, isBusy) => {
     setBusyIds((prev) => {
@@ -262,6 +270,23 @@ export default function AttivitaScreen({ navigation }) {
     );
   };
 
+  // Esito di una proposta INVIATA appena risolta: prima non c'era alcun
+  // segnale per il proponente quando l'altra parte accettava o rifiutava,
+  // il flusso si fermava lì. Sparisce da qui alla prossima apertura di
+  // Attività (markMyResolvedOffersSeen la marca vista, vedi useFocusEffect).
+  const renderResolved = (it) => {
+    const o = it.data;
+    const accepted = String(o.status || "").toLowerCase() === "accepted";
+    return (
+      <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(o.to_listing?.id)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={o.to_listing?.title || t("offerFlow.listing", "Annuncio")}>
+        <KickerRow icon={accepted ? "checkmark-circle-outline" : "close-circle-outline"} color={accepted ? "#166534" : "#991B1B"}>
+          {accepted ? t("activity.offerWasAccepted", "La tua proposta è stata accettata") : t("activity.offerWasDeclined", "La tua proposta è stata rifiutata")}
+        </KickerRow>
+        <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
+      </TouchableOpacity>
+    );
+  };
+
   const renderFound = (it) => {
     const m = it.data;
     return (
@@ -295,7 +320,24 @@ export default function AttivitaScreen({ navigation }) {
     );
   };
 
-  const total = summary.toDo.length + summary.waiting.length + summary.found.length + summary.history.length;
+  // Proposta (ricevuta o inviata) scaduta senza risposta in tempo: prima
+  // spariva semplicemente da Attività senza lasciare traccia, come se non
+  // fosse mai esistita.
+  const renderExpired = (it) => {
+    const o = it.data;
+    const isIncoming = it.kind === "offer_in_expired";
+    return (
+      <TouchableOpacity key={it.id} style={[styles.card, { opacity: 0.75 }]} onPress={() => goListing(o.to_listing?.id)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={o.to_listing?.title || t("offerFlow.listing", "Annuncio")}>
+        <KickerRow icon="time-outline">
+          {isIncoming ? t("activity.offerExpiredReceived", "Proposta ricevuta scaduta") : t("activity.offerExpiredSent", "Proposta inviata scaduta")}
+        </KickerRow>
+        <Text style={styles.cardTitle} numberOfLines={2}>{o.to_listing?.title || t("offerFlow.listing", "Annuncio")}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const total = summary.toDo.length + summary.waiting.length + summary.resolved.length
+    + summary.found.length + summary.history.length + summary.expired.length;
 
   if (loading && total === 0) {
     return (
@@ -339,6 +381,13 @@ export default function AttivitaScreen({ navigation }) {
         </Section>
       ) : null}
 
+      {summary.resolved.length ? (
+        <Section title={t("activity.sectionResolved", "Esito delle tue proposte")} count={summary.resolved.length} urgent
+          hint={t("activity.sectionResolvedHint", "Novità: una tua proposta ha ricevuto risposta.")}>
+          {summary.resolved.map(renderResolved)}
+        </Section>
+      ) : null}
+
       {summary.found.length ? (
         <Section title={t("activity.sectionFound", "Trovati per te")} count={summary.found.length}
           hint={t("activity.sectionFoundHint", "Annunci nuovi che soddisfano i tuoi avvisi.")}>
@@ -349,6 +398,13 @@ export default function AttivitaScreen({ navigation }) {
       {summary.history.length ? (
         <Section title={t("activity.sectionHistory", "Storico")} count={summary.history.length}>
           {summary.history.map(renderHistory)}
+        </Section>
+      ) : null}
+
+      {summary.expired.length ? (
+        <Section title={t("activity.sectionExpired", "Scadute")} count={summary.expired.length}
+          hint={t("activity.sectionExpiredHint", "Proposte senza risposta in tempo.")}>
+          {summary.expired.map(renderExpired)}
         </Section>
       ) : null}
     </ScrollView>

@@ -128,6 +128,14 @@ export default function ProfileScreen() {
     setLoading(true);
     setError(null);
     try {
+      // Scadenza pigra: un annuncio 'active' con la data del viaggio/soggiorno
+      // ormai passata diventa 'expired' qui, al primo posto in cui l'utente
+      // guarda i propri annunci — nel progetto non esiste un cron (solo
+      // migration manuali), stesso pattern già usato per le offerte pending
+      // scadute (list_incoming_offers_any/list_outgoing_offers_any). Best
+      // effort: se l'RPC non esiste ancora (migration non applicata) o fallisce,
+      // la lista si carica comunque con lo stato precedente.
+      await supabase.rpc("expire_my_stale_listings").catch(() => {});
       const data = await listMyListings();
       // Gli annunci eliminati (stato terminale `deleted`) non compaiono più:
       // "Elimina" è definitivo, niente più "Rendi attivo" su di essi.
@@ -270,6 +278,16 @@ export default function ProfileScreen() {
       <Text style={styles.listCardSub} numberOfLines={1}>
         {item.location || item.route_from || "—"}
       </Text>
+
+      {/* Annuncio scaduto: invito a sistemare le date (torna 'active' da solo
+          al salvataggio se sono di nuovo nel futuro, vedi CreateListingScreen)
+          o a crearne uno nuovo — senza questo l'utente vedeva solo il badge
+          "Scaduto" senza sapere cosa fare. */}
+      {String(item.status || "").toLowerCase() === "expired" ? (
+        <Text style={{ color: theme.colors.danger, marginTop: 6, fontSize: 12, fontWeight: "600" }}>
+          {t("listing.expiredHint", "Le date sono passate: modifica l'annuncio per aggiornarle e rimetterlo online, oppure creane uno nuovo.")}
+        </Text>
+      ) : null}
 
       {/* Prezzo su riga separata */}
       {"price" in item && item.price != null && (

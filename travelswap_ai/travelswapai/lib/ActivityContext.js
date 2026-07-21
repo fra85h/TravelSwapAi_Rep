@@ -5,7 +5,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { loadActivity } from "./activity";
 
-const EMPTY = { toDo: [], waiting: [], found: [], history: [] };
+const EMPTY = { toDo: [], waiting: [], resolved: [], found: [], history: [], expired: [] };
 
 // Canale per le schermate FUORI dal provider (Scambi a 3, invio proposta:
 // vivono nello Stack radice, non dentro i tab): dopo un'azione che cambia
@@ -30,6 +30,7 @@ export function subscribeDataChanged(fn) {
 const ActivityContext = createContext({
   summary: EMPTY,
   toDoCount: 0,
+  resolvedCount: 0,
   loading: true,
   refresh: () => {},
 });
@@ -41,7 +42,7 @@ export function ActivityProvider({ children }) {
   const refresh = useCallback(async () => {
     try {
       const s = await loadActivity();
-      setSummary({ toDo: s.toDo, waiting: s.waiting, found: s.found, history: s.history });
+      setSummary({ toDo: s.toDo, waiting: s.waiting, resolved: s.resolved, found: s.found, history: s.history, expired: s.expired });
     } catch (e) {
       if (__DEV__) console.log("[Activity] refresh error", e?.message || e);
     } finally {
@@ -58,7 +59,7 @@ export function ActivityProvider({ children }) {
 
   return (
     <ActivityContext.Provider
-      value={{ summary, toDoCount: summary.toDo.length, loading, refresh }}
+      value={{ summary, toDoCount: summary.toDo.length, resolvedCount: summary.resolved.length, loading, refresh }}
     >
       {children}
     </ActivityContext.Provider>

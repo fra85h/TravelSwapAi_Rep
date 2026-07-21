@@ -668,6 +668,7 @@ const initialJsonRef = useRef(null);
           // il PNR non è in listings: si legge dal segreto (solo owner)
           const secretPnr = await getListingSecret(route.params.listingId).catch(() => null);
           if (!cancelled && l) {
+            originalStatusRef.current = l.status || null;
             const [locFrom, locTo] = splitRoute(l.location);
             setForm((prev) => ({
               ...prev,
@@ -813,6 +814,17 @@ const initialJsonRef = useRef(null);
   // l'ultima verifica, quella verifica non le ha mai viste. Questo flag forza
   // un nuovo Check AI prima di salvare, solo quando le foto sono cambiate.
   const [photosDirtySinceCheck, setPhotosDirtySinceCheck] = useState(false);
+
+  // Solo in CREAZIONE: se il Check AI è già stato eseguito ma poi si modifica
+  // un campo testuale rilevante (titolo, descrizione, tratta/data, prezzo…),
+  // il punteggio calcolato non riflette più il contenuto reale. In modifica
+  // resta intenzionalmente escluso (vedi commento sopra su photosDirtySinceCheck):
+  // qui invece prima non c'era ALCUN controllo sul testo, solo sulle foto.
+  const lastCheckedContentRef = useRef(null);
+  // Stato originale dell'annuncio in modifica: serve solo per sapere se era
+  // 'expired' — se lo era e le nuove date sono di nuovo nel futuro, il
+  // salvataggio lo rimette 'active' in automatico (vedi onPublishOrSave).
+  const originalStatusRef = useRef(passedListing?.status || null);
 
   const editListingId = mode === "edit" ? (passedListing?.id || listingId) : null;
   const totalPhotoCount = existingPhotos.length + pendingPhotos.length;
@@ -1077,13 +1089,38 @@ const initialJsonRef = useRef(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, t, update, logStep, clearLogSoon]);
 
-  /* ---------- CHECK AI (solo verifica: non modifica MAI il form) ---------- */
+  // Sottoinsieme testuale del form (nessuna foto) usato per capire se il
+  // contenuto è cambiato dall'ultimo Check AI — le foto hanno il loro flag
+  // dedicato, photosDirtySinceCheck, perché sono valutate solo lì.
+  const buildContentSnapshot = useCallback(() => {
+    const isTrain = form?.type === "train";
+    return {
+      type: form?.type,
+      cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
+      title: form.title,
+      description: form.description,
+      origin: isTrain ? (String(form.routeFrom || "").trim() || null) : null,
+      destination: isTrain ? (String(form.routeTo || "").trim() || null) : null,
+      location: !isTrain ? (String(form.location || "").trim() || null) : null,
+      checkIn: !isTrain ? (form.checkIn || null) : null,
+      checkOut: !isTrain ? (form.checkOut || null) : null,
+      departAt: isTrain ? (form.departAt || null) : null,
+      arriveAt: isTrain ? (form.arriveAt || null) : null,
+      price: form.price ? parseLocalizedNumber(form.price) : null,
+    };
+  }, [form]);
+
+  /* ---------- CHECK AI (solo verifica: non modifica MAI il form) ----------
+     Ritorna il risultato del TrustScore (truthy) se la verifica è andata a
+     buon fine, null se è stata saltata (rate limit) o è fallita: onPublishOrSave
+     la richiama in automatico e usa questo esito per decidere se può
+     procedere alla pubblicazione. */
   const onTrustCheck = useCallback(async () => {
     const now = Date.now();
     if (now - lastTrustRunAt < 10_000) {
       const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
       Alert.alert(t("createListing.trustCheckWaitTitle", "Attendi un attimo"), t("createListing.trustCheckWaitMsg", `Puoi rilanciare la verifica tra ~${secs}s.`, { secs }));
-      return;
+      return null;
     }
 
     try {
@@ -1163,19 +1200,23 @@ const initialJsonRef = useRef(null);
       logStep(t("createListing.checkAi.logDone", "Fatto."), 100);
       setLastTrustRunAt(Date.now()); // <-- mark that Check AI has been run
       setPhotosDirtySinceCheck(false); // le foto correnti sono state appena valutate
+      lastCheckedContentRef.current = JSON.stringify(buildContentSnapshot());
       clearLogSoon();
       if (!res && trustError) {
         Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), trustError);
+        return null;
       }
+      return res;
     } catch (err) {
       logStep(t("createListing.checkAi.logError", "Errore durante il Check AI."), 100);
       clearLogSoon();
       Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), t("createListing.trustScoreGenericError", "Qualcosa è andato storto durante la verifica."));
+      return null;
     } finally {
       setLoadingAI(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, lastTrustRunAt, trustError, evaluate, logStep, clearLogSoon, passedListing?.id, listingId, pendingPhotos, existingPhotos, t, locale]);
+  }, [form, lastTrustRunAt, trustError, evaluate, logStep, clearLogSoon, passedListing?.id, listingId, pendingPhotos, existingPhotos, t, locale, buildContentSnapshot]);
 
   const applyAllTrustFixes = () => {
     try {
@@ -1406,23 +1447,40 @@ const initialJsonRef = useRef(null);
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
-    // Regola: richiedi Check AI prima di pubblicare (sempre in creazione, o se
-    // non ancora fatto; in entrambe le modalità anche se le foto sono
-    // cambiate dall'ultima verifica — altrimenti si potrebbe eseguire il
-    // Check AI, poi sostituire le foto con altre mai valutate e pubblicare
-    // comunque, portandosi dietro un trustScore calcolato su foto diverse da
-    // quelle pubblicate. Correggere testo/prezzo in modifica non richiede
-    // invece di rilanciare tutto il Check AI.
+    // Il Check AI deve sempre riflettere il contenuto che si sta per
+    // pubblicare (sempre in creazione, o se non ancora fatto; in entrambe le
+    // modalità anche se le foto sono cambiate dall'ultima verifica —
+    // altrimenti si potrebbe verificare, poi sostituire le foto con altre mai
+    // valutate e pubblicare comunque un trustScore calcolato su foto diverse
+    // da quelle pubblicate. Correggere testo/prezzo in modifica non richiede
+    // invece di rilanciare tutto il Check AI, vedi commento su
+    // photosDirtySinceCheck. In creazione conta anche il testo
+    // (contentDirtySinceCheck): senza, un Check AI fatto su una bozza e mai
+    // ripetuto dopo aver riscritto titolo/descrizione restava "valido" per
+    // sempre.
     const hasRunCheckAI = lastTrustRunAt > 0;
-    const needsCheckAI = mode !== "edit" ? (!hasRunCheckAI || photosDirtySinceCheck) : photosDirtySinceCheck;
+    const contentDirtySinceCheck =
+      mode !== "edit" && hasRunCheckAI &&
+      JSON.stringify(buildContentSnapshot()) !== lastCheckedContentRef.current;
+    const needsCheckAI = mode !== "edit"
+      ? (!hasRunCheckAI || photosDirtySinceCheck || contentDirtySinceCheck)
+      : photosDirtySinceCheck;
+
+    // Invece di bloccare con un Alert che rimanda a un bottone "Check AI" a
+    // parte (due bottoni, non ovvio quale premere prima prima di pubblicare),
+    // lo eseguiamo qui in automatico e in modo trasparente: stesso micro-log
+    // di un check manuale. Se fallisce (rete, o rate limit di 10s tra due
+    // check) blocchiamo comunque la pubblicazione: mai un annuncio mai
+    // verificato.
     if (needsCheckAI) {
-      Alert.alert(
-        t("createListing.checkAiRequiredTitle", "Esegui prima il Check AI"),
-        (mode === "edit" || (hasRunCheckAI && photosDirtySinceCheck))
-          ? t("createListing.checkAiRequiredPhotosMsg", "Hai cambiato le foto: esegui prima il 'Check AI' per verificarle prima di salvare.")
-          : t("createListing.checkAiRequiredMsg", "Per pubblicare l’annuncio, devi prima eseguire il 'Check AI' per una verifica rapida dei dati.")
-      );
-      return;
+      const checkRes = await onTrustCheck();
+      if (!checkRes) {
+        Alert.alert(
+          t("createListing.checkAiAutoFailedTitle", "Verifica non riuscita"),
+          t("createListing.checkAiAutoFailedMsg", "Non sono riuscito a completare automaticamente la verifica AI. Riprova tra qualche secondo.")
+        );
+        return;
+      }
     }
 
     const validationErrors = computeErrors();
@@ -1493,6 +1551,19 @@ const initialJsonRef = useRef(null);
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
         : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt, pnr: form.pnr || null, route_from: routeFrom, route_to: routeTo };
+
+      // Riattivazione automatica: un annuncio 'expired' con le date ora
+      // corrette (di nuovo nel futuro) torna 'active' da solo al salvataggio
+      // — stessa reversibilità già prevista per 'paused'. Il toggle rapido
+      // pausa/riprendi di ProfileScreen esclude apposta 'expired' (non può
+      // sapere se le date sono state sistemate): il ripristino passa sempre
+      // da qui, modificando le date.
+      if (mode === "edit" && String(originalStatusRef.current || "").toLowerCase() === "expired") {
+        const stillInFuture = form?.type === "hotel"
+          ? (() => { const d = parseISODate(normalizeDateStr(form.checkIn)); return !!d && d >= new Date(new Date().toDateString()); })()
+          : (() => { const d = parseISODateTime(form.departAt); return !!d && d >= new Date(); })();
+        if (stillInFuture) payload.status = "active";
+      }
 
       if (mode === "edit") {
         const res = await updateListing(idForUpdate, payload);

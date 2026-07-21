@@ -43,7 +43,11 @@ function VendiButton() {
 
 function MainTabsInner() {
   const { t } = useI18n();
-  const { toDoCount } = useActivity();
+  const { toDoCount, resolvedCount } = useActivity();
+  // Numeretto rosso = cose da fare + esiti non ancora visti delle proprie
+  // proposte (accettata/rifiutata): prima solo il "da fare" contava, chi
+  // proponeva un'offerta non aveva alcun segnale quando riceveva risposta.
+  const badgeCount = toDoCount + resolvedCount;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -79,7 +83,7 @@ function MainTabsInner() {
           component={AttivitaScreen}
           options={{
             tabBarLabel: t("tabs.activity", "Attività"),
-            tabBarBadge: toDoCount > 0 ? toDoCount : undefined,
+            tabBarBadge: badgeCount > 0 ? badgeCount : undefined,
             tabBarBadgeStyle: { backgroundColor: theme.colors.danger },
             tabBarIcon: ({ color, size, focused }) => (
               <Ionicons name={focused ? "notifications" : "notifications-outline"} color={color} size={size} />

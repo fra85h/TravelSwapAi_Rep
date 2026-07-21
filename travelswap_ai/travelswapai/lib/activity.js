@@ -13,12 +13,27 @@ function isPending(status) {
   return s === "pending" || s === "in_review";
 }
 
+function isExpiredOffer(status) {
+  return String(status || "").toLowerCase() === "expired";
+}
+
+// accepted/declined: la controparte ha risposto. "resolved" tiene solo le
+// proposte INVIATE (outgoing) non ancora viste dal proponente
+// (seenByProposer) — prima non esisteva alcun segnale per chi propone: se
+// accettata o rifiutata, il flusso si fermava lì senza alcuna notifica.
+function isResolvedOffer(status) {
+  const s = String(status || "").toLowerCase();
+  return s === "accepted" || s === "declined";
+}
+
 /**
- * Ritorna le quattro sezioni della casella Attività:
- *  - toDo:    richiede una tua azione (proposte ricevute, catene da confermare)
- *  - waiting: in attesa degli altri (proposte inviate, catene già confermate)
- *  - found:   annunci trovati dai tuoi avvisi di ricerca
- *  - history: scambi/vendite conclusi
+ * Ritorna le sezioni della casella Attività:
+ *  - toDo:     richiede una tua azione (proposte ricevute, catene da confermare)
+ *  - waiting:  in attesa degli altri (proposte inviate ancora pending, catene già confermate)
+ *  - resolved: proposte INVIATE appena accettate/rifiutate, non ancora viste
+ *  - found:    annunci trovati dai tuoi avvisi di ricerca
+ *  - history:  scambi/vendite conclusi
+ *  - expired:  proposte (ricevute o inviate) scadute senza risposta
  */
 export async function loadActivity() {
   const [incoming, outgoing, chains, matches, tx] = await Promise.all([
@@ -45,6 +60,11 @@ export async function loadActivity() {
     waiting.push({ kind: "chain_waiting", id: "cw_" + c.id, sort: c.created_at, data: c })
   );
 
+  const resolved = [];
+  outgoing.filter((o) => isResolvedOffer(o.status) && o.seenByProposer === false).forEach((o) =>
+    resolved.push({ kind: "offer_out_resolved", id: "oor_" + o.id, sort: o.updated_at || o.created_at, data: o })
+  );
+
   const found = matches.map((m) => ({
     kind: "match", id: "m_" + m.id, sort: m.matched_at, data: m,
   }));
@@ -53,8 +73,20 @@ export async function loadActivity() {
     kind: "tx", id: "t_" + t.id, sort: t.created_at, data: t,
   }));
 
-  const byNewest = (a, b) => new Date(b.sort || 0) - new Date(a.sort || 0);
-  [toDo, waiting, found, history].forEach((arr) => arr.sort(byNewest));
+  const expired = [];
+  incoming.filter((o) => isExpiredOffer(o.status)).forEach((o) =>
+    expired.push({ kind: "offer_in_expired", id: "oie_" + o.id, sort: o.updated_at || o.created_at, data: o })
+  );
+  outgoing.filter((o) => isExpiredOffer(o.status)).forEach((o) =>
+    expired.push({ kind: "offer_out_expired", id: "ooe_" + o.id, sort: o.updated_at || o.created_at, data: o })
+  );
 
-  return { toDo, waiting, found, history, toDoCount: toDo.length };
+  const byNewest = (a, b) => new Date(b.sort || 0) - new Date(a.sort || 0);
+  [toDo, waiting, resolved, found, history, expired].forEach((arr) => arr.sort(byNewest));
+
+  return {
+    toDo, waiting, resolved, found, history, expired,
+    toDoCount: toDo.length,
+    resolvedCount: resolved.length,
+  };
 }
