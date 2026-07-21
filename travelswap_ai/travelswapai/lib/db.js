@@ -182,7 +182,7 @@ export async function getMyProfile() {
  * (leggibile da chiunque) ma NON protegge le colonne — leggere `phone`/
  * `email`/`*` esporrebbe dati sensibili di un altro utente. Mai farlo qui.
  */
-const PUBLIC_PROFILE_COLUMNS = "id, full_name, username, avatar_url, bio, created_at, counters";
+const PUBLIC_PROFILE_COLUMNS = "id, full_name, username, avatar_url, bio, created_at, counters, email_verified";
 export async function getPublicProfile(userId) {
   if (!userId) return null;
   // Preferisci la vista `public_profiles` (espone SOLO colonne pubbliche a

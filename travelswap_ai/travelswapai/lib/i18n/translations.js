@@ -29,6 +29,8 @@ export const translations = {
     },
     trust: {
       scoreLabel: "Affidabilità",   // it
+      emailVerified: "Email verificata",
+      hasHistory: "Con storico ({n})",
     },
 
     // --- Tab bar / Sezioni ---
@@ -995,6 +997,8 @@ export const translations = {
     },
     trust: {
       scoreLabel: "Reliability",
+      emailVerified: "Email verified",
+      hasHistory: "With history ({n})",
     },
 
     tabs: {
@@ -2841,6 +2845,8 @@ export const translations = {
 
     trust: {
       scoreLabel: "Fiabilidad",
+      emailVerified: "Email verificado",
+      hasHistory: "Con historial ({n})",
     },
 
     errors: {

@@ -9,6 +9,7 @@ import { getPublicProfile, listSellerActiveListings } from "../lib/db.js";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import { stripPriceFromTitle } from "../lib/listingTitle";
+import TrustBadges from "../components/TrustBadges";
 
 export default function SellerProfileScreen() {
   const route = useRoute();
@@ -101,6 +102,7 @@ export default function SellerProfileScreen() {
           </View>
         )}
         <Text style={styles.name} numberOfLines={1}>{name}</Text>
+        <TrustBadges emailVerified={profile?.email_verified} salesCount={salesCount} />
         {since ? (
           <Text style={styles.meta}>{tt("sellerProfile.since", "Membro da {when}", { when: since })}</Text>
         ) : null}
