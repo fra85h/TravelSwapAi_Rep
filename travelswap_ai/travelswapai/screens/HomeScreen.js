@@ -1,6 +1,6 @@
 // screens/HomeScreen.js — Annunci pubblici (senza tab "Voli")
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView, Alert, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView, Alert, RefreshControl, ActivityIndicator } from "react-native";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { listPublicListings, listMyListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
@@ -80,6 +80,27 @@ function extractPicks(snap) {
     .slice(0, 6);
 }
 
+// Mappa listingId -> punteggio AI più alto trovato nello snapshot, SENZA il
+// filtro isTopPick/slice(6) di extractPicks: qui serve per riordinare l'intero
+// catalogo ("Altri annunci"), non solo la striscia dei migliori 6. Priorità
+// del prodotto: è l'app a portare in cima l'annuncio giusto, la ricerca
+// manuale resta solo un complemento (vedi tab/searchInput più sotto).
+function buildScoreMap(snap) {
+  const items = Array.isArray(snap) ? snap : (snap?.items || snap?.rows || snap?.data || []);
+  const map = new Map();
+  if (!Array.isArray(items)) return map;
+  for (const raw of items) {
+    const listingId = raw.listingId ?? raw.listing_id ?? raw.toId ?? raw.to_id ?? raw.id;
+    if (typeof listingId !== "string" || !UUID_RE.test(listingId)) continue;
+    const score = Number(raw.score ?? raw.score_pct ?? 0) || 0;
+    const prev = map.get(listingId);
+    if (prev === undefined || score > prev) map.set(listingId, score);
+  }
+  return map;
+}
+
+const PAGE_SIZE = 30;
+
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -94,9 +115,18 @@ export default function HomeScreen() {
   const [me, setMe] = useState(null);
   const [query, setQuery] = useState("");
   const [picks, setPicks] = useState([]);
+  // Punteggio AI per listingId, per l'intero catalogo (non solo i 6 top
+  // pick): usato per riordinare "Altri annunci" mettendo in cima ciò che
+  // l'AI ritiene più in linea con l'utente.
+  const [scoreMap, setScoreMap] = useState(() => new Map());
   // true quando lo snapshot AI ha finito di caricare (successo o errore):
   // serve a non far lampeggiare l'empty state "Per te" durante il fetch.
   const [picksReady, setPicksReady] = useState(false);
+  // Paginazione a cursore: prima Esplora caricava un campione fisso degli
+  // ultimi 100 annunci senza alcun modo di vederne altri. hasMore=false
+  // quando l'ultima pagina ricevuta è più corta di PAGE_SIZE.
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   // Conteggio dedicato (non derivato da items, che è solo un campione degli
   // ultimi 100 annunci di TUTTA la piattaforma): con abbastanza annunci
   // altrui, un proprio annuncio più vecchio poteva restare fuori dal
@@ -138,16 +168,18 @@ export default function HomeScreen() {
       setError(null);
       const [u, data] = await Promise.all([
         getCurrentUser().catch(() => null),
-        listPublicListings({ limit: 100, excludeMine: false }),
+        listPublicListings({ limit: PAGE_SIZE, excludeMine: false }),
       ]);
       setMe(u);
-      setItems(Array.isArray(data) ? data : []);
+      const rows = Array.isArray(data) ? data : [];
+      setItems(rows);
+      setHasMore(rows.length === PAGE_SIZE);
       // Suggerimenti AI: best effort, non bloccano la lista se falliscono
       if (u?.id) {
         setPicksReady(false);
         getUserSnapshot(u.id)
-          .then((snap) => setPicks(extractPicks(snap)))
-          .catch(() => setPicks([]))
+          .then((snap) => { setPicks(extractPicks(snap)); setScoreMap(buildScoreMap(snap)); })
+          .catch(() => { setPicks([]); setScoreMap(new Map()); })
           .finally(() => setPicksReady(true));
         listMyListings({ status: "active" })
           .then((mine) => setMyActiveCount(Array.isArray(mine) ? mine.length : 0))
@@ -167,6 +199,7 @@ export default function HomeScreen() {
       } else {
         setMyActiveCount(0);
         setPicks([]);
+        setScoreMap(new Map());
         setPicksReady(true);
         setPrefs(null);
       }
@@ -176,6 +209,25 @@ export default function HomeScreen() {
       setLoading(false);
     }
   }, []);
+
+  // Pagina successiva del catalogo, a cursore (created_at dell'ultimo
+  // elemento già in lista): risolve il limite fisso di prima, che non aveva
+  // alcun modo di andare oltre il campione iniziale.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || loading) return;
+    const last = items[items.length - 1];
+    if (!last?.created_at) { setHasMore(false); return; }
+    setLoadingMore(true);
+    try {
+      const more = await listPublicListings({ limit: PAGE_SIZE, excludeMine: false, before: last.created_at });
+      setHasMore(more.length === PAGE_SIZE);
+      if (more.length) setItems((prev) => [...prev, ...more]);
+    } catch {
+      // best effort: un errore di rete sul "carica altri" non deve rompere la lista già mostrata
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [items, loadingMore, hasMore, loading]);
 
   // Ricarica a ogni focus dello screen (non solo al mount): la bottom-tab
   // navigation lascia HomeScreen montato quando si passa ad altre tab, quindi
@@ -228,11 +280,22 @@ export default function HomeScreen() {
     // Località preferita salvata in profilo: gli annunci che la citano
     // salgono in cima (ordinamento soft, nessuno viene escluso).
     const prefLoc = normSearch(prefs?.location);
-    if (!prefLoc) return base;
-    const matchesPrefLoc = (x) =>
-      [x.location, x.route_from, x.route_to].some((s) => normSearch(s).includes(prefLoc));
-    return [...base].sort((a, b) => Number(matchesPrefLoc(b)) - Number(matchesPrefLoc(a)));
-  }, [items, tab, query, prefs]);
+    const matchesPrefLoc = prefLoc
+      ? (x) => [x.location, x.route_from, x.route_to].some((s) => normSearch(s).includes(prefLoc))
+      : () => false;
+
+    // Priorità del prodotto: è l'app a portare in cima l'annuncio giusto,
+    // non l'utente a doverlo cercare. Chi ha un punteggio AI (dallo
+    // snapshot "Per te") sale in cima ordinato per affinità decrescente;
+    // tra gli annunci senza punteggio, la località preferita resta un
+    // criterio soft secondario, poi l'ordine originale (created_at desc).
+    return [...base].sort((a, b) => {
+      const sa = scoreMap.has(a.id) ? scoreMap.get(a.id) : -1;
+      const sb = scoreMap.has(b.id) ? scoreMap.get(b.id) : -1;
+      if (sa !== sb) return sb - sa;
+      return Number(matchesPrefLoc(b)) - Number(matchesPrefLoc(a));
+    });
+  }, [items, tab, query, prefs, scoreMap]);
 
   const renderTabs = () => (
     <View style={styles.tabs}>
@@ -535,6 +598,11 @@ export default function HomeScreen() {
         ListEmptyComponent={EmptyState}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={loadingMore ? (
+          <ActivityIndicator style={{ marginVertical: 16 }} color={theme.colors.textMuted} />
+        ) : null}
       />
     </View>
   );

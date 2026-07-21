@@ -90,7 +90,22 @@ function normalizeOfferRow(row) {
     from_listing: row.from_listing_id
       ? { id: row.from_listing_id, title: row.from_listing_title }
       : null,
+    // Solo le proposte INVIATE (list_outgoing_offers_any) espongono questa
+    // colonna; per le ricevute resta undefined, innocuo (isResolvedOffer in
+    // lib/activity.js la usa solo lato outgoing).
+    seenByProposer: row.seen_by_proposer,
   };
+}
+
+/**
+ * Segna come "viste" le proprie proposte appena accettate/rifiutate — chiude
+ * il segnale che alimenta la sezione "Esito proposte" di Attività e il
+ * numeretto sul tab. Best effort: un fallimento (es. RPC non ancora
+ * applicata via migration) non deve bloccare la UI.
+ */
+export async function markMyResolvedOffersSeen() {
+  const { error } = await supabase.rpc("mark_my_resolved_offers_seen");
+  if (error) console.log("[markMyResolvedOffersSeen]", error.message);
 }
 
 // Finestra di validità di una proposta pending prima di scadere da sola
