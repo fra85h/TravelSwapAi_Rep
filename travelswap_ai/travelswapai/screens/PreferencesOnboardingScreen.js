@@ -43,7 +43,12 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
         if (!alive || !prefs) return;
         setTypes(Array.isArray(prefs.types) ? prefs.types : []);
         setMaxPrice(prefs.maxPrice != null ? String(prefs.maxPrice) : "");
-        setLocation(prefs.location || "");
+        // Supporta più zone (locations[]) con fallback al vecchio singolo.
+        setLocation(
+          Array.isArray(prefs.locations) && prefs.locations.length
+            ? prefs.locations.join(", ")
+            : (prefs.location || "")
+        );
       })
       .finally(() => { if (alive) setLoadingPrefs(false); });
     return () => { alive = false; };
@@ -57,10 +62,18 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
     setSaving(true);
     try {
       const priceNum = parseLocalizedNumber(maxPrice) ?? NaN;
+      // Più zone/tratte separate da virgola → array. Manteniamo anche
+      // `location` (la prima) per retrocompatibilità con chi legge il vecchio
+      // campo singolo (es. HomeScreen/score.js più vecchi).
+      const locations = location
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       await saveMyPrefs({
         types,
         maxPrice: Number.isFinite(priceNum) && priceNum > 0 ? priceNum : undefined,
-        location: location.trim() || undefined,
+        location: locations[0] || undefined,
+        locations: locations.length ? locations : undefined,
       });
       if (isEdit) {
         Alert.alert(t("prefsOnboarding.savedTitle", "Salvato"), t("prefsOnboarding.savedMsg", "Preferenze aggiornate."));
@@ -156,10 +169,13 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
           onChangeText={setLocation}
           placeholder={
             types.includes("train")
-              ? t("prefsOnboarding.locationPlaceholderTrain", "Es. Milano Centrale → Roma Termini")
-              : t("prefsOnboarding.locationPlaceholder", "Es. Milano")
+              ? t("prefsOnboarding.locationPlaceholderTrain", "Es. Milano → Roma, Torino → Genova")
+              : t("prefsOnboarding.locationPlaceholder", "Es. Milano, Firenze")
           }
         />
+        <Text style={styles.fieldHint}>
+          {t("prefsOnboarding.locationsHint", "Puoi indicarne più di una separandole con la virgola: Esplora darà priorità a queste zone/tratte.")}
+        </Text>
 
         <Button
           title={t("prefsOnboarding.save", "Salva preferenze")}
@@ -205,6 +221,7 @@ const styles = StyleSheet.create({
   },
   infoBoxText: { flex: 1, color: theme.colors.textMuted, fontSize: 12.5, lineHeight: 18 },
   sectionLabel: { fontWeight: "700", color: theme.colors.text, marginBottom: 10 },
+  fieldHint: { color: theme.colors.textMuted, fontSize: 12, marginTop: -6, marginBottom: 8, lineHeight: 16 },
   typeRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
   typeChip: {
     flex: 1,

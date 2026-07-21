@@ -96,6 +96,9 @@ export async function insertListing(payload) {
     arrive_at: payload.type !== "hotel" ? normDate(payload.arrive_at) : null,
 
     price: payload.price ?? null,
+    // Prezzo di acquisto (anti-bagarinaggio): solo per un VENDO (un bene reale
+    // rivenduto). Un CERCO non ha un biglietto comprato, quindi resta null.
+    purchase_price: payload.cerco_vendo === "CERCO" ? null : (payload.purchase_price ?? null),
     currency: payload.currency ?? "EUR",
     status: payload.status || "active", // listing_status
   };
@@ -270,6 +273,64 @@ export async function listMyListings({ status, limit = 100 } = {}) {
   const { data, error } = await q;
   if (error) throw error;
   return data || [];
+}
+
+/**
+ * Cerca tra i PROPRI annunci attivi un possibile duplicato di quello che si
+ * sta per pubblicare. Ritorna { exact, similar }:
+ *  - exact:   stesso tipo, prezzo e (treno) tratta+partenza / (hotel)
+ *             località+check-in → pubblicazione da bloccare (stesso vincolo
+ *             lato DB, vedi trigger before_insert_listings_block_duplicate).
+ *  - similar: stesso tipo e stessa tratta/località ma qualche dettaglio
+ *             diverso (prezzo o data) → solo avviso, si può procedere.
+ * Best effort: in errore ritorna nessun duplicato (non blocca la pubblicazione
+ * per un problema di rete — il backstop DB resta comunque a difesa).
+ */
+export async function findMyDuplicateActiveListing(payload) {
+  try {
+    const me = await getCurrentUser().catch(() => null);
+    if (!me?.id) return { exact: null, similar: null };
+    const type = payload?.type;
+    if (type !== "train" && type !== "hotel") return { exact: null, similar: null };
+
+    const { data, error } = await supabase
+      .from("listings")
+      .select("id, title, type, location, route_from, route_to, depart_at, check_in, price, status")
+      .eq("user_id", me.id)
+      .eq("status", "active")
+      .eq("type", type);
+    if (error || !Array.isArray(data)) return { exact: null, similar: null };
+
+    const norm = (s) => String(s ?? "").trim().toLowerCase();
+    const sameDay = (a, b) => {
+      const da = a ? String(a).slice(0, 10) : "";
+      const db = b ? String(b).slice(0, 10) : "";
+      return !!da && da === db;
+    };
+    const samePrice = (a, b) => {
+      const na = a == null ? null : Number(a);
+      const nb = b == null ? null : Number(b);
+      if (na == null && nb == null) return true;
+      return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+    };
+
+    const sameRouteOrLoc = (l) =>
+      type === "train"
+        ? norm(l.route_from) === norm(payload.route_from) && norm(l.route_to) === norm(payload.route_to)
+        : norm(l.location) === norm(payload.location);
+    const sameDate = (l) =>
+      type === "train" ? sameDay(l.depart_at, payload.depart_at) : sameDay(l.check_in, payload.check_in);
+
+    let similar = null;
+    for (const l of data) {
+      if (!sameRouteOrLoc(l)) continue;
+      if (sameDate(l) && samePrice(l.price, payload.price)) return { exact: l, similar: null };
+      if (!similar) similar = l; // stessa tratta/località ma prezzo o data diversi
+    }
+    return { exact: null, similar };
+  } catch {
+    return { exact: null, similar: null };
+  }
 }
 
 export async function getOfferById(id) {

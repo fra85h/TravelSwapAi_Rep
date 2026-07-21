@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { insertListing, updateListing, getListingById, getListingSecret } from "../lib/db";
+import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing } from "../lib/db";
 import { recomputeAIAndSnapshot } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
@@ -465,6 +465,9 @@ export default function CreateListingScreen({
     pnr: "",
     description: "",
     price: "",
+    // Prezzo di acquisto (anti-bagarinaggio): quanto il venditore ha pagato il
+    // biglietto. Il prezzo di vendita non può superarlo (vedi computeErrors).
+    purchasePrice: "",
     // Scambio (B): solo per VENDO. Se attivo, l'utente dichiara cosa cerca in
     // cambio (tratta per treno, località per hotel) → l'AI abbina scambi reali.
     acceptsSwap: false,
@@ -682,6 +685,7 @@ const initialJsonRef = useRef(null);
               routeTo: l.route_to || locTo || "",
               description: l.description ?? prev.description,
               price: l.price != null ? String(l.price) : prev.price,
+              purchasePrice: l.purchase_price != null ? String(l.purchase_price) : (prev.purchasePrice || ""),
               checkIn: l.check_in || "",
               checkOut: l.check_out || "",
               // depart_at/arrive_at arrivano dal DB come timestamptz completi
@@ -1355,11 +1359,26 @@ const initialJsonRef = useRef(null);
       }
     }
     const priceStr = String(form.price || "").trim();
+    let priceNum = NaN;
     if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
     else {
-      const priceNum = parseLocalizedNumber(priceStr) ?? NaN;
+      priceNum = parseLocalizedNumber(priceStr) ?? NaN;
       if (!Number.isFinite(priceNum)) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
       else if (priceNum < 0) e.price = t("createListing.errors.priceNegative", "Il prezzo non può essere negativo.");
+    }
+
+    // Anti-bagarinaggio: il prezzo di vendita non può superare quello di
+    // acquisto (solo per un VENDO; per un CERCO il campo prezzo è il budget).
+    if (!isCerco) {
+      const purchStr = String(form.purchasePrice || "").trim();
+      if (purchStr) {
+        const purchNum = parseLocalizedNumber(purchStr) ?? NaN;
+        if (!Number.isFinite(purchNum)) e.purchasePrice = t("createListing.errors.purchaseInvalid", "Prezzo di acquisto non valido.");
+        else if (purchNum <= 0) e.purchasePrice = t("createListing.errors.purchaseNonPositive", "Il prezzo di acquisto deve essere maggiore di zero.");
+        else if (Number.isFinite(priceNum) && priceNum > purchNum) {
+          e.price = t("createListing.errors.priceAbovePurchase", "Il prezzo di vendita non può superare quello di acquisto ({purchase}€).", { purchase: purchNum });
+        }
+      }
     }
     return e;
   }, [form, t, mode]);
@@ -1507,6 +1526,46 @@ const initialJsonRef = useRef(null);
       );
       return;
     }
+
+    // Anti-duplicati (solo in creazione): un duplicato ESATTO di un proprio
+    // annuncio già attivo si blocca (stesso vincolo lato DB, vedi trigger
+    // before_insert_listings_block_duplicate); uno SIMILE (stessa tratta/
+    // località, altro prezzo o data) è solo un avviso — si può procedere.
+    if (mode !== "edit") {
+      const rf = String(form.routeFrom || "").trim();
+      const rt = String(form.routeTo || "").trim();
+      const probe = {
+        type: form?.type,
+        route_from: rf,
+        route_to: rt,
+        location: form?.type === "hotel" ? form.location.trim() : [rf, rt].filter(Boolean).join(" → "),
+        depart_at: form.departAt || null,
+        check_in: form.checkIn || null,
+        price: parseLocalizedNumber(form.price) ?? null,
+      };
+      const dup = await findMyDuplicateActiveListing(probe);
+      if (dup.exact) {
+        Alert.alert(
+          t("createListing.dupExactTitle", "Annuncio già pubblicato"),
+          t("createListing.dupExactMsg", "Hai già un annuncio attivo identico. Modifica o rimuovi quello esistente invece di pubblicarne un altro uguale.")
+        );
+        return;
+      }
+      if (dup.similar) {
+        const proceed = await new Promise((resolve) => {
+          Alert.alert(
+            t("createListing.dupSimilarTitle", "Annuncio simile già attivo"),
+            t("createListing.dupSimilarMsg", "Hai già un annuncio attivo molto simile. Vuoi pubblicarlo lo stesso?"),
+            [
+              { text: t("common.cancel", "Annulla"), style: "cancel", onPress: () => resolve(false) },
+              { text: t("createListing.dupPublishAnyway", "Pubblica comunque"), onPress: () => resolve(true) },
+            ]
+          );
+        });
+        if (!proceed) return;
+      }
+    }
+
     try {
       setPublishing(true);
       onSubmitStart();
@@ -1550,6 +1609,11 @@ const initialJsonRef = useRef(null);
         description: form.description.trim() || null,
         price: Number.isFinite(priceNum) ? priceNum : null,
         cerco_vendo: form.cercoVendo === "CERCO" ? "CERCO" : "VENDO",
+        // Anti-bagarinaggio: solo per un VENDO. In modifica va sempre passato
+        // (anche null) così svuotare il campo lo azzera davvero a DB.
+        purchase_price: form.cercoVendo === "CERCO"
+          ? null
+          : (parseLocalizedNumber(String(form.purchasePrice || "").trim()) ?? null),
         accepts_swap: acceptsSwap,
         swap_wanted: swapWanted,
         // In creazione: salva la reliability calcolata (chiave camelCase, la
@@ -1615,12 +1679,28 @@ const initialJsonRef = useRef(null);
       onDirtyChange(false);
       navigation.goBack();
     } catch (e) {
-      Alert.alert(
-        t("common.error", "Errore"),
-        mode === "edit"
-          ? t("editListing.saveError", "Impossibile salvare le modifiche.")
-          : t("createListing.publishError", "Impossibile pubblicare l’annuncio.")
-      );
+      // Backstop DB: duplicato (errcode 23505 dal trigger) o tetto prezzo
+      // (chk_price_le_purchase) — messaggi dedicati invece del generico.
+      const emsg = String(e?.message || "").toLowerCase();
+      const ecode = e?.code || e?.details || "";
+      if (emsg.includes("duplicate active listing") || ecode === "23505") {
+        Alert.alert(
+          t("createListing.dupExactTitle", "Annuncio già pubblicato"),
+          t("createListing.dupExactMsg", "Hai già un annuncio attivo identico. Modifica o rimuovi quello esistente invece di pubblicarne un altro uguale.")
+        );
+      } else if (emsg.includes("chk_price_le_purchase")) {
+        Alert.alert(
+          t("common.error", "Errore"),
+          t("createListing.errors.priceAbovePurchaseShort", "Il prezzo di vendita non può superare quello di acquisto.")
+        );
+      } else {
+        Alert.alert(
+          t("common.error", "Errore"),
+          mode === "edit"
+            ? t("editListing.saveError", "Impossibile salvare le modifiche.")
+            : t("createListing.publishError", "Impossibile pubblicare l’annuncio.")
+        );
+      }
     } finally {
       setPublishing(false);
       onSubmitEnd();
@@ -2263,6 +2343,26 @@ const initialJsonRef = useRef(null);
                       />
                       <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
                     </View>
+                  )}
+
+                  {/* Prezzo di acquisto (solo Vendo): anti-bagarinaggio. Il
+                      prezzo di vendita non potrà superarlo. */}
+                  {!isCerco && (
+                    <>
+                      <Text style={styles.label}>{t("createListing.purchasePrice", "Prezzo di acquisto (€)")}</Text>
+                      <TextInput
+                        value={String(form.purchasePrice)}
+                        onChangeText={(v) => update({ purchasePrice: v.replace(",", ".") })}
+                        placeholder={t("createListing.purchasePricePlaceholder", "Es. 90 — quanto l'hai pagato")}
+                        keyboardType="decimal-pad"
+                        style={[styles.input, errors.purchasePrice && styles.inputError]}
+                        placeholderTextColor={theme.colors.textMuted}
+                      />
+                      <Text style={styles.note}>
+                        {t("createListing.purchasePriceHint", "Per legge non puoi rivendere un biglietto sopra il prezzo pagato: lo useremo come tetto massimo di vendita.")}
+                      </Text>
+                      {!!errors.purchasePrice && <Text style={styles.errorText}>{errors.purchasePrice}</Text>}
+                    </>
                   )}
 
                   {/* Prezzo (Vendo) / Budget massimo (Cerco) */}
