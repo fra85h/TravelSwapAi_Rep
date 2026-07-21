@@ -22,6 +22,7 @@ import { useI18n } from "../lib/i18n";
 import { useListingTranslation } from "../lib/useListingTranslation";
 import { usePriceCheck } from "../lib/usePriceCheck";
 import { stripPriceFromTitle } from "../lib/listingTitle";
+import { normStatusKey, isConcludedStatus } from "../lib/listingStatus";
 
 /* ========= Utils ========= */
 
@@ -251,7 +252,12 @@ useEffect(() => {
   const arriveAt  = listing?.arrive_at  ?? listing?.arriveAt  ?? null;
   const createdAt = listing?.created_at ?? listing?.createdAt ?? null;
   const publishedAgo = timeAgoLocalized(createdAt, locale);
-  const isNewBadge   = (() => {
+  // Un annuncio concluso (venduto/scambiato) non è più "nuovo" in senso utile:
+  // prima il ribbon leggeva solo created_at<24h, quindi un annuncio venduto
+  // pubblicato di recente mostrava comunque "Nuovo", e uno più vecchio non
+  // mostrava alcuno stato — l'utente non capiva che la transazione era chiusa.
+  const concludedStatusKey = isConcludedStatus(listing?.status) ? normStatusKey(listing?.status) : null;
+  const isNewBadge = !concludedStatusKey && (() => {
     if (!createdAt) return false;
     const d = new Date(String(createdAt));
     if (isNaN(d.getTime())) return false;
@@ -371,7 +377,9 @@ useEffect(() => {
             <ImageCarousel images={images} height={220} />
           </View>
         ) : null}
-        {isOwner ? (
+        {/* Venduto/scambiato: transazione conclusa, non più modificabile
+            (stesso vincolo lato DB, vedi trigger before_update_listings_lock_terminal). */}
+        {isOwner && !concludedStatusKey ? (
           <TouchableOpacity
             onPress={() => navigation.navigate("CreateListing", { mode: "edit", listingId })}
             style={{ alignSelf: "flex-start", marginBottom: 12, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }}
@@ -382,7 +390,11 @@ useEffect(() => {
           </TouchableOpacity>
         ) : null}
         <View style={styles.headerCard}>
-          {isNewBadge ? (
+          {concludedStatusKey ? (
+            <View style={styles.ribbonWrap} pointerEvents="none">
+              <View style={styles.ribbon}><Text style={styles.ribbonText}>{tt(`listing.state.${concludedStatusKey}`, concludedStatusKey)}</Text></View>
+            </View>
+          ) : isNewBadge ? (
             <View style={styles.ribbonWrap} pointerEvents="none">
               <View style={styles.ribbon}><Text style={styles.ribbonText}>{tt("matching.new","Nuovo")}</Text></View>
             </View>

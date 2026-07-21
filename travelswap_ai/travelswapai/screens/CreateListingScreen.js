@@ -28,6 +28,7 @@ import { parseListingFromTextAI } from "../lib/descriptionParser"; // OpenAI par
 import { Image } from "react-native";
 import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 import { parseLocalizedNumber } from "../lib/number";
+import { isConcludedStatus } from "../lib/listingStatus";
 
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
@@ -1447,6 +1448,19 @@ const initialJsonRef = useRef(null);
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
+    // Venduto/scambiato: transazione conclusa, non più modificabile (stesso
+    // vincolo lato DB, vedi trigger before_update_listings_lock_terminal). Un
+    // ingresso qui è già anomalo (il bottone "Modifica" è nascosto per questi
+    // stati sia nel dettaglio annuncio sia nell'action sheet di Profilo), ma
+    // la route resta raggiungibile: blocco comunque il submit.
+    if (mode === "edit" && isConcludedStatus(originalStatusRef.current)) {
+      Alert.alert(
+        t("editListing.concludedTitle", "Annuncio non modificabile"),
+        t("editListing.concludedMsg", "Questo annuncio è già venduto o scambiato: la transazione è conclusa e non può più essere modificata.")
+      );
+      return;
+    }
+
     // Il Check AI deve sempre riflettere il contenuto che si sta per
     // pubblicare (sempre in creazione, o se non ancora fatto; in entrambe le
     // modalità anche se le foto sono cambiate dall'ultima verifica —
