@@ -110,7 +110,10 @@ export default function ProfileScreen() {
       // scadute (list_incoming_offers_any/list_outgoing_offers_any). Best
       // effort: se l'RPC non esiste ancora (migration non applicata) o fallisce,
       // la lista si carica comunque con lo stato precedente.
-      await supabase.rpc("expire_my_stale_listings").catch(() => {});
+      // NB: il builder di supabase-js è un "thenable" senza .catch —
+      // chiamarlo sopra il builder crashava la schermata Profilo sul web
+      // ("catch is not a function"): il best-effort va fatto con try/await.
+      try { await supabase.rpc("expire_my_stale_listings"); } catch {}
       const data = await listMyListings();
       // Gli annunci eliminati (stato terminale `deleted`) non compaiono più:
       // "Elimina" è definitivo, niente più "Rendi attivo" su di essi.
