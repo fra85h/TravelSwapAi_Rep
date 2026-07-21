@@ -535,15 +535,23 @@ export function heuristicScore(user, listings) {
   const maxPrice = Number.isFinite(Number(prefs.maxPrice))
     ? Number(prefs.maxPrice)
     : 1e9;
-  const loc = String(prefs.location || "").toLowerCase();
+  // Preferenze località/tratte: ora supporta PIÙ zone (prefs.locations[]),
+  // con retrocompatibilità sul vecchio singolo prefs.location. Ogni voce
+  // separata è confrontata sia con la località hotel sia con la tratta treno
+  // (route_from/route_to composta in location "A → B").
+  const prefLocs = (Array.isArray(prefs.locations) ? prefs.locations : [prefs.location])
+    .map((x) => String(x || "").trim().toLowerCase())
+    .filter(Boolean);
 
   return (listings || [])
     .map((l) => {
       let s = 60; // base
       if (l?.type && types.has(l.type)) s += 15;
       if (l?.price != null && Number(l.price) <= maxPrice) s += 10;
-      if (loc && String(l?.location || "").toLowerCase().includes(loc))
-        s += 10;
+      // Peso località alzato (10 → 15) e su più zone: le preferenze devono
+      // pesare di più nel far emergere in Esplora i risultati giusti.
+      const hay = String(l?.location || "").toLowerCase();
+      if (prefLocs.length && prefLocs.some((p) => hay.includes(p))) s += 15;
 
       // clamp & int
       s = Math.max(0, Math.min(100, Math.round(s)));

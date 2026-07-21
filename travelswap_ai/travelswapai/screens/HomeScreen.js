@@ -287,11 +287,15 @@ export default function HomeScreen() {
       return hay.includes(q);
     });
 
-    // Località preferita salvata in profilo: gli annunci che la citano
-    // salgono in cima (ordinamento soft, nessuno viene escluso).
-    const prefLoc = normSearch(prefs?.location);
-    const matchesPrefLoc = prefLoc
-      ? (x) => [x.location, x.route_from, x.route_to].some((s) => normSearch(s).includes(prefLoc))
+    // Località preferite salvate in profilo (una o più): gli annunci che le
+    // citano salgono in cima (ordinamento soft, nessuno viene escluso).
+    // Supporta il nuovo array locations[] con fallback al vecchio singolo.
+    const prefLocs = (Array.isArray(prefs?.locations) ? prefs.locations : [prefs?.location])
+      .map((s) => normSearch(s))
+      .filter(Boolean);
+    const matchesPrefLoc = prefLocs.length
+      ? (x) => [x.location, x.route_from, x.route_to]
+          .some((s) => { const n = normSearch(s); return n && prefLocs.some((p) => n.includes(p)); })
       : () => false;
 
     // Priorità del prodotto: è l'app a portare in cima l'annuncio giusto,
