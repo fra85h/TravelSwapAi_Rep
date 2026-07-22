@@ -196,6 +196,17 @@ export async function retractListing(listingId) {
   });
 }
 
+// Feature "Ping": segnala un proprio annuncio VENDO al proprietario di un
+// CERCO che sembra combaciare — niente offerta, niente chat, solo una
+// notifica con link diretto. Antispam lato server (una volta per coppia).
+export async function sendListingPing(fromListingId, toListingId) {
+  if (!fromListingId || !toListingId) return null;
+  return fetchJson(`/api/pings`, {
+    method: "POST",
+    body: { fromListingId, toListingId },
+  });
+}
+
 // Listings con filtro/ordinamento TrustScore
 export async function fetchListings({ minTrust, sort } = {}) {
   const qs = new URLSearchParams();

@@ -13,6 +13,7 @@ import { matchesRouter } from './routes/match.js';
 import { chainsRouter } from './routes/chains.js';
 import { savedSearchesRouter } from './routes/savedSearches.js';
 import { offersRouter } from './routes/offers.js';
+import { pingsRouter } from './routes/pings.js';
 
 // Parser / ingest / Messenger
 import { parseFacebookText } from './parsers/fbParser.js';
@@ -55,6 +56,7 @@ app.use('/api/matches', matchesRouter);
 app.use('/api/chains', chainsRouter);
 app.use('/api/saved-searches', savedSearchesRouter);
 app.use('/api/offers', offersRouter);
+app.use('/api/pings', pingsRouter);
 app.use('/api/fb-link', fbLinkRouter);
 app.use('/api/reports', reportsNotifyRouter);
 app.use('/api/notify', notifyRouter);

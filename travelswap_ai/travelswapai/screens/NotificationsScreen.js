@@ -21,6 +21,7 @@ const ICON = {
   offer_accepted: { name: "checkmark-circle-outline", color: theme.colors.success },
   offer_declined: { name: "close-circle-outline", color: theme.colors.danger },
   new_matches:    { name: "sparkles-outline", color: theme.colors.boardingText },
+  listing_ping:   { name: "flag-outline", color: theme.colors.accent },
 };
 
 function timeAgo(iso, t) {
@@ -82,6 +83,8 @@ export default function NotificationsScreen({ navigation }) {
       navigation.navigate("Matching");
     } else if (d.offerId != null) {
       navigation.navigate("OfferDetail", { id: d.offerId });
+    } else if (n.type === "listing_ping" && d.fromListingId) {
+      navigation.navigate("ListingDetail", { id: d.fromListingId });
     } else if (d.listingId) {
       navigation.navigate("ListingDetail", { id: d.listingId });
     }
