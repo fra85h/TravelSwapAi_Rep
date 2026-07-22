@@ -1434,7 +1434,7 @@ const initialJsonRef = useRef(null);
     }
     setSlideIndex(idx);
   };
-  const onNextPress = () => { setSubmitAttempted(true); goToSlide(Math.min(slideIndex + 1, 2)); };
+  const onNextPress = () => { setSubmitAttempted(true); goToSlide(Math.min(slideIndex + 1, 1)); };
   const onBackPress = () => goToSlide(Math.max(slideIndex - 1, 0));
   // Passa allo Step 2 (campi manuali) e, se richiesto, salta direttamente a
   // una slide precisa — usato dopo Import/Compila con AI per mostrare
@@ -1818,7 +1818,7 @@ const initialJsonRef = useRef(null);
       applyImportedData(data);
       closeImport();
       Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportSuccess", "Dati importati correttamente."));
-      goToManualStep(2);
+      goToManualStep(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.aiImportError", "Impossibile importare dal PNR."));
     } finally {
@@ -1854,7 +1854,7 @@ const initialJsonRef = useRef(null);
       setQrVisible(false);
       closeImport();
       Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportFromQr", "Dati importati dal QR."));
-      goToManualStep(2);
+      goToManualStep(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.qrImportError", "Import da QR non riuscito."));
     } finally {
@@ -1931,7 +1931,7 @@ const initialJsonRef = useRef(null);
           ? t("createListing.aiImportFromTextWithProvider", "Dati importati dalla conferma. Fornitore rilevato: {provider}.", { provider })
           : t("createListing.aiImportFromText", "Dati importati dalla conferma.")
       );
-      goToManualStep(2);
+      goToManualStep(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.confirmationImportError", "Impossibile leggere la conferma. Riprova o compila i campi a mano."));
     } finally {
@@ -2005,7 +2005,7 @@ const initialJsonRef = useRef(null);
             : t("createListing.aiImportFromPdf", "Dati importati dal PDF del biglietto.")
         );
       }
-      goToManualStep(2);
+      goToManualStep(1);
     } catch (e) {
       Alert.alert(
         t("common.error", "Errore"),
@@ -2239,7 +2239,7 @@ const initialJsonRef = useRef(null);
           {/* Tab numerati: navigazione libera, la validazione blocca solo
               in fase di pubblicazione (come già faceva onPublishOrSave). */}
           <View style={styles.stepRow}>
-            {[0, 1, 2].map((idx) => (
+            {[0, 1].map((idx) => (
               <React.Fragment key={idx}>
                 {idx > 0 && <View style={[styles.stepBar, slideIndex >= idx && styles.stepBarActive]} />}
                 <TouchableOpacity
@@ -2280,72 +2280,6 @@ const initialJsonRef = useRef(null);
             contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
           >
             {/* ===== SLIDE 1 ===== */}
-            <View style={[styles.slide, { width: sliderW }]}>
-              <View style={styles.slideCard}>
-                <ScrollView
-                  contentContainerStyle={{ paddingBottom: FOOTER_H + 40 }}
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  nestedScrollEnabled
-                >
-                  {/* Descrizione: spostata nella Schermata 1 (Step "intro"),
-                      subito sotto Titolo — è il testo che "Compila con AI"
-                      analizza, deve stare sulla stessa schermata del bottone
-                      che la usa, non su uno step raggiungibile solo dopo. */}
-
-                  {/* Foto */}
-                  <Text style={styles.label}>
-                    {t("createListing.photos", "Foto")} ({totalPhotoCount}/{MAX_PHOTOS})
-                  </Text>
-                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
-                    {existingPhotos.map((img) => (
-                      <View key={img.id} style={{ width: 72, height: 72 }}>
-                        <Image source={{ uri: img.url }} style={{ width: 72, height: 72, borderRadius: 10 }} />
-                        <TouchableOpacity
-                          onPress={() => removeExistingPhoto(img)}
-                          style={styles.photoRemoveBtn}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Text style={styles.photoRemoveText}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                    {pendingPhotos.map((a, idx) => (
-                      <View key={`${a.uri}-${idx}`} style={{ width: 72, height: 72 }}>
-                        <Image source={{ uri: a.uri }} style={{ width: 72, height: 72, borderRadius: 10 }} />
-                        <TouchableOpacity
-                          onPress={() => removePendingPhoto(idx)}
-                          style={styles.photoRemoveBtn}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <Text style={styles.photoRemoveText}>✕</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                    {totalPhotoCount < MAX_PHOTOS && (
-                    <TouchableOpacity
-                      onPress={pickPhotos}
-                      disabled={photoBusy}
-                      style={styles.photoAddBtn}
-                    >
-                      {photoBusy ? (
-                        <ActivityIndicator />
-                      ) : (
-                        <Text style={{ fontSize: 24, color: theme.colors.boardingText || "#111827" }}>＋</Text>
-                      )}
-                    </TouchableOpacity>
-                    )}
-                  </View>
-                  <Text style={styles.note}>
-                    {t("createListing.photosHint", `Massimo ${MAX_PHOTOS} foto reali: solo il biglietto (treno) o la stanza/prenotazione (hotel). Foto non pertinenti abbassano l'affidabilità.`, { n: MAX_PHOTOS })}
-                  </Text>
-
-                  <View style={{ height: 2 }} />
-                </ScrollView>
-              </View>
-            </View>
-
-            {/* ===== SLIDE 2 ===== */}
             <View style={[styles.slide, { width: sliderW }]}>
               <View style={styles.slideCard}>
                 <ScrollView
@@ -2455,12 +2389,61 @@ const initialJsonRef = useRef(null);
                     </>
                   )}
 
+                  {/* Foto: prima era una slide a sé (quasi vuota, solo per
+                      caricare al massimo 2 foto) — accorpata qui con
+                      Località/Date, così lo Step 2 passa da 3 pagine a 2. */}
+                  <Text style={styles.label}>
+                    {t("createListing.photos", "Foto")} ({totalPhotoCount}/{MAX_PHOTOS})
+                  </Text>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 }}>
+                    {existingPhotos.map((img) => (
+                      <View key={img.id} style={{ width: 72, height: 72 }}>
+                        <Image source={{ uri: img.url }} style={{ width: 72, height: 72, borderRadius: 10 }} />
+                        <TouchableOpacity
+                          onPress={() => removeExistingPhoto(img)}
+                          style={styles.photoRemoveBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={styles.photoRemoveText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    {pendingPhotos.map((a, idx) => (
+                      <View key={`${a.uri}-${idx}`} style={{ width: 72, height: 72 }}>
+                        <Image source={{ uri: a.uri }} style={{ width: 72, height: 72, borderRadius: 10 }} />
+                        <TouchableOpacity
+                          onPress={() => removePendingPhoto(idx)}
+                          style={styles.photoRemoveBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Text style={styles.photoRemoveText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    {totalPhotoCount < MAX_PHOTOS && (
+                    <TouchableOpacity
+                      onPress={pickPhotos}
+                      disabled={photoBusy}
+                      style={styles.photoAddBtn}
+                    >
+                      {photoBusy ? (
+                        <ActivityIndicator />
+                      ) : (
+                        <Text style={{ fontSize: 24, color: theme.colors.boardingText || "#111827" }}>＋</Text>
+                      )}
+                    </TouchableOpacity>
+                    )}
+                  </View>
+                  <Text style={styles.note}>
+                    {t("createListing.photosHint", `Massimo ${MAX_PHOTOS} foto reali: solo il biglietto (treno) o la stanza/prenotazione (hotel). Foto non pertinenti abbassano l'affidabilità.`, { n: MAX_PHOTOS })}
+                  </Text>
+
                   <View style={{ height: 2 }} />
                 </ScrollView>
               </View>
             </View>
 
-            {/* ===== SLIDE 3 ===== */}
+            {/* ===== SLIDE 2 ===== */}
             <View style={[styles.slide, { width: sliderW }]}>
               <View style={styles.slideCard}>
                 <ScrollView
@@ -2809,7 +2792,7 @@ const initialJsonRef = useRef(null);
               </TouchableOpacity>
             )}
 
-            {slideIndex < 2 ? (
+            {slideIndex < 1 ? (
               <TouchableOpacity onPress={onNextPress} style={[styles.footerBtn, styles.footerPrimary]}>
                 <Text style={[styles.footerText, { color: theme.colors.accentOn }]}>{t("common.next", "Avanti")}</Text>
               </TouchableOpacity>
@@ -2940,7 +2923,7 @@ const styles = StyleSheet.create({
     // Etichetta che introduce Descrizione come ALTERNATIVA all'Import (non
     // un passo successivo): senza, sembra un campo obbligatorio in mezzo al
     // flusso invece che una scorciatoia per chi non ha un documento.
-    sectionAltLabel: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700", marginTop: 12, marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.3 },
+    sectionAltLabel: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700", marginTop: 12, marginBottom: 2 },
     // Link leggero (non più un bottone pieno): "Inserisci manualmente" è
     // l'alternativa a Import/Compila con AI, non un passo obbligato — il
     // peso visivo di un link comunica meglio "opzionale" di un bottone pieno.
