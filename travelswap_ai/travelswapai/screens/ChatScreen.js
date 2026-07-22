@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { listChatMessages, sendChatMessage, markChatRead, subscribeToChat, getOfferHandshake } from "../lib/chat";
-import { confirmExchange, cancelAcceptedOffer } from "../lib/offers";
+import { confirmExchange, cancelAcceptedOffer, getOfferExpiryInfo } from "../lib/offers";
 import { getCurrentUser } from "../lib/db";
 import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
@@ -201,6 +201,16 @@ export default function ChatScreen() {
                   : t("chat.pendingConfirm", "Quando lo scambio è avvenuto, confermate entrambi per chiuderlo.")}
               </Text>
             )}
+            {(() => {
+              // Countdown della prenotazione: se scade, si annulla da sola e
+              // gli annunci tornano attivi (rilascio pigro lato server).
+              const info = getOfferExpiryInfo(handshake.reservationExpiresAt);
+              if (!info) return null;
+              const txt = info.urgency === "expired"
+                ? t("chat.reservationExpired", "Prenotazione scaduta: verrà rilasciata a breve.")
+                : t("chat.reservationCountdown", "Da chiudere entro {d}g {h}h, poi si annulla e gli annunci tornano attivi.", { d: info.days, h: info.hours });
+              return <Text style={[styles.hsText, { color: theme.colors.textMuted }]}>{txt}</Text>;
+            })()}
             <View style={styles.hsBtns}>
               {!handshake.iConfirmed ? (
                 <TouchableOpacity style={[styles.hsBtn, styles.hsBtnPrimary, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onConfirm}>

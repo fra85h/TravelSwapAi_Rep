@@ -666,6 +666,8 @@ export const translations = {
       cancelMsg: "Usa questa opzione se lo scambio non è andato a buon fine: entrambi gli annunci tornano attivi e disponibili.",
       youConfirmedShort: "Hai confermato — attendi l'altra persona",
       otherConfirmedShort: "In attesa della tua conferma",
+      reservationCountdown: "Da chiudere entro {d}g {h}h, poi si annulla e gli annunci tornano attivi.",
+      reservationExpired: "Prenotazione scaduta: verrà rilasciata a breve.",
     },
 
     offers: {
@@ -1659,6 +1661,8 @@ export const translations = {
       cancelMsg: "Use this if the swap didn't go through: both listings go back to active and available.",
       youConfirmedShort: "You confirmed — waiting for the other person",
       otherConfirmedShort: "Waiting for your confirmation",
+      reservationCountdown: "Close within {d}d {h}h, otherwise it cancels and the listings go back to active.",
+      reservationExpired: "Reservation expired: it will be released shortly.",
     },
 
     offers: {
@@ -2652,6 +2656,8 @@ export const translations = {
       cancelMsg: "Usa esta opción si el intercambio no se ha realizado: ambos anuncios vuelven a estar activos y disponibles.",
       youConfirmedShort: "Has confirmado — espera a la otra persona",
       otherConfirmedShort: "Esperando tu confirmación",
+      reservationCountdown: "Ciérralo en {d}d {h}h, o se cancela y los anuncios vuelven a estar activos.",
+      reservationExpired: "Reserva caducada: se liberará en breve.",
     },
 
     offers: {

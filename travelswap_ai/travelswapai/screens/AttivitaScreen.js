@@ -10,7 +10,7 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useActivity, notifyActivityChanged } from "../lib/ActivityContext";
-import { acceptOffer, declineOffer, cancelOffer, markMyResolvedOffersSeen } from "../lib/offers";
+import { acceptOffer, declineOffer, cancelOffer, markMyResolvedOffersSeen, releaseMyStaleReservations } from "../lib/offers";
 import { markMatchSeen } from "../lib/savedSearches";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
@@ -96,6 +96,9 @@ export default function AttivitaScreen({ navigation }) {
   // al contrario sparirebbero prima ancora di essere mostrate.
   useFocusEffect(useCallback(() => {
     (async () => {
+      // Prima libera le prenotazioni scadute (annunci di nuovo attivi), così
+      // il refresh successivo riflette già lo stato aggiornato.
+      await releaseMyStaleReservations();
       await refresh();
       markMyResolvedOffersSeen().catch(() => {});
     })();

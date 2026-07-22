@@ -83,6 +83,11 @@ export async function cancelAcceptedOffer(offerId) {
   return data;
 }
 
+/** Rilascia le proprie prenotazioni scadute (annunci di nuovo attivi). Best effort. */
+export async function releaseMyStaleReservations() {
+  try { await supabase.rpc("release_my_stale_reservations"); } catch {}
+}
+
 /** Cancella (proponente) la propria offerta pending */
 export async function cancelOffer(offerId) {
   const { data, error } = await supabase
