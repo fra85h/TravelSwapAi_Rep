@@ -13,6 +13,7 @@ import { requireAuth } from '../middleware/requireAuth.js';
 import { rateLimitNotify } from '../middleware/rateLimit.js';
 import { supabase } from '../db.js';
 import { sendMail, mailerConfigured } from '../lib/mailer.js';
+import { sendExpoPush } from '../lib/push.js';
 
 export const notifyRouter = express.Router();
 
@@ -52,7 +53,6 @@ notifyRouter.post('/offer-received', requireAuth, rateLimitNotify, async (req, r
   try {
     const offerId = String(req.body?.offerId || '').trim();
     if (!offerId) return res.status(400).json({ error: 'offerId required' });
-    if (!mailerConfigured()) return res.json({ ok: true, sent: false, reason: 'mailer_not_configured' });
 
     const offer = await loadOffer(offerId);
     if (!offer) return res.json({ ok: true, sent: false });
@@ -62,6 +62,16 @@ notifyRouter.post('/offer-received', requireAuth, rateLimitNotify, async (req, r
 
     const target = await listingOwnerAndTitle(offer.to_listing_id);
     if (!target?.user_id) return res.json({ ok: true, sent: false });
+
+    // Push nativo (dormiente finché non ci sono token registrati), indipendente
+    // dall'email: la notifica in-app la crea già il trigger DB.
+    sendExpoPush(target.user_id, {
+      title: offer.type === 'swap' ? 'Nuova proposta di scambio' : 'Nuova offerta di acquisto',
+      body: `Su «${target.title || ''}»`,
+      data: { type: 'offer_received', offerId: offer.id, listingId: offer.to_listing_id },
+    });
+
+    if (!mailerConfigured()) return res.json({ ok: true, sent: false, reason: 'mailer_not_configured' });
     const to = await emailOf(target.user_id);
     if (!to) return res.json({ ok: true, sent: false, reason: 'no_email' });
 
@@ -88,7 +98,6 @@ notifyRouter.post('/offer-accepted', requireAuth, rateLimitNotify, async (req, r
   try {
     const offerId = String(req.body?.offerId || '').trim();
     if (!offerId) return res.status(400).json({ error: 'offerId required' });
-    if (!mailerConfigured()) return res.json({ ok: true, sent: false, reason: 'mailer_not_configured' });
 
     const offer = await loadOffer(offerId);
     if (!offer) return res.json({ ok: true, sent: false });
@@ -98,6 +107,15 @@ notifyRouter.post('/offer-accepted', requireAuth, rateLimitNotify, async (req, r
       return res.status(403).json({ error: 'not allowed' });
     }
 
+    // Push nativo (dormiente finché non ci sono token registrati), indipendente
+    // dall'email: la notifica in-app la crea già il trigger DB.
+    sendExpoPush(offer.proposer_id, {
+      title: 'Proposta accettata',
+      body: `La tua proposta su «${target.title || ''}» è stata accettata`,
+      data: { type: 'offer_accepted', offerId: offer.id, listingId: offer.to_listing_id },
+    });
+
+    if (!mailerConfigured()) return res.json({ ok: true, sent: false, reason: 'mailer_not_configured' });
     const to = await emailOf(offer.proposer_id);
     if (!to) return res.json({ ok: true, sent: false, reason: 'no_email' });
 
