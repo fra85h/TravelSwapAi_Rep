@@ -123,8 +123,19 @@ export default function AttivitaScreen({ navigation }) {
     const offerId = o.id;
     setBusy(offerId, true);
     try {
-      await acceptOffer(offerId);
+      const res = await acceptOffer(offerId);
       notifyActivityChanged();
+      // L'accettazione può NON andare a buon fine anche senza errore: la
+      // proposta è nel frattempo scaduta o il viaggio è già passato (in quel
+      // caso il DB scade offerta e annunci e ritorna lo stato reale). Solo se
+      // è davvero 'accepted' mostriamo il successo + apertura chat.
+      if (String(res?.status || "").toLowerCase() !== "accepted") {
+        Alert.alert(
+          t("offers.acceptFailedTitle", "Non è stato possibile accettare"),
+          t("offers.acceptFailedMsg", "La proposta non è più valida: potrebbe essere scaduta o il viaggio è già passato.")
+        );
+        return;
+      }
       // Momento di massimo bisogno: appena accettata, le due parti devono
       // organizzare lo scambio — la chat si apre da qui con un tap, già
       // "consapevole" di cosa si stanno scambiando (vedi header in ChatScreen).
