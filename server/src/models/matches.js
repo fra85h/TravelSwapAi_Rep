@@ -93,6 +93,23 @@ const useCands = candidates
   .sort((a,b) => String(a.id).localeCompare(String(b.id)));
     console.log("fromListings:", fromListings.length);
 console.log("candidates:", useCands.length);
+
+// Tetto ai candidati inviati all'AI PER annuncio-sorgente. Con centinaia di
+// annunci, mandarli TUTTI in un unico prompt (per ogni sorgente) fa saltare il
+// ricalcolo: timeout, memoria e soprattutto i token di OUTPUT (l'AI dovrebbe
+// restituire una riga per candidato). Pre-filtriamo con l'euristica gratuita e
+// mandiamo all'AI solo i più promettenti: il prompt resta piccolo e la qualità
+// resta sui candidati che contano (lo snapshot prende comunque i top).
+const AI_CANDIDATE_CAP = Number(process.env.MATCH_AI_CANDIDATE_CAP || 60);
+function aiCandidatesFor(contextUser) {
+  if (useCands.length <= AI_CANDIDATE_CAP) return useCands;
+  const pre = heuristicScore(contextUser, useCands); // [{ id, score, ... }]
+  const rank = new Map(pre.map((p) => [p.id, p.score]));
+  return useCands
+    .slice()
+    .sort((a, b) => (rank.get(b.id) ?? 0) - (rank.get(a.id) ?? 0) || String(a.id).localeCompare(String(b.id)))
+    .slice(0, AI_CANDIDATE_CAP);
+}
    // sostituito il 20250804_2043 per un codice che parallelizza x4
 async function runPool(tasks, limit = 4) {
   const results = [];
@@ -116,20 +133,22 @@ async function runPool(tasks, limit = 4) {
 // prepara le task (una per ogni from-listing)
 const tasks = fromListings.map((f) => async () => {
   const contextUser = { ...user, fromListing: f };
-  const ai = await scoreWithAI(contextUser, useCands);
-  console.log(`[from ${f.id}] ai:`, Array.isArray(ai) ? ai.length : ai);
+  // Solo i candidati più promettenti finiscono nel prompt AI (vedi sopra).
+  const aiCands = aiCandidatesFor(contextUser);
+  const ai = await scoreWithAI(contextUser, aiCands);
+  console.log(`[from ${f.id}] ai:`, Array.isArray(ai) ? ai.length : ai, `su ${aiCands.length} candidati`);
 
   // Se l'AI non risponde (timeout/chiave mancante/schema invalido),
   // usa il fallback euristico deterministico invece di lasciare l'utente senza match
   const base = (Array.isArray(ai) && ai.length)
     ? ai
-    : heuristicScore(contextUser, useCands);
+    : heuristicScore(contextUser, aiCands);
 
   // Modificatore deterministico budget + prossimità data (Fase 2): applicato
   // sopra al punteggio base (AI o euristico). Un VENDO dentro il budget del
   // CERCO e vicino come data mantiene il punteggio; fuori budget o lontano
   // come data lo abbassa. Preciso e testabile, indipendente dall'LLM.
-  const candById = new Map(useCands.map((c) => [c.id, c]));
+  const candById = new Map(aiCands.map((c) => [c.id, c]));
   const scored = base
     .map(s => ({ ...s, score: adjustedScore(s.score, f, candById.get(s.id)) }))
     .sort((a,b) => (b.score - a.score) || String(a.id).localeCompare(String(b.id)));
