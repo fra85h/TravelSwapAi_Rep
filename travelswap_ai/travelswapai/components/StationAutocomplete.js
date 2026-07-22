@@ -7,7 +7,7 @@ import { theme } from "../lib/theme";
 import { searchStations } from "../lib/trainStations";
 
 export default function StationAutocomplete({
-  value, onChangeText, placeholder, editable = true, style, inputStyle,
+  value, onChangeText, placeholder, editable = true, style, inputStyle, onBlur,
 }) {
   const [focused, setFocused] = useState(false);
   const suggestions = focused ? searchStations(value) : [];
@@ -21,7 +21,7 @@ export default function StationAutocomplete({
         value={value}
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}
-        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        onBlur={() => { setTimeout(() => setFocused(false), 150); onBlur?.(); }}
         placeholder={placeholder}
         placeholderTextColor={theme.colors.textMuted}
         style={inputStyle}

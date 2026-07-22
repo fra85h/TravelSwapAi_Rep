@@ -17,7 +17,7 @@ const parseISODate = (s) => {
   return dt;
 };
 
-export default function DateField({ label, value, onChange, required, error, disabled }) {
+export default function DateField({ label, value, onChange, required, error, disabled, onBlur }) {
   const { t } = useI18n();
   const [showPicker, setShowPicker] = useState(false);
   const [hasPickerLib, setHasPickerLib] = useState(null);
@@ -52,11 +52,12 @@ export default function DateField({ label, value, onChange, required, error, dis
           value={value || ""}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           style={{
             width: "100%",
             boxSizing: "border-box",
-            border: `1px solid ${error ? "#FCA5A5" : theme.colors.border}`,
-            backgroundColor: error ? "#FEF2F2" : theme.colors.surface,
+            border: `${error ? 1.5 : 1}px solid ${error ? theme.colors.danger : theme.colors.border}`,
+            backgroundColor: theme.colors.surface,
             borderRadius: 12,
             padding: "12px",
             color: theme.colors.text,
@@ -78,6 +79,7 @@ export default function DateField({ label, value, onChange, required, error, dis
         <TextInput editable={!disabled}
           value={value}
           onChangeText={onChange}
+          onBlur={onBlur}
           placeholder="YYYY-MM-DD"
           placeholderTextColor={theme.colors.textMuted}
           style={[styles.input, error && styles.inputError]}
@@ -148,8 +150,10 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   inputRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
-  errorText: { color: theme.colors.danger, marginTop: 4 },
+  // Solo bordo (più marcato) in rosso: lo sfondo resta bianco come il campo
+  // normale, altrimenti il placeholder/testo digitato perde leggibilità.
+  inputError: { borderColor: theme.colors.danger, borderWidth: 1.5 },
+  errorText: { color: theme.colors.danger, marginTop: 4, fontWeight: "600" },
   smallBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: theme.colors.text },
   smallBtnText: { color: "#fff", fontWeight: "800" },
   inputDisabled: { backgroundColor: theme.colors.surfaceMuted, color: theme.colors.textMuted },

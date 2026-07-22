@@ -349,6 +349,7 @@ export const translations = {
       title: "Nuovo annuncio",
       step1: "Dati principali",
       step2: "Dettagli & pubblicazione",
+      manualEntry: "Inserisci manualmente",
 
       type: "Tipo",
       cercoVendoLabel: "Tipo annuncio",
@@ -1387,6 +1388,7 @@ export const translations = {
       title: "New listing",
       step1: "Main info",
       step2: "Details & publish",
+      manualEntry: "Enter manually",
 
       type: "Type",
       cercoVendoLabel: "Listing type",
@@ -2406,6 +2408,7 @@ export const translations = {
       title: "Nuevo anuncio",
       step1: "Datos principales",
       step2: "Detalles y publicación",
+      manualEntry: "Introducir manualmente",
 
       type: "Tipo",
       cercoVendoLabel: "Tipo de anuncio",
