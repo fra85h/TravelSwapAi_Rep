@@ -67,6 +67,14 @@ export const translations = {
       emptyAllSub: "Torna a trovarci tra poco — o pubblica tu il primo dal tab Vendi.",
     },
 
+    notifications: {
+      a11y: "Notifiche",
+      now: "ora",
+      markAll: "Segna tutte come lette",
+      emptyTitle: "Nessuna notifica",
+      emptySub: "Ti avviseremo qui quando ricevi una proposta, quando la tua viene accettata o quando arrivano nuovi annunci per te.",
+    },
+
     activity: {
       sectionToDo: "Da fare",
       sectionToDoHint: "Aspettano una tua risposta.",
@@ -1102,6 +1110,14 @@ export const translations = {
       emptyAllSub: "Check back soon — or be the first to post one from the Sell tab.",
     },
 
+    notifications: {
+      a11y: "Notifications",
+      now: "now",
+      markAll: "Mark all as read",
+      emptyTitle: "No notifications",
+      emptySub: "We'll let you know here when you receive an offer, when yours is accepted, or when new listings for you show up.",
+    },
+
     activity: {
       sectionToDo: "To do",
       sectionToDoHint: "These are waiting for your reply.",
@@ -2108,6 +2124,14 @@ export const translations = {
       emptyForType: "No hay anuncios de este tipo por ahora.",
       emptyAll: "Todavía no hay anuncios por aquí.",
       emptyAllSub: "Vuelve pronto — o sé el primero en publicar uno desde la pestaña Vender.",
+    },
+
+    notifications: {
+      a11y: "Notificaciones",
+      now: "ahora",
+      markAll: "Marcar todas como leídas",
+      emptyTitle: "Sin notificaciones",
+      emptySub: "Te avisaremos aquí cuando recibas una propuesta, cuando la tuya sea aceptada o cuando aparezcan nuevos anuncios para ti.",
     },
 
     activity: {

@@ -10,6 +10,7 @@ import {
 } from '../db.js';
 import { listActiveListingsOfUser, listMatchesForFrom, getLatestUserSnapshot } from '../db.js';
 import { listActiveListings } from './listings.js';
+import { sendExpoPush } from '../lib/push.js';
 /**
  * Rigenera i match per userId e salva uno snapshot in tabella `matches`.
  */
@@ -336,6 +337,40 @@ export async function propagateListingToOthers(listingId, { requireOwner = null,
     if (refreshed >= maxSnapshotRefresh) break;
     try { await recomputeUserSnapshot(uid); refreshed++; } catch { /* best effort */ }
   }
+
+  // Notifica in-app "nuovi annunci per te" agli utenti toccati. Deduplicata:
+  // al massimo UNA non letta ogni 6h per utente, così pubblicazioni frequenti
+  // di altri non si trasformano in una raffica di notifiche.
+  try {
+    const uids = [...affectedUsers];
+    const sixHoursAgo = new Date(Date.now() - 6 * 3600 * 1000).toISOString();
+    const { data: recent } = await supabase
+      .from('notifications')
+      .select('user_id')
+      .eq('type', 'new_matches')
+      .is('read_at', null)
+      .gte('created_at', sixHoursAgo)
+      .in('user_id', uids);
+    const already = new Set((recent || []).map((r) => r.user_id));
+    const toNotify = uids.filter((u) => !already.has(u));
+    if (toNotify.length) {
+      await supabase.from('notifications').insert(
+        toNotify.map((u) => ({
+          user_id: u,
+          type: 'new_matches',
+          title: 'Nuovi annunci per te',
+          body: 'Un nuovo annuncio è comparso tra i suggerimenti «Per te».',
+          data: {},
+        }))
+      );
+      // Push nativo (dormiente finché non ci sono token registrati).
+      sendExpoPush(toNotify, {
+        title: 'Nuovi annunci per te',
+        body: 'Guarda i suggerimenti «Per te».',
+        data: { type: 'new_matches' },
+      });
+    }
+  } catch (e) { console.error('[propagate notify]', e?.message || e); }
 
   return { affected: affectedUsers.size, rows: rows.length };
 }

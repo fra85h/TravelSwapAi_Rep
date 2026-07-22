@@ -6,6 +6,7 @@ import { listPublicListings, listMyListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
 import { getMyPrefs } from "../lib/preferences";
 import { subscribeDataChanged } from "../lib/ActivityContext";
+import { useNotifications } from "../lib/NotificationsContext";
 import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
@@ -116,6 +117,7 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { t, locale } = useI18n();
+  const { unreadCount } = useNotifications();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -264,17 +266,34 @@ export default function HomeScreen() {
     navigation.setOptions?.({
       title: tt("esplora.title", "Esplora"),
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => navigation.navigate("SavedSearches")}
-          style={{ paddingHorizontal: 14, paddingVertical: 6 }}
-          accessibilityRole="button"
-          accessibilityLabel={tt("esplora.alertsA11y", "I miei avvisi di ricerca")}
-        >
-          <Ionicons name="notifications-outline" size={22} color={theme.colors.boardingText} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center", paddingRight: 6 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("SavedSearches")}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel={tt("esplora.alertsA11y", "I miei avvisi di ricerca")}
+          >
+            <Ionicons name="search-outline" size={22} color={theme.colors.boardingText} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Notifications")}
+            style={{ paddingHorizontal: 10, paddingVertical: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel={tt("notifications.a11y", "Notifiche")}
+          >
+            <View>
+              <Ionicons name="notifications-outline" size={22} color={theme.colors.boardingText} />
+              {unreadCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>{unreadCount > 9 ? "9+" : String(unreadCount)}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
       ),
     });
-  }, [navigation, t, locale]);
+  }, [navigation, t, locale, unreadCount]);
 
   const filtered = useMemo(() => {
     const q = normSearch(query);
@@ -647,6 +666,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
+  bellBadge: { position: "absolute", top: -5, right: -7, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: theme.colors.danger, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  bellBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
   title: { fontSize: 22, fontWeight: "800", color: theme.colors.text, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 },
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, marginBottom: 12 },
   tab: { borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 },

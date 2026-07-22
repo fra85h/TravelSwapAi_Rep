@@ -27,11 +27,13 @@ import SellerProfileScreen from './screens/SellerProfileScreen';
 import SavedScreen from './screens/SavedScreen';
 import ChainProposalsScreen from './screens/ChainProposalsScreen';
 import SavedSearchesScreen from './screens/SavedSearchesScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
 import MatchingScreen from './screens/MatchingScreen';
 import LinkMessengerScreen from './screens/LinkMessengerScreen';
 import ChatScreen from './screens/ChatScreen';
 import PreferencesOnboardingScreen from './screens/PreferencesOnboardingScreen';
 import { AuthProvider, useAuth } from './lib/auth';
+import { NotificationsProvider } from './lib/NotificationsContext';
 import { useNeedsPreferencesOnboarding } from './lib/preferences';
 import { I18nProvider } from './lib/i18n';
 import Constants from "expo-constants";
@@ -127,6 +129,7 @@ function RootNavigator() {
   }
 
   return (
+    <NotificationsProvider>
     <Stack.Navigator
       initialRouteName={session ? "MainTabs" : (seenOnboarding ? "Login" : "Onboarding")}
       screenOptions={{
@@ -158,6 +161,7 @@ function RootNavigator() {
           <Stack.Screen name="Saved" component={SavedScreen} options={{ title: "Preferiti" }} />
           <Stack.Screen name="ChainProposals" component={ChainProposalsScreen} options={{ title: "Scambi a 3" }} />
           <Stack.Screen name="SavedSearches" component={SavedSearchesScreen} options={{ title: "Avvisi di ricerca" }} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifiche" }} />
           <Stack.Screen name="EditPreferences" options={{ title: "Le tue preferenze" }}>
             {(props) => (
               <PreferencesOnboardingScreen {...props} mode="edit" onDone={() => props.navigation.goBack()} />
@@ -195,6 +199,7 @@ function RootNavigator() {
           un logout da tutt'altra schermata), che è il bug osservato. */}
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: "Nuova password" }} />
     </Stack.Navigator>
+    </NotificationsProvider>
   );
 }
 
