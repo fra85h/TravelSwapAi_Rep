@@ -294,6 +294,7 @@ export const translations = {
       untitled: "Senza titolo",
       publishedOn: "Pubblicato il",
       yourListingBadge: "È un tuo annuncio",
+      namedTag: "Nominativo",
       filterPrefix: "Filtro:",
       showAll: "Mostra tutti",
 
@@ -797,6 +798,7 @@ export const translations = {
       offerLabel: "Offri",
       buyLabel: "Acquisti",
       askingPrice: "Prezzo richiesto",
+      namedNote: "⚠️ Biglietto nominativo: potrebbe servire il cambio nominativo per usarlo. Verifica con il venditore.",
     },
 
     sellerProfile: {
@@ -847,6 +849,8 @@ export const translations = {
       oneway: "Solo andata",
       operator: "Operatore",
       namedTicket: "Nominativo",
+      namedWarnTitle: "Biglietto nominativo",
+      namedWarnText: "È intestato a una persona. Per usarlo potrebbe servire il cambio nominativo presso l'operatore (a volte a pagamento o non consentito): verifica la fattibilità con il venditore prima di procedere.",
 
       aiPriceCta: "Analisi prezzo con AI",
       aiPriceInfoA11y: "Informazioni sull'analisi prezzo AI",
@@ -1313,6 +1317,7 @@ export const translations = {
       untitled: "Untitled",
       publishedOn: "Published on",
       yourListingBadge: "This is your listing",
+      namedTag: "Named",
       filterPrefix: "Filter:",
       showAll: "Show all",
 
@@ -1800,6 +1805,7 @@ export const translations = {
       offerLabel: "You offer",
       buyLabel: "You buy",
       askingPrice: "Asking price",
+      namedNote: "⚠️ Named ticket: using it may require a name change. Check with the seller.",
     },
 
     sellerProfile: {
@@ -1850,6 +1856,8 @@ export const translations = {
       oneway: "One-way",
       operator: "Operator",
       namedTicket: "Named ticket",
+      namedWarnTitle: "Named ticket",
+      namedWarnText: "It's issued to a specific person. Using it may require a name change with the operator (sometimes paid or not allowed): check feasibility with the seller before proceeding.",
 
       aiPriceCta: "AI price analysis",
       aiPriceInfoA11y: "About AI price analysis",
@@ -2309,6 +2317,7 @@ export const translations = {
       untitled: "Sin título",
       publishedOn: "Publicado el",
       yourListingBadge: "Es tu anuncio",
+      namedTag: "Nominativo",
       filterPrefix: "Filtro:",
       showAll: "Mostrar todos",
 
@@ -2805,6 +2814,7 @@ export const translations = {
       offerLabel: "Ofreces",
       buyLabel: "Compras",
       askingPrice: "Precio solicitado",
+      namedNote: "⚠️ Billete nominativo: para usarlo podría hacer falta el cambio de titular. Verifica con el vendedor.",
     },
 
     sellerProfile: {
@@ -2855,6 +2865,8 @@ export const translations = {
       oneway: "Solo ida",
       operator: "Operador",
       namedTicket: "Nominativo",
+      namedWarnTitle: "Billete nominativo",
+      namedWarnText: "Está emitido a nombre de una persona. Para usarlo podría hacer falta el cambio de titular con el operador (a veces de pago o no permitido): verifica la viabilidad con el vendedor antes de continuar.",
 
       aiPriceCta: "Análisis de precio con IA",
       aiPriceInfoA11y: "Información sobre análisis de precio IA",

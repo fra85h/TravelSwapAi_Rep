@@ -455,6 +455,19 @@ useEffect(() => {
           </View>
         </SectionCard>
 
+        {/* Biglietto nominativo: avviso esplicito al compratore. Prima era solo
+            una riga "Nominativo: Sì" tra i dettagli — facile da non notare,
+            mentre è un vincolo che può rendere il biglietto inutilizzabile
+            senza cambio nominativo. */}
+        {listing?.type === "train" && listing?.is_named_ticket === true ? (
+          <View style={styles.namedWarnBox}>
+            <Text style={styles.namedWarnTitle}>👤 {tt("listingDetail.namedWarnTitle", "Biglietto nominativo")}</Text>
+            <Text style={styles.namedWarnText}>
+              {tt("listingDetail.namedWarnText", "È intestato a una persona. Per usarlo potrebbe servire il cambio nominativo presso l'operatore (a volte a pagamento o non consentito): verifica la fattibilità con il venditore prima di procedere.")}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Venditore (solo se non sono io il proprietario) */}
         {!isOwner && seller ? (
           <SectionCard title={L.seller} textColor={textColor}>
@@ -669,6 +682,12 @@ function ExpandableText({ children, numberOfLines = 4, textColor }) {
 /* ========= Styles ========= */
 
 const styles = StyleSheet.create({
+  namedWarnBox: {
+    backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FCD34D",
+    borderRadius: 14, padding: 12, marginBottom: 12,
+  },
+  namedWarnTitle: { fontWeight: "800", color: "#92400E", marginBottom: 4 },
+  namedWarnText: { color: "#92400E", fontSize: 13, lineHeight: 18 },
   headerCard: { borderRadius: 20, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border,
     shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, overflow: "hidden", position: "relative" },
   headerGradient: { padding: 16 },

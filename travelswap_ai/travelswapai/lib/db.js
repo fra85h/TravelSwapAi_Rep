@@ -423,7 +423,7 @@ export async function getPublicListingById(id) {
   const { data, error } = await supabase
     .from("listings")
     .select(
-      "id,title,type,location,route_from,route_to,check_in,check_out,depart_at,price,currency,status,created_at,user_id"
+      "id,title,type,location,route_from,route_to,check_in,check_out,depart_at,price,currency,status,created_at,user_id,is_named_ticket"
     )
     .eq("id", id)
     .eq("status", "active")
