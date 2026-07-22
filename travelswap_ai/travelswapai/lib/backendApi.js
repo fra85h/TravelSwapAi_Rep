@@ -184,6 +184,18 @@ export async function propagateListing(listingId) {
   });
 }
 
+// Simmetrico a propagateListing: dopo aver messo in pausa/eliminato un
+// annuncio, lo ritira dal "Per te" di chi lo aveva suggerito — altrimenti
+// resta lì (annuncio fantasma) finché quella persona non ricalcola da sola.
+// Fire-and-forget: mai bloccare il flusso.
+export async function retractListing(listingId) {
+  if (!listingId) return null;
+  return fetchJson(`/api/matches/retract`, {
+    method: "POST",
+    body: { listingId },
+  });
+}
+
 // Listings con filtro/ordinamento TrustScore
 export async function fetchListings({ minTrust, sort } = {}) {
   const qs = new URLSearchParams();

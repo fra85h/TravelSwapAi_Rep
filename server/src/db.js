@@ -119,7 +119,13 @@ export async function listMatchesForFrom(fromId, { limit = 100 } = {}) {
 
   return items.map(r => {
     const l = byId.get(r.to_listing_id);
-    if (!l) return null;
+    // Un annuncio messo in pausa/eliminato/venduto NON deve restare nel "Per
+    // te" di chi lo aveva suggerito: la riga in `matches` può sopravvivere
+    // finché nessuno ricalcola (vedi retractListingFromOthers per la
+    // rimozione attiva), ma qui, al momento di COSTRUIRE lo snapshot, un
+    // candidato non più attivo va comunque scartato — backstop che copre
+    // anche i casi non innescati dal client (offerte accettate, scadenze).
+    if (!l || l.status !== 'active') return null;
     return {
       fromListingId: fromId,
       toId: l.id,

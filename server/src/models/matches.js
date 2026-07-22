@@ -394,6 +394,50 @@ export async function propagateListingToOthers(listingId, { requireOwner = null,
   return { affected: affectedUsers.size, rows: rows.length };
 }
 
+/**
+ * Ritiro dal "Per te" altrui: simmetrico a propagateListingToOthers, per
+ * quando un annuncio ESCE da 'active' (pausa, eliminazione, venduto,
+ * scaduto...). Senza questo, un annuncio non più disponibile restava nel
+ * "Per te" di chi lo aveva suggerito finché quella persona non ricalcolava
+ * per conto proprio — chi ci cliccava trovava un annuncio fantasma. Rimuove
+ * le righe `matches` che puntano a questo annuncio come "to" e rinfresca
+ * subito lo snapshot di chi lo aveva, invece di aspettare che si accorga da
+ * solo la prossima volta che ricalcola i propri match.
+ */
+export async function retractListingFromOthers(listingId, { requireOwner = null, maxSnapshotRefresh = 100 } = {}) {
+  if (!isUUID(listingId) || !supabase) return { affected: 0, rows: 0 };
+
+  if (requireOwner) {
+    const { data: L, error } = await supabase
+      .from('listings')
+      .select('id, user_id')
+      .eq('id', listingId)
+      .maybeSingle();
+    if (error || !L || String(L.user_id) !== String(requireOwner)) return { affected: 0, rows: 0 };
+  }
+
+  const { data: rows, error: selErr } = await supabase
+    .from('matches')
+    .select('user_id')
+    .eq('to_listing_id', listingId);
+  if (selErr) { console.error('[retract select]', selErr.message); return { affected: 0, rows: 0 }; }
+  if (!rows || !rows.length) return { affected: 0, rows: 0 };
+
+  const affectedUsers = [...new Set(rows.map((r) => r.user_id))];
+
+  const { error: delErr } = await supabase.from('matches').delete().eq('to_listing_id', listingId);
+  if (delErr) { console.error('[retract delete]', delErr.message); return { affected: 0, rows: 0 }; }
+
+  // Rinfresca subito il "Per te" di chi aveva questo annuncio in elenco.
+  let refreshed = 0;
+  for (const uid of affectedUsers) {
+    if (refreshed >= maxSnapshotRefresh) break;
+    try { await recomputeUserSnapshot(uid); refreshed++; } catch { /* best effort */ }
+  }
+
+  return { affected: affectedUsers.length, rows: rows.length };
+}
+
 export async function getUserSnapshot(userid) {
   if (!isUUID(userid)) throw new Error('Invalid userId');
   const snap = await getLatestUserSnapshot(userid);
