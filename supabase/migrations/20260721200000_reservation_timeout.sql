@@ -94,7 +94,10 @@ end $$;
 GRANT EXECUTE ON FUNCTION public.release_my_stale_reservations() TO authenticated;
 
 -- get_offer_handshake: espone anche la scadenza prenotazione (countdown).
-CREATE OR REPLACE FUNCTION public.get_offer_handshake(offer_id_text text)
+-- DROP necessario: cambia le colonne di ritorno (aggiunge reservation_expires_at)
+-- e CREATE OR REPLACE non può cambiare il tipo di ritorno di una funzione.
+DROP FUNCTION IF EXISTS public.get_offer_handshake(text);
+CREATE FUNCTION public.get_offer_handshake(offer_id_text text)
 RETURNS TABLE(status text, type text, amount numeric, currency text, i_confirmed boolean, other_confirmed boolean, reservation_expires_at timestamp with time zone)
 LANGUAGE sql SECURITY DEFINER
 SET search_path = public
