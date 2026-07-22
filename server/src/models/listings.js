@@ -37,18 +37,26 @@ export async function listActiveListings({
 
   const clean = (listings || []).filter(l => isUUID(l.id));
 
-  // 2) Join con ultima valutazione TrustScore (view)
+  // 2) Join con ultima valutazione TrustScore (view). A lotti: un solo
+  // `.in("listing_id", ids)` con centinaia di id genera un URL di
+  // decine di migliaia di caratteri (filtro IN codificato in query
+  // string da PostgREST) che la connessione rifiuta a livello di rete
+  // prima ancora di arrivare a Supabase — manifestandosi come
+  // "TypeError: fetch failed" invece di un errore SQL leggibile (visto
+  // in produzione su /api/chains/recompute con 500+ annunci attivi).
   const ids = clean.map(l => l.id);
   let byIdTrust = new Map();
 
-  if (ids.length) {
+  const TRUST_CHUNK = 200;
+  for (let i = 0; i < ids.length; i += TRUST_CHUNK) {
+    const slice = ids.slice(i, i + TRUST_CHUNK);
     const { data: trusts, error: err2 } = await supabase
       .from("v_latest_trustscore")
       .select("listing_id, trust_score, evaluated_at")
-      .in("listing_id", ids);
+      .in("listing_id", slice);
 
     if (err2) throw err2;
-    byIdTrust = new Map((trusts || []).map(r => [String(r.listing_id), r]));
+    for (const r of trusts || []) byIdTrust.set(String(r.listing_id), r);
   }
 
   // 3) Merge + filtro minTrust
