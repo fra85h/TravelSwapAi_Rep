@@ -668,6 +668,14 @@ export const translations = {
       otherConfirmedShort: "In attesa della tua conferma",
       reservationCountdown: "Da chiudere entro {d}g {h}h, poi si annulla e gli annunci tornano attivi.",
       reservationExpired: "Prenotazione scaduta: verrà rilasciata a breve.",
+      reportCta: "Segnala un problema",
+      reportTitle: "Segnala un problema",
+      reportMsg: "Segnala solo se qualcosa non va: la conferma resta bloccata per entrambi finché non risolvete.",
+      reportReasonNotReceived: "Non ho ricevuto il biglietto",
+      reportReasonInvalid: "Biglietto non valido/già usato",
+      reportReasonOther: "Altro problema",
+      disputeOpen: "Problema segnalato — non confermare finché non è risolto.",
+      disputedShort: "⚠️ Problema segnalato",
     },
 
     offers: {
@@ -1663,6 +1671,14 @@ export const translations = {
       otherConfirmedShort: "Waiting for your confirmation",
       reservationCountdown: "Close within {d}d {h}h, otherwise it cancels and the listings go back to active.",
       reservationExpired: "Reservation expired: it will be released shortly.",
+      reportCta: "Report a problem",
+      reportTitle: "Report a problem",
+      reportMsg: "Only report if something's wrong: confirmation stays blocked for both until you sort it out.",
+      reportReasonNotReceived: "I didn't receive the ticket",
+      reportReasonInvalid: "Ticket invalid/already used",
+      reportReasonOther: "Other problem",
+      disputeOpen: "Problem reported — don't confirm until it's resolved.",
+      disputedShort: "⚠️ Problem reported",
     },
 
     offers: {
@@ -2658,6 +2674,14 @@ export const translations = {
       otherConfirmedShort: "Esperando tu confirmación",
       reservationCountdown: "Ciérralo en {d}d {h}h, o se cancela y los anuncios vuelven a estar activos.",
       reservationExpired: "Reserva caducada: se liberará en breve.",
+      reportCta: "Informar de un problema",
+      reportTitle: "Informar de un problema",
+      reportMsg: "Informa solo si algo va mal: la confirmación queda bloqueada para ambos hasta que lo resolváis.",
+      reportReasonNotReceived: "No he recibido el billete",
+      reportReasonInvalid: "Billete no válido/ya usado",
+      reportReasonOther: "Otro problema",
+      disputeOpen: "Problema informado — no confirmes hasta que se resuelva.",
+      disputedShort: "⚠️ Problema informado",
     },
 
     offers: {

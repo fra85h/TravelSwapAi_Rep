@@ -21,6 +21,7 @@ export async function listMyChats() {
     updatedAt: r.updated_at,
     iConfirmed: !!r.i_confirmed,
     otherConfirmed: !!r.other_confirmed,
+    disputed: !!r.disputed,
   }));
 }
 
@@ -38,6 +39,8 @@ export async function getOfferHandshake(offerId) {
     iConfirmed: !!r.i_confirmed,
     otherConfirmed: !!r.other_confirmed,
     reservationExpiresAt: r.reservation_expires_at,
+    disputed: !!r.disputed,
+    disputeReason: r.dispute_reason || null,
   };
 }
 

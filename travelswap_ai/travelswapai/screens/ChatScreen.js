@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { listChatMessages, sendChatMessage, markChatRead, subscribeToChat, getOfferHandshake } from "../lib/chat";
-import { confirmExchange, cancelAcceptedOffer, getOfferExpiryInfo } from "../lib/offers";
+import { confirmExchange, cancelAcceptedOffer, reportExchangeProblem, getOfferExpiryInfo } from "../lib/offers";
 import { getCurrentUser } from "../lib/db";
 import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
@@ -87,6 +87,30 @@ export default function ChatScreen() {
       ]
     );
   }, [offerId, t, refreshHandshake]);
+
+  const doReport = useCallback(async (reason) => {
+    setHsBusy(true);
+    try {
+      await reportExchangeProblem(offerId, reason);
+      await Promise.all([refreshHandshake(), load()]);
+      notifyActivityChanged();
+    } catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+    finally { setHsBusy(false); }
+  }, [offerId, t, refreshHandshake, load]);
+
+  // Motivi preimpostati (cross-platform: Alert.prompt è solo iOS).
+  const onReport = useCallback(() => {
+    Alert.alert(
+      t("chat.reportTitle", "Segnala un problema"),
+      t("chat.reportMsg", "Segnala solo se qualcosa non va: la conferma resta bloccata per entrambi finché non risolvete."),
+      [
+        { text: t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto"), onPress: () => doReport(t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto")) },
+        { text: t("chat.reportReasonInvalid", "Biglietto non valido/già usato"), onPress: () => doReport(t("chat.reportReasonInvalid", "Biglietto non valido/già usato")) },
+        { text: t("chat.reportReasonOther", "Altro problema"), onPress: () => doReport(t("chat.reportReasonOther", "Altro problema")) },
+        { text: t("common.cancel", "Annulla"), style: "cancel" },
+      ]
+    );
+  }, [t, doReport]);
 
   const onCancelExchange = useCallback(() => {
     Alert.alert(
@@ -186,6 +210,25 @@ export default function ChatScreen() {
             <Ionicons name="checkmark-done-circle" size={16} color="#166534" />
             <Text style={[styles.hsText, { color: "#166534" }]}>{t("chat.completed", "Scambio completato")}</Text>
           </View>
+        ) : handshake?.status === "accepted" && handshake.disputed ? (
+          // Contestazione aperta: conferma BLOCCATA per entrambi, resta solo
+          // continuare a parlare o annullare.
+          <View style={[styles.hsBar, styles.hsDispute]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="alert-circle" size={16} color="#991B1B" />
+              <Text style={[styles.hsText, { color: "#991B1B", fontWeight: "800", flex: 1 }]}>
+                {t("chat.disputeOpen", "Problema segnalato — non confermare finché non è risolto.")}
+              </Text>
+            </View>
+            {handshake.disputeReason ? (
+              <Text style={[styles.hsText, { color: "#991B1B" }]}>{handshake.disputeReason}</Text>
+            ) : null}
+            <View style={styles.hsBtns}>
+              <TouchableOpacity style={[styles.hsBtn, styles.hsBtnGhost, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onCancelExchange}>
+                <Text style={styles.hsBtnGhostTxt}>{t("chat.cancelCta", "Annulla scambio")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         ) : handshake?.status === "accepted" ? (
           <View style={styles.hsBar}>
             {handshake.iConfirmed ? (
@@ -219,6 +262,9 @@ export default function ChatScreen() {
               ) : null}
               <TouchableOpacity style={[styles.hsBtn, styles.hsBtnGhost, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onCancelExchange}>
                 <Text style={styles.hsBtnGhostTxt}>{t("chat.cancelCta", "Annulla scambio")}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.hsBtn, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onReport}>
+                <Text style={styles.hsReportTxt}>{t("chat.reportCta", "Segnala un problema")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -295,6 +341,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: theme.colors.border,
   },
   hsDone: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#DCFCE7" },
+  hsDispute: { backgroundColor: "#FEE2E2" },
+  hsReportTxt: { color: "#991B1B", fontWeight: "700", fontSize: 13 },
   hsText: { color: theme.colors.text, fontSize: 12.5, lineHeight: 17 },
   hsBtns: { flexDirection: "row", gap: 8 },
   hsBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
