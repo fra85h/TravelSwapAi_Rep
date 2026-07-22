@@ -409,6 +409,15 @@ export default function HomeScreen() {
 
         {dateLine ? <Text style={styles.cardDates}>{dateLine}</Text> : null}
 
+        {/* Tag "Nominativo" visibile già in lista: è un vincolo importante
+            (richiede cambio nominativo), non va scoperto solo nel dettaglio. */}
+        {typeLc === "train" && item.is_named_ticket === true ? (
+          <View style={styles.namedTag}>
+            <Ionicons name="person-outline" size={11} color="#92400E" />
+            <Text style={styles.namedTagText}>{tt("listing.namedTag", "Nominativo")}</Text>
+          </View>
+        ) : null}
+
         {published ? (
           <Text style={styles.cardPublished}>{published}</Text>
         ) : null}
@@ -666,6 +675,12 @@ const styles = StyleSheet.create({
   cardSub: { color: theme.colors.textMuted, marginTop: 4 },
   cardMeta: { color: theme.colors.text, fontWeight: "600" },
   cardDates: { color: theme.colors.textMuted, marginTop: 4, fontSize: 12, fontWeight: "600" },
+  namedTag: {
+    flexDirection: "row", alignItems: "center", gap: 3, alignSelf: "flex-start", marginTop: 6,
+    backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FCD34D",
+    borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2,
+  },
+  namedTagText: { color: "#92400E", fontSize: 10, fontWeight: "800" },
   cardPublished: { color: theme.colors.textMuted, marginTop: 8, fontSize: 12 },
   errorBox: { flex: 1, alignItems: "center", justifyContent: "center", padding: 16, backgroundColor: theme.colors.background },
   error: { color: theme.colors.danger, marginBottom: 8, textAlign: "center" },

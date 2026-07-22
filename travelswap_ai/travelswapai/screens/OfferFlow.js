@@ -214,6 +214,12 @@ export default function OfferFlow() {
             {t("offerFlow.askingPrice", "Prezzo richiesto")}{": "}{fmtMoney(target?.price, target?.currency)}
           </Text>
         ) : null}
+        {/* Nominativo: avviso prima ancora di proporre l'acquisto. */}
+        {target?.type === "train" && target?.is_named_ticket === true ? (
+          <Text style={s.namedNote}>
+            {t("offerFlow.namedNote", "⚠️ Biglietto nominativo: potrebbe servire il cambio nominativo per usarlo. Verifica con il venditore.")}
+          </Text>
+        ) : null}
       </View>
 
       {pendingOffer ? (
@@ -352,6 +358,7 @@ const s = StyleSheet.create({
   tTitle: { fontWeight: "800" },
   tMeta: { color: theme.colors.textMuted, marginTop: 4 },
   tPrice: { color: theme.colors.text, fontWeight: "700", marginTop: 6 },
+  namedNote: { color: "#92400E", backgroundColor: "#FEF3C7", borderRadius: 8, padding: 8, marginTop: 8, fontSize: 12.5, lineHeight: 17 },
   swapArrow: { alignItems: "center", marginTop: 2, marginBottom: 10 },
   label: { fontWeight: "700", marginTop: 8, marginBottom: 6 },
   input: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
