@@ -66,6 +66,28 @@ export async function getListingSecret(listingId) {
   return data?.pnr ?? null;
 }
 
+/**
+ * Vero se il PNR risulta già in vendita in un altro annuncio "vivo" (di
+ * chiunque). Difesa anti doppia vendita dello stesso biglietto. excludeId: il
+ * proprio annuncio in modifica (non conta come duplicato di se stesso).
+ * Best effort: in errore ritorna false (l'indice unico a DB resta backstop).
+ */
+export async function isPnrInUse(pnr, excludeId = null) {
+  const clean = String(pnr || "").trim();
+  if (!clean) return false;
+  try {
+    const { data, error } = await supabase.rpc("is_pnr_active", {
+      pnr_text: clean,
+      exclude_listing_id: excludeId != null ? String(excludeId) : null,
+    });
+    if (error) { console.log("[isPnrInUse]", error.message); return false; }
+    return !!data;
+  } catch (e) {
+    console.log("[isPnrInUse] exception:", e?.message || e);
+    return false;
+  }
+}
+
 /** Inserisci un annuncio (assegna user_id automaticamente) */
 export async function insertListing(payload) {
   const me = await getCurrentUser();
