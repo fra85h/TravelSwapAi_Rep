@@ -33,7 +33,7 @@ import { STATUS_COLORS, normStatusKey, isConcludedStatus } from "../lib/listingS
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
-function StatItem({ label, icon, value, active, onPress }) {
+function StatItem({ label, icon, iconColor, value, active, onPress }) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -42,7 +42,7 @@ function StatItem({ label, icon, value, active, onPress }) {
       accessibilityState={{ selected: !!active }}
       accessibilityLabel={`${label}: ${value}`}
     >
-      <Text style={styles.statIcon}>{icon}</Text>
+      <Ionicons name={icon} size={18} color={iconColor || theme.colors.textMuted} style={{ marginBottom: 4 }} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </TouchableOpacity>
@@ -359,14 +359,18 @@ export default function ProfileScreen() {
     navigation.getParent?.()?.navigate?.(route);
   };
 
+  // Icone Ionicons (non emoji) per coerenza col resto dell'app, con un colore
+  // per una lettura a colpo d'occhio (verde=attivo, rosso=scaduto, ambra=in
+  // corso). Prima erano emoji, che rendono diversamente per OS e stonavano
+  // con le Ionicons usate ovunque.
   const STAT_CHIPS = [
-    { key: "active", icon: "🟢", label: t("listing.filters.active", "Attivi") },
-    { key: "swapped", icon: "🔁", label: t("listing.filters.swapped", "Scambiati") },
-    { key: "sold", icon: "💰", label: t("listing.filters.sold", "Venduti") },
-    { key: "reserved", icon: "🔒", label: t("listing.filters.reserved", "Riservati") },
-    { key: "pending", icon: "🕑", label: t("listing.filters.pending", "In trattativa") },
-    { key: "paused", icon: "⏸️", label: t("listing.filters.paused", "In pausa") },
-    { key: "expired", icon: "⛔️", label: t("listing.filters.expired", "Scaduti") },
+    { key: "active", icon: "ellipse", color: "#16A34A", label: t("listing.filters.active", "Attivi") },
+    { key: "swapped", icon: "swap-horizontal", color: "#3730A3", label: t("listing.filters.swapped", "Scambiati") },
+    { key: "sold", icon: "cash-outline", color: "#1E40AF", label: t("listing.filters.sold", "Venduti") },
+    { key: "reserved", icon: "lock-closed-outline", color: "#92400E", label: t("listing.filters.reserved", "Riservati") },
+    { key: "pending", icon: "time-outline", color: "#92400E", label: t("listing.filters.pending", "In trattativa") },
+    { key: "paused", icon: "pause-circle-outline", color: theme.colors.textMuted, label: t("listing.filters.paused", "In pausa") },
+    { key: "expired", icon: "close-circle-outline", color: "#991B1B", label: t("listing.filters.expired", "Scaduti") },
   ];
 
   const ListHeader = (
@@ -451,7 +455,8 @@ export default function ProfileScreen() {
               rende esplicito che le chip sono filtri, non solo contatori. */}
           <StatItem
             label={t("listing.filters.all", "Tutti")}
-            icon="🗂️"
+            icon="albums-outline"
+            iconColor={theme.colors.text}
             value={myListings.length}
             active={statusFilter === null}
             onPress={() => setStatusFilter(null)}
@@ -461,6 +466,7 @@ export default function ProfileScreen() {
               key={chip.key}
               label={chip.label}
               icon={chip.icon}
+              iconColor={chip.color}
               value={stats[chip.key] || 0}
               active={statusFilter === chip.key}
               onPress={() => setStatusFilter(statusFilter === chip.key ? null : chip.key)}
