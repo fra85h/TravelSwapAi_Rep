@@ -520,6 +520,7 @@ export default function CreateListingScreen({
 
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
+  const [advancedOpen, setAdvancedOpen] = useState(false); // "Opzioni avanzate" a scomparsa
   const scrollRef = useRef(null); // ref for horizontal ScrollView
 
   const [insightsOpen, setInsightsOpen] = useState(false);
@@ -1983,6 +1984,9 @@ const initialJsonRef = useRef(null);
   // disposto a pagare), non un prezzo di vendita. In Fase 2 l'algoritmo di
   // match userà questo valore come tetto: un Vendo dentro budget alza il match.
   const isCerco = String(form.cercoVendo || "").toUpperCase() === "CERCO";
+  // "Opzioni avanzate" si apre da sola se contiene un errore, così un campo
+  // obbligatorio (es. genere per un nominativo) non resta nascosto.
+  const advancedForceOpen = !!(errors?.gender || errors?.purchasePrice);
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left','right','bottom']}>
       {/* ===== TOP PANNELLO FISSO ===== */}
@@ -2426,8 +2430,24 @@ const initialJsonRef = useRef(null);
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
                 >
+                  {/* Opzioni avanzate: raccoglie i campi tecnici/opzionali
+                      (particolari treno, prezzo di acquisto) per non
+                      appesantire il modulo — l'import compila già questi campi
+                      da solo. Si apre da sola se dentro c'è un errore. */}
+                  {(form?.type === "train" || !isCerco) ? (
+                    <TouchableOpacity
+                      style={styles.advancedHeader}
+                      onPress={() => setAdvancedOpen((v) => !v)}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("createListing.advancedOptions", "Opzioni avanzate")}
+                    >
+                      <Text style={styles.advancedHeaderText}>{t("createListing.advancedOptions", "Opzioni avanzate")}</Text>
+                      <AntDesign name={(advancedOpen || advancedForceOpen) ? "up" : "down"} size={16} color={theme.colors.textMuted} />
+                    </TouchableOpacity>
+                  ) : null}
+
                   {/* Particolari treno (se serve) */}
-                  {form?.type === "train" && (
+                  {form?.type === "train" && (advancedOpen || advancedForceOpen) && (
                     <View style={styles.subCard}>
                       <Text style={styles.subCardTitle}>{t("createListing.train.particulars", "Dati particolari treno")}</Text>
 
@@ -2488,8 +2508,9 @@ const initialJsonRef = useRef(null);
                   )}
 
                   {/* Prezzo di acquisto (solo Vendo): anti-bagarinaggio. Il
-                      prezzo di vendita non potrà superarlo. */}
-                  {!isCerco && (
+                      prezzo di vendita non potrà superarlo. Dentro "Opzioni
+                      avanzate". */}
+                  {!isCerco && (advancedOpen || advancedForceOpen) && (
                     <>
                       <Text style={styles.label}>{t("createListing.purchasePrice", "Prezzo di acquisto (€)")}</Text>
                       <TextInput
@@ -2808,6 +2829,13 @@ const styles = StyleSheet.create({
     importCardTitle: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
     importCardText: { color: theme.colors.accentOn, opacity: 0.9, fontSize: 12, marginTop: 2 },
     cvHelper: { color: theme.colors.textMuted, fontSize: 12, marginTop: 6, marginBottom: 2 },
+    advancedHeader: {
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      paddingVertical: 12, paddingHorizontal: 12, marginBottom: 8,
+      backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radius.md || 10,
+      borderWidth: 1, borderColor: theme.colors.border,
+    },
+    advancedHeaderText: { fontWeight: "800", color: theme.colors.text, fontSize: 14 },
     labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     iconBtn: { padding: 6, marginLeft: 8 },
     inputDisabled: { backgroundColor: theme.colors.surfaceMuted, color: theme.colors.textMuted },
