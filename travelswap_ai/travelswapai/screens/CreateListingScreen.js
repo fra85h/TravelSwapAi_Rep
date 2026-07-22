@@ -2126,28 +2126,12 @@ const initialJsonRef = useRef(null);
         />
         {!!fieldError("title") && <Text style={styles.errorText}>{fieldError("title")}</Text>}
 
-        {/* "Inserisci manualmente": secondo modo (oltre a Import/Compila con
-            AI) per arrivare allo Step 2 con tutti gli altri campi — pensato
-            per chi preferisce compilare a mano invece di affidarsi
-            all'automazione. Segna Titolo come "toccato" così, se è vuoto,
-            l'errore compare al ritorno su questo step (stesso comportamento
-            di "Avanti"). */}
-        <TouchableOpacity
-          onPress={() => { markTouched("title"); setPhase("manual"); }}
-          style={styles.manualEntryBtn}
-          accessibilityRole="button"
-          accessibilityLabel={t("createListing.manualEntry", "Inserisci manualmente")}
-        >
-          <Text style={styles.manualEntryText}>{t("createListing.manualEntry", "Inserisci manualmente")}</Text>
-          <AntDesign name="right" size={14} color={theme.colors.textMuted} />
-        </TouchableOpacity>
-
-        {/* Descrizione: è il testo che "Compila con AI" analizza per
-            riconoscere tratta/date/prezzo — deve stare sulla stessa
-            schermata del bottone che la usa (prima era nello Step 2,
-            irraggiungibile da qui: "Compila con AI" chiedeva sempre una
-            descrizione che non si poteva scrivere). Facoltativa solo se si
-            usa Import o si compila a mano da Step 2. */}
+        {/* Descrizione: alternativa all'Import (yellow box qui sopra), non un
+            passo successivo — chi NON ha un documento scansionabile può
+            descrivere il biglietto a parole e lasciare che "Compila con AI"
+            lo interpreti. L'etichetta lo rende esplicito, altrimenti sembra
+            un campo obbligatorio in mezzo al flusso. */}
+        <Text style={styles.sectionAltLabel}>{t("createListing.descriptionAltTitle", "Non hai un documento a portata di mano? Descrivilo a parole")}</Text>
         <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
         <TextInput
           value={form.description}
@@ -2178,16 +2162,10 @@ const initialJsonRef = useRef(null);
             />
           </View>
           {/* Icona QR rimossa: ridondante col box giallo "Importa" qui sopra,
-              che apre la stessa identica modale (openImport). */}
-          <AIIconButton
-            accessibilityLabel={t("createListing.checkAiCta", "Check AI")}
-            label={t("createListing.checkAiCta", "Check AI")}
-            onPress={onTrustCheck}
-            disabled={trustLoading || loadingAI || aiFilling}
-            loading={loadingAI}
-            iconLib="mci"
-            iconName="shield-check"
-          />
+              che apre la stessa identica modale (openImport). "Check AI" si
+              è spostata nello Step 2: valuta anche prezzo/tratta/date, che
+              vivono lì — lanciarla da qui valuterebbe un annuncio ancora
+              incompleto. */}
           <AIIconButton
             accessibilityLabel={t("common.clear", "Pulisci")}
             label={t("common.clear", "Pulisci")}
@@ -2198,7 +2176,8 @@ const initialJsonRef = useRef(null);
           />
         </View>
 
-        {/* Micro log + progress bar */}
+        {/* Micro log + progress bar: qui riflette solo "Compila con AI"
+            (unica azione AI rimasta in questo step). */}
         {showMicroLog && (
           <View style={styles.microWrap}>
             {microLog.map((line, idx) => (
@@ -2210,61 +2189,27 @@ const initialJsonRef = useRef(null);
           </View>
         )}
 
-        {/* Sommario "a semaforo" del Check AI: resta visibile nel pannello
-            fisso (tutti e tre i tab) così l'utente si accorge subito degli
-            esiti, che nel dettaglio vivono nel terzo tab. Un tap porta ai
-            dettagli. */}
-        {lastTrustRunAt > 0 && trustData && (
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => goToManualStep(2)}
-            style={styles.checkSummary}
-            accessibilityRole="button"
-            accessibilityLabel={t("createListing.checkAi.problemsTitle", "Possibili problemi")}
-          >
-            <View style={styles.checkSummaryChips}>
-              {trustData.aiAvailable === false && (
-                <View style={[styles.sumChip, styles.sumChipRed]}>
-                  <Text style={styles.sumChipText}>{t("createListing.checkAi.aiUnavailable", "Verifica AI non disponibile")}</Text>
-                </View>
-              )}
-              {!!flagsNoImg?.length && (
-                <View style={[styles.sumChip, styles.sumChipYellow]}>
-                  <Text style={styles.sumChipText}>{t(flagsNoImg.length === 1 ? "createListing.checkAi.problemsOne" : "createListing.checkAi.problemsMany", `${flagsNoImg.length} problemi`, { n: flagsNoImg.length })}</Text>
-                </View>
-              )}
-              {!!fixesNoImg?.length && (
-                <View style={[styles.sumChip, styles.sumChipGreen]}>
-                  <Text style={styles.sumChipText}>{t(fixesNoImg.length === 1 ? "createListing.checkAi.suggestionsOne" : "createListing.checkAi.suggestionsMany", `${fixesNoImg.length} suggerimenti`, { n: fixesNoImg.length })}</Text>
-                </View>
-              )}
-              {splitDetected && (
-                <View style={[styles.sumChip, styles.sumChipBlue]}>
-                  <Text style={styles.sumChipText}>{t("createListing.checkAi.twoListings", "2 annunci")}</Text>
-                </View>
-              )}
-              {trustData.aiAvailable !== false && !flagsNoImg?.length && !fixesNoImg?.length && !splitDetected && !trustExplain && (
-                <View style={[styles.sumChip, styles.sumChipGreen]}>
-                  <Text style={styles.sumChipText}>{t("createListing.checkAi.noProblems", "Nessun problema rilevato")}</Text>
-                </View>
-              )}
-              {trustData.aiAvailable !== false && !flagsNoImg?.length && !!trustExplain && (
-                <View style={[styles.sumChip, styles.sumChipYellow]}>
-                  <Text style={styles.sumChipText} numberOfLines={1}>{trustExplain}</Text>
-                </View>
-              )}
-            </View>
-            {slideIndex !== 2 && (
-              <Text style={styles.checkSummaryLink}>{t("createListing.checkAi.seeDetails", "Vedi dettagli ›")}</Text>
-            )}
-          </TouchableOpacity>
-        )}
+        {/* "Inserisci manualmente": link leggero in fondo, non più un
+            bottone pieno a metà flusso — è l'alternativa a Import/Compila
+            con AI, non un passo obbligato dopo. Segna Titolo come
+            "toccato" così, se è vuoto, l'errore compare al ritorno su
+            questo step (stesso comportamento di "Avanti"). */}
+        <TouchableOpacity
+          onPress={() => { markTouched("title"); setPhase("manual"); }}
+          style={styles.manualEntryLink}
+          accessibilityRole="button"
+          accessibilityLabel={t("createListing.manualEntry", "Inserisci manualmente")}
+        >
+          <Text style={styles.manualEntryLinkText}>{t("createListing.manualEntry", "Inserisci manualmente")}</Text>
+          <AntDesign name="right" size={12} color={theme.colors.textMuted} />
+        </TouchableOpacity>
       </View>
       ) : (
       /* ===== SCHERMATA 2 (Step "manual"): tutti gli altri campi, a schermo
-         intero. Raggiunta da "Inserisci manualmente" o in automatico dopo
-         Import/Compila con AI/Check AI (goToManualStep). Freccia indietro
-         per tornare alla Schermata 1 e correggere Tipo/Titolo. ===== */
+         intero — inclusa "Check AI" (valuta prezzo/tratta/date, che vivono
+         solo qui). Raggiunta dal link "Inserisci manualmente" o in
+         automatico dopo Import/Compila con AI (goToManualStep). Freccia
+         indietro per tornare alla Schermata 1 e correggere Tipo/Titolo. */
       <>
       <View style={styles.topPanel}>
         <View style={styles.topHeaderRow}>
@@ -2722,6 +2667,72 @@ const initialJsonRef = useRef(null);
                     </View>
                   )}
 
+                  {/* Check AI: qui, non nello Step 1, perché valuta anche
+                      prezzo/tratta/date — campi che vivono solo qui.
+                      Parte comunque in automatico alla pubblicazione se non
+                      ancora lanciata: questo bottone serve solo per vederne
+                      subito l'esito, prima di "Pubblica". */}
+                  <View style={styles.checkAiRow}>
+                    <AIPill
+                      title={t("createListing.checkAiCta", "Check AI")}
+                      onPress={onTrustCheck}
+                      disabled={trustLoading || loadingAI || aiFilling}
+                      loading={loadingAI}
+                      subtle
+                      iconLib="mci"
+                      iconName="shield-check"
+                    />
+                    <Text style={styles.note}>{t("createListing.checkAiHint", "Verifica affidabilità, prezzo e foto prima di pubblicare. Se non la lanci, parte comunque da sola alla pubblicazione.")}</Text>
+                  </View>
+
+                  {showMicroLog && (
+                    <View style={styles.microWrap}>
+                      {microLog.map((line, idx) => (
+                        <Text key={idx} style={styles.microLine}>• {line}</Text>
+                      ))}
+                      <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: `${Math.max(0, Math.min(100, progress))}%` }]} />
+                      </View>
+                    </View>
+                  )}
+
+                  {lastTrustRunAt > 0 && trustData && (
+                    <View style={styles.checkSummary}>
+                      <View style={styles.checkSummaryChips}>
+                        {trustData.aiAvailable === false && (
+                          <View style={[styles.sumChip, styles.sumChipRed]}>
+                            <Text style={styles.sumChipText}>{t("createListing.checkAi.aiUnavailable", "Verifica AI non disponibile")}</Text>
+                          </View>
+                        )}
+                        {!!flagsNoImg?.length && (
+                          <View style={[styles.sumChip, styles.sumChipYellow]}>
+                            <Text style={styles.sumChipText}>{t(flagsNoImg.length === 1 ? "createListing.checkAi.problemsOne" : "createListing.checkAi.problemsMany", `${flagsNoImg.length} problemi`, { n: flagsNoImg.length })}</Text>
+                          </View>
+                        )}
+                        {!!fixesNoImg?.length && (
+                          <View style={[styles.sumChip, styles.sumChipGreen]}>
+                            <Text style={styles.sumChipText}>{t(fixesNoImg.length === 1 ? "createListing.checkAi.suggestionsOne" : "createListing.checkAi.suggestionsMany", `${fixesNoImg.length} suggerimenti`, { n: fixesNoImg.length })}</Text>
+                          </View>
+                        )}
+                        {splitDetected && (
+                          <View style={[styles.sumChip, styles.sumChipBlue]}>
+                            <Text style={styles.sumChipText}>{t("createListing.checkAi.twoListings", "2 annunci")}</Text>
+                          </View>
+                        )}
+                        {trustData.aiAvailable !== false && !flagsNoImg?.length && !fixesNoImg?.length && !splitDetected && !trustExplain && (
+                          <View style={[styles.sumChip, styles.sumChipGreen]}>
+                            <Text style={styles.sumChipText}>{t("createListing.checkAi.noProblems", "Nessun problema rilevato")}</Text>
+                          </View>
+                        )}
+                        {trustData.aiAvailable !== false && !flagsNoImg?.length && !!trustExplain && (
+                          <View style={[styles.sumChip, styles.sumChipYellow]}>
+                            <Text style={styles.sumChipText} numberOfLines={1}>{trustExplain}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
                   {/* Box Trust */}
                   {splitDetected && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#DBEAFE', borderWidth: 1, borderColor: '#60A5FA' }}>
@@ -2926,13 +2937,16 @@ const styles = StyleSheet.create({
     },
     importCardTitle: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
     importCardText: { color: theme.colors.accentOn, opacity: 0.9, fontSize: 12, marginTop: 2 },
-    manualEntryBtn: {
-      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
-      paddingVertical: 10, marginTop: 10, marginBottom: 4,
-      borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-    },
-    manualEntryText: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13 },
+    // Etichetta che introduce Descrizione come ALTERNATIVA all'Import (non
+    // un passo successivo): senza, sembra un campo obbligatorio in mezzo al
+    // flusso invece che una scorciatoia per chi non ha un documento.
+    sectionAltLabel: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700", marginTop: 12, marginBottom: 2, textTransform: "uppercase", letterSpacing: 0.3 },
+    // Link leggero (non più un bottone pieno): "Inserisci manualmente" è
+    // l'alternativa a Import/Compila con AI, non un passo obbligato — il
+    // peso visivo di un link comunica meglio "opzionale" di un bottone pieno.
+    manualEntryLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10, marginTop: 8 },
+    manualEntryLinkText: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13, textDecorationLine: "underline" },
+    checkAiRow: { marginTop: 4, marginBottom: 4, gap: 6, alignItems: "flex-start" },
     cvHelper: { color: theme.colors.textMuted, fontSize: 12, marginTop: 6, marginBottom: 2 },
     advancedHeader: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -2979,7 +2993,6 @@ const styles = StyleSheet.create({
   sumChipYellow: { backgroundColor: "#FFF4C5", borderColor: "#FACC15" },
   sumChipGreen: { backgroundColor: "#E7F7C5", borderColor: "#84CC16" },
   sumChipBlue: { backgroundColor: "#DBEAFE", borderColor: "#60A5FA" },
-  checkSummaryLink: { fontSize: 12, fontWeight: "800", color: theme.colors.boardingText },
 
   // Micro log + progress
   microWrap: { marginTop: 6, marginBottom: 4 },
