@@ -51,6 +51,12 @@ test('tollera varianti dello stesso nome città (stazioni diverse)', () => {
   assert.equal(matchesSearch(trainSearch, listing), true);
 });
 
+test('formato "Città — Stazione" (autocompletamento): stazioni diverse della stessa città fanno match', () => {
+  const search = { ...trainSearch, route_from: 'Roma — Termini', route_to: 'Milano — Garibaldi' };
+  const listing = { type: 'train', cerco_vendo: 'VENDO', status: 'active', route_from: 'Roma — Tiburtina', route_to: 'Milano — Centrale', price: 35 };
+  assert.equal(matchesSearch(search, listing), true);
+});
+
 test('senza prezzo massimo, qualsiasi prezzo va bene', () => {
   const search = { ...trainSearch, max_price: null };
   const listing = { type: 'train', cerco_vendo: 'VENDO', status: 'active', route_from: 'Roma', route_to: 'Milano', price: 500 };

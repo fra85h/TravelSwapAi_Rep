@@ -23,10 +23,22 @@ function normCity(s) {
 // libera farebbe scattare falsi positivi tipo "Roma" dentro "Romagnano
 // Sesia" (Piemonte, nulla a che vedere con Roma) o "Bari" dentro
 // "Barisardo" (Sardegna) — stesso bug già corretto in ai/chainMatch.js.
+// L'autocompletamento stazioni (lib/trainStations sul client) genera testo
+// nel formato "Città — Stazione". Confrontare per CITTÀ, non per stazione
+// esatta: altrimenti chi cerca da "Roma — Termini" non troverebbe più un
+// annuncio "Roma — Tiburtina", anche se gli va benissimo qualunque stazione
+// della stessa città. Testo vecchio stile (senza il separatore, digitato a
+// mano) non cambia comportamento: resta l'intera stringa, come prima.
+function cityOnly(s) {
+  const str = String(s || "");
+  const idx = str.indexOf(" — ");
+  return idx >= 0 ? str.slice(0, idx) : str;
+}
+
 function cityMatches(wanted, actual) {
-  const w = normCity(wanted);
+  const w = normCity(cityOnly(wanted));
   if (!w) return true;
-  const a = normCity(actual);
+  const a = normCity(cityOnly(actual));
   if (!a) return false;
   const wWords = w.split(/\s+/);
   const aWords = a.split(/\s+/);

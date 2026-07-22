@@ -16,6 +16,7 @@ import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import StationAutocomplete from "../components/StationAutocomplete";
 
 function formatDate(iso, locale) {
   if (!iso) return "";
@@ -109,18 +110,31 @@ function NewSearchForm({ onCreated, t }) {
         />
       ) : (
         <>
-          <Input
-            label={t("savedSearches.fromLabel", "Da")}
-            placeholder={t("savedSearches.fromPlaceholder", "Es. Roma")}
-            value={routeFrom}
-            onChangeText={setRouteFrom}
-          />
-          <Input
-            label={t("savedSearches.toLabel", "A")}
-            placeholder={t("savedSearches.toPlaceholder", "Es. Milano")}
-            value={routeTo}
-            onChangeText={setRouteTo}
-          />
+          {/* Stesso stile visivo di Input, con suggerimenti stazioni
+              (lib/trainStations): resta testo libero, il suggerimento aiuta
+              solo a scrivere in modo uniforme. */}
+          <Text style={{ fontWeight: "700", color: theme.colors.text, marginBottom: 8 }}>
+            {t("savedSearches.fromLabel", "Da")}
+          </Text>
+          <View style={{ borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, paddingHorizontal: 12, paddingVertical: 10, marginBottom: theme.spacing.md, ...theme.shadow.sm }}>
+            <StationAutocomplete
+              value={routeFrom}
+              onChangeText={setRouteFrom}
+              placeholder={t("savedSearches.fromPlaceholder", "Es. Roma")}
+              inputStyle={{ color: theme.colors.text, fontSize: 16 }}
+            />
+          </View>
+          <Text style={{ fontWeight: "700", color: theme.colors.text, marginBottom: 8 }}>
+            {t("savedSearches.toLabel", "A")}
+          </Text>
+          <View style={{ borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, paddingHorizontal: 12, paddingVertical: 10, marginBottom: theme.spacing.md, ...theme.shadow.sm }}>
+            <StationAutocomplete
+              value={routeTo}
+              onChangeText={setRouteTo}
+              placeholder={t("savedSearches.toPlaceholder", "Es. Milano")}
+              inputStyle={{ color: theme.colors.text, fontSize: 16 }}
+            />
+          </View>
         </>
       )}
 
