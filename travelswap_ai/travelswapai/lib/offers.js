@@ -1,6 +1,17 @@
 
 // lib/offers_v2.js — aggiornato per i flussi BUY/SWAP con helper RPC
 import { supabase } from "./supabase";
+import { fetchJson } from "./backendApi";
+
+// Notifiche email best-effort (Punto 5): non bloccano mai il flusso e non
+// mostrano errori all'utente. Il server risolve il destinatario e invia solo
+// se SMTP è configurato (altrimenti no-op).
+function notify(path, body) {
+  try {
+    fetchJson(path, { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } })
+      .catch(() => {});
+  } catch {}
+}
 
 /** Ritorna l'utente corrente o null */
 async function getMe() {
@@ -25,6 +36,7 @@ export async function createOfferBuy(listingId, { amount, currency = "EUR", mess
   };
   const { data, error } = await supabase.from("offers").insert([payload]).select().single();
   if (error) throw new Error(error.message || "Impossibile creare l'offerta");
+  if (data?.id) notify("/api/notify/offer-received", { offerId: data.id });
   return data;
 }
 
@@ -44,6 +56,7 @@ export async function createOfferSwap(myListingId, targetListingId, { message } 
   };
   const { data, error } = await supabase.from("offers").insert([payload]).select().single();
   if (error) throw new Error(error.message || "Impossibile creare l'offerta");
+  if (data?.id) notify("/api/notify/offer-received", { offerId: data.id });
   return data;
 }
 
@@ -51,6 +64,10 @@ export async function createOfferSwap(myListingId, targetListingId, { message } 
 export async function acceptOffer(offerId) {
   const { data, error } = await supabase.rpc("accept_offer_any", { offer_id_text: String(offerId) });
   if (error) throw new Error(error.message || "Impossibile accettare l'offerta");
+  // Avvisa il proponente solo se l'accettazione è andata davvero a buon fine.
+  if (String(data?.status || "").toLowerCase() === "accepted") {
+    notify("/api/notify/offer-accepted", { offerId: String(offerId) });
+  }
   return data;
 }
 
