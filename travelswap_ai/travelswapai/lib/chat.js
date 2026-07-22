@@ -41,6 +41,8 @@ export async function getOfferHandshake(offerId) {
     reservationExpiresAt: r.reservation_expires_at,
     disputed: !!r.disputed,
     disputeReason: r.dispute_reason || null,
+    needsNameChange: !!r.needs_name_change,
+    ticketOperator: r.ticket_operator || null,
   };
 }
 
