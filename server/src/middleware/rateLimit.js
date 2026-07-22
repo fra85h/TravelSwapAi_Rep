@@ -67,6 +67,8 @@ export const rateLimitPriceCheck = makeRateLimiter({ windowMs: 10 * 60 * 1000, m
 // Limite notifiche segnalazione: 10 ogni 10 minuti per utente
 export const rateLimitReportNotify = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 10, name: 'segnalazioni' });
 
+export const rateLimitNotify = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, name: 'notifiche' });
+
 // Limite endpoint cron scambi a catena: protetto solo da un secret condiviso
 // (nessun login utente, quindi il bucket è per IP), gli mancava un freno di
 // frequenza sui tentativi di indovinare X-Cron-Secret.
