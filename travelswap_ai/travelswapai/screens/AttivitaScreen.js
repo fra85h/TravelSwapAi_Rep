@@ -116,19 +116,27 @@ export default function AttivitaScreen({ navigation }) {
   // (vedi ActivityContext.js), quindi chiamare refresh() qui in più
   // duplicherebbe inutilmente il caricamento (5 query in parallelo) ad ogni
   // accetta/rifiuta/annulla.
-  const doAccept = useCallback(async (offerId) => {
+  const doAccept = useCallback(async (o) => {
+    const offerId = o.id;
     setBusy(offerId, true);
     try {
       await acceptOffer(offerId);
       notifyActivityChanged();
       // Momento di massimo bisogno: appena accettata, le due parti devono
-      // organizzare lo scambio — la chat si apre da qui con un tap.
+      // organizzare lo scambio — la chat si apre da qui con un tap, già
+      // "consapevole" di cosa si stanno scambiando (vedi header in ChatScreen).
       Alert.alert(
         t("offers.acceptedTitle", "Proposta accettata"),
         t("offers.acceptedChatMsg", "Ora potete organizzare lo scambio: apri la chat per accordarti con l'altra persona."),
         [
           { text: t("common.close", "Chiudi"), style: "cancel" },
-          { text: t("chat.open", "Apri la chat"), onPress: () => navigation?.navigate?.("Chat", { offerId }) },
+          {
+            text: t("chat.open", "Apri la chat"),
+            onPress: () => navigation?.navigate?.("Chat", {
+              offerId, type: o.type, amount: o.amount, currency: o.currency,
+              title: o.to_listing?.title, fromTitle: o.from_listing?.title,
+            }),
+          },
         ]
       );
     }
@@ -139,13 +147,13 @@ export default function AttivitaScreen({ navigation }) {
   // Conferma prima di accettare: accettare conclude la trattativa (per lo
   // scambio è irreversibile — annuncio -> swapped + transazione registrata) e
   // rifiuta le altre proposte in sospeso. Un tap accidentale costava caro.
-  const onAccept = useCallback((offerId) => {
+  const onAccept = useCallback((o) => {
     Alert.alert(
       t("activity.acceptConfirmTitle", "Accettare la proposta?"),
       t("activity.acceptConfirmMsg", "Accettando, questa proposta viene confermata e le altre proposte in sospeso sullo stesso annuncio verranno rifiutate."),
       [
         { text: t("common.cancel", "Annulla"), style: "cancel" },
-        { text: t("offers.accept", "Accetta"), onPress: () => doAccept(offerId) },
+        { text: t("offers.accept", "Accetta"), onPress: () => doAccept(o) },
       ]
     );
   }, [t, doAccept]);
@@ -222,7 +230,7 @@ export default function AttivitaScreen({ navigation }) {
           )}
           {o.message ? <Text style={styles.cardMsg}>{o.message}</Text> : null}
           <View style={styles.actionRow}>
-            <TouchableOpacity style={[styles.btn, styles.btnAccept, busy && styles.btnDisabled]} disabled={busy} onPress={() => onAccept(o.id)} accessibilityRole="button" accessibilityLabel={t("offers.accept", "Accetta")}>
+            <TouchableOpacity style={[styles.btn, styles.btnAccept, busy && styles.btnDisabled]} disabled={busy} onPress={() => onAccept(o)} accessibilityRole="button" accessibilityLabel={t("offers.accept", "Accetta")}>
               {busy ? <ActivityIndicator size="small" color="#166534" /> : <Text style={styles.btnAcceptTxt}>{t("offers.accept", "Accetta")}</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={[styles.btn, styles.btnDecline, busy && styles.btnDisabled]} disabled={busy} onPress={() => onDecline(o.id)} accessibilityRole="button" accessibilityLabel={t("offers.decline", "Rifiuta")}>
@@ -300,7 +308,9 @@ export default function AttivitaScreen({ navigation }) {
       <TouchableOpacity
         key={it.id}
         style={styles.card}
-        onPress={() => accepted ? navigation?.navigate?.("Chat", { offerId: o.id, title: o.to_listing?.title }) : goListing(o.to_listing?.id)}
+        onPress={() => accepted
+          ? navigation?.navigate?.("Chat", { offerId: o.id, type: o.type, amount: o.amount, currency: o.currency, title: o.to_listing?.title, fromTitle: o.from_listing?.title })
+          : goListing(o.to_listing?.id)}
         activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel={o.to_listing?.title || t("offerFlow.listing", "Annuncio")}
@@ -327,7 +337,7 @@ export default function AttivitaScreen({ navigation }) {
       <TouchableOpacity
         key={"chat_" + c.offerId}
         style={styles.card}
-        onPress={() => navigation?.navigate?.("Chat", { offerId: c.offerId, title: c.toListingTitle })}
+        onPress={() => navigation?.navigate?.("Chat", { offerId: c.offerId, type: c.type, title: c.toListingTitle, fromTitle: c.fromListingTitle })}
         activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel={c.toListingTitle || t("offerFlow.listing", "Annuncio")}

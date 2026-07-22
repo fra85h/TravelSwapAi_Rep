@@ -512,6 +512,10 @@ export const translations = {
         pnrLabel: "PNR (opzionale)",
         pnrPlaceholder: "Es. ABCDEF",
         pnrPrivacy: "Il PNR non sarà visibile nell’annuncio.",
+        operator: "Operatore",
+        operatorLabel: "Operatore (rilevato automaticamente)",
+        operatorPlaceholder: "Es. Trenitalia, Italo",
+        operatorHint: "Ricavato da Compila AI o dall'import del biglietto/conferma. Puoi correggerlo se non è esatto.",
       },
 
       orEnterPnr: "Oppure inserisci PNR",
@@ -645,6 +649,8 @@ export const translations = {
       rules: "Organizzate qui lo scambio. Non condividere dati sensibili (carte, documenti) e diffida di chi chiede di pagare fuori dai canali concordati. Il PNR resta protetto nell'annuncio.",
       teaserSend: "Dopo l'accettazione potrai chattare con l'altra persona per organizzare lo scambio.",
       teaserWaiting: "Potrai chattare con l'altra persona quando la proposta sarà accettata.",
+      dealSwap: "{a} ⇄ {b}",
+      dealBuyWithPrice: "{title} — {price}",
     },
 
     offers: {
@@ -1487,6 +1493,10 @@ export const translations = {
         pnrLabel: "PNR (optional)",
         pnrPlaceholder: "e.g. ABCDEF",
         pnrPrivacy: "The PNR will not be visible in the listing.",
+        operator: "Operator",
+        operatorLabel: "Operator (auto-detected)",
+        operatorPlaceholder: "e.g. Trenitalia, Italo",
+        operatorHint: "Picked up from Compila AI or from importing the ticket/confirmation. You can correct it if it's wrong.",
       },
 
       orEnterPnr: "Or enter PNR",
@@ -1617,6 +1627,8 @@ export const translations = {
       rules: "Organise the swap here. Don't share sensitive data (cards, documents) and beware of anyone asking to pay outside the agreed channels. The PNR stays protected in the listing.",
       teaserSend: "Once accepted, you'll be able to chat with the other person to organise the swap.",
       teaserWaiting: "You'll be able to chat with the other person once the proposal is accepted.",
+      dealSwap: "{a} ⇄ {b}",
+      dealBuyWithPrice: "{title} — {price}",
     },
 
     offers: {
@@ -2451,6 +2463,10 @@ export const translations = {
         pnrPlaceholder: "Ej. ABCDEF",
         pnrPrivacy:
           "El PNR no será visible en el anuncio.",
+        operator: "Operador",
+        operatorLabel: "Operador (detectado automáticamente)",
+        operatorPlaceholder: "Ej. Trenitalia, Italo",
+        operatorHint: "Obtenido de Compila AI o de la importación del billete/confirmación. Puedes corregirlo si no es exacto.",
       },
 
       orEnterPnr: "O introduce PNR",
@@ -2589,6 +2605,8 @@ export const translations = {
       rules: "Organizad aquí el intercambio. No compartas datos sensibles (tarjetas, documentos) y desconfía de quien pida pagar fuera de los canales acordados. El PNR queda protegido en el anuncio.",
       teaserSend: "Tras la aceptación podrás chatear con la otra persona para organizar el intercambio.",
       teaserWaiting: "Podrás chatear con la otra persona cuando la propuesta sea aceptada.",
+      dealSwap: "{a} ⇄ {b}",
+      dealBuyWithPrice: "{title} — {price}",
     },
 
     offers: {

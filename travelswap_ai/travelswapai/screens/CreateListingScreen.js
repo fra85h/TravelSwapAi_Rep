@@ -467,6 +467,10 @@ export default function CreateListingScreen({
     isNamedTicket: false,
     gender: "",
     pnr: "",
+    // Operatore (solo treno): Trenitalia, Italo… Ricavato dall'AI (Compila
+    // AI sul testo, import PDF/conferma), mai chiesto a mano — vedi consider()
+    // in onAiFill e applyImportedData. Mostrato solo nel dettaglio annuncio.
+    operator: "",
     description: "",
     price: "",
     // Prezzo di acquisto (anti-bagarinaggio): quanto il venditore ha pagato il
@@ -700,6 +704,7 @@ const initialJsonRef = useRef(null);
               departAt: tsToWallInput(l.depart_at),
               arriveAt: tsToWallInput(l.arrive_at),
               pnr: secretPnr ?? prev.pnr ?? "",
+              operator: l.operator || prev.operator || "",
               // scambio (B)
               acceptsSwap: !!l.accepts_swap,
               swapWantedFrom: l?.swap_wanted?.from || "",
@@ -1030,6 +1035,7 @@ const initialJsonRef = useRef(null);
         if (parsed?.pnr) consider("pnr", parsed.pnr, "PNR");
         if (typeof parsed?.isNamedTicket === "boolean" && !form.isNamedTicket) fillPatch.isNamedTicket = parsed.isNamedTicket;
         if (parsed?.gender) consider("gender", parsed.gender, t("createListing.train.genderLabel", "Genere"));
+        if (parsed?.provider) consider("operator", parsed.provider, t("createListing.train.operator", "Operatore"));
       } else {
         const parsedLoc = String(parsed?.location || "").trim();
         if (parsedLoc && !/-->|→/.test(parsedLoc)) consider("location", parsedLoc, t("createListing.locationLabelHotel", "Località"));
@@ -1633,7 +1639,7 @@ const initialJsonRef = useRef(null);
 
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
-        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt, pnr: form.pnr || null, route_from: routeFrom, route_to: routeTo };
+        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt, pnr: form.pnr || null, route_from: routeFrom, route_to: routeTo, operator: String(form.operator || "").trim() || null };
 
       // Riattivazione automatica: un annuncio 'expired' con le date ora
       // corrette (di nuovo nel futuro) torna 'active' da solo al salvataggio
@@ -1804,6 +1810,7 @@ const initialJsonRef = useRef(null);
         isNamedTicket: !!data.isNamedTicket,
         gender: data.gender ?? "",
         pnr: data.pnr ?? "",
+        operator: data.provider ?? "",
         checkIn: "",
         checkOut: "",
         price: data.price ?? "",
@@ -2425,6 +2432,20 @@ const initialJsonRef = useRef(null);
                         placeholderTextColor={theme.colors.textMuted}
                       />
                       <Text style={styles.note}>🔒 {t("createListing.train.pnrPrivacy", "Il PNR non sarà visibile nell’annuncio.")}</Text>
+
+                      {/* Operatore: ricavato dall'AI (Compila AI, import PDF/
+                          conferma), mai richiesto esplicitamente — qui solo
+                          per controllare/correggere. Mostrato poi SOLO nel
+                          dettaglio annuncio, mai nelle card di Esplora. */}
+                      <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.operatorLabel", "Operatore (rilevato automaticamente)")}</Text>
+                      <TextInput
+                        value={form.operator}
+                        onChangeText={(v) => update({ operator: v })}
+                        placeholder={t("createListing.train.operatorPlaceholder", "Es. Trenitalia, Italo")}
+                        style={styles.input}
+                        placeholderTextColor={theme.colors.textMuted}
+                      />
+                      <Text style={styles.note}>{t("createListing.train.operatorHint", "Ricavato da Compila AI o dall'import del biglietto/conferma. Puoi correggerlo se non è esatto.")}</Text>
                     </View>
                   )}
 

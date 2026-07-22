@@ -16,6 +16,7 @@ import { getCurrentUser } from "../lib/db";
 import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
+import { formatMoney } from "../lib/number";
 
 function formatTime(iso, locale) {
   try {
@@ -29,6 +30,10 @@ export default function ChatScreen() {
   const { t, locale } = useI18n();
   const offerId = route?.params?.offerId;
   const title = route?.params?.title || t("chat.title", "Chat");
+  const fromTitle = route?.params?.fromTitle || null;
+  const isSwap = String(route?.params?.type || "").toLowerCase() === "swap";
+  const amount = route?.params?.amount;
+  const currency = route?.params?.currency || "EUR";
 
   const [me, setMe] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -105,6 +110,26 @@ export default function ChatScreen() {
         behavior={Platform.select({ ios: "padding", android: undefined })}
         keyboardVerticalOffset={Platform.select({ ios: 90, android: 0 })}
       >
+        {/* Promemoria discreto di cosa ci si sta scambiando: fisso sopra i
+            messaggi (non nello ListHeaderComponent, che scrolla via) — in
+            una chat lunga o ripresa dopo giorni non è scontato ricordarselo. */}
+        {(title || fromTitle) ? (
+          <View style={styles.dealBar}>
+            <Ionicons name={isSwap ? "swap-horizontal" : "pricetag-outline"} size={14} color={theme.colors.textMuted} />
+            {isSwap && fromTitle ? (
+              <Text style={styles.dealBarText} numberOfLines={1}>
+                {t("chat.dealSwap", "{a} ⇄ {b}", { a: fromTitle, b: title })}
+              </Text>
+            ) : (
+              <Text style={styles.dealBarText} numberOfLines={1}>
+                {Number.isFinite(Number(amount))
+                  ? t("chat.dealBuyWithPrice", "{title} — {price}", { title, price: formatMoney(Number(amount), currency) })
+                  : title}
+              </Text>
+            )}
+          </View>
+        ) : null}
+
         {loading ? (
           <View style={styles.center}><ActivityIndicator /></View>
         ) : (
@@ -161,6 +186,14 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.colors.background },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
+
+  dealBar: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: theme.colors.surfaceMuted,
+    borderBottomWidth: 1, borderBottomColor: theme.colors.border,
+  },
+  dealBarText: { flex: 1, color: theme.colors.textMuted, fontSize: 12.5, fontWeight: "600" },
 
   rulesBox: {
     flexDirection: "row", gap: 8,

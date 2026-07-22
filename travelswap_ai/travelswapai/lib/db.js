@@ -5,7 +5,7 @@ import { supabase } from "./supabase";
 // (i segreti vivono in listing_secrets, lato server)
 const LISTING_PUBLIC_COLUMNS =
   "id, user_id, title, description, type, location, price, currency, status, created_at, " +
-  "cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, " +
+  "cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, operator, " +
   "image_url, published_at, trust_score, is_named_ticket, contact_url, accepts_swap, swap_wanted";
 
 /** Utente corrente (o null) */
@@ -94,6 +94,8 @@ export async function insertListing(payload) {
     route_to: payload.type !== "hotel" ? (payload.route_to ?? null) : null,
     depart_at: payload.type !== "hotel" ? normDate(payload.depart_at) : null,
     arrive_at: payload.type !== "hotel" ? normDate(payload.arrive_at) : null,
+    // Operatore (Trenitalia, Italo…): solo treno, ricavato dall'AI. Mai per hotel.
+    operator: payload.type !== "hotel" ? (payload.operator ?? null) : null,
 
     price: payload.price ?? null,
     // Prezzo di acquisto (anti-bagarinaggio): solo per un VENDO (un bene reale
