@@ -147,21 +147,27 @@ function AIPill({ title, onPress, disabled, dark, subtle, loading, iconName = "s
 // toolbar AI compatta (Import/Check/Pulisci): stessa icona di prima, senza
 // etichetta — l'accessibilityLabel resta il titolo completo per lettori
 // schermo. "Compila con AI" resta un AIPill normale, è l'azione primaria.
-function AIIconButton({ onPress, disabled, loading, iconName = "star-four-points", iconLib = "mci", accessibilityLabel }) {
+// `label` è testo VISIBILE sotto l'icona (non solo accessibilityLabel): senza,
+// "scudo" e "scopa" da soli non comunicano cosa fanno — l'utente li vedeva e
+// non capiva a cosa servissero.
+function AIIconButton({ onPress, disabled, loading, iconName = "star-four-points", iconLib = "mci", accessibilityLabel, label }) {
   const Icon = iconLib === "ant" ? AntDesign : MaterialCommunityIcons;
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      style={[styles.aiIconBtn, (disabled || loading) && { opacity: 0.6 }]}
+      style={[styles.aiIconBtnWrap, (disabled || loading) && { opacity: 0.6 }]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={theme.colors.boardingText} />
-      ) : (
-        <Icon name={iconName} size={18} color={theme.colors.textMuted} />
-      )}
+      <View style={styles.aiIconBtn}>
+        {loading ? (
+          <ActivityIndicator size="small" color={theme.colors.boardingText} />
+        ) : (
+          <Icon name={iconName} size={18} color={theme.colors.textMuted} />
+        )}
+      </View>
+      {!!label && <Text style={styles.aiIconBtnLabel} numberOfLines={1}>{label}</Text>}
     </TouchableOpacity>
   );
 }
@@ -2136,6 +2142,25 @@ const initialJsonRef = useRef(null);
           <AntDesign name="right" size={14} color={theme.colors.textMuted} />
         </TouchableOpacity>
 
+        {/* Descrizione: è il testo che "Compila con AI" analizza per
+            riconoscere tratta/date/prezzo — deve stare sulla stessa
+            schermata del bottone che la usa (prima era nello Step 2,
+            irraggiungibile da qui: "Compila con AI" chiedeva sempre una
+            descrizione che non si poteva scrivere). Facoltativa solo se si
+            usa Import o si compila a mano da Step 2. */}
+        <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
+        <TextInput
+          value={form.description}
+          onChangeText={(v) => update({ description: v })}
+          placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
+          style={[styles.input, styles.multiline]}
+          placeholderTextColor={theme.colors.textMuted}
+          multiline
+          numberOfLines={4}
+          textAlignVertical="top"
+        />
+        <Text style={styles.note}>{t("createListing.descriptionAiHint", "Usata da \"Compila con AI\" per riconoscere tratta, date e prezzo.")}</Text>
+
         {/* Strumenti AI: "Compila con AI" resta un'azione a tutta larghezza
             (è quella più usata), le altre tre diventano icone sulla stessa
             riga invece di una griglia 2×2 — libera spazio verticale sopra
@@ -2155,7 +2180,8 @@ const initialJsonRef = useRef(null);
           {/* Icona QR rimossa: ridondante col box giallo "Importa" qui sopra,
               che apre la stessa identica modale (openImport). */}
           <AIIconButton
-            accessibilityLabel={"Check AI"}
+            accessibilityLabel={t("createListing.checkAiCta", "Check AI")}
+            label={t("createListing.checkAiCta", "Check AI")}
             onPress={onTrustCheck}
             disabled={trustLoading || loadingAI || aiFilling}
             loading={loadingAI}
@@ -2163,7 +2189,8 @@ const initialJsonRef = useRef(null);
             iconName="shield-check"
           />
           <AIIconButton
-            accessibilityLabel={"Clear all"}
+            accessibilityLabel={t("common.clear", "Pulisci")}
+            label={t("common.clear", "Pulisci")}
             onPress={clearAll}
             disabled={loadingAI || aiFilling || publishing || saving}
             iconLib="mci"
@@ -2316,22 +2343,10 @@ const initialJsonRef = useRef(null);
                   keyboardShouldPersistTaps="handled"
                   nestedScrollEnabled
                 >
-                  {/* Descrizione (facoltativa): scesa qui da quando Tipo/Tipo
-                      annuncio/Titolo sono saliti nel pannello fisso in alto —
-                      resta comunque a un solo scroll di distanza, e "Compila
-                      con AI"/"Check AI" restano raggiungibili da lassù in
-                      qualunque momento. */}
-                  <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
-                  <TextInput
-                    value={form.description}
-                    onChangeText={(v) => update({ description: v })}
-                    placeholder={t("createListing.descriptionPlaceholder", "Dettagli utili per chi è interessato…")}
-                    style={[styles.input, styles.multiline]}
-                    placeholderTextColor={theme.colors.textMuted}
-                    multiline
-                    numberOfLines={4}
-                    textAlignVertical="top"
-                  />
+                  {/* Descrizione: spostata nella Schermata 1 (Step "intro"),
+                      subito sotto Titolo — è il testo che "Compila con AI"
+                      analizza, deve stare sulla stessa schermata del bottone
+                      che la usa, non su uno step raggiungibile solo dopo. */}
 
                   {/* Foto */}
                   <Text style={styles.label}>
@@ -2947,11 +2962,13 @@ const styles = StyleSheet.create({
   pillTextSubtle: { fontWeight: "700", color: theme.colors.textMuted },
 
   // Toolbar AI compatta: "Compila con AI" a tutta larghezza + 3 icone.
-  aiToolbar: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 8, paddingBottom: 6 },
+  aiToolbar: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingTop: 8, paddingBottom: 6 },
+  aiIconBtnWrap: { alignItems: "center", width: 52 },
   aiIconBtn: {
     width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center",
     backgroundColor: theme.colors.surfaceMuted, borderWidth: 1, borderColor: theme.colors.border,
   },
+  aiIconBtnLabel: { fontSize: 10, color: theme.colors.textMuted, marginTop: 3, fontWeight: "600" },
 
   // Sommario Check AI (chip a semaforo, stessi colori dei box di dettaglio)
   checkSummary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8, marginBottom: 2 },
