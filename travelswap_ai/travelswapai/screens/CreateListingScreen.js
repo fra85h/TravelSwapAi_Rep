@@ -1995,6 +1995,23 @@ const initialJsonRef = useRef(null);
           </View>
         </View>
 
+        {/* Import-first: la strada maestra per chi VENDE un biglietto reale è
+            importarlo (QR/PDF/PNR/conferma) e lasciare che l'AI compili quasi
+            tutto — molto meno faticoso della compilazione manuale. Prima
+            l'import era una piccola icona persa nella toolbar, con lo stesso
+            peso del manuale; qui è un invito esplicito in cima. Solo in
+            creazione e per un VENDO (un CERCO non ha un biglietto da importare). */}
+        {mode !== "edit" && !isCerco ? (
+          <TouchableOpacity style={styles.importCard} onPress={openImport} activeOpacity={0.9} accessibilityRole="button" accessibilityLabel={t("createListing.importFirstCta", "Importa il biglietto")}>
+            <MaterialCommunityIcons name="ticket-confirmation-outline" size={22} color={theme.colors.accentOn} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.importCardTitle}>{t("createListing.importFirstTitle", "Hai già il biglietto? Importalo")}</Text>
+              <Text style={styles.importCardText}>{t("createListing.importFirstText", "Da QR, PDF, PNR o conferma di prenotazione: compiliamo noi quasi tutto.")}</Text>
+            </View>
+            <AntDesign name="right" size={16} color={theme.colors.accentOn} />
+          </TouchableOpacity>
+        ) : null}
+
         {/* Tipo, Tipo annuncio e Titolo: spostati qui (prima erano più in
             basso, nella prima pagina scorrevole) così sono visibili senza
             scroll appena si apre lo schermo — sono gli unici campi
@@ -2028,6 +2045,13 @@ const initialJsonRef = useRef(null);
             </View>
           </View>
         </View>
+
+        {/* Chiarisce il gergo Cerco/Vendo (e cosa significa il prezzo). */}
+        <Text style={styles.cvHelper}>
+          {isCerco
+            ? t("createListing.cercoHelper", "Cerchi un biglietto: il prezzo indicato sarà il tuo budget massimo.")
+            : t("createListing.vendoHelper", "Vendi un biglietto o una prenotazione che possiedi.")}
+        </Text>
 
         <View style={styles.labelRow}>
           <Text style={styles.label}>{t("createListing.titleLabel", "Titolo *")}</Text>
@@ -2776,6 +2800,14 @@ const initialJsonRef = useRef(null);
 
 /* ---------- STYLES ---------- */
 const styles = StyleSheet.create({
+    importCard: {
+      flexDirection: "row", alignItems: "center", gap: 10,
+      backgroundColor: theme.colors.accent, borderRadius: theme.radius.lg,
+      paddingHorizontal: 14, paddingVertical: 12, marginBottom: 10,
+    },
+    importCardTitle: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
+    importCardText: { color: theme.colors.accentOn, opacity: 0.9, fontSize: 12, marginTop: 2 },
+    cvHelper: { color: theme.colors.textMuted, fontSize: 12, marginTop: 6, marginBottom: 2 },
     labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     iconBtn: { padding: 6, marginLeft: 8 },
     inputDisabled: { backgroundColor: theme.colors.surfaceMuted, color: theme.colors.textMuted },
