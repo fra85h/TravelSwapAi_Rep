@@ -518,6 +518,13 @@ export default function CreateListingScreen({
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
+  // Fase della schermata: "intro" (Tipo/Titolo + import/AI, favorisce
+  // l'import automatico) o "manual" (Step 2: tutti gli altri campi, a
+  // schermo intero). In modifica si parte già da "manual": i dati esistono
+  // già, non ha senso far ripassare l'utente dal gate "Inserisci
+  // manualmente" ogni volta che apre un annuncio da correggere.
+  const [phase, setPhase] = useState(mode === "edit" ? "manual" : "intro");
+
   const [slideIndex, setSlideIndex] = useState(0);
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
   const [advancedOpen, setAdvancedOpen] = useState(false); // "Opzioni avanzate" a scomparsa
@@ -570,6 +577,22 @@ export default function CreateListingScreen({
 
 const initialJsonRef = useRef(null);
   const [errors, setErrors] = useState({});
+
+  // Validazione "lazy": l'errore di un campo si vede solo dopo che l'utente
+  // ci è passato ed è uscito lasciandolo vuoto/invalido (touched), oppure
+  // dopo un tentativo di avanzare/pubblicare (submitAttempted) — mai
+  // all'apertura dello step. `errors` resta sempre calcolato per intero
+  // (serve a bloccare la pubblicazione e ad aprire da sola "Opzioni
+  // avanzate"), è solo la VISUALIZZAZIONE a essere posticipata.
+  const [touched, setTouched] = useState({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const markTouched = useCallback((key) => {
+    setTouched((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  }, []);
+  const fieldError = useCallback(
+    (key) => ((touched[key] || submitAttempted) ? errors[key] : undefined),
+    [touched, submitAttempted, errors]
+  );
 
   // Solo il "nessuna foto caricata" è un promemoria a bassa priorità (le foto
   // sono facoltative): lo nascondiamo dal riepilogo per non fare rumore. Ma
@@ -1405,8 +1428,13 @@ const initialJsonRef = useRef(null);
     }
     setSlideIndex(idx);
   };
-  const onNextPress = () => goToSlide(Math.min(slideIndex + 1, 2));
+  const onNextPress = () => { setSubmitAttempted(true); goToSlide(Math.min(slideIndex + 1, 2)); };
   const onBackPress = () => goToSlide(Math.max(slideIndex - 1, 0));
+  // Passa allo Step 2 (campi manuali) e, se richiesto, salta direttamente a
+  // una slide precisa — usato dopo Import/Compila con AI per mostrare
+  // subito l'esito (Check AI, prezzo) invece di lasciare l'utente sullo
+  // Step 1.
+  const goToManualStep = (idx) => { setPhase("manual"); goToSlide(idx); };
 
   // Ricava il passo corrente dalla posizione di scroll effettiva: usata sia
   // da onMomentumScrollEnd sia da onScrollEndDrag, così lo swipe (con o
@@ -1480,6 +1508,10 @@ const initialJsonRef = useRef(null);
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
+    // Da qui in poi gli errori dei campi non ancora "toccati" diventano
+    // visibili: un tentativo di pubblicazione conta come richiesta esplicita
+    // di validazione, come premere "Avanti".
+    setSubmitAttempted(true);
     // Venduto/scambiato: transazione conclusa, non più modificabile (stesso
     // vincolo lato DB, vedi trigger before_update_listings_lock_terminal). Un
     // ingresso qui è già anomalo (il bottone "Modifica" è nascosto per questi
@@ -1780,7 +1812,7 @@ const initialJsonRef = useRef(null);
       applyImportedData(data);
       closeImport();
       Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportSuccess", "Dati importati correttamente."));
-      goToSlide(2);
+      goToManualStep(2);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.aiImportError", "Impossibile importare dal PNR."));
     } finally {
@@ -1816,7 +1848,7 @@ const initialJsonRef = useRef(null);
       setQrVisible(false);
       closeImport();
       Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportFromQr", "Dati importati dal QR."));
-      goToSlide(2);
+      goToManualStep(2);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.qrImportError", "Import da QR non riuscito."));
     } finally {
@@ -1893,7 +1925,7 @@ const initialJsonRef = useRef(null);
           ? t("createListing.aiImportFromTextWithProvider", "Dati importati dalla conferma. Fornitore rilevato: {provider}.", { provider })
           : t("createListing.aiImportFromText", "Dati importati dalla conferma.")
       );
-      goToSlide(2);
+      goToManualStep(2);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.confirmationImportError", "Impossibile leggere la conferma. Riprova o compila i campi a mano."));
     } finally {
@@ -1967,7 +1999,7 @@ const initialJsonRef = useRef(null);
             : t("createListing.aiImportFromPdf", "Dati importati dal PDF del biglietto.")
         );
       }
-      goToSlide(2);
+      goToManualStep(2);
     } catch (e) {
       Alert.alert(
         t("common.error", "Errore"),
@@ -1997,7 +2029,8 @@ const initialJsonRef = useRef(null);
   const advancedForceOpen = !!(errors?.gender || errors?.purchasePrice);
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left','right','bottom']}>
-      {/* ===== TOP PANNELLO FISSO ===== */}
+      {phase === "intro" ? (
+      /* ===== SCHERMATA 1: Tipo/Titolo + import/AI (favorisce l'automatico) ===== */
       <View style={styles.topPanel}>
         <View style={styles.topHeaderRow}>
           <Text style={styles.topTitle}>{t("createListing.step1", "Dati principali")}</Text>
@@ -2076,15 +2109,32 @@ const initialJsonRef = useRef(null);
           selectTextOnFocus={editableFields.title}
           value={form.title}
           onChangeText={(v) => update({ title: v })}
+          onBlur={() => markTouched("title")}
           placeholder={
             form?.type === "hotel"
               ? t("createListing.titlePlaceholderHotel", "Es. Camera doppia vicino Duomo")
               : t("createListing.titlePlaceholderTrain", "Es. Milano → Roma (FR 9520)")
           }
-          style={[styles.input, !editableFields.title && styles.inputDisabled, errors.title && styles.inputError]}
+          style={[styles.input, !editableFields.title && styles.inputDisabled, fieldError("title") && styles.inputError]}
           placeholderTextColor={theme.colors.textMuted}
         />
-        {!!errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+        {!!fieldError("title") && <Text style={styles.errorText}>{fieldError("title")}</Text>}
+
+        {/* "Inserisci manualmente": secondo modo (oltre a Import/Compila con
+            AI) per arrivare allo Step 2 con tutti gli altri campi — pensato
+            per chi preferisce compilare a mano invece di affidarsi
+            all'automazione. Segna Titolo come "toccato" così, se è vuoto,
+            l'errore compare al ritorno su questo step (stesso comportamento
+            di "Avanti"). */}
+        <TouchableOpacity
+          onPress={() => { markTouched("title"); setPhase("manual"); }}
+          style={styles.manualEntryBtn}
+          accessibilityRole="button"
+          accessibilityLabel={t("createListing.manualEntry", "Inserisci manualmente")}
+        >
+          <Text style={styles.manualEntryText}>{t("createListing.manualEntry", "Inserisci manualmente")}</Text>
+          <AntDesign name="right" size={14} color={theme.colors.textMuted} />
+        </TouchableOpacity>
 
         {/* Strumenti AI: "Compila con AI" resta un'azione a tutta larghezza
             (è quella più usata), le altre tre diventano icone sulla stessa
@@ -2102,13 +2152,8 @@ const initialJsonRef = useRef(null);
               iconName="auto-fix"
             />
           </View>
-          <AIIconButton
-            accessibilityLabel={t("createListing.aiImport", "AI Import 1-click")}
-            onPress={openImport}
-            disabled={importBusy || saving || publishing}
-            iconLib="mci"
-            iconName="qrcode-scan"
-          />
+          {/* Icona QR rimossa: ridondante col box giallo "Importa" qui sopra,
+              che apre la stessa identica modale (openImport). */}
           <AIIconButton
             accessibilityLabel={"Check AI"}
             onPress={onTrustCheck}
@@ -2145,7 +2190,7 @@ const initialJsonRef = useRef(null);
         {lastTrustRunAt > 0 && trustData && (
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => goToSlide(2)}
+            onPress={() => goToManualStep(2)}
             style={styles.checkSummary}
             accessibilityRole="button"
             accessibilityLabel={t("createListing.checkAi.problemsTitle", "Possibili problemi")}
@@ -2187,6 +2232,29 @@ const initialJsonRef = useRef(null);
             )}
           </TouchableOpacity>
         )}
+      </View>
+      ) : (
+      /* ===== SCHERMATA 2 (Step "manual"): tutti gli altri campi, a schermo
+         intero. Raggiunta da "Inserisci manualmente" o in automatico dopo
+         Import/Compila con AI/Check AI (goToManualStep). Freccia indietro
+         per tornare alla Schermata 1 e correggere Tipo/Titolo. ===== */
+      <>
+      <View style={styles.topPanel}>
+        <View style={styles.topHeaderRow}>
+          <TouchableOpacity
+            onPress={() => setPhase("intro")}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.back", "Indietro")}
+            style={{ paddingRight: 10 }}
+          >
+            <AntDesign name="left" size={18} color={theme.colors.boardingText} />
+          </TouchableOpacity>
+          <Text style={[styles.topTitle, { flex: 1 }]}>{t("createListing.step2", "Dettagli & pubblicazione")}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TrustScoreBadge score={trustData?.trustScore} />
+            <TrustInfo />
+          </View>
+        </View>
       </View>
 
       {/* ===== SOTTO: SLIDER ORIZZONTALE A PAGINE ===== */}
@@ -2343,8 +2411,9 @@ const initialJsonRef = useRef(null);
                           editable={editableFields.location}
                           value={form.routeFrom}
                           onChangeText={(v) => update({ routeFrom: v })}
+                          onBlur={() => markTouched("routeFrom")}
                           placeholder={t("createListing.routeFromPlaceholder", "Da: es. Milano Centrale")}
-                          inputStyle={[styles.input, !editableFields.location && styles.inputDisabled, errors.routeFrom && styles.inputError]}
+                          inputStyle={[styles.input, !editableFields.location && styles.inputDisabled, fieldError("routeFrom") && styles.inputError]}
                         />
                         <Text style={styles.routeArrow}>→</Text>
                         <StationAutocomplete
@@ -2352,12 +2421,13 @@ const initialJsonRef = useRef(null);
                           editable={editableFields.location}
                           value={form.routeTo}
                           onChangeText={(v) => update({ routeTo: v })}
+                          onBlur={() => markTouched("routeTo")}
                           placeholder={t("createListing.routeToPlaceholder", "A: es. Roma Termini")}
-                          inputStyle={[styles.input, !editableFields.location && styles.inputDisabled, errors.routeTo && styles.inputError]}
+                          inputStyle={[styles.input, !editableFields.location && styles.inputDisabled, fieldError("routeTo") && styles.inputError]}
                         />
                       </View>
-                      {!!errors.routeFrom && <Text style={styles.errorText}>{errors.routeFrom}</Text>}
-                      {!!errors.routeTo && <Text style={styles.errorText}>{errors.routeTo}</Text>}
+                      {!!fieldError("routeFrom") && <Text style={styles.errorText}>{fieldError("routeFrom")}</Text>}
+                      {!!fieldError("routeTo") && <Text style={styles.errorText}>{fieldError("routeTo")}</Text>}
                     </>
                   ) : (
                     <>
@@ -2365,13 +2435,14 @@ const initialJsonRef = useRef(null);
                       <TextInput
                         value={form.location}
                         onChangeText={(v) => update({ location: v })}
+                        onBlur={() => markTouched("location")}
                         placeholder={t("createListing.locationPlaceholderHotel", "Es. Milano, Navigli")}
                         editable={!hotelLocLocked}
                         selectTextOnFocus={!hotelLocLocked && editableFields.location}
-                        style={[styles.input, hotelLocLocked && styles.inputDisabled, errors.location && styles.inputError]}
+                        style={[styles.input, hotelLocLocked && styles.inputDisabled, fieldError("location") && styles.inputError]}
                         placeholderTextColor={theme.colors.textMuted}
                       />
-                      {!!errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
+                      {!!fieldError("location") && <Text style={styles.errorText}>{fieldError("location")}</Text>}
                     </>
                   )}
 
@@ -2385,7 +2456,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                       <View style={[styles.fieldContainer, { opacity: checkInLocked ? 0.7 : 1 }]}>
-                        <DateField label="" required value={form.checkIn} onChange={(v) => update({ checkIn: normalizeDateStr(v) })} error={errors.checkIn} disabled={checkInLocked} />
+                        <DateField label="" required value={form.checkIn} onChange={(v) => update({ checkIn: normalizeDateStr(v) })} onBlur={() => markTouched("checkIn")} error={fieldError("checkIn")} disabled={checkInLocked} />
                         {checkInLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
                       </View>
                       <View style={styles.labelRow}>
@@ -2395,7 +2466,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                       <View style={[styles.fieldContainer, { opacity: checkOutLocked ? 0.7 : 1 }]}>
-                        <DateField label="" required value={form.checkOut} onChange={(v) => update({ checkOut: normalizeDateStr(v) })} error={errors.checkOut} disabled={checkOutLocked} />
+                        <DateField label="" required value={form.checkOut} onChange={(v) => update({ checkOut: normalizeDateStr(v) })} onBlur={() => markTouched("checkOut")} error={fieldError("checkOut")} disabled={checkOutLocked} />
                         {checkOutLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
                       </View>
                     </>
@@ -2408,7 +2479,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                       <View style={[styles.fieldContainer, { opacity: departLocked ? 0.7 : 1 }]}>
-                        <DateTimeField label="" required value={form.departAt} onChange={(v) => update({ departAt: v })} error={errors.departAt} disabled={departLocked} />
+                        <DateTimeField label="" required value={form.departAt} onChange={(v) => update({ departAt: v })} onBlur={() => markTouched("departAt")} error={fieldError("departAt")} disabled={departLocked} />
                         {departLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
                       </View>
                       <View style={styles.labelRow}>
@@ -2418,7 +2489,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                       <View style={[styles.fieldContainer, { opacity: arriveLocked ? 0.7 : 1 }]}>
-                        <DateTimeField label="" required value={form.arriveAt} onChange={(v) => update({ arriveAt: v })} error={errors.arriveAt} disabled={arriveLocked} />
+                        <DateTimeField label="" required value={form.arriveAt} onChange={(v) => update({ arriveAt: v })} onBlur={() => markTouched("arriveAt")} error={fieldError("arriveAt")} disabled={arriveLocked} />
                         {arriveLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
                       </View>
                     </>
@@ -2484,7 +2555,7 @@ const initialJsonRef = useRef(null);
                               );
                             })}
                           </View>
-                          {!!errors.gender && <Text style={styles.errorText}>{errors.gender}</Text>}
+                          {!!fieldError("gender") && <Text style={styles.errorText}>{fieldError("gender")}</Text>}
                         </>
                       )}
 
@@ -2524,15 +2595,16 @@ const initialJsonRef = useRef(null);
                       <TextInput
                         value={String(form.purchasePrice)}
                         onChangeText={(v) => update({ purchasePrice: v.replace(",", ".") })}
+                        onBlur={() => markTouched("purchasePrice")}
                         placeholder={t("createListing.purchasePricePlaceholder", "Es. 90 — quanto l'hai pagato")}
                         keyboardType="decimal-pad"
-                        style={[styles.input, errors.purchasePrice && styles.inputError]}
+                        style={[styles.input, fieldError("purchasePrice") && styles.inputError]}
                         placeholderTextColor={theme.colors.textMuted}
                       />
                       <Text style={styles.note}>
                         {t("createListing.purchasePriceHint", "Per legge non puoi rivendere un biglietto sopra il prezzo pagato: lo useremo come tetto massimo di vendita.")}
                       </Text>
-                      {!!errors.purchasePrice && <Text style={styles.errorText}>{errors.purchasePrice}</Text>}
+                      {!!fieldError("purchasePrice") && <Text style={styles.errorText}>{fieldError("purchasePrice")}</Text>}
                     </>
                   )}
 
@@ -2545,11 +2617,12 @@ const initialJsonRef = useRef(null);
                   <TextInput
                     value={String(form.price)}
                     onChangeText={(v) => update({ price: v.replace(",", ".") })}
+                    onBlur={() => markTouched("price")}
                     placeholder={isCerco
                       ? t("createListing.budgetMaxPlaceholder", "Es. 60 — quanto vuoi pagare al massimo")
                       : t("createListing.pricePlaceholder", "Es. 120")}
                     keyboardType="decimal-pad"
-                    style={[styles.input, errors.price && styles.inputError]}
+                    style={[styles.input, fieldError("price") && styles.inputError]}
                     placeholderTextColor={theme.colors.textMuted}
                   />
                   {isCerco && (
@@ -2557,7 +2630,7 @@ const initialJsonRef = useRef(null);
                       {t("createListing.budgetMaxHint", "È il prezzo massimo che sei disposto a pagare: lo useremo per proporti gli annunci più in linea con il tuo budget.")}
                     </Text>
                   )}
-                  {!!errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
+                  {!!fieldError("price") && <Text style={styles.errorText}>{fieldError("price")}</Text>}
 
                   {/* Info + Pulsante Analisi Prezzo con AI */}
                   <View style={styles.infoRow}>
@@ -2722,6 +2795,8 @@ const initialJsonRef = useRef(null);
           </View>
         </View>
       </KeyboardAvoidingView>
+      </>
+      )}
 
       {/* -------- Modal AI Import -------- */}
       <Modal visible={importSheet} animationType="slide" transparent onRequestClose={closeImport}>
@@ -2836,6 +2911,13 @@ const styles = StyleSheet.create({
     },
     importCardTitle: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
     importCardText: { color: theme.colors.accentOn, opacity: 0.9, fontSize: 12, marginTop: 2 },
+    manualEntryBtn: {
+      flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+      paddingVertical: 10, marginTop: 10, marginBottom: 4,
+      borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    manualEntryText: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13 },
     cvHelper: { color: theme.colors.textMuted, fontSize: 12, marginTop: 6, marginBottom: 2 },
     advancedHeader: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -2940,8 +3022,11 @@ const styles = StyleSheet.create({
   label: { fontWeight: "700", color: theme.colors.boardingText, marginTop: 8, marginBottom: 6 },
   labelInline: { fontWeight: "700", color: theme.colors.boardingText },
   input: { borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12, color: theme.colors.text },
-  inputError: { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
-  errorText: { color: theme.colors.danger, marginTop: 4 },
+  // Solo bordo (più marcato) in rosso: lo sfondo resta bianco/grigio
+  // chiarissimo come il campo normale, altrimenti placeholder e testo
+  // digitato perdono leggibilità sul fondo rosato.
+  inputError: { borderColor: theme.colors.danger, borderWidth: 1.5 },
+  errorText: { color: theme.colors.danger, marginTop: 4, fontWeight: "600" },
   note: { fontSize: 12, lineHeight: 16, color: theme.colors.textMuted, marginTop: 6 },
   swapBox: {
     marginTop: 14,
