@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing } from "../lib/db";
+import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse } from "../lib/db";
 import { recomputeAIAndSnapshot } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
@@ -1536,6 +1536,25 @@ const initialJsonRef = useRef(null);
         Object.values(validationErrors).join("\n")
       );
       return;
+    }
+
+    // Anti doppia vendita: uno stesso biglietto (PNR) non può essere in
+    // vendita in due annunci vivi. Vale in creazione e in modifica (escludendo
+    // il proprio annuncio). Il PNR è opzionale: il controllo scatta solo se
+    // presente. Backstop a DB con indice unico su pnr_fingerprint.
+    if (form?.type === "train") {
+      const pnrClean = String(form.pnr || "").trim();
+      if (pnrClean) {
+        const excludeId = mode === "edit" ? (listingId || passedListing?.id || null) : null;
+        const inUse = await isPnrInUse(pnrClean, excludeId);
+        if (inUse) {
+          Alert.alert(
+            t("createListing.pnrInUseTitle", "Biglietto già in vendita"),
+            t("createListing.pnrInUseMsg", "Questo PNR risulta già presente in un altro annuncio attivo. Lo stesso biglietto non può essere messo in vendita più volte.")
+          );
+          return;
+        }
+      }
     }
 
     // Anti-duplicati (solo in creazione): un duplicato ESATTO di un proprio
