@@ -1,10 +1,12 @@
 // components/OfferCTA.js
-import React from "react";
-import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, TouchableOpacity, Text, StyleSheet, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
+import { listMyListings } from "../lib/db";
+import { sendListingPing } from "../lib/backendApi";
 
 export default function OfferCTAs({ listing, me }) {
   const { t } = useI18n();
@@ -12,6 +14,30 @@ export default function OfferCTAs({ listing, me }) {
   const isMine =
     me?.id && (listing?.owner_id || listing?.user_id || listing?.created_by) &&
     String(me.id) === String(listing.owner_id || listing.user_id || listing.created_by);
+
+  const isCerco = String(listing?.cerco_vendo || "").toUpperCase() === "CERCO";
+
+  // Ping: annunci VENDO attivi MIEI dello stesso tipo del CERCO che sto
+  // guardando — se ne ho almeno uno, posso segnalarlo al proprietario del
+  // CERCO invece di limitarmi a pubblicarne uno nuovo.
+  const [myVendos, setMyVendos] = useState([]);
+  const [pingSent, setPingSent] = useState(false);
+  const [pinging, setPinging] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (isMine || !isCerco || !me?.id) { setMyVendos([]); return; }
+    listMyListings({ status: "active" })
+      .then((rows) => {
+        if (!alive) return;
+        const mine = (rows || []).filter(
+          (l) => String(l.cerco_vendo || "").toUpperCase() === "VENDO" && l.type === listing?.type
+        );
+        setMyVendos(mine);
+      })
+      .catch(() => { if (alive) setMyVendos([]); });
+    return () => { alive = false; };
+  }, [isMine, isCerco, me?.id, listing?.type]);
 
   if (isMine) return null;
 
@@ -45,11 +71,43 @@ export default function OfferCTAs({ listing, me }) {
     });
   };
 
+  // Ping: segnala un proprio VENDO già pubblicato al proprietario del CERCO
+  // (niente offerta, niente chat — solo un avviso con link diretto). Se ho
+  // più annunci VENDO compatibili, chiedo quale segnalare.
+  const doPing = async (fromListingId) => {
+    if (!listing?.id || pinging) return;
+    setPinging(true);
+    try {
+      await sendListingPing(fromListingId, listing.id);
+      setPingSent(true);
+    } catch (e) {
+      Alert.alert(t("common.error", "Errore"), e?.message || t("offers.pingError", "Non è stato possibile inviare la segnalazione."));
+    } finally {
+      setPinging(false);
+    }
+  };
+
+  const onPing = () => {
+    if (!myVendos.length) return;
+    if (myVendos.length === 1) {
+      doPing(myVendos[0].id);
+      return;
+    }
+    Alert.alert(
+      t("offers.pingPickTitle", "Quale annuncio segnalo?"),
+      t("offers.pingPickBody", "Hai più annunci che potrebbero fare al caso: scegli quale segnalare."),
+      [
+        ...myVendos.map((l) => ({ text: l.title || l.id, onPress: () => doPing(l.id) })),
+        { text: t("common.cancel", "Annulla"), style: "cancel" },
+      ]
+    );
+  };
+
   // Un CERCO è una richiesta (nessun biglietto da comprare o scambiare): non si
   // offrono acquisto/scambio. Si spiega come collegarsi e si offre una scorciatoia
   // per pubblicare il proprio biglietto in vendita. Acquisto e scambio hanno senso
   // SOLO verso un VENDO. Gli annunci senza cerco_vendo (legacy) restano vendibili.
-  if (String(listing?.cerco_vendo || "").toUpperCase() === "CERCO") {
+  if (isCerco) {
     return (
       <View style={styles.infoBox}>
         <Text style={styles.infoText}>
@@ -58,6 +116,17 @@ export default function OfferCTAs({ listing, me }) {
         <TouchableOpacity onPress={onSellForCerco} style={styles.sellBtn}>
           <Text style={styles.sellBtnText}>{t("offers.sellForCerco", "Ho questo biglietto → Pubblicalo in vendita")}</Text>
         </TouchableOpacity>
+        {!!myVendos.length && (
+          <TouchableOpacity
+            onPress={onPing}
+            disabled={pinging || pingSent}
+            style={[styles.sellBtn, styles.pingBtn, (pinging || pingSent) && styles.btnDisabled]}
+          >
+            <Text style={styles.sellBtnText}>
+              {pingSent ? t("offers.pingSent", "Segnalazione inviata ✓") : t("offers.pingSend", "Ho già un annuncio → Segnalalo a chi cerca")}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -122,5 +191,11 @@ const styles = StyleSheet.create({
   sellBtnText: {
     color: theme.colors?.boardingText || "#fff",
     fontWeight: "800",
+  },
+  pingBtn: {
+    backgroundColor: theme.colors?.secondary || theme.colors?.primary || "#111827",
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
 });
