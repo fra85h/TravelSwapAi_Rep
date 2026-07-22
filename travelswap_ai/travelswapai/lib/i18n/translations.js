@@ -460,6 +460,8 @@ export const translations = {
 
       description: "Descrizione",
       descriptionPlaceholder: "Dettagli utili per chi è interessato…",
+      descriptionAiHint: "Usata da \"Compila con AI\" per riconoscere tratta, date e prezzo.",
+      checkAiCta: "Check AI",
       price: "Prezzo *",
       pricePlaceholder: "Es. 120",
       budgetMax: "Budget massimo *",
@@ -1492,6 +1494,8 @@ export const translations = {
 
       description: "Description",
       descriptionPlaceholder: "Helpful details for interested people…",
+      descriptionAiHint: "Used by \"Fill with AI\" to recognize the route, dates and price.",
+      checkAiCta: "Check AI",
       price: "Price *",
       pricePlaceholder: "e.g. 120",
       budgetMax: "Max budget *",
@@ -2512,6 +2516,8 @@ export const translations = {
 
       description: "Descripción",
       descriptionPlaceholder: "Detalles útiles para los interesados…",
+      descriptionAiHint: "La usa \"Rellenar con IA\" para reconocer ruta, fechas y precio.",
+      checkAiCta: "Check AI",
       price: "Precio *",
       pricePlaceholder: "Ej. 120",
       budgetMax: "Presupuesto máximo *",
