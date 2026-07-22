@@ -33,6 +33,7 @@ import { Image } from "react-native";
 import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 import { parseLocalizedNumber } from "../lib/number";
 import { isConcludedStatus } from "../lib/listingStatus";
+import StationAutocomplete from "../components/StationAutocomplete";
 
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
@@ -2282,29 +2283,23 @@ const initialJsonRef = useRef(null);
                       {/* Due campi separati Da/A con freccia fissa: niente più
                           frecce da digitare a mano nella tratta. */}
                       <View style={styles.routeRow}>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <TextInput
-                            editable={editableFields.location}
-                            selectTextOnFocus={editableFields.location}
-                            value={form.routeFrom}
-                            onChangeText={(v) => update({ routeFrom: v })}
-                            placeholder={t("createListing.routeFromPlaceholder", "Da: es. Milano Centrale")}
-                            style={[styles.input, !editableFields.location && styles.inputDisabled, errors.routeFrom && styles.inputError]}
-                            placeholderTextColor={theme.colors.textMuted}
-                          />
-                        </View>
+                        <StationAutocomplete
+                          style={{ flex: 1, minWidth: 0 }}
+                          editable={editableFields.location}
+                          value={form.routeFrom}
+                          onChangeText={(v) => update({ routeFrom: v })}
+                          placeholder={t("createListing.routeFromPlaceholder", "Da: es. Milano Centrale")}
+                          inputStyle={[styles.input, !editableFields.location && styles.inputDisabled, errors.routeFrom && styles.inputError]}
+                        />
                         <Text style={styles.routeArrow}>→</Text>
-                        <View style={{ flex: 1, minWidth: 0 }}>
-                          <TextInput
-                            editable={editableFields.location}
-                            selectTextOnFocus={editableFields.location}
-                            value={form.routeTo}
-                            onChangeText={(v) => update({ routeTo: v })}
-                            placeholder={t("createListing.routeToPlaceholder", "A: es. Roma Termini")}
-                            style={[styles.input, !editableFields.location && styles.inputDisabled, errors.routeTo && styles.inputError]}
-                            placeholderTextColor={theme.colors.textMuted}
-                          />
-                        </View>
+                        <StationAutocomplete
+                          style={{ flex: 1, minWidth: 0 }}
+                          editable={editableFields.location}
+                          value={form.routeTo}
+                          onChangeText={(v) => update({ routeTo: v })}
+                          placeholder={t("createListing.routeToPlaceholder", "A: es. Roma Termini")}
+                          inputStyle={[styles.input, !editableFields.location && styles.inputDisabled, errors.routeTo && styles.inputError]}
+                        />
                       </View>
                       {!!errors.routeFrom && <Text style={styles.errorText}>{errors.routeFrom}</Text>}
                       {!!errors.routeTo && <Text style={styles.errorText}>{errors.routeTo}</Text>}
@@ -2528,20 +2523,18 @@ const initialJsonRef = useRef(null);
                           {form.type === "train" ? (
                             <>
                               <Text style={styles.label}>{t("createListing.swap.wantFrom", "Cerco in cambio — Da")}</Text>
-                              <TextInput
+                              <StationAutocomplete
                                 value={form.swapWantedFrom}
                                 onChangeText={(v) => update({ swapWantedFrom: v })}
                                 placeholder={t("createListing.swap.wantFromPh", "Es. Roma")}
-                                style={styles.input}
-                                placeholderTextColor={theme.colors.textMuted}
+                                inputStyle={styles.input}
                               />
                               <Text style={styles.label}>{t("createListing.swap.wantTo", "Cerco in cambio — A")}</Text>
-                              <TextInput
+                              <StationAutocomplete
                                 value={form.swapWantedTo}
                                 onChangeText={(v) => update({ swapWantedTo: v })}
                                 placeholder={t("createListing.swap.wantToPh", "Es. Milano")}
-                                style={styles.input}
-                                placeholderTextColor={theme.colors.textMuted}
+                                inputStyle={styles.input}
                               />
                             </>
                           ) : (
