@@ -17,8 +17,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
-import { listMyListings, updateListing, deleteMyListing } from "../lib/db";
-import { retractListing, propagateListing } from "../lib/backendApi";
+import { listMyListings, updateListing, deleteMyListing, getCurrentUser } from "../lib/db";
+import { retractListing, propagateListing, recomputeUserSnapshot } from "../lib/backendApi";
 import { useI18n } from "../lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "../lib/auth";
@@ -140,6 +140,19 @@ export default function ProfileScreen() {
 
   const onEdit = (item) => navigation.navigate("CreateListing",{ mode: "edit", listingId: item.id });
 
+  // Ritirare/riproporre l'annuncio nel "Per te" ALTRUI (retract/propagate)
+  // copre solo metà del problema: se l'annuncio appena messo in pausa era
+  // una delle MIE fonti di match, anche il MIO "Per te" può contenere
+  // suggerimenti nati da quella fonte — senza questo ricalcolo restano lì
+  // (l'unico posto che li toglierebbe da soli è un mio prossimo ricalcolo,
+  // che qui non era mai innescato).
+  const refreshMySnapshot = async () => {
+    try {
+      const me = await getCurrentUser();
+      if (me?.id) await recomputeUserSnapshot(me.id);
+    } catch {}
+  };
+
   const toggleStatus = async (item) => {
     try {
       const current = String(item.status || "").toLowerCase();
@@ -155,6 +168,7 @@ export default function ProfileScreen() {
       // altri finché non lo si modifica per far ripartire la propagazione.
       if (next === "paused") retractListing(item.id).catch(() => {});
       else propagateListing(item.id).catch(() => {});
+      refreshMySnapshot();
       await loadMine();
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e?.message || t("errors.updateStatus", "Impossibile aggiornare lo stato"));
@@ -180,8 +194,10 @@ export default function ProfileScreen() {
             try {
               await deleteMyListing(item.id);
               // Ritira l'annuncio eliminato dal "Per te" di chi lo aveva
-              // suggerito, stesso motivo della pausa qui sopra.
+              // suggerito, stesso motivo della pausa qui sopra — e ricalcola
+              // anche il MIO "Per te", stesso motivo di refreshMySnapshot.
               retractListing(item.id).catch(() => {});
+              refreshMySnapshot();
               await loadMine();
             } catch (e) {
               Alert.alert(t("common.error", "Errore"), e?.message || t("errors.delete", "Impossibile eliminare"));
