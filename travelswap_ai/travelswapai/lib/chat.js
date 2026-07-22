@@ -19,7 +19,25 @@ export async function listMyChats() {
     lastAt: r.last_at,
     unreadCount: Number(r.unread_count) || 0,
     updatedAt: r.updated_at,
+    iConfirmed: !!r.i_confirmed,
+    otherConfirmed: !!r.other_confirmed,
   }));
+}
+
+/** Stato conferma scambio di un'offerta (per la ChatScreen). */
+export async function getOfferHandshake(offerId) {
+  const { data, error } = await supabase.rpc("get_offer_handshake", { offer_id_text: String(offerId) });
+  if (error) throw new Error(error.message || "Impossibile leggere lo stato dello scambio");
+  const r = Array.isArray(data) ? data[0] : data;
+  if (!r) return null;
+  return {
+    status: r.status,
+    type: r.type,
+    amount: r.amount,
+    currency: r.currency,
+    iConfirmed: !!r.i_confirmed,
+    otherConfirmed: !!r.other_confirmed,
+  };
 }
 
 /** Messaggi di una chat, dal più vecchio al più recente. */

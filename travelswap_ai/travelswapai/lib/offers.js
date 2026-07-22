@@ -61,6 +61,28 @@ export async function declineOffer(offerId) {
   return data;
 }
 
+/**
+ * Conferma (una delle due parti) che lo scambio/la consegna è avvenuto. Quando
+ * confermano ENTRAMBE, l'offerta viene finalizzata e le transazioni registrate
+ * (vedi confirm_exchange_any). Finché non è finalizzata, resta reversibile.
+ */
+export async function confirmExchange(offerId) {
+  const { data, error } = await supabase.rpc("confirm_exchange_any", { offer_id_text: String(offerId) });
+  if (error) throw new Error(error.message || "Impossibile confermare lo scambio");
+  return data;
+}
+
+/**
+ * Annulla un'offerta ACCETTATA ma non ancora finalizzata (lo scambio non è
+ * andato a buon fine): riporta gli annunci ad attivi. Disponibile a entrambe
+ * le parti.
+ */
+export async function cancelAcceptedOffer(offerId) {
+  const { data, error } = await supabase.rpc("cancel_accepted_offer_any", { offer_id_text: String(offerId) });
+  if (error) throw new Error(error.message || "Impossibile annullare lo scambio");
+  return data;
+}
+
 /** Cancella (proponente) la propria offerta pending */
 export async function cancelOffer(offerId) {
   const { data, error } = await supabase
