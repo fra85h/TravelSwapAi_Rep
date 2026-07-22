@@ -231,6 +231,21 @@ export default function ChatScreen() {
           </View>
         ) : handshake?.status === "accepted" ? (
           <View style={styles.hsBar}>
+            {/* Cambio nominativo: promemoria guidato SOLO per chi riceve un
+                biglietto nominativo (Punto 2b lo segnalava in dettaglio; qui
+                lo si agisce, nel momento in cui davvero serve organizzarlo). */}
+            {handshake.needsNameChange ? (
+              <View style={styles.nameChangeBox}>
+                <Text style={styles.nameChangeTitle}>
+                  👤 {t("chat.nameChangeTitle", "Cambio nominativo da fare")}
+                </Text>
+                <Text style={styles.nameChangeText}>
+                  {handshake.ticketOperator
+                    ? t("chat.nameChangeTextOperator", "Questo biglietto è nominativo: prima di viaggiare va reintestato a te presso {operator}. Scambiati in chat nome e cognome completi (e documento, se richiesto), poi fai il cambio sul sito o app ufficiale — a volte è a pagamento o non consentito: verificalo con chi te lo cede.", { operator: handshake.ticketOperator })
+                    : t("chat.nameChangeText", "Questo biglietto è nominativo: prima di viaggiare va reintestato a te presso l'operatore. Scambiati in chat nome e cognome completi (e documento, se richiesto), poi fai il cambio sul sito o app ufficiale — a volte è a pagamento o non consentito: verificalo con chi te lo cede.")}
+                </Text>
+              </View>
+            ) : null}
             {handshake.iConfirmed ? (
               <Text style={styles.hsText}>
                 {handshake.otherConfirmed
@@ -342,6 +357,9 @@ const styles = StyleSheet.create({
   },
   hsDone: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#DCFCE7" },
   hsDispute: { backgroundColor: "#FEE2E2" },
+  nameChangeBox: { backgroundColor: "#FEF3C7", borderRadius: 10, padding: 10, gap: 4 },
+  nameChangeTitle: { fontWeight: "800", color: "#92400E", fontSize: 13 },
+  nameChangeText: { color: "#92400E", fontSize: 12.5, lineHeight: 17 },
   hsReportTxt: { color: "#991B1B", fontWeight: "700", fontSize: 13 },
   hsText: { color: theme.colors.text, fontSize: 12.5, lineHeight: 17 },
   hsBtns: { flexDirection: "row", gap: 8 },

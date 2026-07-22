@@ -693,6 +693,9 @@ export const translations = {
       reportReasonOther: "Altro problema",
       disputeOpen: "Problema segnalato — non confermare finché non è risolto.",
       disputedShort: "⚠️ Problema segnalato",
+      nameChangeTitle: "Cambio nominativo da fare",
+      nameChangeText: "Questo biglietto è nominativo: prima di viaggiare va reintestato a te presso l'operatore. Scambiati in chat nome e cognome completi (e documento, se richiesto), poi fai il cambio sul sito o app ufficiale — a volte è a pagamento o non consentito: verificalo con chi te lo cede.",
+      nameChangeTextOperator: "Questo biglietto è nominativo: prima di viaggiare va reintestato a te presso {operator}. Scambiati in chat nome e cognome completi (e documento, se richiesto), poi fai il cambio sul sito o app ufficiale — a volte è a pagamento o non consentito: verificalo con chi te lo cede.",
     },
 
     offers: {
@@ -1718,6 +1721,9 @@ export const translations = {
       reportReasonOther: "Other problem",
       disputeOpen: "Problem reported — don't confirm until it's resolved.",
       disputedShort: "⚠️ Problem reported",
+      nameChangeTitle: "Name change needed",
+      nameChangeText: "This ticket is named: it needs to be reissued in your name with the operator before you travel. Exchange your full name in chat (and ID, if required), then do the change on the operator's official site or app — it may be paid or not allowed: check with whoever is transferring it to you.",
+      nameChangeTextOperator: "This ticket is named: it needs to be reissued in your name with {operator} before you travel. Exchange your full name in chat (and ID, if required), then do the change on the operator's official site or app — it may be paid or not allowed: check with whoever is transferring it to you.",
     },
 
     offers: {
@@ -2743,6 +2749,9 @@ export const translations = {
       reportReasonOther: "Otro problema",
       disputeOpen: "Problema informado — no confirmes hasta que se resuelva.",
       disputedShort: "⚠️ Problema informado",
+      nameChangeTitle: "Cambio de titular pendiente",
+      nameChangeText: "Este billete es nominativo: antes de viajar hay que reintestarlo a tu nombre con el operador. Intercambia en el chat nombre y apellidos completos (y documento, si se requiere), y haz el cambio en el sitio o app oficial — a veces es de pago o no está permitido: compruébalo con quien te lo cede.",
+      nameChangeTextOperator: "Este billete es nominativo: antes de viajar hay que reintestarlo a tu nombre con {operator}. Intercambia en el chat nombre y apellidos completos (y documento, si se requiere), y haz el cambio en el sitio o app oficial — a veces es de pago o no está permitido: compruébalo con quien te lo cede.",
     },
 
     offers: {
