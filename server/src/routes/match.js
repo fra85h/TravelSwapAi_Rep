@@ -6,6 +6,7 @@ import {
   getUserSnapshot,
   recomputeMatches,              // ⬅️ AGGIUNTO
   propagateListingToOthers,      // matching proattivo (deterministico)
+  retractListingFromOthers,      // ritiro dal "Per te" altrui (pausa/eliminazione)
   // se già le usi per pairwise:
   // recomputeMatchesForListing,
   // listMatchesForListing,
@@ -73,6 +74,25 @@ matchesRouter.post("/propagate", requireAuth, async (req, res) => {
     return res.json({ ok: true, ...out });
   } catch (e) {
     console.error('[matches/propagate] error:', e);
+    return res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
+/**
+ * POST /api/matches/retract  Body: { listingId }
+ * Simmetrico a /propagate: dopo aver messo in pausa/eliminato un MIO
+ * annuncio, lo ritira dal "Per te" di chi lo aveva suggerito (invece di
+ * lasciarlo lì finché quella persona non ricalcola per conto proprio).
+ * Fire-and-forget dal client.
+ */
+matchesRouter.post("/retract", requireAuth, async (req, res) => {
+  try {
+    const listingId = String(req.body?.listingId || "");
+    if (!isUUID(listingId)) return res.status(400).json({ error: "Invalid listingId" });
+    const out = await retractListingFromOthers(listingId, { requireOwner: req.user.id });
+    return res.json({ ok: true, ...out });
+  } catch (e) {
+    console.error('[matches/retract] error:', e);
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });

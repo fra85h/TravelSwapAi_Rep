@@ -18,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { listMyListings, updateListing, deleteMyListing } from "../lib/db";
+import { retractListing, propagateListing } from "../lib/backendApi";
 import { useI18n } from "../lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "../lib/auth";
@@ -147,6 +148,13 @@ export default function ProfileScreen() {
       if (current !== "active" && current !== "paused" && current !== "") return;
       const next = current === "active" || current === "" ? "paused" : "active";
       await updateListing(item.id, { status: next });
+      // In pausa: ritira l'annuncio dal "Per te" di chi lo aveva suggerito
+      // (altrimenti resta un annuncio fantasma finché quella persona non
+      // ricalcola per conto proprio). Riattivato: lo ripropone, simmetrico
+      // alla prima pubblicazione — altrimenti resterebbe invisibile agli
+      // altri finché non lo si modifica per far ripartire la propagazione.
+      if (next === "paused") retractListing(item.id).catch(() => {});
+      else propagateListing(item.id).catch(() => {});
       await loadMine();
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e?.message || t("errors.updateStatus", "Impossibile aggiornare lo stato"));
@@ -171,6 +179,9 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await deleteMyListing(item.id);
+              // Ritira l'annuncio eliminato dal "Per te" di chi lo aveva
+              // suggerito, stesso motivo della pausa qui sopra.
+              retractListing(item.id).catch(() => {});
               await loadMine();
             } catch (e) {
               Alert.alert(t("common.error", "Errore"), e?.message || t("errors.delete", "Impossibile eliminare"));
