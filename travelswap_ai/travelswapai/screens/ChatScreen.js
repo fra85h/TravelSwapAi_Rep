@@ -6,12 +6,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet,
+  KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet, Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { listChatMessages, sendChatMessage, markChatRead, subscribeToChat } from "../lib/chat";
+import { listChatMessages, sendChatMessage, markChatRead, subscribeToChat, getOfferHandshake } from "../lib/chat";
+import { confirmExchange, cancelAcceptedOffer } from "../lib/offers";
 import { getCurrentUser } from "../lib/db";
 import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
@@ -40,7 +41,14 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  // Stato del "patto": accepted (prenotato, in attesa conferma) o finalized.
+  const [handshake, setHandshake] = useState(null);
+  const [hsBusy, setHsBusy] = useState(false);
   const listRef = useRef(null);
+
+  const refreshHandshake = useCallback(async () => {
+    try { setHandshake(await getOfferHandshake(offerId)); } catch {}
+  }, [offerId]);
 
   useEffect(() => {
     navigation.setOptions?.({ title });
@@ -51,6 +59,7 @@ export default function ChatScreen() {
       const [u, msgs] = await Promise.all([
         getCurrentUser().catch(() => null),
         listChatMessages(offerId),
+        refreshHandshake(),
       ]);
       setMe(u);
       setMessages(msgs);
@@ -58,7 +67,46 @@ export default function ChatScreen() {
     } finally {
       setLoading(false);
     }
-  }, [offerId]);
+  }, [offerId, refreshHandshake]);
+
+  const onConfirm = useCallback(() => {
+    Alert.alert(
+      t("chat.confirmTitle", "Confermi che è tutto ok?"),
+      t("chat.confirmMsg", "Conferma solo dopo aver ricevuto e verificato ciò che avete concordato. Quando confermate entrambi, lo scambio si chiude e non è più annullabile."),
+      [
+        { text: t("common.cancel", "Annulla"), style: "cancel" },
+        {
+          text: t("chat.confirmCta", "Conferma"),
+          onPress: async () => {
+            setHsBusy(true);
+            try { await confirmExchange(offerId); await refreshHandshake(); notifyActivityChanged(); }
+            catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+            finally { setHsBusy(false); }
+          },
+        },
+      ]
+    );
+  }, [offerId, t, refreshHandshake]);
+
+  const onCancelExchange = useCallback(() => {
+    Alert.alert(
+      t("chat.cancelTitle", "Annullare lo scambio?"),
+      t("chat.cancelMsg", "Usa questa opzione se lo scambio non è andato a buon fine: entrambi gli annunci tornano attivi e disponibili."),
+      [
+        { text: t("common.close", "Chiudi"), style: "cancel" },
+        {
+          text: t("chat.cancelCta", "Annulla scambio"),
+          style: "destructive",
+          onPress: async () => {
+            setHsBusy(true);
+            try { await cancelAcceptedOffer(offerId); notifyActivityChanged(); navigation.goBack(); }
+            catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+            finally { setHsBusy(false); }
+          },
+        },
+      ]
+    );
+  }, [offerId, t, navigation]);
 
   useEffect(() => { if (offerId) load(); }, [offerId, load]);
 
@@ -130,6 +178,42 @@ export default function ChatScreen() {
           </View>
         ) : null}
 
+        {/* Patto di scambio: prenotato (in attesa di conferma bilaterale) o
+            concluso. È il cuore del Punto 1: lo scambio si "chiude" solo
+            quando ENTRAMBI confermano di aver ricevuto ciò che serve. */}
+        {handshake?.status === "finalized" ? (
+          <View style={[styles.hsBar, styles.hsDone]}>
+            <Ionicons name="checkmark-done-circle" size={16} color="#166534" />
+            <Text style={[styles.hsText, { color: "#166534" }]}>{t("chat.completed", "Scambio completato")}</Text>
+          </View>
+        ) : handshake?.status === "accepted" ? (
+          <View style={styles.hsBar}>
+            {handshake.iConfirmed ? (
+              <Text style={styles.hsText}>
+                {handshake.otherConfirmed
+                  ? t("chat.bothConfirming", "Conferma in corso…")
+                  : t("chat.youConfirmed", "Hai confermato. In attesa che l'altra persona confermi.")}
+              </Text>
+            ) : (
+              <Text style={styles.hsText}>
+                {handshake.otherConfirmed
+                  ? t("chat.otherConfirmed", "L'altra persona ha confermato. Conferma anche tu quando è tutto ok.")
+                  : t("chat.pendingConfirm", "Quando lo scambio è avvenuto, confermate entrambi per chiuderlo.")}
+              </Text>
+            )}
+            <View style={styles.hsBtns}>
+              {!handshake.iConfirmed ? (
+                <TouchableOpacity style={[styles.hsBtn, styles.hsBtnPrimary, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onConfirm}>
+                  <Text style={styles.hsBtnPrimaryTxt}>{t("chat.confirmDone", "Scambio avvenuto")}</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity style={[styles.hsBtn, styles.hsBtnGhost, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onCancelExchange}>
+                <Text style={styles.hsBtnGhostTxt}>{t("chat.cancelCta", "Annulla scambio")}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
         {loading ? (
           <View style={styles.center}><ActivityIndicator /></View>
         ) : (
@@ -194,6 +278,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: theme.colors.border,
   },
   dealBarText: { flex: 1, color: theme.colors.textMuted, fontSize: 12.5, fontWeight: "600" },
+
+  hsBar: {
+    paddingHorizontal: 14, paddingVertical: 10, gap: 8,
+    backgroundColor: theme.colors.accentSoft,
+    borderBottomWidth: 1, borderBottomColor: theme.colors.border,
+  },
+  hsDone: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#DCFCE7" },
+  hsText: { color: theme.colors.text, fontSize: 12.5, lineHeight: 17 },
+  hsBtns: { flexDirection: "row", gap: 8 },
+  hsBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+  hsBtnPrimary: { backgroundColor: theme.colors.accent },
+  hsBtnPrimaryTxt: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 13 },
+  hsBtnGhost: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border },
+  hsBtnGhostTxt: { color: theme.colors.text, fontWeight: "700", fontSize: 13 },
 
   rulesBox: {
     flexDirection: "row", gap: 8,

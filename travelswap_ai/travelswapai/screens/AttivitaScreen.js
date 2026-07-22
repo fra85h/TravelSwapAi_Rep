@@ -144,13 +144,13 @@ export default function AttivitaScreen({ navigation }) {
     finally { setBusy(offerId, false); }
   }, [setBusy, t, navigation]);
 
-  // Conferma prima di accettare: accettare conclude la trattativa (per lo
-  // scambio è irreversibile — annuncio -> swapped + transazione registrata) e
-  // rifiuta le altre proposte in sospeso. Un tap accidentale costava caro.
+  // Conferma prima di accettare: accettare PRENOTA lo scambio (reversibile) e
+  // rifiuta le altre proposte in sospeso. Lo scambio si chiude solo quando
+  // entrambe le parti confermano dalla chat che è avvenuto.
   const onAccept = useCallback((o) => {
     Alert.alert(
       t("activity.acceptConfirmTitle", "Accettare la proposta?"),
-      t("activity.acceptConfirmMsg", "Accettando, questa proposta viene confermata e le altre proposte in sospeso sullo stesso annuncio verranno rifiutate."),
+      t("activity.acceptConfirmMsg2", "Accettando, prenoti lo scambio e le altre proposte sullo stesso annuncio vengono rifiutate. Lo scambio si chiude solo quando entrambi confermate dalla chat che è avvenuto."),
       [
         { text: t("common.cancel", "Annulla"), style: "cancel" },
         { text: t("offers.accept", "Accetta"), onPress: () => doAccept(o) },
@@ -353,9 +353,18 @@ export default function AttivitaScreen({ navigation }) {
           ) : null}
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>{c.toListingTitle || t("offerFlow.listing", "Annuncio")}</Text>
-        <Text style={styles.cardMeta} numberOfLines={1}>
-          {c.lastBody || t("chat.noMessagesYet", "Nessun messaggio: inizia tu.")}
-        </Text>
+        {/* Stato del patto: mostra cosa manca per chiudere lo scambio. */}
+        {c.status === "finalized" ? (
+          <Text style={[styles.cardMeta, { color: "#166534", fontWeight: "700" }]}>{t("chat.completed", "Scambio completato")}</Text>
+        ) : c.iConfirmed ? (
+          <Text style={[styles.cardMeta, { fontWeight: "700" }]}>{t("chat.youConfirmedShort", "Hai confermato — attendi l'altra persona")}</Text>
+        ) : c.otherConfirmed ? (
+          <Text style={[styles.cardMeta, { fontWeight: "700", color: theme.colors.accent }]}>{t("chat.otherConfirmedShort", "In attesa della tua conferma")}</Text>
+        ) : (
+          <Text style={styles.cardMeta} numberOfLines={1}>
+            {c.lastBody || t("chat.noMessagesYet", "Nessun messaggio: inizia tu.")}
+          </Text>
+        )}
       </TouchableOpacity>
     );
   };
