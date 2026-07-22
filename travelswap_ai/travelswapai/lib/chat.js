@@ -37,6 +37,7 @@ export async function getOfferHandshake(offerId) {
     currency: r.currency,
     iConfirmed: !!r.i_confirmed,
     otherConfirmed: !!r.other_confirmed,
+    reservationExpiresAt: r.reservation_expires_at,
   };
 }
 
