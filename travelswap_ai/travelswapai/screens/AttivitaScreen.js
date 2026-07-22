@@ -357,7 +357,9 @@ export default function AttivitaScreen({ navigation }) {
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>{c.toListingTitle || t("offerFlow.listing", "Annuncio")}</Text>
         {/* Stato del patto: mostra cosa manca per chiudere lo scambio. */}
-        {c.status === "finalized" ? (
+        {c.disputed ? (
+          <Text style={[styles.cardMeta, { color: theme.colors.danger, fontWeight: "800" }]}>{t("chat.disputedShort", "⚠️ Problema segnalato")}</Text>
+        ) : c.status === "finalized" ? (
           <Text style={[styles.cardMeta, { color: "#166534", fontWeight: "700" }]}>{t("chat.completed", "Scambio completato")}</Text>
         ) : c.iConfirmed ? (
           <Text style={[styles.cardMeta, { fontWeight: "700" }]}>{t("chat.youConfirmedShort", "Hai confermato — attendi l'altra persona")}</Text>

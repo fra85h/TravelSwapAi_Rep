@@ -83,6 +83,20 @@ export async function cancelAcceptedOffer(offerId) {
   return data;
 }
 
+/**
+ * Segnala un problema su una prenotazione in corso (scambio non ricevuto,
+ * biglietto non valido…): la marca contestata, blocca la conferma finché non
+ * si risolve e pubblica il motivo in chat.
+ */
+export async function reportExchangeProblem(offerId, reason) {
+  const { data, error } = await supabase.rpc("report_exchange_problem", {
+    offer_id_text: String(offerId),
+    reason_text: String(reason || "").slice(0, 500),
+  });
+  if (error) throw new Error(error.message || "Impossibile segnalare il problema");
+  return data;
+}
+
 /** Rilascia le proprie prenotazioni scadute (annunci di nuovo attivi). Best effort. */
 export async function releaseMyStaleReservations() {
   try { await supabase.rpc("release_my_stale_reservations"); } catch {}
