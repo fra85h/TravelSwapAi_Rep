@@ -173,6 +173,17 @@ export async function recomputeAIAndSnapshot(
   });
 }
 
+// Matching proattivo: dopo aver pubblicato/modificato un annuncio, chiede al
+// server di aggiornare il "Per te" degli altri utenti per cui è un buon match
+// (deterministico, nessun costo AI). Fire-and-forget: mai bloccare il flusso.
+export async function propagateListing(listingId) {
+  if (!listingId) return null;
+  return fetchJson(`/api/matches/propagate`, {
+    method: "POST",
+    body: { listingId },
+  });
+}
+
 // Listings con filtro/ordinamento TrustScore
 export async function fetchListings({ minTrust, sort } = {}) {
   const qs = new URLSearchParams();

@@ -270,6 +270,76 @@ export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTota
 }
 
 
+/**
+ * Matching PROATTIVO (a costo zero-AI).
+ *
+ * Problema: recomputeMatches gira solo per CHI pubblica. Se un altro utente
+ * pubblica l'annuncio perfetto per me, il mio "Per te" non se ne accorge
+ * finché non ripubblico o premo Ricalcola. Qui, alla pubblicazione/modifica
+ * di L, calcoliamo con la sola EURISTICA DETERMINISTICA (nessuna chiamata
+ * OpenAI, quindi economico e scalabile) quanto L è un buon match per gli
+ * annunci-sorgente di ALTRI utenti, aggiorniamo la tabella matches solo per
+ * quelle coppie e rinfreschiamo il loro snapshot "Per te".
+ *
+ * Il punteggio AI resta quello "vero": quando l'altro utente ripubblica o
+ * ricalcola, recomputeMatches sovrascrive queste righe con lo score AI. Qui
+ * garantiamo solo che il nuovo annuncio EMERGA subito, senza attesa.
+ */
+export async function propagateListingToOthers(listingId, { requireOwner = null, threshold = 55, maxCandidates = 500, maxSnapshotRefresh = 100 } = {}) {
+  if (!isUUID(listingId) || !supabase) return { affected: 0, rows: 0 };
+
+  const { data: L, error } = await supabase
+    .from('listings')
+    .select('id, user_id, title, type, location, price, status, cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, accepts_swap, swap_wanted')
+    .eq('id', listingId)
+    .maybeSingle();
+  if (error || !L || L.status !== 'active') return { affected: 0, rows: 0 };
+  if (requireOwner && String(L.user_id) !== String(requireOwner)) return { affected: 0, rows: 0 };
+
+  // candidati = annunci attivi di ALTRI utenti (le LORO sorgenti "from")
+  const candidates = (await listActiveListings({ ownerId: L.user_id, limit: maxCandidates })) || [];
+  if (!candidates.length) return { affected: 0, rows: 0 };
+
+  const rows = [];
+  const affectedUsers = new Set();
+  for (const f of candidates) {
+    const base = heuristicScore({ fromListing: f }, [L]);
+    const b = Array.isArray(base) && base[0];
+    if (!b) continue;
+    const score = adjustedScore(b.score, f, L); // budget + prossimità data
+    if (score < threshold) continue;
+    rows.push({
+      user_id: f.user_id,
+      from_listing_id: f.id,
+      to_listing_id: L.id,
+      score,
+      bidirectional: !!b.bidirectional,
+      model: 'heuristic',
+      explanation: b.explanation || null,
+      created_at: new Date().toISOString(),
+    });
+    affectedUsers.add(f.user_id);
+  }
+  if (!rows.length) return { affected: 0, rows: 0 };
+
+  const CHUNK = 100;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error: upErr } = await supabase
+      .from('matches')
+      .upsert(rows.slice(i, i + CHUNK), { onConflict: 'from_listing_id,to_listing_id', returning: 'minimal' });
+    if (upErr) { console.error('[propagate upsert]', upErr.message); return { affected: 0, rows: 0 }; }
+  }
+
+  // Rinfresca il "Per te" degli utenti toccati (economico: rilegge matches).
+  let refreshed = 0;
+  for (const uid of affectedUsers) {
+    if (refreshed >= maxSnapshotRefresh) break;
+    try { await recomputeUserSnapshot(uid); refreshed++; } catch { /* best effort */ }
+  }
+
+  return { affected: affectedUsers.size, rows: rows.length };
+}
+
 export async function getUserSnapshot(userid) {
   if (!isUUID(userid)) throw new Error('Invalid userId');
   const snap = await getLatestUserSnapshot(userid);

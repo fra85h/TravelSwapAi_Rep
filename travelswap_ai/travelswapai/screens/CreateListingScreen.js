@@ -5,7 +5,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse } from "../lib/db";
-import { recomputeAIAndSnapshot } from "../lib/backendApi";
+import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
@@ -1675,9 +1675,11 @@ const initialJsonRef = useRef(null);
         if (stillInFuture) payload.status = "active";
       }
 
+      let publishedIds = [];
       if (mode === "edit") {
         const res = await updateListing(idForUpdate, payload);
         if (res?.error) throw res.error;
+        publishedIds = [idForUpdate];
         Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
       } else {
         if (splitDetected) {
@@ -1690,12 +1692,14 @@ const initialJsonRef = useRef(null);
           if (r2?.error) throw r2.error;
           await flushPendingPhotos(r1?.id); // le foto vanno solo sul primo dei due annunci
           await AsyncStorage.removeItem(DRAFT_KEY);
+          publishedIds = [r1?.id, r2?.id];
           Alert.alert(t("createListing.splitPublishedTitle", "Pubblicati 2 annunci"), t("createListing.splitPublishedMsg", "Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito."));
         } else {
           const res = await insertListing(payload);
           if (res?.error) throw res.error;
           await flushPendingPhotos(res?.id);
           await AsyncStorage.removeItem(DRAFT_KEY);
+          publishedIds = [res?.id];
           Alert.alert(t("createListing.publishedTitle", "Pubblicato!"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
         }
       }
@@ -1705,6 +1709,10 @@ const initialJsonRef = useRef(null);
       // la schermata Suggeriti (che prima era l'UNICO punto da cui partiva il
       // ricalcolo — se la striscia "Per te" era vuota, non era raggiungibile).
       recomputeAIAndSnapshot().catch(() => {});
+      // Matching PROATTIVO: aggiorna anche il "Per te" degli ALTRI utenti per
+      // cui questo annuncio è un buon match (deterministico, nessun costo AI),
+      // così il nuovo annuncio emerge subito senza che loro debbano ricalcolare.
+      publishedIds.filter(Boolean).forEach((lid) => { propagateListing(lid).catch(() => {}); });
 
       initialJsonRef.current = JSON.stringify(form);
       onDirtyChange(false);

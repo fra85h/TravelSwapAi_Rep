@@ -5,6 +5,7 @@ import {
   recomputeUserSnapshot,
   getUserSnapshot,
   recomputeMatches,              // ⬅️ AGGIUNTO
+  propagateListingToOthers,      // matching proattivo (deterministico)
   // se già le usi per pairwise:
   // recomputeMatchesForListing,
   // listMatchesForListing,
@@ -57,6 +58,25 @@ matchesRouter.post("/snapshot/recompute", requireAuth, async (req, res) => {
     return res.status(500).json({ error: String(e?.message || e) });
   }
 });
+/**
+ * POST /api/matches/propagate  Body: { listingId }
+ * Matching proattivo: dopo aver pubblicato/modificato un MIO annuncio,
+ * aggiorna (deterministicamente, senza costo AI) il "Per te" degli altri
+ * utenti per cui questo annuncio è un buon match. Fire-and-forget dal client.
+ */
+matchesRouter.post("/propagate", requireAuth, async (req, res) => {
+  try {
+    const listingId = String(req.body?.listingId || "");
+    if (!isUUID(listingId)) return res.status(400).json({ error: "Invalid listingId" });
+    // requireOwner: solo il proprietario dell'annuncio può innescare la propagazione.
+    const out = await propagateListingToOthers(listingId, { requireOwner: req.user.id });
+    return res.json({ ok: true, ...out });
+  } catch (e) {
+    console.error('[matches/propagate] error:', e);
+    return res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
 matchesRouter.post("/ai/recompute", requireAuth, async (req, res) => {
   try {
     const { userId, topPerListing = 3, maxTotal = 50 } = req.body || {};
