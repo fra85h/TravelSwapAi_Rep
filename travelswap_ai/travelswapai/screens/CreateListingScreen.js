@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse } from "../lib/db";
+import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse, isPlausiblePnr } from "../lib/db";
 import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
@@ -839,6 +839,14 @@ const initialJsonRef = useRef(null);
   /* ---------- CHECK AI (comprende ex “Magia IA”) ---------- */
   const [loadingAI, setLoadingAI] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  // Guardia anti-doppio-submit: publishing (state) disabilita il bottone ma
+  // si aggiorna solo al prossimo render, quindi un doppio tap/click prima di
+  // quel render può far partire due esecuzioni concorrenti di
+  // onPublishOrSave — ognuna vede ancora l'annuncio "gemello" come l'unico
+  // esistente e nessuna blocca l'altra, risultato: due annunci quasi
+  // identici pubblicati da un solo tap. Il ref è sincrono, quindi la seconda
+  // invocazione lo vede true immediatamente e abortisce subito.
+  const publishingRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [importSheet, setImportSheet] = useState(false);
   const [pnrInput, setPnrInput] = useState("");
@@ -1514,6 +1522,20 @@ const initialJsonRef = useRef(null);
 
   /* ---------- PUBBLICA / SALVA MODIFICHE ---------- */
   const onPublishOrSave = async () => {
+    if (publishingRef.current) return;
+    publishingRef.current = true;
+    setPublishing(true);
+    onSubmitStart();
+    try {
+      await onPublishOrSaveInner();
+    } finally {
+      publishingRef.current = false;
+      setPublishing(false);
+      onSubmitEnd();
+    }
+  };
+
+  const onPublishOrSaveInner = async () => {
     // Da qui in poi gli errori dei campi non ancora "toccati" diventano
     // visibili: un tentativo di pubblicazione conta come richiesta esplicita
     // di validazione, come premere "Avanti".
@@ -1577,6 +1599,21 @@ const initialJsonRef = useRef(null);
       return;
     }
 
+    // Plausibilità del PNR: non possiamo verificare se è REALMENTE esistente
+    // (nessuna API pubblica Trenitalia/Italo), ma un formato palesemente
+    // inventato ("111111", "ABCDEF", troppo corto/lungo) si scarta subito,
+    // senza aspettare la rete. Backstop a DB con chk_pnr_plausible.
+    if (form?.type === "train") {
+      const pnrClean = String(form.pnr || "").trim();
+      if (pnrClean && !isPlausiblePnr(pnrClean)) {
+        Alert.alert(
+          t("createListing.pnrImplausibleTitle", "PNR non valido"),
+          t("createListing.pnrImplausibleMsg", "Questo PNR non sembra un codice di prenotazione reale (lunghezza o formato non plausibile). Controlla di averlo copiato correttamente.")
+        );
+        return;
+      }
+    }
+
     // Anti doppia vendita: uno stesso biglietto (PNR) non può essere in
     // vendita in due annunci vivi. Vale in creazione e in modifica (escludendo
     // il proprio annuncio). Il PNR è opzionale: il controllo scatta solo se
@@ -1636,9 +1673,6 @@ const initialJsonRef = useRef(null);
     }
 
     try {
-      setPublishing(true);
-      onSubmitStart();
-
       const idForUpdate =
         (listingId != null) ? String(listingId) :
         (passedListing?.id != null ? String(passedListing.id) : null);
@@ -1778,9 +1812,6 @@ const initialJsonRef = useRef(null);
             : t("createListing.publishError", "Impossibile pubblicare l’annuncio.")
         );
       }
-    } finally {
-      setPublishing(false);
-      onSubmitEnd();
     }
   };
 

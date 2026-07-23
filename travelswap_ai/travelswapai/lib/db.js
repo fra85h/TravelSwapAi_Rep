@@ -67,6 +67,30 @@ export async function getListingSecret(listingId) {
 }
 
 /**
+ * Vero se il PNR "sembra" reale: non esiste un'API pubblica Trenitalia/Italo
+ * per verificarne l'esistenza vera, quindi qui controlliamo solo la
+ * plausibilità del formato (stesso range 5–8 alfanumerici già indicato
+ * all'AI in fase di import, vedi lib/descriptionParser.js) e scartiamo
+ * sequenze palesemente inventate ("111111", "ABCDEF"...). PNR assente →
+ * true (è opzionale, il check scatta solo se presente). Stessa logica
+ * duplicata lato DB (funzione pnr_is_plausible) come backstop.
+ */
+export function isPlausiblePnr(pnr) {
+  const clean = String(pnr ?? "").trim();
+  if (!clean) return true;
+  const norm = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (norm.length < 5 || norm.length > 8) return false;
+  if (/^(.)\1*$/.test(norm)) return false; // tutto lo stesso carattere
+  let asc = true, desc = true;
+  for (let i = 1; i < norm.length; i++) {
+    const diff = norm.charCodeAt(i) - norm.charCodeAt(i - 1);
+    if (diff !== 1) asc = false;
+    if (diff !== -1) desc = false;
+  }
+  return !(asc || desc); // sequenza banale crescente/decrescente
+}
+
+/**
  * Vero se il PNR risulta già in vendita in un altro annuncio "vivo" (di
  * chiunque). Difesa anti doppia vendita dello stesso biglietto. excludeId: il
  * proprio annuncio in modifica (non conta come duplicato di se stesso).
