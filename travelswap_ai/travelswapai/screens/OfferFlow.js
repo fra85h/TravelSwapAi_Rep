@@ -265,7 +265,7 @@ export default function OfferFlow() {
               DOPO l'accettazione — gestisce l'aspettativa e tiene l'accordo
               dentro l'app invece che su contatti esterni. */}
           <Text style={s.chatTeaser}>
-            {t("chat.teaserSend", "Dopo l'accettazione potrai chattare con l'altra persona per organizzare lo scambio.")}
+            {t("chat.teaserSendBuy", "Dopo l'accettazione potrai chattare con l'altra persona per organizzare l'acquisto.")}
           </Text>
           <TouchableOpacity
             style={[s.btn, s.cta, !canSubmit && s.btnDisabled]}

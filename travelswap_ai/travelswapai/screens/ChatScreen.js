@@ -309,13 +309,17 @@ export default function ChatScreen() {
               <View style={styles.rulesBox}>
                 <Ionicons name="shield-checkmark-outline" size={15} color={theme.colors.textMuted} style={{ marginTop: 1 }} />
                 <Text style={styles.rulesText}>
-                  {t("chat.rules", "Organizzate qui lo scambio. Non condividere dati sensibili (carte, documenti) e diffida di chi chiede di pagare fuori dai canali concordati. Il PNR resta protetto nell'annuncio.")}
+                  {isSwap
+                    ? t("chat.rules", "Organizzate qui lo scambio. Non condividere dati sensibili (carte, documenti) e diffida di chi chiede di pagare fuori dai canali concordati. Il PNR resta protetto nell'annuncio.")
+                    : t("chat.rulesBuy", "Organizzate qui l'acquisto. Non condividere dati sensibili (carte, documenti) e diffida di chi chiede di pagare fuori dai canali concordati. Il PNR resta protetto nell'annuncio.")}
                 </Text>
               </View>
             }
             ListEmptyComponent={
               <Text style={styles.emptyText}>
-                {t("chat.empty", "Ancora nessun messaggio: rompi il ghiaccio e organizzate lo scambio.")}
+                {isSwap
+                  ? t("chat.empty", "Ancora nessun messaggio: rompi il ghiaccio e organizzate lo scambio.")
+                  : t("chat.emptyBuy", "Ancora nessun messaggio: rompi il ghiaccio e organizzate l'acquisto.")}
               </Text>
             }
           />
