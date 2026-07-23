@@ -8,6 +8,7 @@ import { useI18n } from "../lib/i18n";
 import { listMyListings } from "../lib/db";
 import { sendListingPing } from "../lib/backendApi";
 import ActionSheet from "./ui/ActionSheet";
+import { normStatusKey } from "../lib/listingStatus";
 
 export default function OfferCTAs({ listing, me }) {
   const { t } = useI18n();
@@ -17,6 +18,11 @@ export default function OfferCTAs({ listing, me }) {
     String(me.id) === String(listing.owner_id || listing.user_id || listing.created_by);
 
   const isCerco = String(listing?.cerco_vendo || "").toUpperCase() === "CERCO";
+  // Si può proporre SOLO verso un annuncio attivo (stesso vincolo lato DB,
+  // vedi trigger before_insert_offers_enforce: "Puoi proporre solo verso
+  // annunci attivi"). Un annuncio riservato/in pausa/scaduto/concluso non
+  // deve mostrare bottoni azionabili che poi il DB rifiuterebbe comunque.
+  const isTargetActive = normStatusKey(listing?.status) === "active";
 
   // Ping: annunci VENDO attivi MIEI dello stesso tipo del CERCO che sto
   // guardando — se ne ho almeno uno, posso segnalarlo al proprietario del
@@ -133,6 +139,19 @@ export default function OfferCTAs({ listing, me }) {
           onClose={() => setPingPickerOpen(false)}
           options={myVendos.map((l) => ({ label: l.title || l.id, onPress: () => doPing(l.id) }))}
         />
+      </View>
+    );
+  }
+
+  // Non ancora concluso ma non attivo (riservato/in pausa/scaduto): niente
+  // bottoni azionabili, solo una spiegazione — il DB rifiuterebbe comunque
+  // una proposta verso un annuncio non attivo.
+  if (!isTargetActive) {
+    return (
+      <View style={styles.infoBox}>
+        <Text style={styles.infoText}>
+          {t("offers.notAvailableInfo", "Questo annuncio non è al momento disponibile per nuove proposte: c'è già una transazione in corso o non è più attivo.")}
+        </Text>
       </View>
     );
   }

@@ -755,6 +755,7 @@ export const translations = {
       proposePurchase: "Proponi acquisto",   // IT
       proposeSwap: "Proponi scambio",        // IT
       cercoInfo: "Questo è un annuncio di ricerca: non si acquista né si scambia direttamente. Se hai il biglietto giusto, pubblicalo come “Vendo” — comparirà tra i suoi suggerimenti.",
+      notAvailableInfo: "Questo annuncio non è al momento disponibile per nuove proposte: c'è già una transazione in corso o non è più attivo.",
       sellForCerco: "Ho questo biglietto → Pubblicalo in vendita",
       pingSend: "Ho già un annuncio → Segnalalo a chi cerca",
       pingSent: "Segnalazione inviata ✓",
@@ -1802,6 +1803,7 @@ export const translations = {
       proposePurchase: "Propose purchase",   // EN
       proposeSwap: "Propose swap",           // EN
       cercoInfo: "This is a wanted ad: it can't be bought or swapped directly. If you have the right ticket, publish it as “Selling” — it'll show up among their suggestions.",
+      notAvailableInfo: "This listing isn't available for new proposals right now: there's already a transaction in progress, or it's no longer active.",
       sellForCerco: "I have this ticket → List it for sale",
       pingSend: "I already have a listing → Let them know",
       pingSent: "Notification sent ✓",
@@ -2849,6 +2851,7 @@ export const translations = {
       proposePurchase: "Proponer compra",    // ES
       proposeSwap: "Proponer intercambio",   // ES
       cercoInfo: "Este es un anuncio de búsqueda: no se compra ni se intercambia directamente. Si tienes el billete adecuado, publícalo como “Vendo” — aparecerá entre sus sugerencias.",
+      notAvailableInfo: "Este anuncio no está disponible para nuevas propuestas en este momento: ya hay una transacción en curso o ya no está activo.",
       sellForCerco: "Tengo este billete → Publícalo en venta",
       pingSend: "Ya tengo un anuncio → Avisa a quien busca",
       pingSent: "Aviso enviado ✓",

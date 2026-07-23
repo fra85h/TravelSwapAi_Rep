@@ -14,6 +14,7 @@ import { acceptOffer, declineOffer } from "../lib/offers";
 import OfferExpiryBadge from "../components/OfferExpiryBadge";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
+import { normStatusKey } from "../lib/listingStatus";
 export default function OfferDetailScreen() {
   const route = useRoute();
   const { t, locale } = useI18n();
@@ -98,6 +99,11 @@ export default function OfferDetailScreen() {
   }, [load]);
 
   const isOwner = me?.id && listing?.user_id === me.id;
+  // Si può proporre SOLO verso un annuncio attivo (stesso vincolo lato DB,
+  // vedi trigger before_insert_offers_enforce: "Puoi proporre solo verso
+  // annunci attivi"): un annuncio riservato da un'altra proposta in corso
+  // non deve mostrare bottoni che poi il DB rifiuterebbe comunque.
+  const isTargetActive = normStatusKey(listing?.status) === "active";
 
   const onAccept = async (id) => {
     try {
@@ -156,8 +162,9 @@ export default function OfferDetailScreen() {
           </Text>
           <Text style={[s.badge, { marginTop: 8 }]}>{t(`listing.state.${String(listing.status || "").toLowerCase()}`, listing.status || "")}</Text>
 
-          {/* CTA: visibili solo se NON sono il proprietario */}
-          {!isOwner && (
+          {/* CTA: visibili solo se NON sono il proprietario E l'annuncio è
+              attivo (vedi isTargetActive sopra) */}
+          {!isOwner && isTargetActive && (
             <View style={s.ctaRow}>
               <TouchableOpacity
                 onPress={() =>
@@ -214,7 +221,7 @@ export default function OfferDetailScreen() {
               {isBuy
                 ? `${t("offerDetail.fromUser", "Da")}: ${t("offers.user", "utente")}`
                 : `${t("offerDetail.from", "Da")}: ${o.from_listing?.title || o.from_listing?.id || "-"}`}
-              {" "}\u2192{" "}
+              {" \u2192 "}
               {t("offerDetail.to", "per")}: {o.to_listing?.title || listing?.title || o.to_listing?.id}
             </Text>
 
