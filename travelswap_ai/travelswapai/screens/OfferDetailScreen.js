@@ -1,16 +1,17 @@
 // screens/OfferDetailScreen.js (con CTA “Proponi scambio / acquisto”)
 import React, {
   useRef,
-  useEffect,
   useState,
   useCallback,
   useLayoutEffect,
   useMemo, // 👈 necessario per visibleOffers
 } from "react";
 import { View, Text, ActivityIndicator, ScrollView, StyleSheet, Alert, TouchableOpacity } from "react-native";
-import { useRoute, useNavigation } from "@react-navigation/native";
+import { useRoute, useNavigation, useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { getListingById, listOffersForListing, getCurrentUser } from "../lib/db";
 import { acceptOffer, declineOffer } from "../lib/offers";
+import { getOfferHandshake } from "../lib/chat";
 import OfferExpiryBadge from "../components/OfferExpiryBadge";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
@@ -37,6 +38,11 @@ export default function OfferDetailScreen() {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
+  // Stato di conferma delle proposte accettate (offerId -> handshake), STESSA
+  // fonte di verità (get_offer_handshake) usata da ChatScreen e da Attività:
+  // qui si vede lo stesso stato "chi ha confermato", coerente con l'altro
+  // punto d'ingresso alla chat, senza dover andare su Attività per saperlo.
+  const [handshakes, setHandshakes] = useState({});
   const reqSeq = useRef(0);
 
   useLayoutEffect(() => {
@@ -81,8 +87,25 @@ export default function OfferDetailScreen() {
             (o?.to_listing_id && o.to_listing_id === l.id)
         ) ?? [];
 
-      setOffers(isOwnerNow ? onlyReceived : rows || []);
+      const finalOffers = isOwnerNow ? onlyReceived : rows || [];
+      setOffers(finalOffers);
       setData({});
+
+      // Handshake delle proposte accettate: serve a mostrare qui "chi ha
+      // confermato" senza dover andare su Attività per scoprirlo.
+      const acceptedIds = finalOffers.filter((o) => o.status === "accepted").map((o) => o.id);
+      if (acceptedIds.length) {
+        const entries = await Promise.all(
+          acceptedIds.map(async (oid) => {
+            try { return [oid, await getOfferHandshake(oid)]; }
+            catch { return [oid, null]; }
+          })
+        );
+        if (reqSeq.current !== reqId) return;
+        setHandshakes(Object.fromEntries(entries));
+      } else {
+        setHandshakes({});
+      }
     } catch (e) {
       if (reqSeq.current !== reqId) return;
       setError(e instanceof Error ? e.message : t("common.error", "Errore"));
@@ -91,12 +114,18 @@ export default function OfferDetailScreen() {
     }
   }, [effectiveId, t]);
 
-  useEffect(() => {
-    load();
-    return () => {
-      reqSeq.current++;
-    };
-  }, [load]);
+  // useFocusEffect (non solo al mount): tornando indietro dalla chat dopo
+  // aver confermato, lo stato mostrato qui si aggiorna da solo — altrimenti
+  // questa schermata restava con l'ultimo stato visto, disallineata da
+  // quello che nel frattempo si vede in Attività/Chat.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      return () => {
+        reqSeq.current++;
+      };
+    }, [load])
+  );
 
   const isOwner = me?.id && listing?.user_id === me.id;
   // Si può proporre SOLO verso un annuncio attivo (stesso vincolo lato DB,
@@ -258,6 +287,51 @@ export default function OfferDetailScreen() {
                 </View>
               )}
             </View>
+
+            {/* Accettata: da qui in poi la conferma finale avviene in chat
+                (entrambe le parti devono confermare, vedi "Riservato").
+                Stato mostrato con la stessa logica di Attività, così è
+                coerente con quello che vede l'altra persona. */}
+            {o.status === "accepted" && (
+              <>
+                <TouchableOpacity
+                  style={s.chatLink}
+                  onPress={() =>
+                    navigation.navigate("Chat", {
+                      offerId: o.id,
+                      type: o.type,
+                      amount: o.amount,
+                      currency: o.currency,
+                      title: o.to_listing?.title,
+                      fromTitle: o.from_listing?.title,
+                    })
+                  }
+                  accessibilityRole="button"
+                  accessibilityLabel={t("chat.open", "Apri la chat")}
+                >
+                  <Ionicons name="chatbubble-ellipses-outline" size={15} color={theme.colors.accent} />
+                  <Text style={s.chatLinkText}>{t("chat.open", "Apri la chat")}</Text>
+                </TouchableOpacity>
+                {handshakes[o.id] && (
+                  <Text
+                    style={[
+                      s.cardMeta,
+                      handshakes[o.id].disputed && { color: theme.colors.danger, fontWeight: "800" },
+                    ]}
+                  >
+                    {handshakes[o.id].disputed
+                      ? t("chat.disputedShort", "⚠️ Problema segnalato")
+                      : handshakes[o.id].status === "finalized"
+                      ? t("chat.completed", "Scambio completato")
+                      : handshakes[o.id].iConfirmed
+                      ? t("chat.youConfirmedShort", "Hai confermato — attendi l'altra persona")
+                      : handshakes[o.id].otherConfirmed
+                      ? t("chat.otherConfirmedShort", "In attesa della tua conferma")
+                      : t("chat.pendingConfirm", "Quando lo scambio è avvenuto, confermate entrambi per chiuderlo.")}
+                  </Text>
+                )}
+              </>
+            )}
           </View>
         );
       })}
@@ -299,6 +373,8 @@ const s = StyleSheet.create({
   cardMeta: { color: theme.colors.text, marginTop: 4, fontWeight: "600" },
 
   row: { flexDirection: "row", gap: 10, alignItems: "center", marginTop: 10 },
+  chatLink: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
+  chatLinkText: { color: theme.colors.accent, fontWeight: "700" },
 
   /* Bottoni */
   btn: { backgroundColor: theme.colors.accent, paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, alignItems: "center" },
