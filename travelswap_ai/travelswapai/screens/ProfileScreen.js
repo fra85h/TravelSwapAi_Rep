@@ -27,6 +27,7 @@ import { supabase } from "../lib/supabase.js";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import ActionSheet from "../components/ui/ActionSheet";
 import { Ionicons } from "@expo/vector-icons";
+import TrustBadges from "../components/TrustBadges";
 import Constants from "expo-constants";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { formatMoney } from "../lib/number";
@@ -446,6 +447,14 @@ export default function ProfileScreen() {
             <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">{profile?.full_name  || "—"}</Text>
             <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{profile?.email || "—"}</Text>
             <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{profile?.phone || "—"}</Text>
+            {/* Stessi badge che vedono gli altri quando guardano il tuo
+                profilo venditore: prima erano visibili solo a loro, non a te
+                stesso — qui puoi controllare come appari (email verificata,
+                storico scambi/vendite concluse). */}
+            <TrustBadges
+              emailVerified={profile?.email_verified}
+              salesCount={Number(profile?.counters?.sold ?? 0) + Number(profile?.counters?.exchanged ?? 0)}
+            />
           </View>
           <LanguageSwitcher />
         </View>
