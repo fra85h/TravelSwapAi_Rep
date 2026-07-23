@@ -139,9 +139,12 @@ export default function AttivitaScreen({ navigation }) {
       // Momento di massimo bisogno: appena accettata, le due parti devono
       // organizzare lo scambio — la chat si apre da qui con un tap, già
       // "consapevole" di cosa si stanno scambiando (vedi header in ChatScreen).
+      const isSwapOffer = String(o.type || "").toLowerCase() === "swap";
       Alert.alert(
         t("offers.acceptedTitle", "Proposta accettata"),
-        t("offers.acceptedChatMsg", "Ora potete organizzare lo scambio: apri la chat per accordarti con l'altra persona."),
+        isSwapOffer
+          ? t("offers.acceptedChatMsg", "Ora potete organizzare lo scambio: apri la chat per accordarti con l'altra persona.")
+          : t("offers.acceptedChatMsgBuy", "Ora potete organizzare l'acquisto: apri la chat per accordarti con l'altra persona."),
         [
           { text: t("common.close", "Chiudi"), style: "cancel" },
           {
@@ -162,9 +165,12 @@ export default function AttivitaScreen({ navigation }) {
   // rifiuta le altre proposte in sospeso. Lo scambio si chiude solo quando
   // entrambe le parti confermano dalla chat che è avvenuto.
   const onAccept = useCallback((o) => {
+    const isSwapOffer = String(o.type || "").toLowerCase() === "swap";
     Alert.alert(
       t("activity.acceptConfirmTitle", "Accettare la proposta?"),
-      t("activity.acceptConfirmMsg2", "Accettando, prenoti lo scambio e le altre proposte sullo stesso annuncio vengono rifiutate. Lo scambio si chiude solo quando entrambi confermate dalla chat che è avvenuto."),
+      isSwapOffer
+        ? t("activity.acceptConfirmMsg2", "Accettando, prenoti lo scambio e le altre proposte sullo stesso annuncio vengono rifiutate. Lo scambio si chiude solo quando entrambi confermate dalla chat che è avvenuto.")
+        : t("activity.acceptConfirmMsg2Buy", "Accettando, prenoti l'acquisto e le altre proposte sullo stesso annuncio vengono rifiutate. L'acquisto si chiude solo quando entrambi confermate dalla chat che è avvenuto."),
       [
         { text: t("common.cancel", "Annulla"), style: "cancel" },
         { text: t("offers.accept", "Accetta"), onPress: () => doAccept(o) },
@@ -371,7 +377,9 @@ export default function AttivitaScreen({ navigation }) {
         {c.disputed ? (
           <Text style={[styles.cardMeta, { color: theme.colors.danger, fontWeight: "800" }]}>{t("chat.disputedShort", "⚠️ Problema segnalato")}</Text>
         ) : c.status === "finalized" ? (
-          <Text style={[styles.cardMeta, { color: "#166534", fontWeight: "700" }]}>{t("chat.completed", "Scambio completato")}</Text>
+          <Text style={[styles.cardMeta, { color: "#166534", fontWeight: "700" }]}>
+            {isSwap ? t("chat.completed", "Scambio completato") : t("chat.completedBuy", "Acquisto completato")}
+          </Text>
         ) : c.iConfirmed ? (
           <Text style={[styles.cardMeta, { fontWeight: "700" }]}>{t("chat.youConfirmedShort", "Hai confermato — attendi l'altra persona")}</Text>
         ) : c.otherConfirmed ? (
