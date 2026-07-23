@@ -248,7 +248,7 @@ export default function OfferDetailScreen() {
 
             <Text style={s.cardSub}>
               {isBuy
-                ? `${t("offerDetail.fromUser", "Da")}: ${t("offers.user", "utente")}`
+                ? `${t("offerDetail.fromUser", "Da")}: ${o.proposer?.full_name || o.proposer?.username || t("offers.user", "utente")}`
                 : `${t("offerDetail.from", "Da")}: ${o.from_listing?.title || o.from_listing?.id || "-"}`}
               {" \u2192 "}
               {t("offerDetail.to", "per")}: {o.to_listing?.title || listing?.title || o.to_listing?.id}
@@ -374,7 +374,7 @@ const s = StyleSheet.create({
   cardSub: { color: theme.colors.textMuted, marginTop: 4 },
   cardMeta: { color: theme.colors.text, marginTop: 4, fontWeight: "600" },
 
-  row: { flexDirection: "row", gap: 10, alignItems: "center", marginTop: 10 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 10 },
   chatLink: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
   chatLinkText: { color: theme.colors.accent, fontWeight: "700" },
 

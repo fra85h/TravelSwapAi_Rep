@@ -273,6 +273,25 @@ export async function getPublicProfile(userId) {
   return data || null;
 }
 
+/** Come getPublicProfile ma per più utenti in una volta (es. i proponenti
+ * delle offerte su un annuncio) — stessa scelta vista/tabella + colonne. */
+export async function getPublicProfilesByIds(userIds) {
+  const ids = [...new Set((userIds || []).filter(Boolean).map(String))];
+  if (!ids.length) return [];
+  const fromView = await supabase
+    .from("public_profiles")
+    .select(PUBLIC_PROFILE_COLUMNS)
+    .in("id", ids);
+  if (!fromView.error) return fromView.data || [];
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PUBLIC_PROFILE_COLUMNS)
+    .in("id", ids);
+  if (error) throw error;
+  return data || [];
+}
+
 // Un annuncio 'active' con la data del viaggio/soggiorno già passata non è
 // più azionabile (nessuno può comprare un biglietto per un treno già
 // partito): va escluso dalle liste pubbliche anche se lo status in DB non è
@@ -436,15 +455,32 @@ export async function createOffer(from_listing_id, to_listing_id, { message } = 
   return data;
 }
 
-/** Offerte collegate a un annuncio (sia in entrata che in uscita) */
+/** Offerte collegate a un annuncio (sia in entrata che in uscita).
+ * Include titolo di from/to listing (embed via FK) e, per il proponente,
+ * il profilo pubblico: offers.proposer_id non ha una FK verso profiles
+ * (PostgREST non può fare l'embed automatico), quindi va risolto con una
+ * query separata — prima mancava del tutto e OfferDetailScreen mostrava
+ * sempre la parola "utente" al posto del nome vero. */
 export async function listOffersForListing(listingId) {
   const { data, error } = await supabase
     .from("offers")
-    .select("*")
+    .select("*, from_listing:from_listing_id(id,title), to_listing:to_listing_id(id,title)")
     .or(`from_listing_id.eq.${listingId},to_listing_id.eq.${listingId}`)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data || [];
+  const rows = data || [];
+
+  const proposerIds = rows.map((o) => o.proposer_id).filter(Boolean);
+  if (proposerIds.length) {
+    try {
+      const profiles = await getPublicProfilesByIds(proposerIds);
+      const byId = new Map(profiles.map((p) => [String(p.id), p]));
+      rows.forEach((o) => { o.proposer = byId.get(String(o.proposer_id)) || null; });
+    } catch {
+      // best effort: se fallisce, resta il fallback "utente" lato UI
+    }
+  }
+  return rows;
 }
 
 /** Aggiorna stato o altri campi di un'offerta */
