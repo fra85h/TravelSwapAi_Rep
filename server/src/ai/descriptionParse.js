@@ -40,8 +40,8 @@ Regole vincolanti:
 4) Date e orari
 - Hotel: "checkIn" e "checkOut" in "YYYY-MM-DD".
 - Treno: "departAt" e "arriveAt" in "YYYY-MM-DD HH:mm" (24h).
-- Se nel testo è indicato solo giorno e mese, determina l’anno come il PRIMO ANNO UTILE NEL FUTURO rispetto a "oggi".
-- Se nel testo è indicato anche l’anno ma la data/ora risultante è nel passato rispetto a "oggi", incrementa l’anno di 1 (ripeti finché è nel futuro).
+- Se nel testo è indicato SOLO giorno e mese (nessun anno), determina l’anno come il PRIMO ANNO UTILE NEL FUTURO rispetto a "oggi".
+- Se nel testo è indicato ANCHE l’anno, usalo ESATTAMENTE come scritto, anche se la data/ora risultante è nel passato rispetto a "oggi": un biglietto con data passata è semplicemente scaduto/non valido, NON tocca a te "correggerlo" spostandolo in avanti.
 - "Oggi" ti viene passato nel messaggio utente con il formato "YYYY-MM-DD HH:mm".
 
 5) Prezzo
@@ -154,25 +154,6 @@ function makeRoute(origin, destination) {
   return `${a}-->${b}`;
 }
 
-function ensureFutureYearDateTime(isoYmdHm) {
-  // Input "YYYY-MM-DD HH:mm" oppure null
-  const s = normStr(isoYmdHm);
-  if (!s) return null;
-  const d = new Date(s.replace(" ", "T"));
-  if (isNaN(d.getTime())) return s; // lascio com'è se non parseabile
-  const now = new Date();
-  // se è nel passato, bump di anno finché è nel futuro
-  while (d.getTime() <= now.getTime()) {
-    d.setFullYear(d.getFullYear() + 1);
-  }
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const HH = String(d.getHours()).padStart(2, "0");
-  const MI = String(d.getMinutes()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd} ${HH}:${MI}`;
-}
-
 function sanitizeParsed(obj) {
   // unisci con EMPTY per garantire tutte le chiavi
   const p = { ...EMPTY, ...(obj || {}) };
@@ -203,10 +184,16 @@ function sanitizeParsed(obj) {
 
   p.provider = normStr(p.provider);
 
-  // Rollover futuro per il treno (safety-net, la regola è già nel prompt)
-  p.departAt = ensureFutureYearDateTime(p.departAt);
-  p.arriveAt = ensureFutureYearDateTime(p.arriveAt);
-  p.returnAt = ensureFutureYearDateTime(p.returnAt);
+  // NIENTE rollover forzato dell'anno qui: un biglietto con anno esplicito
+  // già nel passato è scaduto/non valido, non va "corretto" spostandolo nel
+  // futuro (bug storico: un biglietto "8 marzo 2026" letto da un documento
+  // reale finiva pubblicato come "8 marzo 2027"). Il caso "solo giorno e
+  // mese, nessun anno" resta gestito dal prompt (rollover al primo anno
+  // futuro). La data nel passato viene bloccata più avanti, in creazione
+  // annuncio (validazione "già passato").
+  p.departAt = normStr(p.departAt);
+  p.arriveAt = normStr(p.arriveAt);
+  p.returnAt = normStr(p.returnAt);
 
   // Forza titolo secondo specifica. Se cercoVendo non è chiaro NON si
   // inventa "Vendo" (bug storico: un annuncio CERCO usciva col titolo

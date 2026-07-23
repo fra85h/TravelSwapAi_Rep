@@ -574,6 +574,8 @@ export const translations = {
       confirmationMissingMsg: "Incolla il testo della conferma di prenotazione (almeno qualche riga).",
       confirmationImportError: "Impossibile leggere la conferma. Riprova o compila i campi a mano.",
       aiImportFromText: "Dati importati dalla conferma.",
+      importPastDateTitle: "Data nel passato",
+      importPastDateMsg: "La data importata dal documento risulta già passata: questo biglietto/prenotazione non è più valido e non potrà essere pubblicato così com'è. Controlla il documento o correggi la data.",
       aiImportFromTextWithProvider: "Dati importati dalla conferma. Fornitore rilevato: {provider}.",
 
       photoPermissionTitle: "Permesso negato",
@@ -1619,6 +1621,8 @@ export const translations = {
       confirmationMissingMsg: "Paste the booking confirmation text (at least a few lines).",
       confirmationImportError: "Couldn't read the confirmation. Try again or fill in the fields manually.",
       aiImportFromText: "Details imported from the confirmation.",
+      importPastDateTitle: "Date in the past",
+      importPastDateMsg: "The date imported from the document is already in the past: this ticket/booking is no longer valid and can't be published as is. Check the document or correct the date.",
       aiImportFromTextWithProvider: "Details imported from the confirmation. Provider detected: {provider}.",
 
       photoPermissionTitle: "Permission denied",
@@ -2655,6 +2659,8 @@ export const translations = {
       confirmationMissingMsg: "Pega el texto de la confirmación de reserva (al menos unas líneas).",
       confirmationImportError: "No se pudo leer la confirmación. Inténtalo de nuevo o completa los campos manualmente.",
       aiImportFromText: "Datos importados de la confirmación.",
+      importPastDateTitle: "Fecha en el pasado",
+      importPastDateMsg: "La fecha importada del documento ya ha pasado: este billete/reserva ya no es válido y no se puede publicar tal cual. Comprueba el documento o corrige la fecha.",
       aiImportFromTextWithProvider: "Datos importados de la confirmación. Proveedor detectado: {provider}.",
 
       photoPermissionTitle: "Permiso denegado",

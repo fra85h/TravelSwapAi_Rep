@@ -1,26 +1,6 @@
 // travelswapai/lib/ai/descriptionParser.js
 import { fetchJson } from "./backendApi";
 
-function ensureFutureYear(isoDateTimeOrDate) {
-  if (!isoDateTimeOrDate) return null;
-  const s = String(isoDateTimeOrDate).replace(" ", "T");
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return null;
-  const now = new Date();
-  // if date (or datetime) is in the past, bump year until in the future
-  while (d.getTime() <= now.getTime()) {
-    d.setFullYear(d.getFullYear() + 1);
-  }
-  const y = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,"0");
-  const dd = String(d.getDate()).padStart(2,"0");
-  const HH = String(d.getHours()).padStart(2,"0");
-  const MI = String(d.getMinutes()).padStart(2,"0");
-  // preserve whether input had time
-  if (/T\d{2}:\d{2}/.test(s)) return `${y}-${mm}-${dd}T${HH}:${MI}`;
-  return `${y}-${mm}-${dd}`;
-}
-
 function makeRoute(origin, destination) {
   const a = normStr(origin);
   const b = normStr(destination);
@@ -162,10 +142,12 @@ let location = makeRoute(origin, destination) || normStr(pick(payload, "location
     const checkIn  = toIsoDate(pick(payload, "checkIn", "check_in"));
     const checkOut = toIsoDate(pick(payload, "checkOut", "check_out"));
 
-    let departAt = toIsoDateTime(pick(payload, "departAt", "depart_at", "departureAt", "departure_at"));
-let arriveAt = toIsoDateTime(pick(payload, "arriveAt", "arrive_at", "arrivalAt", "arrival_at"));
-departAt = ensureFutureYear(departAt) || departAt;
-arriveAt = arriveAt ? ensureFutureYear(arriveAt) : arriveAt;
+    // NIENTE rollover forzato dell'anno qui: una data con anno esplicito già
+    // nel passato è un biglietto scaduto/non valido, non va spostata in
+    // avanti (bug storico: "8 marzo 2026" finiva pubblicato come "8 marzo
+    // 2027"). La data nel passato viene bloccata in creazione annuncio.
+    const departAt = toIsoDateTime(pick(payload, "departAt", "depart_at", "departureAt", "departure_at"));
+const arriveAt = toIsoDateTime(pick(payload, "arriveAt", "arrive_at", "arrivalAt", "arrival_at"));
 const isNamedTicketRaw = pick(payload, "isNamedTicket", "is_named_ticket");
     const isNamedTicket =
       typeof isNamedTicketRaw === "boolean"
