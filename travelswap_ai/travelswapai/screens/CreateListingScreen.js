@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse, isPlausiblePnr } from "../lib/db";
+import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse, isPlausiblePnr, countMyActiveListings, ACTIVE_LISTING_CAP } from "../lib/db";
 import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
@@ -1599,6 +1599,25 @@ const initialJsonRef = useRef(null);
       return;
     }
 
+    // Tetto agli annunci attivi: solo in creazione, un nuovo annuncio nasce
+    // sempre 'active' (vedi basePayload più sotto). Backstop a DB col trigger
+    // enforce_active_listing_cap (copre anche riattivazioni da altre schermate,
+    // es. il toggle pausa/riprendi di ProfileScreen).
+    if (mode !== "edit") {
+      const activeCount = await countMyActiveListings().catch(() => 0);
+      if (activeCount >= ACTIVE_LISTING_CAP) {
+        Alert.alert(
+          t("createListing.activeCapTitle", "Limite annunci attivi raggiunto"),
+          t(
+            "createListing.activeCapMsg",
+            "Hai già {cap} annunci attivi: metti in pausa o elimina qualcuno dei tuoi annunci esistenti prima di pubblicarne uno nuovo.",
+            { cap: ACTIVE_LISTING_CAP }
+          )
+        );
+        return;
+      }
+    }
+
     // Plausibilità del PNR: non possiamo verificare se è REALMENTE esistente
     // (nessuna API pubblica Trenitalia/Italo), ma un formato palesemente
     // inventato ("111111", "ABCDEF", troppo corto/lungo) si scarta subito,
@@ -1744,7 +1763,25 @@ const initialJsonRef = useRef(null);
         const stillInFuture = form?.type === "hotel"
           ? (() => { const d = parseISODate(normalizeDateStr(form.checkIn)); return !!d && d >= new Date(new Date().toDateString()); })()
           : (() => { const d = parseISODateTime(form.departAt); return !!d && d >= new Date(); })();
-        if (stillInFuture) payload.status = "active";
+        if (stillInFuture) {
+          // Tetto agli annunci attivi: la riattivazione conta come una nuova
+          // attivazione (vedi trigger DB enforce_active_listing_cap). Se il
+          // tetto è già raggiunto, si salvano comunque le date corrette ma
+          // l'annuncio resta 'expired' finché non si libera un posto.
+          const activeCount = await countMyActiveListings(idForUpdate).catch(() => 0);
+          if (activeCount >= ACTIVE_LISTING_CAP) {
+            Alert.alert(
+              t("createListing.activeCapTitle", "Limite annunci attivi raggiunto"),
+              t(
+                "createListing.activeCapReactivateMsg",
+                "Le date sono state salvate, ma l'annuncio non torna attivo: hai già {cap} annunci attivi. Metti in pausa o elimina qualcuno, poi riprova.",
+                { cap: ACTIVE_LISTING_CAP }
+              )
+            );
+          } else {
+            payload.status = "active";
+          }
+        }
       }
 
       let publishedIds = [];
@@ -1798,6 +1835,15 @@ const initialJsonRef = useRef(null);
         Alert.alert(
           t("createListing.dupExactTitle", "Annuncio già pubblicato"),
           t("createListing.dupExactMsg", "Hai già un annuncio attivo identico. Modifica o rimuovi quello esistente invece di pubblicarne un altro uguale.")
+        );
+      } else if (emsg.includes("active listing cap reached")) {
+        Alert.alert(
+          t("createListing.activeCapTitle", "Limite annunci attivi raggiunto"),
+          t(
+            "createListing.activeCapMsg",
+            "Hai già {cap} annunci attivi: metti in pausa o elimina qualcuno dei tuoi annunci esistenti prima di pubblicarne uno nuovo.",
+            { cap: ACTIVE_LISTING_CAP }
+          )
         );
       } else if (emsg.includes("chk_price_le_purchase")) {
         Alert.alert(

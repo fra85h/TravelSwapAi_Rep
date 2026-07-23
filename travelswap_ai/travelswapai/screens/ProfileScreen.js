@@ -17,7 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
-import { listMyListings, updateListing, deleteMyListing, getCurrentUser } from "../lib/db";
+import { listMyListings, updateListing, deleteMyListing, getCurrentUser, countMyActiveListings, ACTIVE_LISTING_CAP } from "../lib/db";
 import { retractListing, propagateListing, recomputeUserSnapshot } from "../lib/backendApi";
 import { useI18n } from "../lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -160,6 +160,22 @@ export default function ProfileScreen() {
       // eliminato, scaduto) non si riattivano: "Pausa" è reversibile, il resto no.
       if (current !== "active" && current !== "paused" && current !== "") return;
       const next = current === "active" || current === "" ? "paused" : "active";
+      // Tetto agli annunci attivi (vedi trigger DB enforce_active_listing_cap):
+      // riprendere un annuncio in pausa conta come una nuova attivazione.
+      if (next === "active") {
+        const activeCount = await countMyActiveListings(item.id).catch(() => 0);
+        if (activeCount >= ACTIVE_LISTING_CAP) {
+          Alert.alert(
+            t("createListing.activeCapTitle", "Limite annunci attivi raggiunto"),
+            t(
+              "createListing.activeCapMsg",
+              "Hai già {cap} annunci attivi: metti in pausa o elimina qualcuno dei tuoi annunci esistenti prima di pubblicarne uno nuovo.",
+              { cap: ACTIVE_LISTING_CAP }
+            )
+          );
+          return;
+        }
+      }
       await updateListing(item.id, { status: next });
       // In pausa: ritira l'annuncio dal "Per te" di chi lo aveva suggerito
       // (altrimenti resta un annuncio fantasma finché quella persona non

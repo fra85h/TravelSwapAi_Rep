@@ -66,6 +66,26 @@ export async function getListingSecret(listingId) {
   return data?.pnr ?? null;
 }
 
+// Tetto agli annunci attivi per utente (vedi trigger DB
+// enforce_active_listing_cap): 10 è ampio per un uso reale, evita che un
+// account accumuli annunci attivi senza limite. excludeId: il proprio
+// annuncio in modifica non conta come "un altro" annuncio attivo.
+export const ACTIVE_LISTING_CAP = 10;
+
+export async function countMyActiveListings(excludeId = null) {
+  const me = await getCurrentUser();
+  if (!me) throw new Error("Not authenticated");
+  let q = supabase
+    .from("listings")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", me.id)
+    .eq("status", "active");
+  if (excludeId != null) q = q.neq("id", String(excludeId));
+  const { count, error } = await q;
+  if (error) throw error;
+  return count || 0;
+}
+
 /**
  * Vero se il PNR "sembra" reale: non esiste un'API pubblica Trenitalia/Italo
  * per verificarne l'esistenza vera, quindi qui controlliamo solo la
