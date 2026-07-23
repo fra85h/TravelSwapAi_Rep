@@ -1893,6 +1893,24 @@ const initialJsonRef = useRef(null);
     }
   };
 
+  // Un biglietto/prenotazione con data già passata è scaduto: non lo
+  // "correggiamo" più spostandolo in avanti di un anno (bug storico), quindi
+  // può arrivare qui con la data vera, nel passato. Il form si precompila
+  // comunque (l'utente potrebbe voler correggere solo quello), ma avvisiamo
+  // subito invece di lasciarlo scoprire il blocco solo al tentativo di
+  // pubblicare (computeErrors blocca comunque la pubblicazione in quel caso).
+  const warnIfImportedDateIsPast = (type, data) => {
+    const isPast = type === "train"
+      ? (() => { const d = parseISODateTime(data.departAt); return !!d && d < new Date(); })()
+      : (() => { const d = parseISODate(data.checkIn); return !!d && d < new Date(new Date().toDateString()); })();
+    if (isPast) {
+      Alert.alert(
+        t("createListing.importPastDateTitle", "Data nel passato"),
+        t("createListing.importPastDateMsg", "La data importata dal documento risulta già passata: questo biglietto/prenotazione non è più valido e non potrà essere pubblicato così com'è. Controlla il documento o correggi la data.")
+      );
+    }
+  };
+
   const applyImportedData = (data) => {
     if (!data || typeof data !== "object") return;
     if (data.type === "train") {
@@ -1914,6 +1932,7 @@ const initialJsonRef = useRef(null);
         price: data.price ?? "",
         description: data.description ?? "",
       });
+      warnIfImportedDateIsPast("train", data);
     } else {
       update({
         type: "hotel",
@@ -1930,6 +1949,7 @@ const initialJsonRef = useRef(null);
         price: data.price ?? "",
         description: data.description ?? "",
       });
+      warnIfImportedDateIsPast("hotel", data);
     }
   };
 
