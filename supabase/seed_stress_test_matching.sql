@@ -65,6 +65,18 @@
 -- entrambi i gruppi.
 -- ============================================================
 
+-- La PARTE 1 mette 500 annunci attivi su un solo utente (U4) di proposito
+-- (rumore realistico, vedi sopra): dal 23/07 esiste anche un trigger che
+-- blocca oltre 10 annunci ATTIVI per utente (trg_listings_active_cap,
+-- 20260723110000_active_listing_cap.sql), pensato per bloccare esattamente
+-- questo pattern quando capita per errore a un utente vero. Qui è
+-- volontario e lo script è solo per test admin via SQL Editor, quindi
+-- disattiviamo il trigger per la durata dello script invece di adattare
+-- il cap (che deve restare stretto per gli utenti reali) — senza questo,
+-- l'INSERT si fermava alla riga 11 con un'eccezione che faceva fare
+-- rollback anche alla PARTE 2 (i 12 annunci "veri"), lasciando zero righe.
+ALTER TABLE public.listings DISABLE TRIGGER trg_listings_active_cap;
+
 DO $$
 DECLARE
   -- <<< SOSTITUISCI questi 4 UUID con quelli reali recuperati sopra >>>
@@ -208,6 +220,8 @@ BEGIN
       (now() + interval '11 days')::date, (now() + interval '13 days')::date, 75.00, 'EUR', 'active', now(), now());
 
 END $$;
+
+ALTER TABLE public.listings ENABLE TRIGGER trg_listings_active_cap;
 
 -- ---------- Verifica rapida ----------
 -- Atteso "veri": 6 righe (U1,U2,U3 con esattamente 1 VENDO + 2 CERCO
