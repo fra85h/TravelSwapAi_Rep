@@ -43,6 +43,7 @@ export async function getOfferHandshake(offerId) {
     disputeReason: r.dispute_reason || null,
     needsNameChange: !!r.needs_name_change,
     ticketOperator: r.ticket_operator || null,
+    cancelReason: r.cancel_reason || null,
   };
 }
 
