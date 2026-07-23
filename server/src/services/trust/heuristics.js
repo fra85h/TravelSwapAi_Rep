@@ -179,7 +179,12 @@ export function computeHeuristicChecks(listing, locale = 'it') {
   // 'treno' vs 'train' teneva spenti questi controlli per i treni reali.
   let completeness = 0;
   const required = ['description', 'price', 'startDate'];
-  if (type === 'hotel' || type === 'alloggio') required.push('endDate', 'destination');
+  // Un hotel valorizza 'location' (città/struttura), non 'destination' (che è
+  // per le tratte treno/volo): richiedere 'destination' qui la segnalava
+  // sempre mancante, anche a campi compilati (bug reale, capitato in
+  // produzione — vedi CreateListingScreen, che per gli hotel manda sempre
+  // destination:null).
+  if (type === 'hotel' || type === 'alloggio') required.push('endDate', 'location');
   if (type === 'train' || type === 'treno' || type === 'volo' || type === 'bus') required.push('origin', 'destination');
 
   let present = 0;
