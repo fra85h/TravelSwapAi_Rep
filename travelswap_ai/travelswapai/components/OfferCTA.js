@@ -7,6 +7,7 @@ import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import { listMyListings } from "../lib/db";
 import { sendListingPing } from "../lib/backendApi";
+import ActionSheet from "./ui/ActionSheet";
 
 export default function OfferCTAs({ listing, me }) {
   const { t } = useI18n();
@@ -23,6 +24,7 @@ export default function OfferCTAs({ listing, me }) {
   const [myVendos, setMyVendos] = useState([]);
   const [pingSent, setPingSent] = useState(false);
   const [pinging, setPinging] = useState(false);
+  const [pingPickerOpen, setPingPickerOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -87,20 +89,16 @@ export default function OfferCTAs({ listing, me }) {
     }
   };
 
+  // Alert.alert con più di 2 bottoni non è affidabile su web (vedi
+  // lib/webAlert.js): con più VENDO compatibili serve l'ActionSheet, che
+  // mostra davvero tutte le opzioni invece di collassarle in un OK/Annulla.
   const onPing = () => {
     if (!myVendos.length) return;
     if (myVendos.length === 1) {
       doPing(myVendos[0].id);
       return;
     }
-    Alert.alert(
-      t("offers.pingPickTitle", "Quale annuncio segnalo?"),
-      t("offers.pingPickBody", "Hai più annunci che potrebbero fare al caso: scegli quale segnalare."),
-      [
-        ...myVendos.map((l) => ({ text: l.title || l.id, onPress: () => doPing(l.id) })),
-        { text: t("common.cancel", "Annulla"), style: "cancel" },
-      ]
-    );
+    setPingPickerOpen(true);
   };
 
   // Un CERCO è una richiesta (nessun biglietto da comprare o scambiare): non si
@@ -127,6 +125,14 @@ export default function OfferCTAs({ listing, me }) {
             </Text>
           </TouchableOpacity>
         )}
+        <ActionSheet
+          visible={pingPickerOpen}
+          title={t("offers.pingPickTitle", "Quale annuncio segnalo?")}
+          message={t("offers.pingPickBody", "Hai più annunci che potrebbero fare al caso: scegli quale segnalare.")}
+          cancelLabel={t("common.cancel", "Annulla")}
+          onClose={() => setPingPickerOpen(false)}
+          options={myVendos.map((l) => ({ label: l.title || l.id, onPress: () => doPing(l.id) }))}
+        />
       </View>
     );
   }
