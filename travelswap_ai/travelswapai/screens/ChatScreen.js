@@ -81,7 +81,22 @@ export default function ChatScreen() {
           text: t("chat.confirmCta", "Conferma"),
           onPress: async () => {
             setHsBusy(true);
-            try { await confirmExchange(offerId); await refreshHandshake(); notifyActivityChanged(); }
+            try {
+              const updated = await confirmExchange(offerId);
+              await refreshHandshake();
+              notifyActivityChanged();
+              // Backstop: l'annuncio coinvolto risultava già concluso in un
+              // ALTRO scambio/acquisto (stesso proprio annuncio offerto a più
+              // proposte, un'altra si è chiusa prima) — questa si annulla da
+              // sola invece di fallire con un errore grezzo. Avviso subito,
+              // non solo tramite la barra di stato che segue.
+              if (String(updated?.status || "").toLowerCase() === "cancelled" && updated?.cancel_reason === "listing_unavailable") {
+                Alert.alert(
+                  t("chat.autoCancelledTitle", "Scambio annullato"),
+                  t("chat.autoCancelledMsg", "Nel frattempo il biglietto coinvolto è stato assegnato a un'altra proposta già conclusa. Questa proposta è stata annullata automaticamente.")
+                );
+              }
+            }
             catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
             finally { setHsBusy(false); }
           },
@@ -215,6 +230,22 @@ export default function ChatScreen() {
             <Text style={[styles.hsText, { color: "#166534" }]}>
               {isSwap ? t("chat.completed", "Scambio completato") : t("chat.completedBuy", "Acquisto completato")}
             </Text>
+          </View>
+        ) : handshake?.status === "cancelled" ? (
+          // Annullata: per conflitto rilevato automaticamente (annuncio già
+          // concluso in un'altra proposta, cancel_reason valorizzato) o
+          // perché una delle due parti ha annullato volontariamente (nessun
+          // cancel_reason) — prima questo stato non veniva mostrato affatto,
+          // la barra spariva senza spiegazioni per chi non aveva agito.
+          <View style={[styles.hsBar, styles.hsDispute]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="close-circle" size={16} color="#991B1B" />
+              <Text style={[styles.hsText, { color: "#991B1B", fontWeight: "800", flex: 1 }]}>
+                {handshake.cancelReason === "listing_unavailable"
+                  ? t("chat.autoCancelledShort", "Annullato: il biglietto è stato assegnato a un'altra proposta.")
+                  : t("chat.cancelledShort", "Questa proposta è stata annullata.")}
+              </Text>
+            </View>
           </View>
         ) : handshake?.status === "accepted" && handshake.disputed ? (
           // Contestazione aperta: conferma BLOCCATA per entrambi, resta solo
