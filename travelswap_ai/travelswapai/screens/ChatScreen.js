@@ -72,7 +72,9 @@ export default function ChatScreen() {
   const onConfirm = useCallback(() => {
     Alert.alert(
       t("chat.confirmTitle", "Confermi che è tutto ok?"),
-      t("chat.confirmMsg", "Conferma solo dopo aver ricevuto e verificato ciò che avete concordato. Quando confermate entrambi, lo scambio si chiude e non è più annullabile."),
+      isSwap
+        ? t("chat.confirmMsg", "Conferma solo dopo aver ricevuto e verificato ciò che avete concordato. Quando confermate entrambi, lo scambio si chiude e non è più annullabile.")
+        : t("chat.confirmMsgBuy", "Conferma solo dopo aver ricevuto e verificato ciò che avete concordato. Quando confermate entrambi, l'acquisto si chiude e non è più annullabile."),
       [
         { text: t("common.cancel", "Annulla"), style: "cancel" },
         {
@@ -86,7 +88,7 @@ export default function ChatScreen() {
         },
       ]
     );
-  }, [offerId, t, refreshHandshake]);
+  }, [offerId, t, refreshHandshake, isSwap]);
 
   const doReport = useCallback(async (reason) => {
     setHsBusy(true);
@@ -114,12 +116,14 @@ export default function ChatScreen() {
 
   const onCancelExchange = useCallback(() => {
     Alert.alert(
-      t("chat.cancelTitle", "Annullare lo scambio?"),
-      t("chat.cancelMsg", "Usa questa opzione se lo scambio non è andato a buon fine: entrambi gli annunci tornano attivi e disponibili."),
+      isSwap ? t("chat.cancelTitle", "Annullare lo scambio?") : t("chat.cancelTitleBuy", "Annullare l'acquisto?"),
+      isSwap
+        ? t("chat.cancelMsg", "Usa questa opzione se lo scambio non è andato a buon fine: entrambi gli annunci tornano attivi e disponibili.")
+        : t("chat.cancelMsgBuy", "Usa questa opzione se l'acquisto non è andato a buon fine: l'annuncio torna attivo e disponibile."),
       [
         { text: t("common.close", "Chiudi"), style: "cancel" },
         {
-          text: t("chat.cancelCta", "Annulla scambio"),
+          text: isSwap ? t("chat.cancelCta", "Annulla scambio") : t("chat.cancelCtaBuy", "Annulla acquisto"),
           style: "destructive",
           onPress: async () => {
             setHsBusy(true);
@@ -130,7 +134,7 @@ export default function ChatScreen() {
         },
       ]
     );
-  }, [offerId, t, navigation]);
+  }, [offerId, t, navigation, isSwap]);
 
   useEffect(() => { if (offerId) load(); }, [offerId, load]);
 
@@ -208,7 +212,9 @@ export default function ChatScreen() {
         {handshake?.status === "finalized" ? (
           <View style={[styles.hsBar, styles.hsDone]}>
             <Ionicons name="checkmark-done-circle" size={16} color="#166534" />
-            <Text style={[styles.hsText, { color: "#166534" }]}>{t("chat.completed", "Scambio completato")}</Text>
+            <Text style={[styles.hsText, { color: "#166534" }]}>
+              {isSwap ? t("chat.completed", "Scambio completato") : t("chat.completedBuy", "Acquisto completato")}
+            </Text>
           </View>
         ) : handshake?.status === "accepted" && handshake.disputed ? (
           // Contestazione aperta: conferma BLOCCATA per entrambi, resta solo
@@ -225,7 +231,7 @@ export default function ChatScreen() {
             ) : null}
             <View style={styles.hsBtns}>
               <TouchableOpacity style={[styles.hsBtn, styles.hsBtnGhost, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onCancelExchange}>
-                <Text style={styles.hsBtnGhostTxt}>{t("chat.cancelCta", "Annulla scambio")}</Text>
+                <Text style={styles.hsBtnGhostTxt}>{isSwap ? t("chat.cancelCta", "Annulla scambio") : t("chat.cancelCtaBuy", "Annulla acquisto")}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -256,7 +262,9 @@ export default function ChatScreen() {
               <Text style={styles.hsText}>
                 {handshake.otherConfirmed
                   ? t("chat.otherConfirmed", "L'altra persona ha confermato. Conferma anche tu quando è tutto ok.")
-                  : t("chat.pendingConfirm", "Quando lo scambio è avvenuto, confermate entrambi per chiuderlo.")}
+                  : isSwap
+                  ? t("chat.pendingConfirm", "Quando lo scambio è avvenuto, confermate entrambi per chiuderlo.")
+                  : t("chat.pendingConfirmBuy", "Quando l'acquisto è avvenuto, confermate entrambi per chiuderlo.")}
               </Text>
             )}
             {(() => {
@@ -272,11 +280,11 @@ export default function ChatScreen() {
             <View style={styles.hsBtns}>
               {!handshake.iConfirmed ? (
                 <TouchableOpacity style={[styles.hsBtn, styles.hsBtnPrimary, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onConfirm}>
-                  <Text style={styles.hsBtnPrimaryTxt}>{t("chat.confirmDone", "Scambio avvenuto")}</Text>
+                  <Text style={styles.hsBtnPrimaryTxt}>{isSwap ? t("chat.confirmDone", "Scambio avvenuto") : t("chat.confirmDoneBuy", "Acquisto avvenuto")}</Text>
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity style={[styles.hsBtn, styles.hsBtnGhost, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onCancelExchange}>
-                <Text style={styles.hsBtnGhostTxt}>{t("chat.cancelCta", "Annulla scambio")}</Text>
+                <Text style={styles.hsBtnGhostTxt}>{isSwap ? t("chat.cancelCta", "Annulla scambio") : t("chat.cancelCtaBuy", "Annulla acquisto")}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.hsBtn, hsBusy && { opacity: 0.6 }]} disabled={hsBusy} onPress={onReport}>
                 <Text style={styles.hsReportTxt}>{t("chat.reportCta", "Segnala un problema")}</Text>

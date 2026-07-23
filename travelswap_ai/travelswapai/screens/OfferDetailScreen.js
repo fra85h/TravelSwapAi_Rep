@@ -322,12 +322,14 @@ export default function OfferDetailScreen() {
                     {handshakes[o.id].disputed
                       ? t("chat.disputedShort", "⚠️ Problema segnalato")
                       : handshakes[o.id].status === "finalized"
-                      ? t("chat.completed", "Scambio completato")
+                      ? (isBuy ? t("chat.completedBuy", "Acquisto completato") : t("chat.completed", "Scambio completato"))
                       : handshakes[o.id].iConfirmed
                       ? t("chat.youConfirmedShort", "Hai confermato — attendi l'altra persona")
                       : handshakes[o.id].otherConfirmed
                       ? t("chat.otherConfirmedShort", "In attesa della tua conferma")
-                      : t("chat.pendingConfirm", "Quando lo scambio è avvenuto, confermate entrambi per chiuderlo.")}
+                      : (isBuy
+                        ? t("chat.pendingConfirmBuy", "Quando l'acquisto è avvenuto, confermate entrambi per chiuderlo.")
+                        : t("chat.pendingConfirm", "Quando lo scambio è avvenuto, confermate entrambi per chiuderlo."))}
                   </Text>
                 )}
               </>
