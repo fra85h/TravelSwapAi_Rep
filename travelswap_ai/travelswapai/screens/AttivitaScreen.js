@@ -500,7 +500,7 @@ export default function AttivitaScreen({ navigation }) {
           title={t("activity.sectionChats", "Chat")}
           count={(summary.chats || []).reduce((n, c) => n + (c.unreadCount || 0), 0)}
           urgent
-          hint={t("activity.sectionChatsHint", "Organizza qui lo scambio con l'altra persona.")}
+          hint={t("activity.sectionChatsHint", "Organizza qui i dettagli con l'altra persona.")}
         >
           {summary.chats.map(renderChat)}
         </Section>
