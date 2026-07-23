@@ -3,8 +3,16 @@
 // nostro shim (lib/webAlert.js) usa window.confirm(), che è binario e fa
 // sparire silenziosamente ogni opzione oltre alla prima non-cancel.
 import React from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from "react-native";
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable, ScrollView } from "react-native";
 import { theme } from "../../lib/theme";
+
+// Tetto d'altezza per la lista opzioni: con poche opzioni (menu profilo,
+// motivi di segnalazione) non cambia nulla, ma con MOLTE opzioni (es. il
+// picker "quale annuncio segnalo" con tanti annunci compatibili) prima il
+// foglio cresceva senza limite e faceva scrollare l'intera pagina, con
+// titolo e "Annulla" che uscivano dalla vista — brutto e disorientante.
+// Ora scrolla solo la lista, titolo e Annulla restano sempre visibili.
+const OPTIONS_MAX_HEIGHT = 340;
 
 export default function ActionSheet({ visible, title, message, options = [], cancelLabel = "Annulla", onClose }) {
   return (
@@ -17,15 +25,17 @@ export default function ActionSheet({ visible, title, message, options = [], can
               {message ? <Text style={styles.message} numberOfLines={2}>{message}</Text> : null}
             </View>
           )}
-          {options.map((opt, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={[styles.row, idx < options.length - 1 && styles.rowBorder]}
-              onPress={() => { onClose?.(); opt.onPress?.(); }}
-            >
-              <Text style={[styles.rowText, opt.destructive && styles.destructiveText]}>{opt.label}</Text>
-            </TouchableOpacity>
-          ))}
+          <ScrollView style={{ maxHeight: OPTIONS_MAX_HEIGHT }} bounces={false}>
+            {options.map((opt, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={[styles.row, idx < options.length - 1 && styles.rowBorder]}
+                onPress={() => { onClose?.(); opt.onPress?.(); }}
+              >
+                <Text style={[styles.rowText, opt.destructive && styles.destructiveText]}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
           <TouchableOpacity style={styles.cancelRow} onPress={onClose}>
             <Text style={styles.cancelText}>{cancelLabel}</Text>
           </TouchableOpacity>
