@@ -234,6 +234,8 @@ export const translations = {
       deleteMsg: "Non riceverai più notifiche per questa ricerca.",
       deleteError: "Impossibile eliminare l'avviso.",
       maxPriceNegative: "Il prezzo massimo non può essere negativo.",
+      missingFieldsHotel: "Inserisci la città.",
+      missingFieldsTrain: "Inserisci sia \"Da\" che \"A\".",
     },
 
     linkMessenger: {
@@ -1287,6 +1289,8 @@ export const translations = {
       deleteMsg: "You'll no longer get notified for this search.",
       deleteError: "Unable to delete the alert.",
       maxPriceNegative: "The maximum price can't be negative.",
+      missingFieldsHotel: "Enter the city.",
+      missingFieldsTrain: "Enter both \"From\" and \"To\".",
     },
 
     linkMessenger: {
@@ -2316,6 +2320,8 @@ export const translations = {
       deleteMsg: "Ya no recibirás notificaciones para esta búsqueda.",
       deleteError: "No se pudo eliminar el aviso.",
       maxPriceNegative: "El precio máximo no puede ser negativo.",
+      missingFieldsHotel: "Introduce la ciudad.",
+      missingFieldsTrain: "Introduce tanto \"Desde\" como \"Hasta\".",
     },
 
     linkMessenger: {

@@ -64,7 +64,18 @@ function NewSearchForm({ onCreated, t }) {
   const canSave = type === "hotel" ? !!location.trim() : !!routeFrom.trim() && !!routeTo.trim();
 
   const handleSave = async () => {
-    if (!canSave) return;
+    if (!canSave) {
+      // Prima non c'era alcun feedback: il tap su "Crea avviso" con campi
+      // incompleti non faceva nulla di visibile, e l'utente non capiva
+      // perché (bug reale, capitato in produzione).
+      Alert.alert(
+        t("common.error", "Errore"),
+        type === "hotel"
+          ? t("savedSearches.missingFieldsHotel", "Inserisci la città.")
+          : t("savedSearches.missingFieldsTrain", "Inserisci sia \"Da\" che \"A\".")
+      );
+      return;
+    }
     // Il DB blocca max_price < 0 con un CHECK (saved_searches_max_price_check),
     // ma senza questo controllo l'utente vedrebbe l'errore Postgres grezzo
     // invece di un messaggio comprensibile.

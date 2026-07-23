@@ -674,6 +674,25 @@ if (isDev) {
   });
 }
 
+// --- Fallback SPA per le rotte client-side dell'app web ---
+// React Navigation genera URL SENZA il prefisso /app (es. /MainTabs/Home,
+// /Login, /ListingDetail): funzionano quando si arriva da un link interno
+// (navigazione client-side, che non tocca il server), ma un refresh o un
+// link diretto a una di queste rotte è una richiesta GET vera al server, che
+// prima non aveva nessuna route corrispondente fuori da /app e /app/* →
+// 404 (bug reale, capitato in produzione). Qui serviamo la stessa shell
+// index.html per qualunque GET non-API, così il browser scarica lo stesso
+// bundle e React Navigation instrada verso lo screen giusto lato client.
+const NON_APP_ROUTE_PREFIXES = ['/api', '/ai', '/webhooks', '/health', '/debug', '/dev', '/simulate', '/app'];
+app.get('*', (req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (NON_APP_ROUTE_PREFIXES.some((p) => req.path === p || req.path.startsWith(`${p}/`))) {
+    return next();
+  }
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(webAppDir, 'index.html'));
+});
+
 // --- Start ---
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
