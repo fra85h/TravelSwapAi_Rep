@@ -81,8 +81,17 @@ export default function NotificationsScreen({ navigation }) {
     const d = n.data || {};
     if (n.type === "new_matches") {
       navigation.navigate("Matching");
-    } else if (d.offerId != null) {
-      navigation.navigate("OfferDetail", { id: d.offerId });
+    } else if (d.offerId != null && d.listingId) {
+      // offers.id è bigint (es. "16"), listings.id è uuid: OfferDetailScreen
+      // cerca l'ANNUNCIO (getListingById), quindi va sempre passato
+      // listingId, mai l'offerId al posto suo (altrimenti Postgres rifiuta
+      // il bigint come uuid non valido). offerId va come proposalId, per
+      // evidenziare la proposta specifica — stesso schema di MatchingScreen.
+      navigation.navigate("OfferDetail", {
+        listingId: d.listingId,
+        proposalId: d.offerId,
+        showOnlyThisProposal: true,
+      });
     } else if (n.type === "listing_ping" && d.fromListingId) {
       navigation.navigate("ListingDetail", { id: d.fromListingId });
     } else if (d.listingId) {
