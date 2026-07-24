@@ -8,6 +8,48 @@ import { computeHeuristicChecks, isKnownRailCity } from './heuristics.js';
 import { aiTrustReview } from './aiTrust.js';
 import { moderateListing } from './moderation.js';
 
+// Pesi delle tre componenti del TrustScore (vedi CLAUDE.md).
+export const TRUST_WEIGHTS = { heuristics: 0.45, aiText: 0.45, aiImages: 0.10 };
+
+/**
+ * Media pesata delle tre componenti. Funzione pura (nessun accesso a
+ * rete/DB), così la regola di ponderazione è verificabile da sola — vedi
+ * test/fuseTrustScore.test.js.
+ *
+ * Un annuncio SENZA foto non viene penalizzato dalla componente "analisi
+ * delle foto": il peso 0.10 è ridistribuito proporzionalmente sulle altre
+ * due, invece di far pesare un punteggio immagini su immagini inesistenti.
+ *
+ * Due motivi. Primo, l'assenza di foto è GIÀ gestita dove deve esserlo:
+ * heuristics.js aggiunge il flag NO_IMAGES con il suggerimento "Aggiungi
+ * almeno 1 foto reale" e — a differenza di ogni altro controllo di quel file
+ * — non decrementa alcun punteggio. Contarla anche qui significava punire due
+ * volte la stessa cosa: una in modo visibile e azionabile (il flag), una in
+ * modo invisibile (~4-5 punti che l'utente non sa spiegarsi). Secondo, l'AI a
+ * cui non viene passata nessuna immagine restituiva imageScore: 0 — un
+ * punteggio inventato sul nulla, che il default `?? 50` in aiTrust.js non
+ * intercettava (copre il campo assente, non lo zero esplicito). Il risultato
+ * era un annuncio all'86% con "il punto più debole è Analisi delle foto
+ * (0%)": un difetto inesistente e non correggibile.
+ *
+ * Assenza e irrilevanza restano trattate in modo diverso: foto NON PERTINENTI
+ * continuano a valere il tetto duro (IRRELEVANT_IMAGES → max 55%, applicato
+ * dal chiamante), perché lì un problema reale c'è.
+ */
+export function fuseTrustScore({ heuristics, aiText, aiImages, hasImages }) {
+  const h = Number(heuristics) || 0;
+  const t = Number(aiText) || 0;
+  const w = TRUST_WEIGHTS;
+
+  if (!hasImages) {
+    const base = w.heuristics + w.aiText; // 0.90
+    return Math.round(((h * w.heuristics) + (t * w.aiText)) / base);
+  }
+
+  const i = Number(aiImages) || 0;
+  return Math.round((h * w.heuristics) + (t * w.aiText) + (i * w.aiImages));
+}
+
 /**
  * @param {object} inListing - { title, type, origin, destination, location, startDate, endDate, price, currency, images }
  * @param {string} locale - 'it' | 'en' | 'es'
@@ -71,17 +113,12 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
   }
 
   // 3) Fusione punteggio
-  const weights = { heuristics: 0.45, aiText: 0.45, aiImages: 0.10 };
-
   const h = Number(heur?.score ?? 0);
   const t = Number(ai?.textScore ?? (h || 0));
   const i = Number(ai?.imageScore ?? 50);
+  const hasImages = Array.isArray(listing.images) && listing.images.length > 0;
 
-  let trustScore = Math.round(
-    (h * weights.heuristics) +
-    (t * weights.aiText) +
-    (i * weights.aiImages)
-  );
+  let trustScore = fuseTrustScore({ heuristics: h, aiText: t, aiImages: i, hasImages });
 
   // Falsi positivi di tratta: l'AI a volte segnala IMPLAUSIBLE_ROUTE su tratte
   // reali (es. Palermo→Messina, Ancona→Bari). Il layer deterministico è
@@ -136,7 +173,13 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
     subScores: {
       heuristics: h,
       aiText: t,
-      aiImages: i,
+      // null (non "0") quando non ci sono foto: la componente non è entrata
+      // nel calcolo, quindi non è un sotto-punteggio basso ma un valore che
+      // non esiste. Il client scarta già i valori non finiti quando cerca "il
+      // punto più debole" (vedi trustExplain in CreateListingScreen), così
+      // smette di indicare come difetto principale l'analisi di foto che
+      // l'utente non ha caricato.
+      aiImages: hasImages ? i : null,
       consistency: Number(heur?.consistencyScore ?? 0),
       plausibility: Number(heur?.plausibilityScore ?? 0),
       completeness: Number(heur?.completenessScore ?? 0),

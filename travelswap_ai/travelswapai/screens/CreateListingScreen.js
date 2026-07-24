@@ -669,7 +669,13 @@ const initialJsonRef = useRef(null);
       { label: t("createListing.checkAi.subHeuristics", "Controlli di base (date, prezzo, coerenza)"), value: sub.heuristics },
       { label: t("createListing.checkAi.subAiText", "Analisi del testo (AI)"), value: sub.aiText },
       { label: t("createListing.checkAi.subAiImages", "Analisi delle foto (AI)"), value: sub.aiImages },
-    ].filter(p => Number.isFinite(Number(p.value)));
+    // null/undefined = componente non applicabile, non un punteggio a zero:
+    // il server manda aiImages: null quando l'annuncio non ha foto (quella
+    // parte del calcolo viene esclusa e i pesi ridistribuiti). Il controllo
+    // va fatto PRIMA della conversione, perché Number(null) è 0 e passerebbe
+    // Number.isFinite, facendo ricomparire "Analisi delle foto (0%)" come
+    // punto più debole proprio nel caso che vogliamo escludere.
+    ].filter(p => p.value != null && Number.isFinite(Number(p.value)));
     if (!parts.length) return null;
     parts.sort((a, b) => Number(a.value) - Number(b.value));
     const weakest = parts[0];
