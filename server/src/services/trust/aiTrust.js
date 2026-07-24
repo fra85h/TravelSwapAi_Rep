@@ -1,5 +1,5 @@
 // server/src/services/trust/aiTrust.js
-import OpenAI from "openai";
+import { createOpenAIClient } from "../../lib/openaiClient.js";
 
 // Bug preesistente corretto: il costruttore di OpenAI lancia un'eccezione
 // a livello di modulo se la chiave manca — a import time, prima che il
@@ -7,7 +7,9 @@ import OpenAI from "openai";
 // scattare — facendo cadere l'intero server all'avvio, non solo questa
 // funzione. Costruito solo se la chiave è presente, stesso pattern già
 // corretto in ai/score.js.
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+// Timeout più largo della media: questa chiamata può includere fino a 3
+// immagini da analizzare (vedi imageUrls sotto), quindi è la più lenta.
+const openai = createOpenAIClient({ timeoutMs: Number(process.env.OPENAI_TRUST_TIMEOUT_MS || 45_000) });
 
 /**
  * Valuta un listing con AI e restituisce:

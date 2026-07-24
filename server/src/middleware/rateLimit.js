@@ -69,6 +69,16 @@ export const rateLimitReportNotify = makeRateLimiter({ windowMs: 10 * 60 * 1000,
 
 export const rateLimitNotify = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, name: 'notifiche' });
 
+// Endpoint di matching: sono i più costosi del server (fan-out sugli altri
+// utenti in /propagate e /retract, chiamate OpenAI in /ai/recompute) ed erano
+// gli unici senza alcun freno — bastava un client che li richiamasse in loop
+// per saturare il processo. Due limiti distinti: quelli deterministici
+// (snapshot/propagate/retract) sono invocati fire-and-forget dal client a ogni
+// pubblicazione/pausa, quindi hanno più margine; il ricalcolo AI costa soldi
+// veri per chiamata e sta molto più basso.
+export const rateLimitMatchRecompute = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, name: 'ricalcoli match' });
+export const rateLimitMatchAI = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 6, name: 'ricalcoli AI' });
+
 // Limite endpoint cron scambi a catena: protetto solo da un secret condiviso
 // (nessun login utente, quindi il bucket è per IP), gli mancava un freno di
 // frequenza sui tentativi di indovinare X-Cron-Secret.

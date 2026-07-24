@@ -11,6 +11,12 @@ import { supabase } from "../db.js";
 import { listActiveListings } from "./listings.js";
 import { scoreChainCandidates, CHAIN_SCORE_PASS_THRESHOLD } from "../ai/chainMatch.js";
 import { explainChain } from "../ai/chainExplain.js";
+import { mapWithConcurrency } from "../lib/concurrency.js";
+
+// Valutazioni AI dei candidati in volo contemporaneamente. Basso: ognuna può
+// a sua volta spezzarsi in più batch (vedi CHAIN_AI_CONCURRENCY in
+// ai/chainMatch.js), quindi le due concorrenze si moltiplicano.
+const CHAIN_SCORE_CONCURRENCY = Number(process.env.CHAIN_SCORE_CONCURRENCY ?? 3);
 
 /**
  * Trova cicli diretti di lunghezza esatta 3 in un grafo { ownerId: Set<ownerId> }.
@@ -87,29 +93,48 @@ export async function buildDesireGraph(allActive) {
   const { singleVendoByOwner, cercoByOwner } = groupListings(allActive);
   const edges = new Map();
 
+  // I VENDO raggruppati per tipo una volta sola: prima ogni annuncio CERCO
+  // riscorreva l'INTERA mappa dei VENDO per filtrarli per tipo, cioè
+  // O(cerco × vendo) scansioni ripetute sugli stessi dati a ogni ricalcolo.
+  const vendoByType = new Map();
+  for (const vendo of singleVendoByOwner.values()) {
+    if (!vendoByType.has(vendo.type)) vendoByType.set(vendo.type, []);
+    vendoByType.get(vendo.type).push(vendo);
+  }
+  // id -> proprietario: `candidates.find(...)` dentro il ciclo sui punteggi
+  // era una ricerca lineare per ogni risultato, O(n²) sul lotto di candidati.
+  const ownerByListingId = new Map(
+    [...singleVendoByOwner.values()].map((v) => [String(v.id), v.user_id])
+  );
+
+  // Una coppia (annuncio CERCO, lotto di candidati) per ogni valutazione:
+  // scoreChainCandidates è una chiamata OpenAI e prima venivano fatte tutte
+  // in fila, una per annuncio CERCO dell'intera piattaforma.
+  const jobs = [];
   for (const [owner, cercoListings] of cercoByOwner) {
-    const myGive = singleVendoByOwner.get(owner);
-    if (!myGive) continue; // niente da dare -> non può partecipare a una catena
-
+    if (!singleVendoByOwner.has(owner)) continue; // niente da dare -> fuori dalle catene
     for (const want of cercoListings) {
-      const candidates = [];
-      for (const [otherOwner, vendo] of singleVendoByOwner) {
-        if (otherOwner === owner) continue;
-        if (vendo.type !== want.type) continue;
-        candidates.push(vendo);
-      }
-      if (!candidates.length) continue;
-
-      const scored = await scoreChainCandidates(want, candidates);
-      for (const s of scored) {
-        if (s.score < CHAIN_SCORE_PASS_THRESHOLD) continue;
-        const candidateOwner = candidates.find((c) => c.id === s.id)?.user_id;
-        if (!candidateOwner) continue;
-        if (!edges.has(owner)) edges.set(owner, new Set());
-        edges.get(owner).add(candidateOwner);
-      }
+      const candidates = (vendoByType.get(want.type) || []).filter((v) => v.user_id !== owner);
+      if (candidates.length) jobs.push({ owner, want, candidates });
     }
   }
+
+  const scoredJobs = await mapWithConcurrency(
+    jobs,
+    CHAIN_SCORE_CONCURRENCY,
+    async ({ want, candidates }) => scoreChainCandidates(want, candidates)
+  );
+
+  scoredJobs.forEach((scored, i) => {
+    const { owner } = jobs[i];
+    for (const s of scored || []) {
+      if (s.score < CHAIN_SCORE_PASS_THRESHOLD) continue;
+      const candidateOwner = ownerByListingId.get(String(s.id));
+      if (!candidateOwner) continue;
+      if (!edges.has(owner)) edges.set(owner, new Set());
+      edges.get(owner).add(candidateOwner);
+    }
+  });
 
   return { edges, singleVendoByOwner };
 }

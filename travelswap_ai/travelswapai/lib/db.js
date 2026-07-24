@@ -352,7 +352,13 @@ export async function listMyListings({ status, limit = 100 } = {}) {
   if (!me) throw new Error("Not authenticated");
   let q = supabase
     .from("listings")
-    .select("*")
+    // Colonne esplicite invece di "*": questa lista arriva fino a 100 righe e
+    // "*" trascinava anche colonne che nessuna schermata usa, tra cui
+    // ai_reliability_expl (testo libero, la spiegazione estesa del punteggio).
+    // Le schermate che consumano questa funzione (Profilo, Home, OfferCTA)
+    // leggono solo campi già presenti qui; per modificare un annuncio si
+    // naviga con il solo id e si ricarica la riga completa.
+    .select(LISTING_PUBLIC_COLUMNS)
     .eq("user_id", me.id)
     .order("created_at", { ascending: false })
     .limit(limit);

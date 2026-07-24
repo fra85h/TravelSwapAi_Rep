@@ -1,5 +1,5 @@
 // server/src/parsers/fbParser.js
-import OpenAI from 'openai';
+import { createOpenAIClient } from '../lib/openaiClient.js';
 
 /**
  * Parser AI-only per testi Facebook (feed + messenger).
@@ -15,8 +15,9 @@ import OpenAI from 'openai';
 // prima che aiExtract() abbia mai la possibilità di controllare la chiave
 // — facendo cadere l'intero server all'avvio, non solo l'import da
 // Messenger. Costruito solo se la chiave è presente.
-const OPENAI_KEY = (process.env.OPENAI_API_KEY || '').trim();
-const client = OPENAI_KEY ? new OpenAI({ apiKey: OPENAI_KEY }) : null;
+// Timeout stretto: gira DENTRO il webhook Facebook/Instagram, che Meta
+// considera fallito se non rispondiamo in pochi secondi e riprova.
+const client = createOpenAIClient({ timeoutMs: Number(process.env.OPENAI_FB_TIMEOUT_MS || 15_000) });
 
 // Schema base con tutti i campi a null
 function emptyParsed() {

@@ -1,5 +1,6 @@
 // server/src/ai/score.js
 import OpenAI from "openai";
+import { mapWithConcurrency } from "../lib/concurrency.js";
 
 // -----------------------------------------------------------------------------
 // Config
@@ -13,6 +14,10 @@ const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0); // default: deterministico
 const TOP_P = Number(process.env.MATCH_AI_TOP_P ?? 1);
 const MAX_LISTINGS_PER_CALL = Number(process.env.MATCH_AI_BATCH ?? 40);
+// Batch AI in volo contemporaneamente: basso di proposito, alzarlo troppo
+// espone ai rate limit di OpenAI (429) che costerebbero più della latenza
+// risparmiata.
+const AI_BATCH_CONCURRENCY = Number(process.env.MATCH_AI_CONCURRENCY ?? 3);
 const MATCH_AI_TIMEOUT_MS = Number(process.env.MATCH_AI_TIMEOUT_MS ?? 45000); // default 45s
 
 
@@ -271,8 +276,11 @@ export async function scoreWithAI(user, listings) {
     batches.push(sorted.slice(i, i + MAX_LISTINGS_PER_CALL));
   }
 
-  const results = [];
-  for (const batch of batches) {
+  // I batch sono indipendenti (ognuno valuta un sottoinsieme disgiunto di
+  // annunci): prima venivano chiamati in fila e la latenza era la somma di
+  // tutti. mapWithConcurrency preserva l'ordine, quindi il risultato finale è
+  // identico a quello sequenziale — cambia solo il tempo.
+  const perBatch = await mapWithConcurrency(batches, AI_BATCH_CONCURRENCY, async (batch) => {
     const prompt = buildPrompt(user, batch);
     const raw = await callOpenAIJSON({
       prompt,
@@ -281,13 +289,16 @@ export async function scoreWithAI(user, listings) {
       temperature: TEMPERATURE,
       top_p: TOP_P,
     });
-    const validated = validateAndNormalize(raw, batch.map(l => l.id));
-    if (validated && validated.length) {
-      results.push(...validated.map(r => ({ ...r, model: MODEL })));
-    } else {
-      // se lo schema fallisce per il batch, interrompi e vai a heuristic (deterministico)
-      return null;
-    }
+    return validateAndNormalize(raw, batch.map(l => l.id));
+  });
+
+  const results = [];
+  for (const validated of perBatch) {
+    // se lo schema fallisce per un batch, scarta tutto e vai a heuristic
+    // (deterministico): stessa regola di prima, un risultato AI parziale non
+    // è affidabile.
+    if (!validated || !validated.length) return null;
+    results.push(...validated.map(r => ({ ...r, model: MODEL })));
   }
 
   // completa buchi

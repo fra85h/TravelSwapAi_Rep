@@ -2,11 +2,9 @@
 // locale): valuta se il prezzo di un annuncio sembra basso, congruo o alto
 // usando la sola conoscenza generale del modello, senza dati di mercato in
 // tempo reale — un parere orientativo, non una quotazione garantita.
-import OpenAI from "openai";
+import { createOpenAIClient } from "../lib/openaiClient.js";
 
-const client = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
+const client = createOpenAIClient();
 
 const MODEL = process.env.OPENAI_PRICE_MODEL || "gpt-4o-mini";
 

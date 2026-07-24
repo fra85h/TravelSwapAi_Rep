@@ -1,12 +1,12 @@
 // server/src/ai/descriptionParse.js
-import OpenAI from "openai";
+import { createOpenAIClient } from "../lib/openaiClient.js";
 
 const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0);
 
-const client = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
+// Timeout più largo: il ramo PDF (parseListingFromPdfAI) manda un documento
+// intero da leggere, non solo poche righe di testo.
+const client = createOpenAIClient({ timeoutMs: Number(process.env.OPENAI_PARSE_TIMEOUT_MS || 45_000) });
 
 // Oggi (per la regola: primo anno utile nel futuro)
 function nowIsoMinutes() {

@@ -43,21 +43,31 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
     heur = { ...HEUR_NEUTRAL, flags: [{ code: 'HEUR_ERROR', msg: 'Heuristics non disponibili' }] };
   }
 
-  // 2) AI review (isolata, con fallback se manca chiave o modulo)
+  // 2) AI review + moderazione contenuti: due chiamate OpenAI INDIPENDENTI
+  // (la moderazione non usa il risultato della review), quindi partono
+  // insieme invece che in fila — prima le due latenze si sommavano su ogni
+  // Check AI e su ogni annuncio ingerito da Facebook/Instagram. Restano
+  // isolate l'una dall'altra: allSettled, non all, così il fallimento di una
+  // non annulla l'altra, esattamente come faceva il doppio try/catch.
   let ai = { textScore: heur.score || 50, imageScore: 50, flags: [], suggestedFixes: [] };
-  try {
-    ai = (await aiTrustReview(listing, heur, locale)) || ai;
-  } catch (e) {
-    console.error('[trustscore] aiTrustReview failed:', e?.message || e);
+  let moderation = { flagged: false, flags: [] };
+
+  const [aiRes, modRes] = await Promise.allSettled([
+    aiTrustReview(listing, heur, locale),
+    moderateListing(listing),
+  ]);
+
+  if (aiRes.status === 'fulfilled') {
+    ai = aiRes.value || ai;
+  } else {
+    console.error('[trustscore] aiTrustReview failed:', aiRes.reason?.message || aiRes.reason);
     ai.flags.push({ code: 'AI_ERROR', msg: 'AI non disponibile, uso fallback' });
   }
 
-  // 2b) Moderazione contenuti (isolata, fail-safe: non blocca mai)
-  let moderation = { flagged: false, flags: [] };
-  try {
-    moderation = (await moderateListing(listing)) || moderation;
-  } catch (e) {
-    console.error('[trustscore] moderateListing failed:', e?.message || e);
+  if (modRes.status === 'fulfilled') {
+    moderation = modRes.value || moderation;
+  } else {
+    console.error('[trustscore] moderateListing failed:', modRes.reason?.message || modRes.reason);
   }
 
   // 3) Fusione punteggio
