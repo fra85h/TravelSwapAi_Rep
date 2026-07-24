@@ -21,6 +21,19 @@ const DEFAULT_LISTING_OWNER_ID = (process.env.DEFAULT_LISTING_OWNER_ID || '').tr
 const FB_FEED_MIN_TRUST_SCORE = Number(process.env.FB_FEED_MIN_TRUST_SCORE ?? 50);
 const TRUST_SCORE_GATED_CHANNELS = new Set(['facebook:feed', 'facebook:messenger']);
 
+// Estratte come funzioni pure (nessun accesso a Supabase/OpenAI) così da
+// poter testare la regola "chi viene controllato e con quale soglia" senza
+// dover mockare rete/DB — vedi test/fbIngestTrustGate.test.js.
+export function shouldGateChannel(channel) {
+  return TRUST_SCORE_GATED_CHANNELS.has(channel);
+}
+
+export function evaluateTrustGate(scored, threshold = FB_FEED_MIN_TRUST_SCORE) {
+  if (scored?.moderationFlagged) return { publishable: false, reason: 'moderation_flagged' };
+  if (Number(scored?.trustScore) < threshold) return { publishable: false, reason: 'low_trust_score' };
+  return { publishable: true, reason: null };
+}
+
 function pick(v, fb) {
   // fallback semplice
   return v ?? fb ?? null;
@@ -155,7 +168,7 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
   // moderazione): non pubblicare (il chiamante decide se loggare soltanto,
   // come per il Feed, o avvisare l'utente, come fa Messenger in index.js).
   let trustAuditPayload = null;
-  if (TRUST_SCORE_GATED_CHANNELS.has(channel)) {
+  if (shouldGateChannel(channel)) {
     const scored = await computeFullTrustScore({
       title: pres.title,
       type: pres.type,
@@ -169,11 +182,12 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
       images: parsed?.image_url ? [{ url: parsed.image_url }] : [],
     }, 'it');
 
-    if (scored.moderationFlagged || scored.trustScore < FB_FEED_MIN_TRUST_SCORE) {
+    const gate = evaluateTrustGate(scored);
+    if (!gate.publishable) {
       console.log(`[fbIngest] Listing scartato su canale ${channel} (TrustScore basso o contenuto segnalato):`, {
         externalId, trustScore: scored.trustScore, moderationFlagged: scored.moderationFlagged,
       });
-      return { id: null, skipped: true, reason: scored.moderationFlagged ? 'moderation_flagged' : 'low_trust_score', trustScore: scored.trustScore };
+      return { id: null, skipped: true, reason: gate.reason, trustScore: scored.trustScore };
     }
     trustAuditPayload = scored;
   }

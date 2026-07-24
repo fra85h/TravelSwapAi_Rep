@@ -20,6 +20,7 @@ import { parseFacebookText } from './parsers/fbParser.js';
 import { upsertListingFromFacebook } from './models/fbIngest.js';
 import { sendFbText, sendFbQuickReplies } from './lib/fbSend.js'; // quick replies
 import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.js';
+import { decideMessengerPublishOutcome } from './lib/messengerPublishOutcome.js';
 import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
 import { looksLikeLinkCode, tryLinkFromMessage, getLinkedUserId } from './models/fbLink.js';
 import { parseLocalizedNumber } from './util/number.js';
@@ -139,8 +140,6 @@ function summaryText(s) {
 // dell'esito reale: fbIngest applica ora lo stesso gate TrustScore/moderazione
 // del Feed anche a questo canale (prima veniva bypassato), quindi qui va
 // gestito esplicitamente anche il caso "scartato", non solo successo/errore.
-// La sessione NON viene svuotata quando l'annuncio è scartato, così l'utente
-// può correggere testo/prezzo e riconfermare senza ripartire da zero.
 async function publishMessengerListing(senderId, mid, s) {
   try {
     const ownerId = await getLinkedUserId(senderId);
@@ -156,20 +155,9 @@ async function publishMessengerListing(senderId, mid, s) {
         end_date: s.check_out || s.arrive_at || null
       }
     });
-    if (result?.skipped) {
-      await sendFbText(
-        senderId,
-        "⚠️ Non ho pubblicato l'annuncio: il controllo automatico dei contenuti l'ha segnalato come poco " +
-        "chiaro o poco affidabile (es. descrizione poco plausibile). Prova a correggere i dati e a confermare di nuovo."
-      );
-      return;
-    }
-    await clearSession(senderId);
-    await sendFbText(
-      senderId,
-      "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n" +
-      "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
-    );
+    const outcome = decideMessengerPublishOutcome(result);
+    if (outcome.clearSession) await clearSession(senderId);
+    await sendFbText(senderId, outcome.message);
   } catch (e) {
     console.error('[Messenger Confirm Publish] Error:', e);
     await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
