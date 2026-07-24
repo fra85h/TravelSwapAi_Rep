@@ -91,7 +91,7 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
   // Check AI e su ogni annuncio ingerito da Facebook/Instagram. Restano
   // isolate l'una dall'altra: allSettled, non all, così il fallimento di una
   // non annulla l'altra, esattamente come faceva il doppio try/catch.
-  let ai = { textScore: heur.score || 50, imageScore: 50, flags: [], suggestedFixes: [] };
+  let ai = { textScore: heur.score || 50, textReason: null, imageScore: 50, flags: [], suggestedFixes: [] };
   let moderation = { flagged: false, flags: [] };
 
   const [aiRes, modRes] = await Promise.allSettled([
@@ -170,6 +170,14 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
     aiAvailable,
     aiUnavailableReason,
     heuristicsAvailable,
+    // Perché l'analisi del testo non ha dato il massimo, in una frase.
+    // Serve a rendere spiegabile il caso più comune di punteggio non pieno:
+    // nessun flag scattato (quelli coprono solo tratta/durata/foto/coerenza)
+    // ma textScore comunque sotto 100. Prima l'utente vedeva solo "Analisi
+    // del testo (AI) 90%", un numero senza motivo né azione possibile —
+    // mentre CLAUDE.md chiede che il "perché" del punteggio sia SEMPRE
+    // visibile. null quando il punteggio è pieno o l'AI non ha risposto.
+    aiTextReason: ai?.textReason ?? null,
     subScores: {
       heuristics: h,
       aiText: t,
