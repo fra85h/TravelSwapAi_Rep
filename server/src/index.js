@@ -20,6 +20,7 @@ import { parseFacebookText } from './parsers/fbParser.js';
 import { upsertListingFromFacebook } from './models/fbIngest.js';
 import { sendFbText, sendFbQuickReplies } from './lib/fbSend.js'; // quick replies
 import { mergeParsed, missingFields, nextPromptFor } from './lib/announceRules.js';
+import { decideMessengerPublishOutcome } from './lib/messengerPublishOutcome.js';
 import { getSession, saveSession, clearSession } from './models/fbSessionStore.js';
 import { looksLikeLinkCode, tryLinkFromMessage, getLinkedUserId } from './models/fbLink.js';
 import { parseLocalizedNumber } from './util/number.js';
@@ -134,6 +135,33 @@ function summaryText(s) {
     `• Arrivo/Check-out: ${arr}\n` +
     `• Prezzo: ${pr}`
   );
+}
+// Pubblica l'annuncio confermato via Messenger e informa l'utente
+// dell'esito reale: fbIngest applica ora lo stesso gate TrustScore/moderazione
+// del Feed anche a questo canale (prima veniva bypassato), quindi qui va
+// gestito esplicitamente anche il caso "scartato", non solo successo/errore.
+async function publishMessengerListing(senderId, mid, s) {
+  try {
+    const ownerId = await getLinkedUserId(senderId);
+    const result = await upsertListingFromFacebook({
+      channel: 'facebook:messenger',
+      externalId: mid,
+      contactUrl: null,
+      rawText: '', // opzionale
+      ownerId,
+      parsed: {
+        ...s,
+        start_date: s.check_in || s.depart_at || null,
+        end_date: s.check_out || s.arrive_at || null
+      }
+    });
+    const outcome = decideMessengerPublishOutcome(result);
+    if (outcome.clearSession) await clearSession(senderId);
+    await sendFbText(senderId, outcome.message);
+  } catch (e) {
+    console.error('[Messenger Confirm Publish] Error:', e);
+    await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
+  }
 }
 // =========================================================
 
@@ -366,30 +394,7 @@ app.post('/webhooks/facebook', async (req, res) => {
                   ]);
                   return res.sendStatus(200);
                 }
-                try {
-                  const ownerId = await getLinkedUserId(senderId);
-                  const result = await upsertListingFromFacebook({
-                    channel: 'facebook:messenger',
-                    externalId: m?.mid || `${senderId}:${m.timestamp}`,
-                    contactUrl: null,
-                    rawText: '', // opzionale
-                    ownerId,
-                    parsed: {
-                      ...s,
-                      start_date: s.check_in || s.depart_at || null,
-                      end_date: s.check_out || s.arrive_at || null
-                    }
-                  });
-                  await clearSession(senderId);
-                  await sendFbText(
-                    senderId,
-                    "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n" +
-                    "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
-                  );
-                } catch (e) {
-                  console.error('[Messenger Confirm Publish] Error:', e);
-                  await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
-                }
+                await publishMessengerListing(senderId, m?.mid || `${senderId}:${m.timestamp}`, s);
                 return res.sendStatus(200);
               } else if (p === 'PUB_MODIFICA') {
                 await sendFbText(senderId,
@@ -449,30 +454,7 @@ if (quickPayload) {
     return res.sendStatus(200);
   }
 
-  try {
-    const ownerId = await getLinkedUserId(senderId);
-    const result = await upsertListingFromFacebook({
-      channel: 'facebook:messenger',
-      externalId: m.message?.mid || `${senderId}:${m.timestamp}`,
-      contactUrl: null,
-      rawText: '', // opzionale
-      ownerId,
-      parsed: {
-        ...s,
-        start_date: s.check_in || s.depart_at || null,
-        end_date:   s.check_out || s.arrive_at || null
-      }
-    });
-    await clearSession(senderId);
-    await sendFbText(
-      senderId,
-      "✅ Fantastico! Il tuo annuncio è stato pubblicato con successo su TravelSwap 🎉\n" +
-      "Grazie per aver condiviso — buona fortuna con lo scambio! ✈️🏨🚆"
-    );
-  } catch (e) {
-    console.error('[Messenger QuickReply CONFIRM] Error:', e);
-    await sendFbText(senderId, "⚠️ C'è stato un problema nella pubblicazione. Riprova tra poco.");
-  }
+  await publishMessengerListing(senderId, m.message?.mid || `${senderId}:${m.timestamp}`, s);
   return res.sendStatus(200);
 }
 
