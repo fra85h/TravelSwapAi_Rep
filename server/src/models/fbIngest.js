@@ -7,19 +7,20 @@ import { parseLocalizedNumber } from '../util/number.js';
 // NB: lo schema richiede: user_id (not null), type (not null), title (not null), location (not null), price (not null)
 const DEFAULT_LISTING_OWNER_ID = (process.env.DEFAULT_LISTING_OWNER_ID || '').trim();
 
-// Sotto questa soglia, un annuncio da Facebook (Feed o Messenger) non viene
-// pubblicato. Il flusso guidato di Messenger (missingFields in
-// announceRules.js, conferma esplicita prima di PUB_CONFERMA) garantisce che
-// i CAMPI siano completi e coerenti, ma non dice nulla sulla PLAUSIBILITÀ del
-// contenuto (foto non pertinenti, testo poco credibile, ecc.): quella è
-// responsabilità del TrustScore, e vale indipendentemente da quanto il canale
-// sia "guidato" — un utente può confermare via Messenger un annuncio con
-// contenuto scarso tanto quanto uno pubblicato dal Feed. Stessa soglia usata
-// altrove per "annuncio confuso/poco affidabile" (vedi INCOHERENT_TYPE in
-// routes/trustscore.js). Nome env var storico (era solo per il Feed), non
-// rinominato per non rompere una configurazione di produzione esistente.
+// Sotto questa soglia, un annuncio da Facebook/Instagram (Feed, Messenger o
+// Instagram DM) non viene pubblicato. Il flusso guidato di Messenger/Instagram
+// (missingFields in announceRules.js, conferma esplicita prima di
+// PUB_CONFERMA) garantisce che i CAMPI siano completi e coerenti, ma non dice
+// nulla sulla PLAUSIBILITÀ del contenuto (foto non pertinenti, testo poco
+// credibile, ecc.): quella è responsabilità del TrustScore, e vale
+// indipendentemente da quanto il canale sia "guidato" — un utente può
+// confermare via chat un annuncio con contenuto scarso tanto quanto uno
+// pubblicato dal Feed. Stessa soglia usata altrove per "annuncio
+// confuso/poco affidabile" (vedi INCOHERENT_TYPE in routes/trustscore.js).
+// Nome env var storico (era solo per il Feed), non rinominato per non
+// rompere una configurazione di produzione esistente.
 const FB_FEED_MIN_TRUST_SCORE = Number(process.env.FB_FEED_MIN_TRUST_SCORE ?? 50);
-const TRUST_SCORE_GATED_CHANNELS = new Set(['facebook:feed', 'facebook:messenger']);
+const TRUST_SCORE_GATED_CHANNELS = new Set(['facebook:feed', 'facebook:messenger', 'instagram:messenger']);
 
 // Estratte come funzioni pure (nessun accesso a Supabase/OpenAI) così da
 // poter testare la regola "chi viene controllato e con quale soglia" senza

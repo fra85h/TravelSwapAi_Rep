@@ -229,8 +229,15 @@ export default function AttivitaScreen({ navigation }) {
     if (it.kind === "offer_in") {
       const o = it.data;
       const busy = busyIds.has(o.id);
+      // L'annuncio da aprire al tap è quello "interessante": per uno scambio
+      // è from_listing (quello che riceveresti, dell'altra persona) — il tuo
+      // (to_listing) lo conosci già. Per un acquisto esiste solo to_listing
+      // (il tuo, in vendita), quindi resta quello. Prima si apriva sempre
+      // to_listing anche per gli scambi: card con "Ricevi: [annuncio loro]"
+      // che al tap mostrava invece il proprio.
+      const detailListing = o.type === "swap" ? o.from_listing : o.to_listing;
       return (
-        <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(o.to_listing?.id)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={o.to_listing?.title || t("offerFlow.listing", "Annuncio")}>
+        <TouchableOpacity key={it.id} style={styles.card} onPress={() => goListing(detailListing?.id)} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={detailListing?.title || t("offerFlow.listing", "Annuncio")}>
           <View style={styles.rowBetween}>
             <KickerRow icon="arrow-down-circle-outline">{t("activity.offerReceived", "Proposta ricevuta")} · {offerKindLabel(o)}</KickerRow>
             <OfferExpiryBadge expiresAt={o.expires_at} />
