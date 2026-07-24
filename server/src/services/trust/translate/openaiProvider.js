@@ -1,10 +1,10 @@
-import OpenAI from "openai";
+import { createOpenAIClient } from "../../../lib/openaiClient.js";
 
 // Se la chiave manca, il costruttore di OpenAI lancia un'eccezione a livello
 // di modulo — a import time, non dentro una funzione — che far cadere
 // l'intero server all'avvio (bug preesistente, stesso pattern trovato anche
 // in aiTrust.js e fbParser.js). Costruito solo se la chiave è presente.
-const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const client = createOpenAIClient();
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 const PH_RE = /(\{[A-Z0-9_]+\}|<<[A-Z0-9_]+>>)/gi;

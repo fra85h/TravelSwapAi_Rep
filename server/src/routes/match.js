@@ -12,6 +12,7 @@ import {
   // listMatchesForListing,
 } from "../models/matches.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { rateLimitMatchRecompute, rateLimitMatchAI } from "../middleware/rateLimit.js";
 
 export const matchesRouter = express.Router();
 
@@ -43,7 +44,7 @@ matchesRouter.get("/snapshot", requireAuth, async (req, res) => {
  * Risponde: { userId, generatedAt, count }
  */
 
-matchesRouter.post("/snapshot/recompute", requireAuth, async (req, res) => {
+matchesRouter.post("/snapshot/recompute", requireAuth, rateLimitMatchRecompute, async (req, res) => {
   try {
     const userId = String(req.body?.userId || "");
     const topPerListing = req.body?.topPerListing ?? 3;
@@ -65,7 +66,7 @@ matchesRouter.post("/snapshot/recompute", requireAuth, async (req, res) => {
  * aggiorna (deterministicamente, senza costo AI) il "Per te" degli altri
  * utenti per cui questo annuncio è un buon match. Fire-and-forget dal client.
  */
-matchesRouter.post("/propagate", requireAuth, async (req, res) => {
+matchesRouter.post("/propagate", requireAuth, rateLimitMatchRecompute, async (req, res) => {
   try {
     const listingId = String(req.body?.listingId || "");
     if (!isUUID(listingId)) return res.status(400).json({ error: "Invalid listingId" });
@@ -85,7 +86,7 @@ matchesRouter.post("/propagate", requireAuth, async (req, res) => {
  * lasciarlo lì finché quella persona non ricalcola per conto proprio).
  * Fire-and-forget dal client.
  */
-matchesRouter.post("/retract", requireAuth, async (req, res) => {
+matchesRouter.post("/retract", requireAuth, rateLimitMatchRecompute, async (req, res) => {
   try {
     const listingId = String(req.body?.listingId || "");
     if (!isUUID(listingId)) return res.status(400).json({ error: "Invalid listingId" });
@@ -97,7 +98,7 @@ matchesRouter.post("/retract", requireAuth, async (req, res) => {
   }
 });
 
-matchesRouter.post("/ai/recompute", requireAuth, async (req, res) => {
+matchesRouter.post("/ai/recompute", requireAuth, rateLimitMatchAI, async (req, res) => {
   try {
     const { userId, topPerListing = 3, maxTotal = 50 } = req.body || {};
     if (!userId || !isUUID(userId)) {

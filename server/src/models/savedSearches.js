@@ -91,9 +91,23 @@ export async function findAndNotifyMatches() {
 
   const allActive = await listActiveListings({ limit: 1000 });
 
+  // Indice per (tipo, CERCO/VENDO): sono i due filtri che matchesSearch
+  // valuta per primi ed escludono la gran parte del catalogo. Prima ogni
+  // ricerca salvata riscorreva TUTTI gli annunci attivi (fino a 1000) per
+  // scartarne subito la maggioranza: con N ricerche erano N×1000 confronti a
+  // ogni run del cron. Il criterio di selezione resta matchesSearch, qui si
+  // restringe solo l'insieme dei candidati da passargli.
+  const byTypeAndDirection = new Map();
+  for (const listing of allActive) {
+    const key = `${listing.type}|${listing.cerco_vendo}`;
+    if (!byTypeAndDirection.has(key)) byTypeAndDirection.set(key, []);
+    byTypeAndDirection.get(key).push(listing);
+  }
+
   const newRows = [];
   for (const search of searches) {
-    for (const listing of allActive) {
+    const candidates = byTypeAndDirection.get(`${search.type}|${search.cerco_vendo || "VENDO"}`) || [];
+    for (const listing of candidates) {
       if (listing.user_id === search.user_id) continue; // non avvisare del proprio annuncio
       if (matchesSearch(search, listing)) {
         newRows.push({ saved_search_id: search.id, listing_id: listing.id });

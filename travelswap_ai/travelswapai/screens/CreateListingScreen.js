@@ -501,9 +501,17 @@ export default function CreateListingScreen({
   useEffect(() => {
     // Mostra il box solo dopo un Check AI (per coerenza con il flusso richiesto)
     if (lastTrustRunAt <= 0) return;
-    const info = detectTwoListings(form?.description, form?.type);
-    setSplitDetected(!!info.two);
-    setSplitReason(info.two ? info.reason : "");
+    // Debounce: detectTwoListings esegue quattro regex globali sull'intera
+    // descrizione, e questo effetto dipende dal testo — senza attesa girava a
+    // OGNI carattere digitato in un campo multilinea, dove le descrizioni
+    // lunghe sono la norma. 300ms: l'avviso resta immediato per chi smette di
+    // scrivere, ma non si ricalcola durante la digitazione.
+    const timer = setTimeout(() => {
+      const info = detectTwoListings(form?.description, form?.type);
+      setSplitDetected(!!info.two);
+      setSplitReason(info.two ? info.reason : "");
+    }, 300);
+    return () => clearTimeout(timer);
   }, [lastTrustRunAt, form?.description, form?.type, detectTwoListings]);
 
   const [showFixesModal, setShowFixesModal] = useState(false);

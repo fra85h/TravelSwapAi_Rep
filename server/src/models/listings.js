@@ -5,12 +5,36 @@ import { isUUID } from "../util/uuid.js";
 const SECRETS_TABLE = "listing_secrets"; // o "private.listing_secrets"
 function normCV(v){ return String(v||'VENDO').toUpperCase()==='CERCO' ? 'CERCO':'VENDO'; }
 
+// Mappa l'ordinamento richiesto dall'API sulla colonna/direzione Postgres.
+// NULLS LAST su trust_score in ENTRAMBE le direzioni: un annuncio non ancora
+// verificato non deve mai comparire in cima, nemmeno ordinando per
+// affidabilità crescente (stesso comportamento dei vecchi comparatori JS, che
+// usavano -1 e 9999 come sentinelle proprio per spingere i null in fondo).
+const SORT_MAP = {
+  trust_desc: { column: "trust_score", ascending: false, nullsFirst: false },
+  trust_asc:  { column: "trust_score", ascending: true,  nullsFirst: false },
+  price_asc:  { column: "price",       ascending: true,  nullsFirst: false },
+  price_desc: { column: "price",       ascending: false, nullsFirst: false },
+  date_asc:   { column: "created_at",  ascending: true,  nullsFirst: false },
+  date_desc:  { column: "created_at",  ascending: false, nullsFirst: false },
+};
+
 /**
  * Lista annunci attivi con supporto:
  * - exclude ownerId
- * - filtro minTrust (via join client-side su v_latest_trustscore)
+ * - filtro minTrust
  * - ordinamenti vari
  * - paginazione limit/offset
+ *
+ * Filtro e ordinamento sono eseguiti da Postgres, non in memoria: prima
+ * venivano applicati DOPO il .range(), cioè solo alla pagina già estratta —
+ * "ordina per prezzo" ordinava i 100 annunci più recenti, non il catalogo, e
+ * minTrust poteva restituire meno risultati del richiesto lasciando fuori
+ * annunci idonei più vecchi.
+ *
+ * L'affidabilità si legge da listings.trust_score (denormalizzata dal trigger
+ * su trust_audit) invece che dalla view v_latest_trustscore, che fa un GROUP
+ * BY sull'intera trust_audit a ogni chiamata del feed.
  *
  * @param {{ ownerId?:string|null, minTrust?:number, sort?:string, limit?:number, offset?:number }} opts
  */
@@ -23,68 +47,30 @@ export async function listActiveListings({
 } = {}) {
   if (!supabase) throw new Error("Supabase client not configured");
 
-  // 1) Listings base (solo pubblici, senza PNR)
-    let q = supabase
+  const order = SORT_MAP[sort] || SORT_MAP.date_desc;
+
+  let q = supabase
     .from("listings")
-    .select("id, user_id, title, description, type, location, price, status, created_at, cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, image_url, published_at, accepts_swap, swap_wanted")
+    .select("id, user_id, title, description, type, location, price, status, created_at, cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, image_url, published_at, accepts_swap, swap_wanted, trust_score")
     .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .range(offset, Math.max(offset, offset + limit - 1)); // ✅ solo range
+    .order(order.column, { ascending: order.ascending, nullsFirst: order.nullsFirst })
+    // Secondo criterio stabile: senza, due righe con lo stesso valore di
+    // ordinamento (stesso prezzo, stesso trust_score) possono cambiare
+    // posizione tra una pagina e l'altra, facendo sparire o duplicare
+    // annunci durante lo scorrimento.
+    .order("id", { ascending: true })
+    .range(offset, Math.max(offset, offset + limit - 1));
+
   if (ownerId && isUUID(ownerId)) q = q.neq("user_id", ownerId);
+  // Un annuncio senza trust_score (mai verificato) viene escluso da qualunque
+  // soglia positiva: in SQL `NULL >= n` non è vero, stesso esito del vecchio
+  // `(l.trust_score ?? 0) >= minTrust` lato JS.
+  if (minTrust && Number.isFinite(Number(minTrust))) q = q.gte("trust_score", Number(minTrust));
 
   const { data: listings, error } = await q;
   if (error) throw error;
 
-  const clean = (listings || []).filter(l => isUUID(l.id));
-
-  // 2) Join con ultima valutazione TrustScore (view). A lotti: un solo
-  // `.in("listing_id", ids)` con centinaia di id genera un URL di
-  // decine di migliaia di caratteri (filtro IN codificato in query
-  // string da PostgREST) che la connessione rifiuta a livello di rete
-  // prima ancora di arrivare a Supabase — manifestandosi come
-  // "TypeError: fetch failed" invece di un errore SQL leggibile (visto
-  // in produzione su /api/chains/recompute con 500+ annunci attivi).
-  const ids = clean.map(l => l.id);
-  let byIdTrust = new Map();
-
-  const TRUST_CHUNK = 200;
-  for (let i = 0; i < ids.length; i += TRUST_CHUNK) {
-    const slice = ids.slice(i, i + TRUST_CHUNK);
-    const { data: trusts, error: err2 } = await supabase
-      .from("v_latest_trustscore")
-      .select("listing_id, trust_score, evaluated_at")
-      .in("listing_id", slice);
-
-    if (err2) throw err2;
-    for (const r of trusts || []) byIdTrust.set(String(r.listing_id), r);
-  }
-
-  // 3) Merge + filtro minTrust
-  let merged = clean.map(l => {
-    const t = byIdTrust.get(String(l.id));
-    return {
-      ...l,
-      trust_score: t?.trust_score ?? null,
-      trust_evaluated_at: t?.evaluated_at ?? null,
-    };
-  });
-
-  if (minTrust && Number.isFinite(minTrust)) {
-    merged = merged.filter(l => (l.trust_score ?? 0) >= Number(minTrust));
-  }
-
-  // 4) Ordinamenti
-  merged.sort((a, b) => {
-    switch (sort) {
-      case "trust_desc": return (b.trust_score ?? -1) - (a.trust_score ?? -1);
-      case "trust_asc":  return (a.trust_score ??  9999) - (b.trust_score ?? 9999);
-      case "price_asc":  return Number(a.price ?? 0) - Number(b.price ?? 0);
-      case "price_desc": return Number(b.price ?? 0) - Number(a.price ?? 0);
-      case "date_asc":   return new Date(a.created_at) - new Date(b.created_at);
-      case "date_desc":
-      default:           return new Date(b.created_at) - new Date(a.created_at);
-    }
-  });
+  const merged = (listings || []).filter(l => isUUID(l.id));
 
   return merged;
 }

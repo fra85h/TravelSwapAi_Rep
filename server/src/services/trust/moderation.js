@@ -3,9 +3,9 @@
 // OpenAI Moderations (omni-moderation-latest, gratuito). Rileva contenuti
 // inappropriati/illeciti che il TrustScore generale non è progettato per
 // cogliere. Fail-safe: se la chiave manca o l'API fallisce, non blocca nulla.
-import OpenAI from "openai";
+import { createOpenAIClient } from "../../lib/openaiClient.js";
 
-const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const client = createOpenAIClient();
 
 // Mappa le categorie tecniche dell'API in messaggi leggibili in italiano.
 const CATEGORY_LABELS = {

@@ -17,6 +17,10 @@ import { theme } from "../lib/theme";
 import OfferExpiryBadge from "../components/OfferExpiryBadge";
 import { formatMoney } from "../lib/number";
 
+// Quante card mostrare, prima di "Mostra tutti", nelle sezioni che crescono
+// nel tempo (storico, scadute).
+const COLLAPSED_LIST_SIZE = 5;
+
 // Kicker uniforme: icona + testo. Prima alcune card avevano un'emoji
 // (🔗🔔🧾) e le card offerta nessuna icona — sistema visivo incoerente.
 function KickerRow({ icon, color, children }) {
@@ -90,6 +94,9 @@ export default function AttivitaScreen({ navigation }) {
   // — busyId ormai puntava a B — permettendo un doppio invio della stessa
   // azione su A prima che la prima risposta fosse arrivata.
   const [busyIds, setBusyIds] = useState(() => new Set());
+  // Storico e scadute partono compattati (vedi renderShowMore più sotto).
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [showAllExpired, setShowAllExpired] = useState(false);
 
   // L'ordine conta: prima refresh() legge le proposte risolte non ancora
   // viste (per mostrarle in questa visita), SOLO DOPO le marchiamo viste —
@@ -449,6 +456,28 @@ export default function AttivitaScreen({ navigation }) {
     );
   };
 
+  // "Mostra tutti" per le sezioni che crescono senza limite (storico e
+  // scadute): tutte le card di questa schermata vivono in una ScrollView, che
+  // non virtualizza — le monta tutte insieme. Con l'uso, storico e scadute
+  // sono le uniche due che si accumulano all'infinito, e a quel punto ogni
+  // apertura di Attività pagava il montaggio di centinaia di card che l'utente
+  // quasi mai scorre. Le altre sezioni sono limitate per natura (proposte in
+  // corso, chat aperte) e restano complete.
+  const renderShowMore = (count, expanded, setExpanded) => {
+    if (expanded || count <= COLLAPSED_LIST_SIZE) return null;
+    return (
+      <TouchableOpacity
+        style={styles.showMoreBtn}
+        onPress={() => setExpanded(true)}
+        accessibilityRole="button"
+        accessibilityLabel={t("activity.showMore", "Mostra tutti ({count})", { count })}
+      >
+        <Text style={styles.showMoreTxt}>{t("activity.showMore", "Mostra tutti ({count})", { count })}</Text>
+        <Ionicons name="chevron-down" size={16} color={theme.colors.accent} />
+      </TouchableOpacity>
+    );
+  };
+
   const total = summary.toDo.length + summary.waiting.length + summary.resolved.length
     + summary.found.length + summary.history.length + summary.expired.length
     + (summary.chats?.length || 0);
@@ -522,14 +551,16 @@ export default function AttivitaScreen({ navigation }) {
 
       {summary.history.length ? (
         <Section title={t("activity.sectionHistory", "Storico")} count={summary.history.length}>
-          {summary.history.map(renderHistory)}
+          {(showAllHistory ? summary.history : summary.history.slice(0, COLLAPSED_LIST_SIZE)).map(renderHistory)}
+          {renderShowMore(summary.history.length, showAllHistory, setShowAllHistory)}
         </Section>
       ) : null}
 
       {summary.expired.length ? (
         <Section title={t("activity.sectionExpired", "Scadute")} count={summary.expired.length}
           hint={t("activity.sectionExpiredHint", "Proposte senza risposta in tempo.")}>
-          {summary.expired.map(renderExpired)}
+          {(showAllExpired ? summary.expired : summary.expired.slice(0, COLLAPSED_LIST_SIZE)).map(renderExpired)}
+          {renderShowMore(summary.expired.length, showAllExpired, setShowAllExpired)}
         </Section>
       ) : null}
     </ScrollView>
@@ -584,6 +615,8 @@ const styles = StyleSheet.create({
 
   linkRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 10 },
   linkText: { color: theme.colors.accent, fontWeight: "800" },
+  showMoreBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10 },
+  showMoreTxt: { color: theme.colors.accent, fontWeight: "800" },
   chatTeaser: { color: theme.colors.textMuted, fontSize: 12, marginTop: 8, fontStyle: "italic" },
 
   skel: { backgroundColor: theme.colors.border },

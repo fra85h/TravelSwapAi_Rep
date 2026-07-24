@@ -12,6 +12,7 @@
 // fallisce, così la ricerca cicli non si blocca mai per un problema
 // di rete/quota OpenAI.
 import OpenAI from "openai";
+import { mapWithConcurrency } from "../lib/concurrency.js";
 
 const client = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -20,6 +21,7 @@ const client = process.env.OPENAI_API_KEY
 const MODEL = process.env.CHAIN_AI_MODEL || process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.CHAIN_AI_TEMP ?? 0);
 const MAX_CANDIDATES_PER_CALL = Number(process.env.CHAIN_AI_BATCH ?? 40);
+const CHAIN_AI_CONCURRENCY = Number(process.env.CHAIN_AI_CONCURRENCY ?? 3);
 const CHAIN_AI_TIMEOUT_MS = Number(process.env.CHAIN_AI_TIMEOUT_MS ?? 15000);
 const CHAIN_SCORE_THRESHOLD = Number(process.env.CHAIN_SCORE_THRESHOLD ?? 65);
 
@@ -291,13 +293,23 @@ export async function scoreChainCandidates(wantListing, candidates) {
 
   const sorted = candidates.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const allIds = sorted.map((c) => c.id);
-  const results = [];
 
+  const batches = [];
   for (let i = 0; i < sorted.length; i += MAX_CANDIDATES_PER_CALL) {
-    const batch = sorted.slice(i, i + MAX_CANDIDATES_PER_CALL);
+    batches.push(sorted.slice(i, i + MAX_CANDIDATES_PER_CALL));
+  }
+
+  // Batch indipendenti: in parallelo con un tetto, non più in fila (vedi
+  // stessa modifica in ai/score.js). L'ordine è preservato, quindi l'esito è
+  // identico a quello sequenziale.
+  const perBatch = await mapWithConcurrency(batches, CHAIN_AI_CONCURRENCY, async (batch) => {
     const prompt = buildChainPrompt(wantListing, batch);
     const raw = await callOpenAIChainScore(prompt, CHAIN_AI_TIMEOUT_MS);
-    const validated = validateChainScores(raw, batch.map((c) => c.id));
+    return validateChainScores(raw, batch.map((c) => c.id));
+  });
+
+  const results = [];
+  for (const validated of perBatch) {
     if (!validated || !validated.length) {
       // un batch fallito -> ricadi sull'euristica per l'intero lotto di candidati
       return heuristicChainScore(wantListing, candidates);

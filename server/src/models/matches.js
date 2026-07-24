@@ -8,9 +8,15 @@ import {
   getUserProfile,
   supabase
 } from '../db.js';
-import { listActiveListingsOfUser, listMatchesForFrom, getLatestUserSnapshot } from '../db.js';
+import { listActiveListingsOfUser, listMatchesForFromMany, getLatestUserSnapshot } from '../db.js';
 import { listActiveListings } from './listings.js';
 import { sendExpoPush } from '../lib/push.js';
+import { mapWithConcurrency } from '../lib/concurrency.js';
+
+// Snapshot rinfrescati in parallelo dopo propagate/retract. Tetto basso: ogni
+// snapshot fa comunque scritture su match_snapshots, e questo gira dentro una
+// richiesta HTTP dell'utente che ha pubblicato.
+const SNAPSHOT_REFRESH_CONCURRENCY = Number(process.env.SNAPSHOT_REFRESH_CONCURRENCY ?? 4);
 /**
  * Rigenera i match per userId e salva uno snapshot in tabella `matches`.
  */
@@ -227,11 +233,12 @@ export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTota
 
   const myListings = await listActiveListingsOfUser(userid, { limit: 200 });
 
-  let aggregated = [];
-  for (const from of myListings) {
-    const top = await listMatchesForFrom(from.id, { limit: topPerListing });
-    aggregated = aggregated.concat(top);
-  }
+  // Due query in tutto invece di due PER ANNUNCIO (vedi listMatchesForFromMany).
+  // L'ordine di aggregazione resta quello degli annunci dell'utente, così la
+  // deduplica sotto continua a tenere la prima occorrenza esattamente come
+  // faceva il ciclo.
+  const byFrom = await listMatchesForFromMany(myListings.map((l) => l.id), { limitPerFrom: topPerListing });
+  const aggregated = myListings.flatMap((from) => byFrom.get(String(from.id)) || []);
 
   // dedup per toId (come già facevi)
   const seen = new Set();
@@ -289,6 +296,34 @@ export async function recomputeUserSnapshot(userid, { topPerListing = 3, maxTota
   };
 }
 
+
+/**
+ * Rinfresca il "Per te" di più utenti, con un tetto e in parallelo.
+ *
+ * Ogni recomputeUserSnapshot è ora a query costanti (vedi
+ * listMatchesForFromMany), ma erano comunque eseguiti in fila: con il tetto
+ * di default a 100 utenti toccati, una singola POST /propagate poteva tenere
+ * aperta la richiesta HTTP per centinaia di round-trip in sequenza.
+ *
+ * Resta best-effort: il fallimento sullo snapshot di un utente non deve far
+ * fallire la propagazione (il suo "Per te" si riallinea al ricalcolo
+ * successivo), esattamente come faceva il try/catch del vecchio ciclo.
+ */
+async function refreshSnapshots(userIds, maxSnapshotRefresh) {
+  const targets = [...new Set(userIds || [])].slice(0, Math.max(0, maxSnapshotRefresh));
+  if (!targets.length) return 0;
+
+  let refreshed = 0;
+  await mapWithConcurrency(targets, SNAPSHOT_REFRESH_CONCURRENCY, async (uid) => {
+    try {
+      await recomputeUserSnapshot(uid);
+      refreshed++;
+    } catch (e) {
+      console.error('[refreshSnapshots] utente', uid, e?.message || e);
+    }
+  });
+  return refreshed;
+}
 
 /**
  * Matching PROATTIVO (a costo zero-AI).
@@ -351,11 +386,7 @@ export async function propagateListingToOthers(listingId, { requireOwner = null,
   }
 
   // Rinfresca il "Per te" degli utenti toccati (economico: rilegge matches).
-  let refreshed = 0;
-  for (const uid of affectedUsers) {
-    if (refreshed >= maxSnapshotRefresh) break;
-    try { await recomputeUserSnapshot(uid); refreshed++; } catch { /* best effort */ }
-  }
+  await refreshSnapshots(affectedUsers, maxSnapshotRefresh);
 
   // Notifica in-app "nuovi annunci per te" agli utenti toccati. Deduplicata:
   // al massimo UNA non letta ogni 6h per utente, così pubblicazioni frequenti
@@ -429,11 +460,7 @@ export async function retractListingFromOthers(listingId, { requireOwner = null,
   if (delErr) { console.error('[retract delete]', delErr.message); return { affected: 0, rows: 0 }; }
 
   // Rinfresca subito il "Per te" di chi aveva questo annuncio in elenco.
-  let refreshed = 0;
-  for (const uid of affectedUsers) {
-    if (refreshed >= maxSnapshotRefresh) break;
-    try { await recomputeUserSnapshot(uid); refreshed++; } catch { /* best effort */ }
-  }
+  await refreshSnapshots(affectedUsers, maxSnapshotRefresh);
 
   return { affected: affectedUsers.length, rows: rows.length };
 }
