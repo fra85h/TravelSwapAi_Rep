@@ -34,13 +34,13 @@ TravelSwapAi_Rep/
 ├── server/                      # Backend Node.js/Express (layer AI + webhook Facebook)
 │   └── src/
 │       ├── index.js             # Bootstrap, webhook FB, bot Messenger
-│       ├── routes/              # listing, match, trustscore, translateListings, parseTwo
-│       ├── ai/                  # score.js (matching AI), descriptionParse.js
+│       ├── routes/              # listing, match, trustscore, translateListings, offers, chains, savedSearches, pings, fbLink, notify, reportsNotify, priceCheck
+│       ├── ai/                  # score.js (matching AI), descriptionParse.js, chainMatch.js, chainExplain.js, priceCheck.js
 │       ├── services/trust/      # heuristics, aiTrust, store, translate
 │       ├── parsers/fbParser.js  # Estrazione campi da testi Facebook
-│       ├── models/              # listings, matches, fbIngest, fbSessionStore
-│       ├── middleware/          # requireAuth (JWT Supabase), rateLimit
-│       └── lib/                 # announceRules, fbSend
+│       ├── models/              # listings, matches, fbIngest, fbSessionStore, chains, fbLink, pings, savedSearches
+│       ├── middleware/          # requireAuth (JWT Supabase), rateLimit, requireCronSecret
+│       └── lib/                 # announceRules, fbSend, mailer, push
 └── travelswap_ai/travelswapai/  # App mobile React Native + Expo SDK 54
     ├── App.js                   # Root navigator, deep linking, provider
     ├── screens/                 # Home, Offers, Matching, Profile, CreateListing, …
@@ -199,7 +199,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `proposer_id` uuid | chi propone |
 | `amount` numeric, `currency` | solo buy |
 | `message` text | |
-| `status` | `pending` \| `accepted` \| `declined` \| `cancelled` |
+| `status` | `pending` \| `accepted` \| `declined` \| `cancelled` \| `expired` \| `finalized` |
 | `created_at` | |
 
 **`profiles`** — profilo utente: `id` (= auth.users.id), `full_name`, altri campi anagrafici usati da `ProfileScreen`.
@@ -240,13 +240,14 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `FB_VERIFY_TOKEN`, `FB_APP_SECRET`, `FB_PAGE_ACCESS_TOKEN` | webhook + Send API Messenger |
 | `ALLOW_UNVERIFIED_WEBHOOK` | ⚠️ bypass verifica firma FB |
 | `DEFAULT_LISTING_OWNER_ID` | owner degli annunci importati da FB |
+| `CHAIN_CRON_SECRET` | secret condiviso (header `X-Cron-Secret`) per gli endpoint cron-only `/api/chains/recompute` e `/api/saved-searches/recompute`; fail-closed (503) se assente |
 | `PORT` (default 8080), `NODE_ENV` | runtime |
 
 ### Variabili d'ambiente — app
 | Variabile | Scopo |
 |---|---|
 | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` | client Supabase |
-| `EXPO_PUBLIC_API_BASE` | base URL del backend (fallback `http://127.0.0.1:8080/api` ⚠️) |
+| `EXPO_PUBLIC_API_BASE` | base URL del backend (`lib/backendApi.js` lancia un errore esplicito se assente, nessun fallback) |
 
 ---
 
@@ -275,7 +276,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 ### P2 — Qualità e prodotto
 
-16. ✅ **Test e CI presenti** — `server/test/` (91 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
+16. ✅ **Test e CI presenti** — `server/test/` (96 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
 17. ✅ **Codice morto/duplicato rimosso** — vedi P1.15; route `parseTwo` consolidata in `ai/descriptionParse.js` (vedi §4.3).
 18. ✅ **Migrazioni DB versionate** — vedi P0.7.
 19. **TypeScript** — il tsconfig c'è ma il codice è ancora tutto JS; una migrazione graduale (prima `lib/`, poi screens) resta da fare.
