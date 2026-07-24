@@ -147,6 +147,50 @@ export default function OfferDetailScreen() {
     }
   };
 
+  // Stesso blocco "Ricevi/Dai" di Attività (renderExchange in AttivitaScreen.js):
+  // qui prima si vedeva solo un testo piatto "Da: X → per: Y", senza modo di
+  // aprire il dettaglio dell'annuncio offerto in cambio e senza indicare quale
+  // dei due fosse il proprio. "Dai" è SEMPRE il mio annuncio: to_listing se sono
+  // il proprietario (proposta ricevuta), from_listing se non lo sono (proposta
+  // che ho inviato io) — stessa regola usata in Attività per offer_in/offer_out.
+  const renderExchange = (o) => {
+    const receiveListing = isOwner ? o.from_listing : o.to_listing;
+    const giveListing = isOwner ? o.to_listing : o.from_listing;
+    const unknownLabel = t("offerFlow.listing", "Annuncio");
+    return (
+      <View style={s.exchange}>
+        <TouchableOpacity
+          style={s.exchangeLine}
+          onPress={() => receiveListing?.id && navigation.navigate("ListingDetail", { id: receiveListing.id })}
+          disabled={!receiveListing?.id}
+          accessibilityRole="button"
+        >
+          <Text style={s.exchangeLabel}>{t("activity.youReceive", "Ricevi")}</Text>
+          <Text style={[s.exchangeValue, receiveListing?.id && s.exchangeValueLink]} numberOfLines={2}>
+            {receiveListing?.title || unknownLabel}
+          </Text>
+        </TouchableOpacity>
+        <View style={s.exchangeArrow}>
+          <Ionicons name="swap-vertical" size={16} color={theme.colors.accent} />
+        </View>
+        <TouchableOpacity
+          style={s.exchangeLine}
+          onPress={() => giveListing?.id && navigation.navigate("ListingDetail", { id: giveListing.id })}
+          disabled={!giveListing?.id}
+          accessibilityRole="button"
+        >
+          <View style={s.exchangeGiveHeader}>
+            <Text style={s.exchangeLabel}>{t("activity.youGive", "Dai")}</Text>
+            <Text style={s.exchangeYours}>{t("offerDetail.yourListingTag", "il tuo annuncio")}</Text>
+          </View>
+          <Text style={[s.exchangeValue, giveListing?.id && s.exchangeValueLink]} numberOfLines={2}>
+            {giveListing?.title || unknownLabel}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const onDecline = async (id) => {
     try {
       setBusyId(id);
@@ -246,13 +290,13 @@ export default function OfferDetailScreen() {
                 : t("offerDetail.swapProposal", "Proposta di scambio")}
             </Text>
 
-            <Text style={s.cardSub}>
-              {isBuy
-                ? `${t("offerDetail.fromUser", "Da")}: ${o.proposer?.full_name || o.proposer?.username || t("offers.user", "utente")}`
-                : `${t("offerDetail.from", "Da")}: ${o.from_listing?.title || o.from_listing?.id || "-"}`}
-              {" \u2192 "}
-              {t("offerDetail.to", "per")}: {o.to_listing?.title || listing?.title || o.to_listing?.id}
-            </Text>
+            {isBuy ? (
+              <Text style={s.cardSub}>
+                {t("offerDetail.fromUser", "Da")}: {o.proposer?.full_name || o.proposer?.username || t("offers.user", "utente")}
+              </Text>
+            ) : (
+              renderExchange(o)
+            )}
 
             {isBuy && o.amount != null && (
               <Text style={s.cardMeta}>
@@ -373,6 +417,26 @@ const s = StyleSheet.create({
   cardTitle: { fontWeight: "800" },
   cardSub: { color: theme.colors.textMuted, marginTop: 4 },
   cardMeta: { color: theme.colors.text, marginTop: 4, fontWeight: "600" },
+
+  /* Blocco Ricevi/Dai — stessa grafica di AttivitaScreen.renderExchange */
+  exchange: {
+    marginTop: 6, backgroundColor: theme.colors.accentSoft, borderRadius: theme.radius.lg,
+    borderWidth: 1, borderColor: theme.colors.accent, padding: 10, gap: 2,
+  },
+  exchangeLine: { gap: 2 },
+  exchangeLabel: {
+    fontSize: 10, fontWeight: "800", letterSpacing: 0.5, textTransform: "uppercase",
+    color: theme.colors.accentOn,
+  },
+  exchangeValue: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
+  exchangeValueLink: { textDecorationLine: "underline" },
+  exchangeArrow: { alignItems: "center", marginVertical: 2 },
+  exchangeGiveHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  exchangeYours: {
+    fontSize: 10, fontWeight: "700", color: theme.colors.accentOn,
+    backgroundColor: theme.colors.surface, paddingHorizontal: 6, paddingVertical: 1,
+    borderRadius: 999, overflow: "hidden",
+  },
 
   row: { flexDirection: "row", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 10 },
   chatLink: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 },
