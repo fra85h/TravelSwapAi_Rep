@@ -7,13 +7,19 @@ import { parseLocalizedNumber } from '../util/number.js';
 // NB: lo schema richiede: user_id (not null), type (not null), title (not null), location (not null), price (not null)
 const DEFAULT_LISTING_OWNER_ID = (process.env.DEFAULT_LISTING_OWNER_ID || '').trim();
 
-// Sotto questa soglia, un annuncio dal canale Feed non viene pubblicato (solo
-// loggato): il Feed ingerisce da post/commenti di CHIUNQUE sulla Pagina,
-// senza alcuna conferma umana come garantisce invece il flusso guidato di
-// Messenger (missingFields in announceRules.js, conferma esplicita prima di
-// PUB_CONFERMA) — la stessa soglia usata altrove per "annuncio confuso/poco
-// affidabile" (vedi INCOHERENT_TYPE in routes/trustscore.js).
+// Sotto questa soglia, un annuncio da Facebook (Feed o Messenger) non viene
+// pubblicato. Il flusso guidato di Messenger (missingFields in
+// announceRules.js, conferma esplicita prima di PUB_CONFERMA) garantisce che
+// i CAMPI siano completi e coerenti, ma non dice nulla sulla PLAUSIBILITÀ del
+// contenuto (foto non pertinenti, testo poco credibile, ecc.): quella è
+// responsabilità del TrustScore, e vale indipendentemente da quanto il canale
+// sia "guidato" — un utente può confermare via Messenger un annuncio con
+// contenuto scarso tanto quanto uno pubblicato dal Feed. Stessa soglia usata
+// altrove per "annuncio confuso/poco affidabile" (vedi INCOHERENT_TYPE in
+// routes/trustscore.js). Nome env var storico (era solo per il Feed), non
+// rinominato per non rompere una configurazione di produzione esistente.
 const FB_FEED_MIN_TRUST_SCORE = Number(process.env.FB_FEED_MIN_TRUST_SCORE ?? 50);
+const TRUST_SCORE_GATED_CHANNELS = new Set(['facebook:feed', 'facebook:messenger']);
 
 function pick(v, fb) {
   // fallback semplice
@@ -141,15 +147,15 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
   // inventata, pubblicato senza che nessuno l'avesse mai confermata.
   if (!pres.az) throw new Error('Missing cerco_vendo (ambiguous)');
 
-  // Il Feed pubblica da post/commenti di CHIUNQUE interagisca con la Pagina,
-  // senza alcuna conferma umana (Messenger invece guida l'utente e chiede
-  // conferma esplicita prima di pubblicare, vedi PUB_CONFERMA in index.js):
-  // far passare anche questi annunci dalla stessa pipeline Check AI/TrustScore
-  // già obbligatoria per chi pubblica dall'app, invece di andare live senza
-  // nessuna verifica. Sotto soglia (o contenuto segnalato dalla moderazione):
-  // non pubblicare, solo loggare.
+  // Sia il Feed (post/commenti di CHIUNQUE interagisca con la Pagina) sia
+  // Messenger (flusso guidato con conferma esplicita, vedi PUB_CONFERMA in
+  // index.js) passano dalla stessa pipeline Check AI/TrustScore già
+  // obbligatoria per chi pubblica dall'app, invece di andare live senza
+  // nessuna verifica di contenuto. Sotto soglia (o contenuto segnalato dalla
+  // moderazione): non pubblicare (il chiamante decide se loggare soltanto,
+  // come per il Feed, o avvisare l'utente, come fa Messenger in index.js).
   let trustAuditPayload = null;
-  if (channel === 'facebook:feed') {
+  if (TRUST_SCORE_GATED_CHANNELS.has(channel)) {
     const scored = await computeFullTrustScore({
       title: pres.title,
       type: pres.type,
@@ -164,7 +170,7 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
     }, 'it');
 
     if (scored.moderationFlagged || scored.trustScore < FB_FEED_MIN_TRUST_SCORE) {
-      console.log('[fbIngest] Feed listing scartato (TrustScore basso o contenuto segnalato):', {
+      console.log(`[fbIngest] Listing scartato su canale ${channel} (TrustScore basso o contenuto segnalato):`, {
         externalId, trustScore: scored.trustScore, moderationFlagged: scored.moderationFlagged,
       });
       return { id: null, skipped: true, reason: scored.moderationFlagged ? 'moderation_flagged' : 'low_trust_score', trustScore: scored.trustScore };
