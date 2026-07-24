@@ -12,7 +12,7 @@ const MODEL = process.env.OPENAI_PRICE_MODEL || "gpt-4o-mini";
 
 const LOCALE_LANG_NAME = { it: "italiano", en: "English", es: "español" };
 
-function systemPromptFor(locale) {
+function systemPromptFor(locale, hasPurchaseCap) {
   const langName = LOCALE_LANG_NAME[locale] || LOCALE_LANG_NAME.it;
   return (
     "Sei un valutatore prezzi per un marketplace dove privati rivendono " +
@@ -29,6 +29,14 @@ function systemPromptFor(locale) {
     "Questi fattori cambiano enormemente il prezzo tipico di mercato. Se titolo/descrizione non specificano classe " +
     "o tipologia, NON assumere silenziosamente la fascia più economica (Regionale/2a classe): valuta con più " +
     "cautela e segnala esplicitamente nella spiegazione che l'assenza di questi dettagli rende la stima meno precisa.\n" +
+    (hasPurchaseCap
+      ? "- Tetto anti-bagarinaggio: ti viene indicato anche il prezzo di acquisto originale dichiarato dal " +
+        "venditore. Su questa piattaforma il prezzo di rivendita NON PUÒ MAI superarlo: è un vincolo tecnico " +
+        "bloccante lato server, non un consiglio. Se stimi che il valore di mercato sia superiore al prezzo di " +
+        "acquisto, NON suggerire nella spiegazione un prezzo più alto di quello: dai comunque il verdetto sul " +
+        "prezzo RICHIESTO, ma se ha senso menzionalo esplicitamente (es. \"sul mercato varrebbe di più, ma qui " +
+        "il tetto è il prezzo di acquisto\") invece di lasciar intendere che si possa chiedere di più.\n"
+      : "") +
     "Rispondi SOLO con JSON valido: " +
     `{ "verdict": "low"|"fair"|"high", "explanation": string } — explanation in ${langName}, max 2 frasi.`
   );
@@ -45,7 +53,7 @@ const FALLBACK_EXPLANATION = {
 const MAX_DESCRIPTION_CHARS = 600;
 
 function describeListing(listing) {
-  const { type, location, route_from, route_to, check_in, check_out, depart_at, arrive_at, title, description } = listing || {};
+  const { type, location, route_from, route_to, check_in, check_out, depart_at, arrive_at, title, description, purchase_price, currency } = listing || {};
   const base = type === "train"
     ? (() => {
         const route = (route_from && route_to) ? `${route_from} → ${route_to}` : (location || "tratta non specificata");
@@ -62,12 +70,16 @@ function describeListing(listing) {
     const d = String(description).trim().slice(0, MAX_DESCRIPTION_CHARS);
     if (d) extra.push(`Descrizione annuncio: "${d}".`);
   }
+  const cap = Number(purchase_price);
+  if (Number.isFinite(cap) && cap > 0) {
+    extra.push(`Prezzo di acquisto originale dichiarato dal venditore: ${cap} ${currency || "EUR"} (tetto massimo di rivendita su questa piattaforma, vincolo tecnico bloccante).`);
+  }
 
   return extra.length ? `${base}\n${extra.join("\n")}` : base;
 }
 
 /**
- * @param {object} listing - riga della tabella listings (type, price, currency, location, route_from, route_to, check_in, check_out, depart_at, arrive_at, title, description)
+ * @param {object} listing - riga della tabella listings (type, price, currency, location, route_from, route_to, check_in, check_out, depart_at, arrive_at, title, description, purchase_price)
  * @param {string} locale - "it" | "en" | "es", lingua della spiegazione restituita
  * @returns {Promise<{available:true, verdict:"low"|"fair"|"high", explanation:string} | {available:false, reason:string}>}
  */
@@ -83,6 +95,8 @@ export async function checkPriceWithAI(listing, locale = "it") {
 
   const context = describeListing(listing);
   const currency = listing?.currency || "EUR";
+  const purchaseCap = Number(listing?.purchase_price);
+  const hasPurchaseCap = Number.isFinite(purchaseCap) && purchaseCap > 0;
   const user = `${context}\nPrezzo richiesto: ${price} ${currency}.\nÈ un prezzo basso, congruo o alto per questo tipo di viaggio/soggiorno?`;
 
   try {
@@ -91,7 +105,7 @@ export async function checkPriceWithAI(listing, locale = "it") {
       response_format: { type: "json_object" },
       temperature: 0.3,
       messages: [
-        { role: "system", content: systemPromptFor(locale) },
+        { role: "system", content: systemPromptFor(locale, hasPurchaseCap) },
         { role: "user", content: user },
       ],
     });

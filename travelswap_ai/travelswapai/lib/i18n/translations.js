@@ -435,6 +435,7 @@ export const translations = {
         localTripTooLong: "Durata tratta oltre 48 ore.",
         localDepartPast: "Partenza nel passato.",
         localArrivePast: "Arrivo nel passato.",
+        localDescriptionEmpty: "Descrizione vuota: l'analisi del testo sarà meno accurata.",
         // Mini-log Compila con AI
         logAnalyzingDesc: "Analisi descrizione con AI…",
         logFilledN: "Compilati {n} campi dalla descrizione.",
@@ -1505,6 +1506,7 @@ export const translations = {
         localTripTooLong: "Trip longer than 48 hours.",
         localDepartPast: "Departure in the past.",
         localArrivePast: "Arrival in the past.",
+        localDescriptionEmpty: "Empty description: the text analysis will be less accurate.",
         logAnalyzingDesc: "Analyzing description with AI…",
         logFilledN: "Filled {n} fields from the description.",
         logNothingEmpty: "No empty fields to fill.",
@@ -2561,6 +2563,7 @@ export const translations = {
         localTripTooLong: "Viaje de más de 48 horas.",
         localDepartPast: "Salida en el pasado.",
         localArrivePast: "Llegada en el pasado.",
+        localDescriptionEmpty: "Descripción vacía: el análisis del texto será menos preciso.",
         logAnalyzingDesc: "Analizando la descripción con IA…",
         logFilledN: "Rellenados {n} campos a partir de la descripción.",
         logNothingEmpty: "No hay campos vacíos que rellenar.",
