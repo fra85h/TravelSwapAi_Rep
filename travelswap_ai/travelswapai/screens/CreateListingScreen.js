@@ -1190,6 +1190,14 @@ const initialJsonRef = useRef(null);
       const localFlags = [];
       const nowDate = new Date();
 
+      // Descrizione vuota: non blocca (non è un campo obbligatorio, e "Inserisci
+      // manualmente" salta lo step dove si scrive), ma il 45% del TrustScore è
+      // analisi AI del testo — un check con descrizione vuota è meno accurato,
+      // quindi l'utente va avvisato invece di vedere un giudizio silenzioso.
+      if (!String(form.description || "").trim()) {
+        localFlags.push({ field: "description", msg: t("createListing.checkAi.localDescriptionEmpty", "Descrizione vuota: l'analisi del testo sarà meno accurata.") });
+      }
+
       if (form?.type === "hotel") {
         const a = parseISODate(normalizeDateStr(form.checkIn));
         const b = parseISODate(normalizeDateStr(form.checkOut));
@@ -1892,9 +1900,11 @@ const initialJsonRef = useRef(null);
     try {
       setImportBusy(true);
       const data = await aiImportFromPNR(code);
-      applyImportedData(data);
+      const wasPastDate = applyImportedData(data);
       closeImport();
-      Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportSuccess", "Dati importati correttamente."));
+      if (!wasPastDate) {
+        Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportSuccess", "Dati importati correttamente."));
+      }
       goToManualStep(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.aiImportError", "Impossibile importare dal PNR."));
@@ -1927,10 +1937,12 @@ const initialJsonRef = useRef(null);
     try {
       setImportBusy(true);
       const parsed = await aiImportFromQR(data);
-      applyImportedData(parsed);
+      const wasPastDate = applyImportedData(parsed);
       setQrVisible(false);
       closeImport();
-      Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportFromQr", "Dati importati dal QR."));
+      if (!wasPastDate) {
+        Alert.alert(t("createListing.aiImportTitle", "AI Import"), t("createListing.aiImportFromQr", "Dati importati dal QR."));
+      }
       goToManualStep(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.qrImportError", "Import da QR non riuscito."));
@@ -1945,6 +1957,10 @@ const initialJsonRef = useRef(null);
   // comunque (l'utente potrebbe voler correggere solo quello), ma avvisiamo
   // subito invece di lasciarlo scoprire il blocco solo al tentativo di
   // pubblicare (computeErrors blocca comunque la pubblicazione in quel caso).
+  // Ritorna true se ha avvisato: i chiamanti usano il valore per sopprimere
+  // il popup generico di "import riuscito" che altrimenti si accoderebbe
+  // subito dopo, dando l'impressione contraddittoria di un doppio esito
+  // (prima "data scaduta, non pubblicabile", poi "importato correttamente").
   const warnIfImportedDateIsPast = (type, data) => {
     const isPast = type === "train"
       ? (() => { const d = parseISODateTime(data.departAt); return !!d && d < new Date(); })()
@@ -1955,10 +1971,12 @@ const initialJsonRef = useRef(null);
         t("createListing.importPastDateMsg", "La data importata dal documento risulta già passata: questo biglietto/prenotazione non è più valido e non potrà essere pubblicato così com'è. Controlla il documento o correggi la data.")
       );
     }
+    return isPast;
   };
 
+  // Ritorna true se ha mostrato l'avviso di data passata (vedi sopra).
   const applyImportedData = (data) => {
-    if (!data || typeof data !== "object") return;
+    if (!data || typeof data !== "object") return false;
     if (data.type === "train") {
       const [impFrom, impTo] = splitRoute(data.location);
       update({
@@ -1978,7 +1996,7 @@ const initialJsonRef = useRef(null);
         price: data.price ?? "",
         description: data.description ?? "",
       });
-      warnIfImportedDateIsPast("train", data);
+      return warnIfImportedDateIsPast("train", data);
     } else {
       update({
         type: "hotel",
@@ -1995,7 +2013,7 @@ const initialJsonRef = useRef(null);
         price: data.price ?? "",
         description: data.description ?? "",
       });
-      warnIfImportedDateIsPast("hotel", data);
+      return warnIfImportedDateIsPast("hotel", data);
     }
   };
 
@@ -2017,17 +2035,19 @@ const initialJsonRef = useRef(null);
     try {
       setImportBusy(true);
       const parsed = await parseListingFromTextAI(text, locale);
-      applyImportedData(parsed);
+      const wasPastDate = applyImportedData(parsed);
       update({ cercoVendo: "VENDO" });
       setConfirmationText("");
       closeImport();
-      const provider = String(parsed?.provider || "").trim();
-      Alert.alert(
-        t("createListing.aiImportTitle", "AI Import"),
-        provider
-          ? t("createListing.aiImportFromTextWithProvider", "Dati importati dalla conferma. Fornitore rilevato: {provider}.", { provider })
-          : t("createListing.aiImportFromText", "Dati importati dalla conferma.")
-      );
+      if (!wasPastDate) {
+        const provider = String(parsed?.provider || "").trim();
+        Alert.alert(
+          t("createListing.aiImportTitle", "AI Import"),
+          provider
+            ? t("createListing.aiImportFromTextWithProvider", "Dati importati dalla conferma. Fornitore rilevato: {provider}.", { provider })
+            : t("createListing.aiImportFromText", "Dati importati dalla conferma.")
+        );
+      }
       goToManualStep(1);
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.confirmationImportError", "Impossibile leggere la conferma. Riprova o compila i campi a mano."));
@@ -2077,7 +2097,7 @@ const initialJsonRef = useRef(null);
       const declared = parseLocalizedNumber(String(form.purchasePrice || "").trim());
 
       const parsed = await parseListingFromPdfAI(b64, locale);
-      applyImportedData(parsed);
+      const wasPastDate = applyImportedData(parsed);
 
       // Una conferma/biglietto reale è sempre un bene da vendere (mai CERCO)
       const patch = { cercoVendo: "VENDO" };
@@ -2088,19 +2108,24 @@ const initialJsonRef = useRef(null);
       update(patch);
       closeImport();
 
-      if (Number.isFinite(pdfPrice) && pdfPrice > 0 && Number.isFinite(declared) && declared !== pdfPrice) {
-        Alert.alert(
-          t("createListing.pdfPriceMismatchTitle", "Prezzo diverso dal documento"),
-          t("createListing.pdfPriceMismatchMsg", "Nel PDF risulta un prezzo pagato di {pdf}€, ma avevi dichiarato {declared}€. Ho aggiornato il prezzo di acquisto col valore del documento.", { pdf: pdfPrice, declared })
-        );
-      } else {
-        const provider = String(parsed?.provider || "").trim();
-        Alert.alert(
-          t("createListing.aiImportTitle", "AI Import"),
-          provider
-            ? t("createListing.aiImportFromTextWithProvider", "Dati importati dalla conferma. Fornitore rilevato: {provider}.", { provider })
-            : t("createListing.aiImportFromPdf", "Dati importati dal PDF del biglietto.")
-        );
+      // Se la data è già scaduta, l'avviso mostrato da applyImportedData
+      // basta: niente altri popup che suonerebbero come un "tutto ok" in
+      // contraddizione con "non potrà essere pubblicato così com'è".
+      if (!wasPastDate) {
+        if (Number.isFinite(pdfPrice) && pdfPrice > 0 && Number.isFinite(declared) && declared !== pdfPrice) {
+          Alert.alert(
+            t("createListing.pdfPriceMismatchTitle", "Prezzo diverso dal documento"),
+            t("createListing.pdfPriceMismatchMsg", "Nel PDF risulta un prezzo pagato di {pdf}€, ma avevi dichiarato {declared}€. Ho aggiornato il prezzo di acquisto col valore del documento.", { pdf: pdfPrice, declared })
+          );
+        } else {
+          const provider = String(parsed?.provider || "").trim();
+          Alert.alert(
+            t("createListing.aiImportTitle", "AI Import"),
+            provider
+              ? t("createListing.aiImportFromTextWithProvider", "Dati importati dalla conferma. Fornitore rilevato: {provider}.", { provider })
+              : t("createListing.aiImportFromPdf", "Dati importati dal PDF del biglietto.")
+          );
+        }
       }
       goToManualStep(1);
     } catch (e) {
