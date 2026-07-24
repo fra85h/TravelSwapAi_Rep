@@ -666,9 +666,9 @@ const initialJsonRef = useRef(null);
     if (flagsNoImg?.length) return null; // già spiegato da un flag puntuale
     const sub = trustData?.subScores || {};
     const parts = [
-      { label: t("createListing.checkAi.subHeuristics", "Controlli di base (date, prezzo, coerenza)"), value: sub.heuristics },
-      { label: t("createListing.checkAi.subAiText", "Analisi del testo (AI)"), value: sub.aiText },
-      { label: t("createListing.checkAi.subAiImages", "Analisi delle foto (AI)"), value: sub.aiImages },
+      { key: "heuristics", label: t("createListing.checkAi.subHeuristics", "Controlli di base (date, prezzo, coerenza)"), value: sub.heuristics },
+      { key: "aiText", label: t("createListing.checkAi.subAiText", "Analisi del testo (AI)"), value: sub.aiText },
+      { key: "aiImages", label: t("createListing.checkAi.subAiImages", "Analisi delle foto (AI)"), value: sub.aiImages },
     // null/undefined = componente non applicabile, non un punteggio a zero:
     // il server manda aiImages: null quando l'annuncio non ha foto (quella
     // parte del calcolo viene esclusa e i pesi ridistribuiti). Il controllo
@@ -680,6 +680,24 @@ const initialJsonRef = useRef(null);
     parts.sort((a, b) => Number(a.value) - Number(b.value));
     const weakest = parts[0];
     const value = Math.round(Number(weakest.value));
+
+    // Se il punto più debole è l'analisi del testo e l'AI ha spiegato PERCHÉ,
+    // mostra il motivo invece della sola percentuale: "Analisi del testo (AI)
+    // 90%" da solo non dice all'utente né cosa c'è che non va né cosa fare.
+    // Gli altri due sotto-punteggi restano numerici perché hanno già i loro
+    // canali di dettaglio (i flag delle euristiche, il tetto sulle foto).
+    // Confronto sulla CHIAVE, non sul valore: due componenti con lo stesso
+    // punteggio avrebbero fatto attribuire la spiegazione del testo alla
+    // componente sbagliata.
+    const reason = String(trustData?.aiTextReason || "").trim();
+    if (reason && weakest.key === "aiText") {
+      return t(
+        "createListing.checkAi.explainWeakReason",
+        `Punteggio non massimo: ${reason}`,
+        { reason }
+      );
+    }
+
     return t(
       "createListing.checkAi.explainWeak",
       `Punteggio non massimo: il punto più debole è "${weakest.label}" (${value}%).`,

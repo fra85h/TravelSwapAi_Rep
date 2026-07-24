@@ -11,9 +11,25 @@ import { createOpenAIClient } from "../../lib/openaiClient.js";
 // immagini da analizzare (vedi imageUrls sotto), quindi è la più lenta.
 const openai = createOpenAIClient({ timeoutMs: Number(process.env.OPENAI_TRUST_TIMEOUT_MS || 45_000) });
 
+// Il modello a volte "spiega" il punteggio con una frase vuota di contenuto.
+// Sono risposte che occupano lo spazio della spiegazione senza dire nulla:
+// meglio nessun testo (il client ripiega sul messaggio generico) che una
+// frase che finge di rispondere alla domanda "perché non è 100?".
+const VACUOUS_REASON_RE = /^(va bene|tutto (ok|bene|a posto)|nessun problema|ok|buono|corretto|coerente|conforme|adeguato|sufficiente|niente da segnalare|nulla da segnalare|no issues?|all good|fine|todo bien|sin problemas)\b/i;
+
+export function cleanTextReason(raw) {
+  const s = String(raw ?? '').trim().replace(/\s+/g, ' ');
+  if (!s) return null;
+  if (VACUOUS_REASON_RE.test(s)) return null;
+  // Una spiegazione lunga non entra nel riquadro e smette di essere leggibile
+  // a colpo d'occhio, che è tutto il suo scopo.
+  return s.length > 240 ? `${s.slice(0, 237)}…` : s;
+}
+
 /**
  * Valuta un listing con AI e restituisce:
  * - textScore: 0..100
+ * - textReason: string|null — perché il punteggio del testo non è massimo
  * - imageScore: 0..100 (50 default se nessuna immagine)
  * - flags: [{ code, msg }]
  * - suggestedFixes: [{ field, suggestion }]
@@ -25,6 +41,7 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
   if (!process.env.OPENAI_API_KEY) {
     return {
       textScore: Number.isFinite(heur?.score) ? Number(heur.score) : 55,
+      textReason: null,
       imageScore: 50,
       flags: [{ code: "AI_DISABLED", msg: "Chiave OpenAI mancante sul server (OPENAI_API_KEY non impostata)" }],
       suggestedFixes: [],
@@ -76,9 +93,19 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "NEL DUBBIO considera l'annuncio coerente e NON segnalarlo. Quando c'è una " +
       "contraddizione evidente, aggiungi un flag con code:'INCOHERENT_LISTING' " +
       "e un msg che spiega la discrepanza in modo concreto. " +
+      "SEMPRE, anche quando non c'è nessun flag da segnalare, spiega in " +
+      "'textReason' PERCHÉ hai assegnato quel 'textScore': una sola frase " +
+      "breve e CONCRETA, riferita a questo annuncio, che dica cosa manca o " +
+      "cosa lo rende meno solido (es. 'la descrizione non indica orario e " +
+      "classe del biglietto', 'il titolo ripete i dati senza aggiungere " +
+      "informazioni utili'). Se il punteggio non è massimo un motivo esiste " +
+      "sempre: NON rispondere con frasi generiche tipo 'va bene' o " +
+      "'nessun problema'. Se e solo se 'textScore' è 100, lascia " +
+      "'textReason' come stringa vuota. Non citare mai il punteggio " +
+      "numerico dentro 'textReason'. " +
       "Restituisci SOLO un JSON con la forma: " +
-      "{ textScore:number(0-100), imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
-      `I valori di 'msg' e 'suggestion' devono essere scritti in ${LANG_NAME} (i 'code' restano invariati, in inglese maiuscolo). ` +
+      "{ textScore:number(0-100), textReason:string, imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
+      `I valori di 'msg', 'suggestion' e 'textReason' devono essere scritti in ${LANG_NAME} (i 'code' restano invariati, in inglese maiuscolo). ` +
       "Usa rigore: nessun testo extra oltre al JSON.",
   });
 
@@ -158,6 +185,7 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
     const clamp01 = (n) => Math.min(100, Math.max(0, Number(n ?? 0)));
     const out = {
       textScore: clamp01(parsed.textScore ?? heur?.score ?? 55),
+      textReason: cleanTextReason(parsed.textReason),
       imageScore: clamp01(parsed.imageScore ?? (imageUrls.length ? 60 : 50)),
       flags: Array.isArray(parsed.flags) ? parsed.flags : [],
       suggestedFixes: Array.isArray(parsed.suggestedFixes) ? parsed.suggestedFixes : [],
@@ -175,6 +203,9 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
     // Fallback: NON far mai fallire l’endpoint
     return {
       textScore: Number.isFinite(heur?.score) ? Number(heur.score) : 55,
+      // Nessuna spiegazione inventata quando l'AI non ha risposto: il
+      // punteggio qui viene dalle euristiche, non da un'analisi del testo.
+      textReason: null,
       imageScore: imageUrls.length ? 60 : 50,
       flags: [{ code: "AI_ERROR", msg: `Chiamata OpenAI fallita${status}: ${detail}` }],
       suggestedFixes: [],
