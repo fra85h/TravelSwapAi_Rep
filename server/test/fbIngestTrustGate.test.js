@@ -1,15 +1,17 @@
-// Test per la regola "quali canali Facebook vengono controllati dal
+// Test per la regola "quali canali Facebook/Instagram vengono controllati dal
 // TrustScore prima di pubblicare, e con quale esito" (fbIngest.js).
 // Copre la regressione: prima solo 'facebook:feed' passava dal gate, un
 // annuncio confermato via 'facebook:messenger' andava live senza alcun
-// controllo di contenuto/moderazione.
+// controllo di contenuto/moderazione. Stessa regola estesa a
+// 'instagram:messenger' quando è stato aggiunto il canale Instagram DM.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { shouldGateChannel, evaluateTrustGate } from '../src/models/fbIngest.js';
 
-test('shouldGateChannel: feed e messenger sono entrambi soggetti al TrustScore', () => {
+test('shouldGateChannel: feed, messenger e instagram sono tutti soggetti al TrustScore', () => {
   assert.equal(shouldGateChannel('facebook:feed'), true);
   assert.equal(shouldGateChannel('facebook:messenger'), true);
+  assert.equal(shouldGateChannel('instagram:messenger'), true);
 });
 
 test('shouldGateChannel: canali non riconosciuti non sono gated', () => {
