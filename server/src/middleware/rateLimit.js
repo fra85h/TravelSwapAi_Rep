@@ -96,3 +96,8 @@ export const rateLimitOffers = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 
 // per utente. Il vincolo UNIQUE lato DB impedisce comunque i duplicati sulla
 // stessa coppia di annunci: questo limite frena solo il volume di segnalazioni.
 export const rateLimitPings = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'segnalazioni' });
+
+// Domande sugli annunci: a risposta chiusa e con vincolo di unicità a DB
+// (una per persona per annuncio), quindi il tetto serve solo a impedire che
+// qualcuno le sparpagli su decine di annunci diversi in pochi minuti.
+export const rateLimitQuestions = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'domande' });

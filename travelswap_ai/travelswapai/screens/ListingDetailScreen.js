@@ -11,6 +11,7 @@ import MatchCard from "../components/MatchCard";
 import { getListingById, getPublicProfile } from "../lib/db.js";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
+import ListingQuestions from "../components/ListingQuestions";
 import OfferCTAs from "../components/OfferCTA";
 import SaveButton from "../components/SaveButton";
 import ImageCarousel from "../components/ImageCarousel";
@@ -544,6 +545,13 @@ useEffect(() => {
             </ExpandableText>
           </SectionCard>
         ) : null}
+
+        {/* Domande a risposta chiusa: l'unico canale prima di una proposta.
+            Sta qui, sotto la descrizione e sopra l'analisi prezzo, perché è
+            informazione sull'oggetto — e perché su un biglietto nominativo
+            l'avviso "verifica con il venditore" mostrato in OfferFlow deve
+            avere finalmente un posto dove essere verificato. */}
+        <ListingQuestions listing={listing} meId={meId} />
 
         {/* AI price */}
         <View style={{ marginTop: 24, alignItems: "center" }}>
