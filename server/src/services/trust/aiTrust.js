@@ -1,5 +1,6 @@
 // server/src/services/trust/aiTrust.js
 import { createOpenAIClient } from "../../lib/openaiClient.js";
+import { reasonWithoutFalseClaims, fixesWithoutFalseClaims } from "./falseClaims.js";
 
 // Bug preesistente corretto: il costruttore di OpenAI lancia un'eccezione
 // a livello di modulo se la chiave manca — a import time, prima che il
@@ -95,25 +96,29 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "e un msg che spiega la discrepanza in modo concreto. " +
       "SEMPRE, anche quando non c'è nessun flag da segnalare, spiega in " +
       "'textReason' PERCHÉ hai assegnato quel 'textScore': una sola frase " +
-      "breve e CONCRETA, riferita a questo annuncio, che dica cosa manca o " +
-      "cosa lo rende meno solido (es. 'la descrizione non indica orario e " +
-      "classe del biglietto', 'il titolo ripete i dati senza aggiungere " +
-      "informazioni utili'). Se il punteggio non è massimo un motivo esiste " +
-      "sempre: NON rispondere con frasi generiche tipo 'va bene' o " +
-      "'nessun problema'. Se e solo se 'textScore' è 100, lascia " +
-      "'textReason' come stringa vuota. Non citare mai il punteggio " +
-      "numerico dentro 'textReason'. " +
+      "breve e CONCRETA, riferita a QUESTO annuncio, che dica cosa lo rende " +
+      "meno solido. Se il punteggio non è massimo un motivo esiste sempre: " +
+      "NON rispondere con frasi generiche tipo 'va bene' o 'nessun " +
+      "problema'. Se e solo se 'textScore' è 100, lascia 'textReason' come " +
+      "stringa vuota. Non citare mai il punteggio numerico dentro " +
+      "'textReason'. " +
+      // Nessun esempio di frase, e nessun elenco di dati "tipicamente
+      // mancanti": erano lì per spiegare la regola, ma il modello li copiava
+      // alla lettera. Un annuncio la cui descrizione diceva "546 seconda
+      // classe" si è visto rispondere che mancavano il numero del treno e la
+      // classe — cioè le due voci nominate qui come esempio. Le istruzioni
+      // restano astratte di proposito; la verifica vera è deterministica,
+      // lato server (services/trust/falseClaims.js).
       "REGOLA VINCOLANTE su 'textReason' e su ogni 'msg': prima di scrivere " +
       "che un dato MANCA o non è indicato, RILEGGI l'oggetto Listing qui " +
       "sotto e cerca quel dato in TUTTI i campi — 'title', 'description' e i " +
       "campi strutturati (type, origin, destination, location, startDate, " +
-      "endDate, price). Un dato presente anche in UNO SOLO di questi campi " +
-      "NON è mancante e non va segnalato come tale, nemmeno se compare in " +
-      "una forma diversa da quella che ti aspetti (es. il numero del treno " +
-      "scritto solo nella descrizione, l'orario dentro il testo invece che " +
-      "nella data). Segnala solo ciò che hai VERIFICATO essere assente: se " +
-      "non sei certo che manchi, scegli un altro motivo reale oppure " +
-      "commenta la qualità di ciò che è scritto, mai inventare una lacuna. " +
+      "endDate, price) — anche se compare in una forma diversa da quella che " +
+      "ti aspetti. Un dato presente anche in UNO SOLO di questi campi NON è " +
+      "mancante. Segnala solo ciò che hai VERIFICATO essere assente: se non " +
+      "sei certo che manchi, preferisci commentare la QUALITÀ di ciò che è " +
+      "scritto (chiarezza, ordine, informazioni utili all'acquirente) invece " +
+      "di dichiarare una lacuna. Mai inventare una lacuna. " +
       "Restituisci SOLO un JSON con la forma: " +
       "{ textScore:number(0-100), textReason:string, imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
       `I valori di 'msg', 'suggestion' e 'textReason' devono essere scritti in ${LANG_NAME} (i 'code' restano invariati, in inglese maiuscolo). ` +
@@ -196,10 +201,15 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
     const clamp01 = (n) => Math.min(100, Math.max(0, Number(n ?? 0)));
     const out = {
       textScore: clamp01(parsed.textScore ?? heur?.score ?? 55),
-      textReason: cleanTextReason(parsed.textReason),
+      // La spiegazione e i suggerimenti passano da un controllo che NON si
+      // fida del modello: un'affermazione "manca X" viene confrontata con
+      // l'annuncio, e se X c'è la frase viene scartata. Una spiegazione falsa
+      // è peggio di nessuna spiegazione — manda a correggere qualcosa che è
+      // già a posto.
+      textReason: reasonWithoutFalseClaims(cleanTextReason(parsed.textReason), listing),
       imageScore: clamp01(parsed.imageScore ?? (imageUrls.length ? 60 : 50)),
       flags: Array.isArray(parsed.flags) ? parsed.flags : [],
-      suggestedFixes: Array.isArray(parsed.suggestedFixes) ? parsed.suggestedFixes : [],
+      suggestedFixes: fixesWithoutFalseClaims(parsed.suggestedFixes, listing),
     };
 
     return out;
