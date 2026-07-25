@@ -2951,16 +2951,42 @@ const initialJsonRef = useRef(null);
                   {!!flagsNoImg?.length && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
                       <Text style={{ fontWeight: "800", marginBottom: 6 }}>{t("createListing.checkAi.problemsTitle", "Possibili problemi")}</Text>
-                      {flagsNoImg.map((f, i) => (
+                      {flagsNoImg.map((f, i) => {
                         // Etichetta localizzata per codice; se il codice è ignoto
                         // resta il messaggio del server (già nella lingua utente
                         // per i flag AI, che ora rispondono nella locale scelta).
-                        <Text key={i}>• {t(`createListing.checkAi.flags.${f.code}`, f.msg || "")}</Text>
-                      ))}
+                        const etichetta = t(`createListing.checkAi.flags.${f.code}`, f.msg || "");
+                        // Il msg del server spiega il PERCHÉ ("il prompt chiede
+                        // un msg che spiega perché"), ma finora l'etichetta lo
+                        // sostituiva del tutto: l'utente leggeva "Durata del
+                        // viaggio non plausibile" senza sapere quale durata
+                        // sarebbe plausibile, e senza modo di capire se
+                        // correggere o ignorare. CLAUDE.md chiede l'opposto: il
+                        // perché del punteggio deve essere sempre visibile,
+                        // soprattutto quando è basso.
+                        const dettaglio = String(f?.msg || "").trim();
+                        const mostraDettaglio =
+                          dettaglio && dettaglio.toLowerCase() !== String(etichetta).trim().toLowerCase();
+                        return (
+                          <View key={i} style={{ marginBottom: 6 }}>
+                            <Text>• {etichetta}</Text>
+                            {mostraDettaglio ? (
+                              <Text style={{ marginLeft: 14, marginTop: 2, opacity: 0.85 }}>{dettaglio}</Text>
+                            ) : null}
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
 
-                  {!flagsNoImg?.length && !!trustExplain && (
+                  {/* Prima questo riquadro compariva SOLO in assenza di flag,
+                      cioè spariva proprio quando il punteggio è tappato da un
+                      problema e la spiegazione serve di più: restava a video
+                      un'etichetta secca ("Durata del viaggio non plausibile") e
+                      nient'altro. Ora convive con i flag: sono informazioni
+                      complementari, il flag dice COSA non va e questo riquadro
+                      dice quanto pesa sul punteggio complessivo. */}
+                  {!!trustExplain && (
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#FFF4C5", borderWidth: 1, borderColor: "#FACC15" }}>
                       <Text style={{ fontWeight: "800", marginBottom: 6 }}>{t("createListing.checkAi.whyTitle", "Perché questo punteggio")}</Text>
                       <Text>{trustExplain}</Text>
