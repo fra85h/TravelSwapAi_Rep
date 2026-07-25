@@ -423,7 +423,7 @@ export default function CreateListingScreen({
   const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
 
   // TrustScore hook + UI state
-  const { loading: trustLoading, data: trustData, error: trustError, evaluate } = useTrustScore();
+  const { loading: trustLoading, data: trustData, error: trustError, evaluate, reset: resetTrust } = useTrustScore();
   const [splitDetected, setSplitDetected] = useState(false);
   const [splitReason, setSplitReason] = useState("");
 
@@ -1497,6 +1497,17 @@ const initialJsonRef = useRef(null);
     const idx = Math.round(x / w);
     setSlideIndex(idx);
   };
+  // "Pulisci" deve riportare la form allo stato iniziale, TRANNE i due
+  // segmenti che l'utente ha scelto esplicitamente (Tipo e Cerco/Vendo):
+  // svuotare i dati non significa cambiare che cosa si sta pubblicando.
+  // Prima azzerava un sottoinsieme dei campi e per giunta forzava
+  // type:"train", quindi da un annuncio hotel il tasto ribaltava il segmento.
+  //
+  // Soprattutto: NON azzerava purchasePrice, il prezzo pagato ereditato da un
+  // import precedente. Restando lì continuava a fare da tetto anti-bagarinaggio
+  // su un annuncio del tutto nuovo (caso reale: un vecchio import da 31€
+  // bloccava il prezzo di vendita di un biglietto diverso). Stesso problema,
+  // meno visibile, per operator e per i campi di scambio.
   const clearAll = useCallback(() => {
     setMicroLog([]); setProgress(0); setShowMicroLog(false);
     update({
@@ -1504,14 +1515,27 @@ const initialJsonRef = useRef(null);
       location: "",
       routeFrom: "", routeTo: "",
       description: "",
-      type: "train",
       checkIn: "", checkOut: "",
       departAt: "", arriveAt: "",
       price: "", currency: "EUR",
+      purchasePrice: "",
+      operator: "",
       pnr: "", gender: "", isNamedTicket: false,
       imageUrl: "",
+      acceptsSwap: false,
+      swapWantedFrom: "", swapWantedTo: "",
+      swapWantedLocation: "", swapWantedNote: "",
     });
-  }, [update]);
+    // L'esito del Check AI si riferiva ai dati appena cancellati: lasciarlo
+    // visibile mostrerebbe un'affidabilità calcolata su un annuncio che non
+    // esiste più (è quello che succedeva: badge fermo sul punteggio vecchio).
+    resetTrust();
+    setLastTrustRunAt(0);
+    setSplitDetected(false);
+    setSplitReason("");
+    setPhotosDirtySinceCheck(false);
+    lastCheckedContentRef.current = null;
+  }, [update, resetTrust]);
 
 
   /* ---------- Analisi prezzo con AI (locale) ---------- */

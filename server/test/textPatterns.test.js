@@ -27,7 +27,7 @@ import {
   extractRoute,
   findKnownRoutes,
 } from '../../travelswap_ai/travelswapai/lib/textPatterns.mjs';
-import { STATIONS, cityOf } from '../../travelswap_ai/travelswapai/lib/trainStations.mjs';
+import { STATIONS, cityOf, STATION_ALIASES } from '../../travelswap_ai/travelswapai/lib/trainStations.mjs';
 
 /* ============ Prezzo ============ */
 
@@ -138,6 +138,56 @@ test('elenco stazioni: nessun duplicato e formato coerente', () => {
     assert.ok(s.length >= 3, `voce troppo corta: "${s}"`);
     // il separatore è l'em-dash con spazi, su cui si basa cityOf()
     assert.ok(!/\s-\s/.test(s), `separatore sbagliato (usa " — "): "${s}"`);
+  }
+});
+
+test('forme brevi: "Palermo mazara" è la tratta verso Mazara del Vallo', () => {
+  // Caso reale: l'utente scrive la città col nome corto, l'elenco la conteneva
+  // solo come "Mazara del Vallo" e la tratta non veniva riconosciuta.
+  assert.deepEqual(
+    extractRoute('Vendo treno Palermo mazara seconda classe per il 1 agosto 08:07/10:20'),
+    { from: 'Palermo', to: 'Mazara del Vallo' },
+  );
+  assert.deepEqual(extractRoute('Vendo treno Roma Lamezia'), { from: 'Roma', to: 'Lamezia Terme' });
+  assert.deepEqual(extractRoute('Vendo treno Milano Spezia'), { from: 'Milano', to: 'La Spezia' });
+  assert.deepEqual(extractRoute('Vendo treno Ancona Ascoli'), { from: 'Ancona', to: 'Ascoli Piceno' });
+});
+
+test('forme brevi: il nome completo nel testo vince sull\'alias', () => {
+  // L'ordinamento per lunghezza deve impedire che "Mazara" catturi il testo
+  // lasciando fuori "del Vallo".
+  assert.deepEqual(
+    extractRoute('Vendo treno Palermo Mazara del Vallo seconda classe'),
+    { from: 'Palermo', to: 'Mazara del Vallo' },
+  );
+  assert.deepEqual(
+    extractRoute('Vendo treno Milano La Spezia Centrale'),
+    { from: 'Milano', to: 'La Spezia — Centrale' },
+  );
+});
+
+test('forme brevi: nessun alias è una parola italiana comune o una città ambigua', () => {
+  // Un alias sbagliato FABBRICA una tratta dal testo libero: sono esclusi di
+  // proposito "termini", "giardini", "aquila", "reggio", "barcellona".
+  for (const vietato of ['termini', 'giardini', 'aquila', 'reggio', 'barcellona', ...['ora', 'fermo', 'massa', 'chiusi', 'bra']]) {
+    assert.ok(
+      !Object.prototype.hasOwnProperty.call(STATION_ALIASES, vietato),
+      `alias ambiguo nell'elenco: "${vietato}"`,
+    );
+  }
+  for (const frase of [
+    'Vendo biglietto in termini di comodita',
+    'Vendo treno con vista sui giardini',
+  ]) {
+    assert.equal(findKnownRoutes(frase).length, 0, `${frase} non è una tratta`);
+  }
+});
+
+test('forme brevi: ogni alias punta a una città davvero presente nell\'elenco', () => {
+  for (const [alias, canonico] of Object.entries(STATION_ALIASES)) {
+    assert.equal(alias, alias.toLowerCase(), `l'alias va scritto minuscolo: "${alias}"`);
+    const esiste = STATIONS.some((s) => s === canonico || cityOf(s) === canonico);
+    assert.ok(esiste, `"${alias}" punta a "${canonico}", che non è nell'elenco`);
   }
 });
 

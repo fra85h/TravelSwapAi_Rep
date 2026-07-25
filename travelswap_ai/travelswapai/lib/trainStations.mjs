@@ -125,6 +125,27 @@ export const AMBIGUOUS_BARE_NAMES = new Set([
   "ora", "fermo", "massa", "chiusi", "bra",
 ]);
 
+// Forme brevi con cui si scrive comunemente una città il cui nome ufficiale è
+// composto. cityOf() non le ricava, perché taglia solo il suffisso di stazione
+// (" — Centrale") e non tocca il nome della città: "Mazara del Vallo" resta
+// intero, quindi "Palermo Mazara" non veniva riconosciuta come tratta.
+// La chiave è la forma breve, il valore il nome canonico dell'elenco: chi
+// scrive corto ottiene comunque il nome pieno nel campo.
+//
+// Criterio di inclusione, più stretto di quello del corrispondente elenco
+// lato server (isKnownRailCity in heuristics.js): qui una voce sbagliata
+// FABBRICA una tratta a partire dal testo libero, quindi la forma breve non
+// deve poter essere una parola italiana di uso corrente né un'altra città.
+// Per questo restano fuori "termini" (in termini di), "giardini", "aquila"
+// (l'animale), "reggio" (Emilia o Calabria?) e "barcellona" (la spagnola è
+// una lettura almeno altrettanto probabile).
+export const STATION_ALIASES = {
+  "mazara": "Mazara del Vallo",
+  "lamezia": "Lamezia Terme",
+  "ascoli": "Ascoli Piceno",
+  "spezia": "La Spezia",
+};
+
 function stripAccents(s) {
   return String(s || "")
     .toLowerCase()
