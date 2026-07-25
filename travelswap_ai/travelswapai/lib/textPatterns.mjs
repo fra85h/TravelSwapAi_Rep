@@ -16,7 +16,7 @@
 // Qui dentro NON vanno import di React, di componenti o di i18n: deve
 // restare importabile da Node. L'unica dipendenza ammessa è l'elenco delle
 // stazioni, anch'esso .mjs e senza dipendenze proprie.
-import { STATIONS, cityOf } from './trainStations.mjs';
+import { STATIONS, cityOf, AMBIGUOUS_BARE_NAMES } from './trainStations.mjs';
 
 /* ---------------------------------------------------------------
  * CERCO / VENDO
@@ -113,8 +113,15 @@ function normText(s) {
 // Il nome restituito è quello canonico dell'elenco: chi scrive "milano
 // centrale" a mano si ritrova il campo nello stesso formato prodotto
 // dall'autocompletamento.
+// I nomi ambigui (Ora, Fermo, Massa...) rientrerebbero da cityOf anche se in
+// STATIONS compaiono solo nella forma estesa: vanno esclusi qui, altrimenti
+// una frase normale diventa una tratta. Restano riconoscibili per nome
+// completo ("Ora — Termeno").
 const KNOWN_PLACES = [
-  ...new Set([...STATIONS, ...STATIONS.map(cityOf)]),
+  ...new Set([
+    ...STATIONS,
+    ...STATIONS.map(cityOf).filter((c) => !AMBIGUOUS_BARE_NAMES.has(normText(c))),
+  ]),
 ]
   .map((name) => ({ name, norm: normText(name) }))
   .filter((p) => p.norm)
