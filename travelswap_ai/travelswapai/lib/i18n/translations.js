@@ -34,6 +34,71 @@ export const translations = {
       hasHistory: "Con storico ({n})",
     },
 
+    listingQuestions: {
+      title: "Domande e risposte",
+      askCta: "Chiedi informazioni",
+      askTitle: "Cosa vuoi sapere?",
+      noneYet: "Nessuna domanda per ora. Se ti serve un dettaglio, chiedilo prima di proporre.",
+      waiting: "In attesa di risposta",
+      sent: "Domanda inviata: ti avvisiamo quando risponde.",
+      alreadyAsked: "Hai già fatto questa domanda.",
+      allAsked: "Hai già chiesto tutto quello che si può chiedere qui.",
+      pendingTitle: "Domande sui tuoi annunci",
+      answerCta: "Rispondi",
+      photoWarning: "⚠️ Copri il codice QR e il codice di prenotazione prima di fotografare il biglietto: chi li vede potrebbe usarlo.",
+      q: {
+        operator: "Con quale operatore viaggia il biglietto?",
+        ticket_class: "In che classe è il posto?",
+        refundable: "Il biglietto si può modificare o rimborsare?",
+        photo: "Puoi aggiungere una foto del biglietto all’annuncio?",
+        name_change_who: "Chi si occupa del cambio nominativo?",
+        name_change_cost: "Il costo del cambio è incluso nel prezzo?",
+        delivery: "Quando consegni il biglietto?",
+      },
+      a: {
+        operator: {
+          trenitalia: "Trenitalia",
+          italo: "Italo",
+          other: "Altro operatore",
+          unknown: "Non lo so",
+        },
+        ticket_class: {
+          first: "Prima classe",
+          second: "Seconda classe",
+          business: "Business",
+          standard: "Standard",
+          unknown: "Non lo so",
+        },
+        refundable: {
+          both: "Modificabile e rimborsabile",
+          changeable_only: "Solo modificabile",
+          neither: "Tariffa non rimborsabile",
+          unknown: "Non lo so",
+        },
+        photo: {
+          added: "L’ho aggiunta",
+          declined: "Preferisco non pubblicarla",
+        },
+        name_change_who: {
+          seller: "Me ne occupo io",
+          buyer: "Deve farlo l’acquirente",
+          not_possible: "Non è possibile farlo",
+          unknown: "Non lo so",
+        },
+        name_change_cost: {
+          included: "Sì, incluso nel prezzo",
+          buyer_pays: "No, lo paga l’acquirente",
+          no_cost: "Non c’è nessun costo",
+          unknown: "Non lo so",
+        },
+        delivery: {
+          on_accept: "Subito dopo l’accettazione",
+          day_before: "Il giorno prima della partenza",
+          agree_in_chat: "Ci accordiamo in chat",
+        },
+      },
+    },
+
     // --- Tab bar / Sezioni ---
     tabs: {
       home: "All",
@@ -1116,6 +1181,71 @@ export const translations = {
       pendingLabel: "Check in progress",
       emailVerified: "Email verified",
       hasHistory: "With history ({n})",
+    },
+
+    listingQuestions: {
+      title: "Questions and answers",
+      askCta: "Ask about this listing",
+      askTitle: "What would you like to know?",
+      noneYet: "No questions yet. If you need a detail, ask before making an offer.",
+      waiting: "Waiting for an answer",
+      sent: "Question sent: we’ll let you know when they reply.",
+      alreadyAsked: "You already asked this.",
+      allAsked: "You have already asked everything available here.",
+      pendingTitle: "Questions about your listings",
+      answerCta: "Answer",
+      photoWarning: "⚠️ Cover the QR code and the booking reference before photographing the ticket: anyone who sees them could use it.",
+      q: {
+        operator: "Which operator is the ticket for?",
+        ticket_class: "What class is the seat?",
+        refundable: "Can the ticket be changed or refunded?",
+        photo: "Could you add a photo of the ticket to the listing?",
+        name_change_who: "Who handles the name change?",
+        name_change_cost: "Is the name change fee included in the price?",
+        delivery: "When do you hand over the ticket?",
+      },
+      a: {
+        operator: {
+          trenitalia: "Trenitalia",
+          italo: "Italo",
+          other: "Another operator",
+          unknown: "I don’t know",
+        },
+        ticket_class: {
+          first: "First class",
+          second: "Second class",
+          business: "Business",
+          standard: "Standard",
+          unknown: "I don’t know",
+        },
+        refundable: {
+          both: "Changeable and refundable",
+          changeable_only: "Changeable only",
+          neither: "Non-refundable fare",
+          unknown: "I don’t know",
+        },
+        photo: {
+          added: "I added it",
+          declined: "I’d rather not publish it",
+        },
+        name_change_who: {
+          seller: "I take care of it",
+          buyer: "The buyer has to do it",
+          not_possible: "It cannot be done",
+          unknown: "I don’t know",
+        },
+        name_change_cost: {
+          included: "Yes, included in the price",
+          buyer_pays: "No, the buyer pays it",
+          no_cost: "There is no fee",
+          unknown: "I don’t know",
+        },
+        delivery: {
+          on_accept: "Right after acceptance",
+          day_before: "The day before departure",
+          agree_in_chat: "We agree in chat",
+        },
+      },
     },
 
     tabs: {
@@ -3195,6 +3325,71 @@ export const translations = {
       pendingLabel: "Verificación en curso",
       emailVerified: "Email verificado",
       hasHistory: "Con historial ({n})",
+    },
+
+    listingQuestions: {
+      title: "Preguntas y respuestas",
+      askCta: "Pedir información",
+      askTitle: "¿Qué quieres saber?",
+      noneYet: "Todavía no hay preguntas. Si necesitas un detalle, pregúntalo antes de proponer.",
+      waiting: "Esperando respuesta",
+      sent: "Pregunta enviada: te avisamos cuando responda.",
+      alreadyAsked: "Ya has hecho esta pregunta.",
+      allAsked: "Ya has preguntado todo lo que se puede preguntar aquí.",
+      pendingTitle: "Preguntas sobre tus anuncios",
+      answerCta: "Responder",
+      photoWarning: "⚠️ Tapa el código QR y el código de reserva antes de fotografiar el billete: quien los vea podría usarlo.",
+      q: {
+        operator: "¿Con qué operador viaja el billete?",
+        ticket_class: "¿En qué clase está la plaza?",
+        refundable: "¿El billete se puede cambiar o reembolsar?",
+        photo: "¿Puedes añadir una foto del billete al anuncio?",
+        name_change_who: "¿Quién se encarga del cambio de titular?",
+        name_change_cost: "¿El coste del cambio está incluido en el precio?",
+        delivery: "¿Cuándo entregas el billete?",
+      },
+      a: {
+        operator: {
+          trenitalia: "Trenitalia",
+          italo: "Italo",
+          other: "Otro operador",
+          unknown: "No lo sé",
+        },
+        ticket_class: {
+          first: "Primera clase",
+          second: "Segunda clase",
+          business: "Business",
+          standard: "Standard",
+          unknown: "No lo sé",
+        },
+        refundable: {
+          both: "Cambiable y reembolsable",
+          changeable_only: "Solo cambiable",
+          neither: "Tarifa no reembolsable",
+          unknown: "No lo sé",
+        },
+        photo: {
+          added: "La he añadido",
+          declined: "Prefiero no publicarla",
+        },
+        name_change_who: {
+          seller: "Me encargo yo",
+          buyer: "Debe hacerlo el comprador",
+          not_possible: "No es posible hacerlo",
+          unknown: "No lo sé",
+        },
+        name_change_cost: {
+          included: "Sí, incluido en el precio",
+          buyer_pays: "No, lo paga el comprador",
+          no_cost: "No hay ningún coste",
+          unknown: "No lo sé",
+        },
+        delivery: {
+          on_accept: "Justo después de la aceptación",
+          day_before: "El día antes de la salida",
+          agree_in_chat: "Nos ponemos de acuerdo en el chat",
+        },
+      },
     },
 
     errors: {
