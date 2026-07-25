@@ -204,13 +204,20 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
 
     return out;
   } catch (e) {
+    // Il dettaglio del provider resta NEI LOG, non nella risposta: il testo di
+    // un 429 di OpenAI contiene l'id dell'organizzazione e i limiti di quota
+    // dell'account ("...in organization org-XXXX on tokens per min (TPM):
+    // Limit 200000, Used 199145..."). Il messaggio del flag finisce dritto
+    // nella lista "Possibili problemi" mostrata a CHIUNQUE stia pubblicando,
+    // quindi quei dati arrivavano agli utenti finali. Il ragionamento di prima
+    // ("l'SDK non mette mai la chiave nel messaggio") era giusto sulla chiave
+    // ma non copriva il resto.
     console.error("[aiTrustReview] error:", e?.status || "", e?.message || e);
-    // Motivo compatto per la diagnosi (mostrato solo nella web di test).
-    // Lo status HTTP dice quasi tutto: 401 chiave errata, 429 quota/credito,
-    // 404/403 modello non abilitato. Nessun segreto: l'SDK non mette mai la
-    // chiave nel messaggio d'errore.
+
+    // Allo status HTTP si può restare: non identifica nulla e serve a chi
+    // legge i log a capire subito di che famiglia di problema si tratta
+    // (401 chiave errata, 429 quota/limite, 404/403 modello non abilitato).
     const status = e?.status ? ` (${e.status})` : "";
-    const detail = String(e?.message || e || "").slice(0, 160);
     // Fallback: NON far mai fallire l’endpoint
     return {
       textScore: Number.isFinite(heur?.score) ? Number(heur.score) : 55,
@@ -218,7 +225,7 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       // punteggio qui viene dalle euristiche, non da un'analisi del testo.
       textReason: null,
       imageScore: imageUrls.length ? 60 : 50,
-      flags: [{ code: "AI_ERROR", msg: `Chiamata OpenAI fallita${status}: ${detail}` }],
+      flags: [{ code: "AI_ERROR", msg: `Verifica AI non riuscita${status}. Riprova fra qualche minuto.` }],
       suggestedFixes: [],
     };
   }

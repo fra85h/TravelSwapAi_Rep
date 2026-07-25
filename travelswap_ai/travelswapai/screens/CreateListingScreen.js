@@ -2912,13 +2912,15 @@ const initialJsonRef = useRef(null);
                       <Text>
                         {t("createListing.aiUnavailableMsg", "Il punteggio si basa solo sui controlli di base (prezzo, date, coerenza). L'analisi AI del testo e delle foto non è stata eseguita.")}
                       </Text>
-                      {/* Dettaglio tecnico SOLO su web (versione di test): all'utente
-                          finale dell'app nativa non deve apparire. */}
-                      {Platform.OS === "web" && !!trustData.aiUnavailableReason && (
-                        <Text style={{ marginTop: 8, fontSize: 12, fontStyle: "italic", color: "#7F1D1D" }}>
-                          [debug web] {trustData.aiUnavailableReason}
-                        </Text>
-                      )}
+                      {/* Qui c'era un riquadro "[debug web] <errore del provider>",
+                          mostrato quando Platform.OS === "web" perché la web era
+                          considerata la versione di test. Non lo è più: la web su
+                          travelswapai.onrender.com è la versione che usano gli
+                          utenti, quindi quella riga esponeva a tutti il testo
+                          grezzo dell'errore OpenAI — id dell'organizzazione e
+                          limiti di quota dell'account compresi.
+                          Il dettaglio tecnico ora vive solo nei log del server
+                          (console.error in aiTrust.js). */}
                     </View>
                   )}
 
