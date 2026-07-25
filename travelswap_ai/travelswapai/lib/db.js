@@ -467,11 +467,20 @@ export async function createOffer(from_listing_id, to_listing_id, { message } = 
  * (PostgREST non può fare l'embed automatico), quindi va risolto con una
  * query separata — prima mancava del tutto e OfferDetailScreen mostrava
  * sempre la parola "utente" al posto del nome vero. */
+// Unico filtro dell'app costruito per interpolazione di stringa: `.or()` non
+// accetta parametri, quindi l'id finisce dentro la sintassi dei filtri
+// PostgREST. Un valore non-UUID potrebbe iniettare altri filtri e allargare
+// la query (la RLS limita comunque le righe leggibili, ma il controllo qui
+// costa nulla ed è già il pattern usato altrove nel progetto).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function listOffersForListing(listingId) {
+  const id = String(listingId || "");
+  if (!UUID_RE.test(id)) return [];
   const { data, error } = await supabase
     .from("offers")
     .select("*, from_listing:from_listing_id(id,title), to_listing:to_listing_id(id,title)")
-    .or(`from_listing_id.eq.${listingId},to_listing_id.eq.${listingId}`)
+    .or(`from_listing_id.eq.${id},to_listing_id.eq.${id}`)
     .order("created_at", { ascending: false });
   if (error) throw error;
   const rows = data || [];
