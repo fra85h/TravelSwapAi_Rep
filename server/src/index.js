@@ -211,6 +211,22 @@ async function publishMessengerListing({ senderId, channel, send }, mid, s) {
 // --- Healthcheck / Debug ---
 const isDev = process.env.NODE_ENV === 'development';
 
+// NODE_ENV non impostata è una configurazione ambigua: non è sviluppo (i
+// debug restano chiusi) ma nemmeno produzione dichiarata, quindi Express
+// continua a rispondere con lo stack trace sugli errori non gestiti. Meglio
+// dirlo all'avvio che scoprirlo da una risposta HTTP.
+if (!process.env.NODE_ENV) {
+  console.warn('[ENV] NODE_ENV non impostata: in produzione va valorizzata a "production" (Express altrimenti espone gli stack trace).');
+}
+
+// Una configurazione che disattiva un controllo di sicurezza non deve essere
+// silenziosa: se la variabile è accesa ma l'ambiente non è sviluppo, il
+// bypass NON si applica (vedi /webhooks/facebook) e va detto, altrimenti chi
+// l'ha impostata crede che sia attivo.
+if (process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true' && !isDev) {
+  console.warn('[SECURITY] ALLOW_UNVERIFIED_WEBHOOK=true ma NODE_ENV non è "development": la firma dei webhook resta OBBLIGATORIA. Rimuovi la variabile: fuori dallo sviluppo non serve.');
+}
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // Endpoint di debug: SOLO in dev (rivelano stato di configurazione/ambiente)
@@ -323,9 +339,22 @@ app.get('/webhooks/facebook', (req, res) => {
 
 // --- Webhook receiver (POST) ---
 app.post('/webhooks/facebook', async (req, res) => {
-  // Il bypass della firma è consentito SOLO fuori da produzione
+  // Il bypass della firma vale SOLO in sviluppo DICHIARATO.
+  //
+  // Prima la condizione era `NODE_ENV !== 'production'`. Sembra equivalente,
+  // ma NODE_ENV non impostata è il default di molti hosting (Render incluso,
+  // se non la si aggiunge a mano): in quel caso il confronto è vero, e
+  // bastava ALLOW_UNVERIFIED_WEBHOOK=true perché il server accettasse in
+  // PRODUZIONE webhook non firmati da chiunque conoscesse l'URL. Da lì si
+  // pubblicano annunci a nome dell'account di default, si fanno partire
+  // chiamate OpenAI a spese nostre e si fa scrivere il bot a utenti
+  // arbitrari.
+  //
+  // `=== 'development'` inverte il default: senza NODE_ENV la firma è
+  // sempre verificata. Una configurazione mancante ora fallisce in modo
+  // sicuro, non permissivo.
   const allow = process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true'
-    && process.env.NODE_ENV !== 'production';
+    && process.env.NODE_ENV === 'development';
   if (!allow && !isDev && !verifyFacebookSignature(req)) {
     return res.sendStatus(403);
   }
