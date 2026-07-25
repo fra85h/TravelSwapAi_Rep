@@ -14,7 +14,9 @@
 // testa in CI, vedi server/test/textPatterns.test.js).
 //
 // Qui dentro NON vanno import di React, di componenti o di i18n: deve
-// restare importabile da Node senza alcuna dipendenza.
+// restare importabile da Node. L'unica dipendenza ammessa è l'elenco delle
+// stazioni, anch'esso .mjs e senza dipendenze proprie.
+import { STATIONS, cityOf } from './trainStations.mjs';
 
 /* ---------------------------------------------------------------
  * CERCO / VENDO
@@ -79,6 +81,162 @@ const ROUTE_PLACE = `${PLACE_WORD}(?:\\s+${PLACE_WORD}){0,1}`;
 
 export const ROUTE_TEXT_RE = new RegExp(`\\b(?:da|from)\\s+(${ROUTE_PLACE})\\s+(?:a|to)\\s+(${ROUTE_PLACE})`, 'i');
 export const ROUTE_ARROW_RE = new RegExp(`(${ROUTE_PLACE})\\s*(?:-|–|—|>|→)\\s*(${ROUTE_PLACE})`, 'i');
+
+/* ---------------------------------------------------------------
+ * Tratte riconosciute sull'elenco delle stazioni (whitelist)
+ * ------------------------------------------------------------- */
+
+// Le regex qui sopra restano una BLACKLIST: sanno solo quali parole NON sono
+// località, quindi qualunque termine non previsto rientra ("Milano - Roma con
+// supplemento" dava destinazione "Roma con") e un nome di città col trattino
+// è indistinguibile da una tratta ("Reggio-Emilia" letto come Reggio→Emilia).
+//
+// Confrontare i candidati con l'elenco di città che l'app già usa per
+// l'autocompletamento è invece una whitelist: alza il soffitto invece di
+// spostarlo. Le regex restano come ripiego per le località fuori elenco.
+
+function normText(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    // trattini e apostrofi diventano spazi: così "Reggio-Emilia" e
+    // "L'Aquila" si confrontano con le voci dell'elenco scritte per esteso
+    .replace(/['’`\-–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Luoghi noti: sia le stazioni per esteso ("Milano — Centrale") sia le sole
+// città ("Milano"). Dal più lungo al più corto, così "Milano Centrale" vince
+// su "Milano" e "Reggio Emilia" non viene spezzata in "Reggio".
+// Il nome restituito è quello canonico dell'elenco: chi scrive "milano
+// centrale" a mano si ritrova il campo nello stesso formato prodotto
+// dall'autocompletamento.
+const KNOWN_PLACES = [
+  ...new Set([...STATIONS, ...STATIONS.map(cityOf)]),
+]
+  .map((name) => ({ name, norm: normText(name) }))
+  .filter((p) => p.norm)
+  .sort((a, b) => b.norm.length - a.norm.length);
+
+// Insieme normalizzato, per riconoscere quando due "località" trovate dalle
+// regex sono in realtà i due pezzi di UN solo nome ("Reggio" + "Emilia").
+const KNOWN_PLACE_SET = new Set(KNOWN_PLACES.map((p) => p.norm));
+
+// Fra due città consecutive può esserci SOLO un separatore di tratta perché
+// la coppia conti come tale (il trattino qui è già stato normalizzato a
+// spazio, quindi resta lo spazio vuoto o le preposizioni).
+const GAP_IS_SEPARATOR_RE = /^\s*(?:>|→|a|to|verso)?\s*$/;
+
+/**
+ * Tratte riconosciute confrontando il testo con l'elenco delle stazioni.
+ * @returns {{from:string,to:string}[]} nomi nella forma canonica dell'elenco
+ */
+export function findKnownRoutes(text) {
+  const norm = normText(text);
+  if (!norm) return [];
+
+  // posizioni di tutte le città note, senza sovrapposizioni
+  const hits = [];
+  const taken = new Array(norm.length).fill(false);
+  for (const city of KNOWN_PLACES) {
+    const re = new RegExp(`(?:^|\\s)${city.norm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$)`, 'g');
+    let m;
+    while ((m = re.exec(norm)) !== null) {
+      const start = m.index + (m[0].length - city.norm.length);
+      const end = start + city.norm.length;
+      if (taken.slice(start, end).some(Boolean)) continue;
+      for (let i = start; i < end; i++) taken[i] = true;
+      hits.push({ ...city, start, end });
+      re.lastIndex = end;
+    }
+  }
+  hits.sort((a, b) => a.start - b.start);
+
+  const routes = [];
+  for (let i = 0; i + 1 < hits.length; i++) {
+    const gap = norm.slice(hits[i].end, hits[i + 1].start);
+    if (GAP_IS_SEPARATOR_RE.test(gap)) {
+      routes.push({ from: hits[i].name, to: hits[i + 1].name });
+    }
+  }
+  return routes;
+}
+
+/**
+ * Estrae la tratta: prima sull'elenco delle stazioni, poi — solo se lì non
+ * si trova nulla — con le regex, che coprono le località fuori elenco.
+ * @returns {{from:string,to:string}|null}
+ */
+export function extractRoute(text) {
+  const known = findKnownRoutes(text);
+  if (known.length) return known[0];
+
+  const src = String(text || '');
+  const arrow = src.match(ROUTE_ARROW_RE);
+  if (arrow) return acceptFallback(arrow[1], arrow[2]);
+  const daA = src.match(ROUTE_TEXT_RE);
+  if (daA) return acceptFallback(daA[1], daA[2]);
+  return null;
+}
+
+// Le regex non sanno che "Reggio-Emilia" è UN nome: lo spezzano in
+// Reggio→Emilia. Se i due capi rimessi insieme formano un luogo dell'elenco,
+// non era una tratta e il ripiego va scartato — altrimenti annullerebbe il
+// giudizio corretto della whitelist, che su quel testo aveva risposto
+// "nessuna tratta" proprio perché aveva riconosciuto la città intera.
+function acceptFallback(from, to) {
+  const a = String(from || '').trim();
+  const b = String(to || '').trim();
+  if (!a || !b) return null;
+  if (KNOWN_PLACE_SET.has(normText(`${a} ${b}`))) return null;
+  return { from: a, to: b };
+}
+
+/* ---------------------------------------------------------------
+ * Prezzo
+ * ------------------------------------------------------------- */
+
+// Un importo: interi con separatore delle migliaia opzionale e al massimo due
+// decimali. La valuta può precederlo ("€ 45") o seguirlo ("45 €").
+const AMOUNT = '[0-9]{1,3}(?:[.\\s][0-9]{3})*(?:[,.][0-9]{1,2})?|[0-9]+(?:[,.][0-9]{1,2})?';
+const CURRENCY = '(?:€|\\beur\\b|\\beuro\\b)';
+
+// La versione precedente era `(?:€|eur|euro)\s*([0-9](?:[,.][0-9]{1,2})?)`:
+// la classe catturava UNA CIFRA SOLA. "€ 45" dava 4 e "€ 120,50" dava 1, e
+// quel valore finiva dritto nel campo prezzo dell'annuncio — cioè nel campo
+// su cui poggiano il tetto anti-bagarinaggio e il matching per budget.
+// Non riconosceva nemmeno la forma "45 €", con la valuta dopo l'importo.
+export const PRICE_RE = new RegExp(`${CURRENCY}\\s*(${AMOUNT})|(${AMOUNT})\\s*${CURRENCY}`, 'i');
+
+/**
+ * Estrae un prezzo dal testo e lo converte in numero, o null.
+ *
+ * La normalizzazione è qui e non in lib/number.js perché questo modulo deve
+ * restare senza dipendenze (viene importato anche da Node in CI). Rispetto a
+ * parseLocalizedNumber gestisce in più il caso "1.250" senza decimali, che
+ * lì verrebbe letto come 1,25.
+ */
+export function extractPrice(text) {
+  const m = String(text || '').match(PRICE_RE);
+  if (!m) return null;
+  const raw = (m[1] ?? m[2] ?? '').trim();
+  if (!raw) return null;
+
+  let s = raw;
+  const hasComma = s.includes(',');
+  if (hasComma) {
+    // formato italiano: i punti/spazi sono migliaia, la virgola è il decimale
+    s = s.replace(/[.\s]/g, '').replace(',', '.');
+  } else if (/^\d{1,3}(?:[.\s]\d{3})+$/.test(s)) {
+    // "1.250" / "1 250": solo migliaia, nessun decimale
+    s = s.replace(/[.\s]/g, '');
+  }
+
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
 
 /* ---------------------------------------------------------------
  * Vettore

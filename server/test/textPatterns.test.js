@@ -23,7 +23,84 @@ import {
   ROUTE_TEXT_RE,
   ROUTE_ARROW_RE,
   PNR_RE,
+  extractPrice,
+  extractRoute,
+  findKnownRoutes,
 } from '../../travelswap_ai/travelswapai/lib/textPatterns.mjs';
+
+/* ============ Prezzo ============ */
+
+test('prezzo: importi a più cifre non vengono troncati', () => {
+  // Regressione: la classe era `[0-9]`, UNA cifra. "€ 45" dava 4 e
+  // "€ 120,50" dava 1, e quel valore finiva nel campo prezzo dell'annuncio.
+  assert.equal(extractPrice('prezzo € 45'), 45);
+  assert.equal(extractPrice('€ 120,50'), 120.5);
+  assert.equal(extractPrice('totale EUR 89'), 89);
+});
+
+test('prezzo: valuta prima o dopo l\'importo', () => {
+  assert.equal(extractPrice('45 €'), 45);
+  assert.equal(extractPrice('prezzo 39,90 EUR'), 39.9);
+});
+
+test('prezzo: separatore delle migliaia in formato italiano', () => {
+  assert.equal(extractPrice('€1.250,00'), 1250);
+  assert.equal(extractPrice('€ 1.250'), 1250);
+});
+
+test('prezzo: senza valuta non inventa un importo', () => {
+  assert.equal(extractPrice('il treno 8164 parte alle 00:50'), null);
+  assert.equal(extractPrice('nessun prezzo qui'), null);
+  assert.equal(extractPrice(''), null);
+  assert.equal(extractPrice(null), null);
+});
+
+/* ============ Tratte sull'elenco stazioni (whitelist) ============ */
+
+test('tratta: le parole estranee non entrano nella destinazione', () => {
+  // La stoplist da sola non bastava: "con" non era fra le parole previste e
+  // la destinazione diventava "Roma con".
+  assert.deepEqual(extractRoute('Milano - Roma con supplemento'), { from: 'Milano', to: 'Roma' });
+});
+
+test('tratta: un nome di città col trattino non è una tratta', () => {
+  // "Reggio-Emilia" è UNA città: le regex la spezzavano in Reggio→Emilia.
+  assert.equal(extractRoute('biglietto Reggio-Emilia del 12'), null);
+});
+
+test('tratta: le stazioni sono riportate nella forma canonica dell\'elenco', () => {
+  assert.deepEqual(
+    extractRoute('Milano Centrale → Roma Termini'),
+    { from: 'Milano — Centrale', to: 'Roma — Termini' }
+  );
+});
+
+test('tratta: due città note accostate sono una tratta', () => {
+  assert.deepEqual(
+    extractRoute('treno 8164 Milano Piacenza prima classe'),
+    { from: 'Milano', to: 'Piacenza' }
+  );
+});
+
+test('tratta: le località fuori elenco restano gestite dalle regex', () => {
+  // La whitelist non deve far perdere copertura su ciò che non conosce.
+  assert.deepEqual(
+    extractRoute('Sconosciutopoli - Altrove'),
+    { from: 'Sconosciutopoli', to: 'Altrove' }
+  );
+});
+
+test('tratte note: più tratte in sequenza vengono riconosciute tutte', () => {
+  assert.deepEqual(
+    findKnownRoutes('Bologna-Firenze e Firenze-Roma'),
+    [{ from: 'Bologna', to: 'Firenze' }, { from: 'Firenze', to: 'Roma' }]
+  );
+});
+
+test('tratte note: testo senza località note non produce tratte', () => {
+  assert.deepEqual(findKnownRoutes('vendo prenotazione ottima occasione'), []);
+  assert.deepEqual(findKnownRoutes(''), []);
+});
 
 /* ============ CERCO / VENDO: la direzione del denaro ============ */
 

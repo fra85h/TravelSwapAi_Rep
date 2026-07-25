@@ -50,6 +50,8 @@ import {
   ROUTE_ARROW_RE,
   PNR_RE,
   looksLikeRyanair,
+  extractPrice,
+  extractRoute,
 } from "../lib/textPatterns.mjs";
 
 /* ---------- CONST ---------- */
@@ -310,12 +312,12 @@ function smartParseTicket(text) {
     routeFrom = IATA[A] || A; routeTo = IATA[B] || B;
   }
   if (!routeFrom || !routeTo) {
-    const m1 = src.match(ROUTE_ARROW_RE);
-    if (m1) { routeFrom = routeFrom || m1[1].trim(); routeTo = routeTo || m1[2].trim(); }
-  }
-  if (!routeFrom || !routeTo) {
-    const m2 = src.match(ROUTE_TEXT_RE);
-    if (m2) { routeFrom = routeFrom || m2[1].trim(); routeTo = routeTo || m2[2].trim(); }
+    // extractRoute prova PRIMA sull'elenco delle stazioni e solo dopo con le
+    // regex: così "Milano - Roma con supplemento" non dà "Roma con" e
+    // "Reggio-Emilia" non viene spezzata in due località (vedi
+    // lib/textPatterns.mjs).
+    const r = extractRoute(src);
+    if (r) { routeFrom = routeFrom || r.from; routeTo = routeTo || r.to; }
   }
   const dateMatches = [...src.matchAll(DATE_ANY_RE)];
   const dateTextMatch = src.match(DATE_TEXT_RE);
@@ -359,8 +361,10 @@ function smartParseTicket(text) {
   const carrierHint = isRyanair ? "Ryanair" : hasTrain ? "Trenitalia/Italo" : "";
   out.title = normalizeTitleFromRoute(routeFrom, routeTo, carrierHint) || (isRyanair ? `Volo Ryanair ${flMatch ? flMatch[1] + flMatch[2] : ""}` : "Viaggio");
   out.location = routeFrom && routeTo ? `${routeFrom} → ${routeTo}` : isRyanair ? "Volo Ryanair" : "Treno";
-  const pm = src.match(/(?:€|\beur\b|\beuro\b)\s*([0-9](?:[\,\.][0-9]{1,2})?)/i);
-  if (pm) out.price = String(pm[1]).replace(",", ".");
+  // extractPrice, non una regex inline: quella catturava una cifra sola
+  // ("€ 120,50" -> 1) e ignorava la forma "45 €". Vedi lib/textPatterns.mjs.
+  const price = extractPrice(src);
+  if (price != null) out.price = String(price);
   if (isRyanair) out.imageUrl = "https://picsum.photos/seed/ryanair/1200/800";
   else if (hasTrain) out.imageUrl = "https://picsum.photos/seed/train/1200/800";
   return out;

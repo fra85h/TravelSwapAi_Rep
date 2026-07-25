@@ -1,4 +1,4 @@
-// lib/trainStations.js — elenco curato delle principali stazioni italiane,
+// lib/trainStations.mjs — elenco curato delle principali stazioni italiane,
 // per l'autocompletamento della tratta in creazione annuncio e avvisi di
 // ricerca. Formato "Città — Stazione" quando la città ha più stazioni note
 // (o un nome di stazione utile da distinguere), altrimenti solo "Città".

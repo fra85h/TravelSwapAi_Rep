@@ -4,7 +4,7 @@
 import React, { useState } from "react";
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { theme } from "../lib/theme";
-import { searchStations } from "../lib/trainStations";
+import { searchStations } from "../lib/trainStations.mjs";
 
 export default function StationAutocomplete({
   value, onChangeText, placeholder, editable = true, style, inputStyle, onBlur,
