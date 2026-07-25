@@ -103,6 +103,17 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "'nessun problema'. Se e solo se 'textScore' è 100, lascia " +
       "'textReason' come stringa vuota. Non citare mai il punteggio " +
       "numerico dentro 'textReason'. " +
+      "REGOLA VINCOLANTE su 'textReason' e su ogni 'msg': prima di scrivere " +
+      "che un dato MANCA o non è indicato, RILEGGI l'oggetto Listing qui " +
+      "sotto e cerca quel dato in TUTTI i campi — 'title', 'description' e i " +
+      "campi strutturati (type, origin, destination, location, startDate, " +
+      "endDate, price). Un dato presente anche in UNO SOLO di questi campi " +
+      "NON è mancante e non va segnalato come tale, nemmeno se compare in " +
+      "una forma diversa da quella che ti aspetti (es. il numero del treno " +
+      "scritto solo nella descrizione, l'orario dentro il testo invece che " +
+      "nella data). Segnala solo ciò che hai VERIFICATO essere assente: se " +
+      "non sei certo che manchi, scegli un altro motivo reale oppure " +
+      "commenta la qualità di ciò che è scritto, mai inventare una lacuna. " +
       "Restituisci SOLO un JSON con la forma: " +
       "{ textScore:number(0-100), textReason:string, imageScore:number(0-100), flags:[{code:string,msg:string}], suggestedFixes:[{field:string,suggestion:string}] } " +
       `I valori di 'msg', 'suggestion' e 'textReason' devono essere scritti in ${LANG_NAME} (i 'code' restano invariati, in inglese maiuscolo). ` +
