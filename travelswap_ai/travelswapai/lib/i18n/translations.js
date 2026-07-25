@@ -641,7 +641,7 @@ export const translations = {
         checkInInvalid: "Check-in non valido (YYYY-MM-DD).",
         checkOutInvalid: "Check-out non valido (YYYY-MM-DD).",
         checkoutBeforeCheckin:
-          "Il check-out non può precedere il check-in.",
+          "Il check-out deve essere successivo al check-in.",
         departRequired: "Data/ora partenza obbligatoria.",
         arriveRequired: "Data/ora arrivo obbligatoria.",
         departInvalid:
@@ -649,7 +649,7 @@ export const translations = {
         arriveInvalid:
           "Arrivo non valido (YYYY-MM-DD HH:mm).",
         arriveBeforeDepart:
-          "L’arrivo non può precedere la partenza.",
+          "L’arrivo deve essere successivo alla partenza.",
         genderRequired: "Seleziona M o F.",
         priceRequired: "Prezzo obbligatorio.",
         priceInvalid: "Prezzo non valido.",
@@ -1706,7 +1706,7 @@ export const translations = {
         checkInInvalid: "Invalid check-in (YYYY-MM-DD).",
         checkOutInvalid: "Invalid check-out (YYYY-MM-DD).",
         checkoutBeforeCheckin:
-          "Check-out cannot be before check-in.",
+          "Check-out must be after check-in.",
         departRequired: "Departure date/time is required.",
         arriveRequired: "Arrival date/time is required.",
         departInvalid:
@@ -1714,7 +1714,7 @@ export const translations = {
         arriveInvalid:
           "Invalid arrival (YYYY-MM-DD HH:mm).",
         arriveBeforeDepart:
-          "Arrival cannot be before departure.",
+          "Arrival must be after departure.",
         genderRequired: "Select M or F.",
         priceRequired: "Price is required.",
         priceInvalid: "Invalid price.",
@@ -2768,7 +2768,7 @@ export const translations = {
         checkOutInvalid:
           "Check-out no válido (YYYY-MM-DD).",
         checkoutBeforeCheckin:
-          "El check-out no puede ser antes del check-in.",
+          "El check-out debe ser posterior al check-in.",
         departRequired:
           "Fecha/hora de salida obligatoria.",
         arriveRequired:
@@ -2778,7 +2778,7 @@ export const translations = {
         arriveInvalid:
           "Llegada no válida (YYYY-MM-DD HH:mm).",
         arriveBeforeDepart:
-          "La llegada no puede ser antes de la salida.",
+          "La llegada debe ser posterior a la salida.",
         genderRequired: "Selecciona M o F.",
         priceRequired: "Precio obligatorio.",
         priceInvalid: "Precio no válido.",
