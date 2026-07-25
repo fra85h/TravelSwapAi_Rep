@@ -52,13 +52,36 @@ const app = express();
 // se CORS_ORIGINS è configurata in produzione rischierebbe di bloccare l'app
 // web. Impostata quella variabile, la lista esplicita ha comunque la
 // precedenza e il fallback non viene mai usato.
+// Il confronto con l'header Origin del browser è una uguaglianza ESATTA di
+// stringhe: "https://esempio.it/" (con la barra finale) non corrisponde a
+// "https://esempio.it" e l'app verrebbe bloccata senza un errore che lo
+// spieghi. Sono i due modi in cui questa configurazione si sbaglia più
+// spesso, insieme al protocollo mancante: qui la barra finale viene tolta e
+// una voce senza http(s):// viene segnalata invece di restare a fallire in
+// silenzio.
+function normalizeOrigin(raw) {
+  const s = String(raw || '').trim().replace(/\/+$/, '');
+  if (!s) return null;
+  if (!/^https?:\/\//i.test(s)) {
+    console.warn(`[CORS] voce ignorata, manca http:// o https:// -> "${raw}"`);
+    return null;
+  }
+  return s;
+}
+
 const corsOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
-  .map(s => s.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
-if (!corsOrigins.length && process.env.NODE_ENV === 'production') {
-  console.warn('[CORS] CORS_ORIGINS non impostata in produzione: qualunque origin può chiamare questa API dal browser. Impostarla con la lista degli origin ammessi.');
+
+if (corsOrigins.length) {
+  // Stampato all'avvio per rendere la configurazione verificabile dai log:
+  // se un dominio atteso non compare qui, il browser lo bloccherà.
+  console.log('[CORS] origin ammessi:', corsOrigins.join(', '));
+} else if (process.env.NODE_ENV === 'production') {
+  console.warn('[CORS] CORS_ORIGINS non impostata (o vuota) in produzione: qualunque origin può chiamare questa API dal browser. Impostarla con la lista degli origin ammessi.');
 }
+
 app.use(cors({ origin: corsOrigins.length ? corsOrigins : true }));
 const rawBodySaver = (req, _res, buf) => { req.rawBody = buf; };
 // 15mb: il Check AI in creazione invia fino a 3 foto in base64 (~1-3MB
