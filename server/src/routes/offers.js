@@ -20,6 +20,6 @@ offersRouter.post("/recompute", rateLimitOffers, requireCronSecret, async (req, 
     return res.status(200).json({ expired: data ?? 0 });
   } catch (e) {
     console.error("[offers/recompute] error:", e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 });

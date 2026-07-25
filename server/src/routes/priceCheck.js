@@ -16,11 +16,20 @@ priceCheckRouter.get("/api/listings/:id/price-check", requireAuth, rateLimitPric
 
     const { data: listing, error } = await supabase
       .from("listings")
-      .select("id, type, price, currency, location, route_from, route_to, check_in, check_out, depart_at, arrive_at, title, description, purchase_price")
+      .select("id, user_id, status, type, price, currency, location, route_from, route_to, check_in, check_out, depart_at, arrive_at, title, description, purchase_price")
       .eq("id", id)
       .maybeSingle();
     if (error) throw error;
     if (!listing) return res.status(404).json({ available: false, reason: "not_found" });
+
+    // Il server usa la SERVICE_ROLE, che scavalca le RLS: senza questo
+    // controllo qualunque utente autenticato poteva far analizzare un
+    // annuncio ALTRUI non pubblico (in pausa, eliminato) e dedurne prezzo e
+    // contenuto dalla spiegazione. Visibile solo ciò che è pubblico o proprio.
+    const isOwner = String(listing.user_id) === String(req.user?.id);
+    if (listing.status !== "active" && !isOwner) {
+      return res.status(404).json({ available: false, reason: "not_found" });
+    }
 
     const result = await checkPriceWithAI(listing, locale);
     return res.json(result);

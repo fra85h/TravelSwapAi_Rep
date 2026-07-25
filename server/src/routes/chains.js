@@ -16,6 +16,6 @@ chainsRouter.post("/recompute", rateLimitChains, requireCronSecret, async (req, 
     return res.status(200).json(out);
   } catch (e) {
     console.error("[chains/recompute] error:", e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 });

@@ -29,8 +29,30 @@ export async function uploadImage(listingId, asset, position = 0) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Non autenticato");
 
-  const ext = (asset.fileName?.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-  const contentType = asset.mimeType || "image/jpeg";
+  // contentType e estensione arrivano dal client e finivano nello Storage
+  // senza controlli: un mimeType arbitrario (text/html, image/svg+xml) su un
+  // bucket pubblico significa un file servito dal nostro dominio con un tipo
+  // scelto da chi carica. Whitelist di formati raster, con l'estensione
+  // derivata dal tipo accettato invece che dal nome file.
+  const ALLOWED = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/heic": "heic",
+    "image/heif": "heif",
+  };
+  const declared = String(asset.mimeType || "image/jpeg").toLowerCase().split(";")[0].trim();
+  const contentType = ALLOWED[declared] ? declared : "image/jpeg";
+  const ext = ALLOWED[declared] || "jpg";
+
+  // Tetto di dimensione: il base64 è ~4/3 del binario. Senza limite, una
+  // singola foto può occupare storage e banda a piacere.
+  const approxBytes = Math.floor((asset.base64.length * 3) / 4);
+  const MAX_BYTES = 8 * 1024 * 1024;
+  if (approxBytes > MAX_BYTES) {
+    throw new Error("Immagine troppo grande (max 8MB)");
+  }
   const rand = Math.random().toString(36).slice(2, 8);
   const path = `${user.id}/${listingId}/${Date.now()}-${rand}.${ext}`;
 

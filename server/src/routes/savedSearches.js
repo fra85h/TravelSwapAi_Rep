@@ -15,6 +15,6 @@ savedSearchesRouter.post("/recompute", rateLimitSavedSearches, requireCronSecret
     return res.status(200).json(out);
   } catch (e) {
     console.error("[saved-searches/recompute] error:", e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 });

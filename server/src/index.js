@@ -39,11 +39,27 @@ const app = express();
 // --- CORS ---
 // CORS_ORIGINS: lista separata da virgole degli origin ammessi (es. "https://app.travelswap.it,https://travelswap.it").
 // Se non impostata, resta permissivo (utile in dev; il traffico nativo mobile non è soggetto a CORS).
+//
+// `credentials: true` è stato RIMOSSO: l'autenticazione di questa API viaggia
+// esclusivamente nell'header Authorization: Bearer (vedi middleware/requireAuth
+// e lib/backendApi lato client), non in cookie. Abbinato al fallback
+// `origin: true` — che riflette qualunque Origin chiami — diceva al browser di
+// inviare anche le credenziali ambientali di un'altra pagina verso questa API.
+// Toglierlo non cambia nulla per i client legittimi (nessuno usa cookie) e
+// disinnesca la combinazione pericolosa.
+//
+// Il fallback permissivo resta di proposito: renderlo fail-closed senza sapere
+// se CORS_ORIGINS è configurata in produzione rischierebbe di bloccare l'app
+// web. Impostata quella variabile, la lista esplicita ha comunque la
+// precedenza e il fallback non viene mai usato.
 const corsOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
-app.use(cors({ origin: corsOrigins.length ? corsOrigins : true, credentials: true }));
+if (!corsOrigins.length && process.env.NODE_ENV === 'production') {
+  console.warn('[CORS] CORS_ORIGINS non impostata in produzione: qualunque origin può chiamare questa API dal browser. Impostarla con la lista degli origin ammessi.');
+}
+app.use(cors({ origin: corsOrigins.length ? corsOrigins : true }));
 const rawBodySaver = (req, _res, buf) => { req.rawBody = buf; };
 // 15mb: il Check AI in creazione invia fino a 3 foto in base64 (~1-3MB
 // l'una) per moderazione e verifica di coerenza — 2mb le troncava.

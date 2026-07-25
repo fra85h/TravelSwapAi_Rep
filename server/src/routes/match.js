@@ -34,7 +34,7 @@ matchesRouter.get("/snapshot", requireAuth, async (req, res) => {
     return res.json(out);
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 });
 
@@ -57,7 +57,7 @@ matchesRouter.post("/snapshot/recompute", requireAuth, rateLimitMatchRecompute, 
     return res.status(201).json(out);
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 });
 /**
@@ -75,7 +75,7 @@ matchesRouter.post("/propagate", requireAuth, rateLimitMatchRecompute, async (re
     return res.json({ ok: true, ...out });
   } catch (e) {
     console.error('[matches/propagate] error:', e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 });
 
@@ -94,7 +94,7 @@ matchesRouter.post("/retract", requireAuth, rateLimitMatchRecompute, async (req,
     return res.json({ ok: true, ...out });
   } catch (e) {
     console.error('[matches/retract] error:', e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 });
 
@@ -120,6 +120,6 @@ matchesRouter.post("/ai/recompute", requireAuth, rateLimitMatchAI, async (req, r
     });
   } catch (e) {
     console.error('[matches/ai/recompute] error:', e);
-    return res.status(500).json({ error: String(e?.message || e) });
+    return res.status(500).json({ error: 'Errore interno' });
   }
 });

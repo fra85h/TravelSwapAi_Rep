@@ -18,11 +18,20 @@ translateListingsRouter.get("/api/listings/:id/translate", requireAuth, rateLimi
     // 🔧 RIMOSSO "lang" dal SELECT perché la colonna non esiste nella tua tabella
     const { data: listing, error: e1 } = await supabase
       .from("listings")
-      .select("id, title, description") // ← solo campi esistenti
+      .select("id, user_id, status, title, description") // ← solo campi esistenti
       .eq("id", id)
       .maybeSingle();
     if (e1) throw e1;
     if (!listing) return res.status(404).json({ error: "not_found" });
+
+    // Il server usa la SERVICE_ROLE, che scavalca le RLS: senza questo
+    // controllo qualunque utente autenticato poteva leggere titolo e
+    // descrizione (tradotti) di un annuncio ALTRUI non pubblico, in pausa o
+    // eliminato. Visibile solo ciò che è pubblico o proprio.
+    const isOwner = String(listing.user_id) === String(req.user?.id);
+    if (listing.status !== "active" && !isOwner) {
+      return res.status(404).json({ error: "not_found" });
+    }
 
     const title = listing.title || "";
     const description = listing.description || "";
