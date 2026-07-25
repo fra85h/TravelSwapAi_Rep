@@ -50,6 +50,64 @@ export function fuseTrustScore({ heuristics, aiText, aiImages, hasImages }) {
   return Math.round((h * w.heuristics) + (t * w.aiText) + (i * w.aiImages));
 }
 
+// Tetti al punteggio. La media pesata 45/45/10 DILUISCE i problemi oggettivi:
+// una tratta impossibile finirebbe all'83%, un annuncio mai verificato al
+// 100%. Ogni tetto qui dice "qualunque cosa dicano le medie, oltre questa
+// soglia non si va".
+//
+// I valori sono tarati sulle soglie di colore di TrustScoreBadge (verde ≥85,
+// giallo ≥70, rosso sotto): tutti stanno sotto 70, perché un annuncio con un
+// problema noto non deve mai apparire rassicurante.
+export const TRUST_CAPS = {
+  IMPLAUSIBLE_ROUTE: 35,
+  IMPLAUSIBLE_DURATION: 45,
+  SUSPICIOUS_TERMS: 45,
+  INCOHERENT_TYPE: 50,
+  INCOHERENT_LISTING: 50,
+  IRRELEVANT_IMAGES: 55,
+  PRICE_OUTLIER: 55,
+  NON_POSITIVE_PRICE: 55,
+};
+
+// Moderazione: contenuto segnalato è il problema più grave che ci sia.
+export const MODERATION_CAP = 15;
+
+// Verifica AI non riuscita (chiave mancante, quota esaurita, 429...). Quando
+// succede, aiTrust.js fa ripiegare textScore sul punteggio euristico, quindi
+// la media pesata restituisce le euristiche e basta: un annuncio formalmente a
+// posto arrivava al 100%, mostrato in VERDE proprio sopra il riquadro rosso
+// "Verifica AI non disponibile" — il massimo dell'affidabilità nel momento in
+// cui i controlli più profondi NON sono stati eseguiti.
+//
+// Le euristiche pesano il 45%: da sole non possono giustificare un punteggio
+// pieno. Non è un giudizio definitivo sull'annuncio — basta rilanciare il
+// Check AI quando il servizio torna disponibile per avere il punteggio vero.
+export const AI_UNAVAILABLE_CAP = 55;
+
+/**
+ * Applica tutti i tetti a un punteggio già fuso. Funzione pura: è la politica
+ * di sicurezza del TrustScore, e va verificabile da sola (vedi
+ * test/trustCaps.test.js) senza dover simulare rete, AI e database.
+ *
+ * @param {number} score - punteggio dalla media pesata
+ * @param {{flagCodes?: string[], moderationFlagged?: boolean, aiAvailable?: boolean}} ctx
+ * @returns {number} punteggio dopo i tetti
+ */
+export function applyTrustCaps(score, { flagCodes = [], moderationFlagged = false, aiAvailable = true } = {}) {
+  let s = Number(score);
+  if (!Number.isFinite(s)) return 0;
+
+  const codes = new Set(flagCodes.map((c) => String(c || '').toUpperCase()));
+  for (const [code, cap] of Object.entries(TRUST_CAPS)) {
+    if (codes.has(code)) s = Math.min(s, cap);
+  }
+
+  if (moderationFlagged) s = Math.min(s, MODERATION_CAP);
+  if (!aiAvailable) s = Math.min(s, AI_UNAVAILABLE_CAP);
+
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+
 /**
  * @param {object} inListing - { title, type, origin, destination, location, startDate, endDate, price, currency, images }
  * @param {string} locale - 'it' | 'en' | 'es'
@@ -138,26 +196,19 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
     }
   }
 
-  // Tetti per flag gravi: la media pesata 45/45/10 diluisce i problemi
-  // oggettivi (una tratta impossibile con punteggio 83% è fuorviante).
   const allFlagCodes = [
     ...(heur?.flags ?? []),
     ...(ai?.flags ?? []),
   ].map((f) => String(f?.code || '').toUpperCase());
 
-  if (allFlagCodes.includes('IMPLAUSIBLE_ROUTE')) trustScore = Math.min(trustScore, 35);
-  if (allFlagCodes.includes('IMPLAUSIBLE_DURATION')) trustScore = Math.min(trustScore, 45);
-  if (allFlagCodes.includes('IRRELEVANT_IMAGES')) trustScore = Math.min(trustScore, 55);
-  if (allFlagCodes.includes('PRICE_OUTLIER') || allFlagCodes.includes('NON_POSITIVE_PRICE')) trustScore = Math.min(trustScore, 55);
-  if (allFlagCodes.includes('SUSPICIOUS_TERMS')) trustScore = Math.min(trustScore, 45);
-  if (allFlagCodes.includes('INCOHERENT_TYPE') || allFlagCodes.includes('INCOHERENT_LISTING')) trustScore = Math.min(trustScore, 50);
-
-  // Contenuto segnalato dalla moderazione: è un problema grave e oggettivo,
-  // il punteggio non può restare alto.
-  if (moderation.flagged) trustScore = Math.min(trustScore, 15);
-
   const aiFlagCodes = (ai?.flags ?? []).map((f) => f?.code);
   const aiAvailable = !aiFlagCodes.includes('AI_DISABLED') && !aiFlagCodes.includes('AI_ERROR');
+
+  trustScore = applyTrustCaps(trustScore, {
+    flagCodes: allFlagCodes,
+    moderationFlagged: !!moderation.flagged,
+    aiAvailable,
+  });
 
   let aiUnavailableReason = null;
   if (!aiAvailable) {
