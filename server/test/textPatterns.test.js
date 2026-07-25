@@ -27,6 +27,7 @@ import {
   extractRoute,
   findKnownRoutes,
 } from '../../travelswap_ai/travelswapai/lib/textPatterns.mjs';
+import { STATIONS, cityOf } from '../../travelswap_ai/travelswapai/lib/trainStations.mjs';
 
 /* ============ Prezzo ============ */
 
@@ -100,6 +101,50 @@ test('tratte note: più tratte in sequenza vengono riconosciute tutte', () => {
 test('tratte note: testo senza località note non produce tratte', () => {
   assert.deepEqual(findKnownRoutes('vendo prenotazione ottima occasione'), []);
   assert.deepEqual(findKnownRoutes(''), []);
+});
+
+test('nessuna voce dell\'elenco collide con parole italiane comuni', () => {
+  // L'elenco è cresciuto fino a coprire tutti i capoluoghi: più voci
+  // significa più rischio che il nome di una stazione sia anche una parola
+  // di uso corrente. "Ora" (Alto Adige), "Fermo", "Massa", "Chiusi", "Bra"
+  // esistono davvero come stazioni, ma da sole trasformerebbero una frase
+  // normale in una tratta. Devono comparire solo nella forma estesa.
+  const PAROLE_COMUNI = [
+    'ora', 'fermo', 'massa', 'chiusi', 'bra', 'solo', 'andata', 'ritorno',
+    'posto', 'posti', 'classe', 'treno', 'biglietto', 'prezzo', 'euro',
+    'alle', 'del', 'della', 'sono', 'anche', 'come', 'dove', 'quando',
+  ];
+  const nudi = new Set(STATIONS.filter((s) => !s.includes(' — ')).map((s) => s.toLowerCase()));
+  const collisioni = PAROLE_COMUNI.filter((p) => nudi.has(p));
+  assert.deepEqual(collisioni, [], `voci ambigue nell'elenco: ${collisioni.join(', ')}`);
+});
+
+test('i nomi ambigui non generano tratte in frasi normali', () => {
+  for (const frase of [
+    'biglietto Milano ora 10:30',
+    'treno fermo a Bologna',
+    'Roma massa di posti liberi',
+  ]) {
+    const r = findKnownRoutes(frase);
+    // l'unica città vera della frase non deve accoppiarsi con la parola comune
+    assert.equal(r.length, 0, `${frase} -> ${JSON.stringify(r)}`);
+  }
+});
+
+test('elenco stazioni: nessun duplicato e formato coerente', () => {
+  assert.equal(new Set(STATIONS).size, STATIONS.length, 'ci sono voci duplicate');
+  for (const s of STATIONS) {
+    assert.equal(s, s.trim(), `spazi ai bordi: "${s}"`);
+    assert.ok(s.length >= 3, `voce troppo corta: "${s}"`);
+    // il separatore è l'em-dash con spazi, su cui si basa cityOf()
+    assert.ok(!/\s-\s/.test(s), `separatore sbagliato (usa " — "): "${s}"`);
+  }
+});
+
+test('le tratte fra capoluoghi aggiunti ora sono riconosciute', () => {
+  assert.deepEqual(extractRoute('biglietto Lecce - Bari'), { from: 'Lecce', to: 'Bari' });
+  assert.deepEqual(extractRoute('da Trento a Verona'), { from: 'Trento', to: 'Verona' });
+  assert.deepEqual(extractRoute('Perugia → Ancona'), { from: 'Perugia', to: 'Ancona' });
 });
 
 /* ============ CERCO / VENDO: la direzione del denaro ============ */
