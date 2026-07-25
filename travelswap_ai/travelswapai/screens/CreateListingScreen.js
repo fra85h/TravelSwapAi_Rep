@@ -1398,7 +1398,11 @@ const initialJsonRef = useRef(null);
       if (coNorm && !parseISODate(coNorm)) e.checkOut = t("createListing.errors.checkOutInvalid", "Check-out non valido (YYYY-MM-DD).");
       if (ciNorm && coNorm) {
         const a = parseISODate(ciNorm), b = parseISODate(coNorm);
-        if (a && b && b < a) e.checkOut = t("createListing.errors.checkoutBeforeCheckin", "Il check-out non può precedere il check-in.");
+        // Confronto STRETTO: check-out uguale al check-in vuol dire zero
+        // notti, che non è una prenotazione. Prima passava di qui e veniva
+        // respinto più avanti dal vincolo chk_listings_hotel_dates_order con
+        // un errore di database grezzo invece che da questo messaggio.
+        if (a && b && b <= a) e.checkOut = t("createListing.errors.checkoutBeforeCheckin", "Il check-out deve essere successivo al check-in.");
       }
       // Data nel passato: bloccante SOLO in creazione. Un annuncio NUOVO con
       // check-in già nel passato non ha senso; un annuncio ESISTENTE la cui
@@ -1426,7 +1430,11 @@ const initialJsonRef = useRef(null);
       if (form.arriveAt && !parseISODateTime(form.arriveAt)) e.arriveAt = t("createListing.errors.arriveInvalid", "Arrivo non valido (YYYY-MM-DD HH:mm).");
       if (form.departAt && form.arriveAt) {
         const a = parseISODateTime(form.departAt), b = parseISODateTime(form.arriveAt);
-        if (a && b && b < a) e.arriveAt = t("createListing.errors.arriveBeforeDepart", "L’arrivo non può precedere la partenza.");
+        // Stesso confronto stretto del check-out: arrivo e partenza coincidenti
+        // sono il caso che passava con l'86% di affidabilità e nessuna
+        // segnalazione (vedi useTrustScore.js). Ora lo blocca anche il vincolo
+        // chk_listings_train_dates_order, e il messaggio deve arrivare da qui.
+        if (a && b && b <= a) e.arriveAt = t("createListing.errors.arriveBeforeDepart", "L’arrivo deve essere successivo alla partenza.");
       }
       if (mode !== "edit") {
         const now = new Date();

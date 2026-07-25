@@ -153,7 +153,11 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
   // Controlli minimi (dovrebbero essere già garantiti dal flow)
   if (!pres.type) throw new Error('Missing type');
   if (!pres.location || pres.location === '—') throw new Error('Missing location');
-  if (pres.price == null) throw new Error('Missing price');
+  // Prezzo assente O non positivo: un annuncio a zero euro non è un prezzo,
+  // è un dato che il parser non ha saputo leggere. Fermarsi qui con un
+  // messaggio chiaro è meglio che farlo respingere più avanti dal CHECK
+  // chk_listings_price_positive con un errore di vincolo grezzo.
+  if (pres.price == null || !(Number(pres.price) > 0)) throw new Error('Missing price');
   // CERCO/VENDO ambiguo: prima si assumeva silenziosamente VENDO ("cerco_vendo:
   // pres.az || 'VENDO'"), cioè si dichiarava di avere un biglietto REALE da
   // vendere anche quando l'AI non aveva capito l'intento del testo (es. un
@@ -219,30 +223,92 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
     contact_url: contactUrl ?? null,
   };
 
-  // upsert su (source, external_id) se hai l'indice univoco
+  // Pubblicare un annuncio significa scrivere fino a tre tabelle (listings,
+  // trust_audit, listing_secrets) e PostgREST non offre transazioni: ogni
+  // chiamata fa storia a sé. Prima l'annuncio nasceva già 'active' e gli
+  // errori delle due scritture successive venivano solo loggati, quindi un
+  // fallimento lasciava online un annuncio incompleto:
+  //
+  //   - senza trust_audit -> listings.trust_score resta NULL, e
+  //     listActiveListings esclude i NULL da qualunque filtro di affidabilità:
+  //     annuncio attivo ma invisibile nel feed;
+  //   - senza listing_secrets -> nessun PNR, quindi nessun pnr_fingerprint, e
+  //     l'annuncio SFUGGE all'indice ux_listings_live_pnr che impedisce a due
+  //     persone di rivendere lo stesso biglietto.
+  //
+  // Ora l'annuncio nasce 'paused' (non pubblico), si completano le scritture
+  // collegate e solo alla fine diventa 'active'. Un'interruzione a metà
+  // lascia una bozza in pausa, mai un annuncio live a metà.
+  //
+  // La distinzione fra riga NUOVA e riga GIÀ ESISTENTE serve al redelivery
+  // del webhook: se l'annuncio c'è già (stesso source+external_id) è già
+  // completo e coerente, e va aggiornato com'era prima — metterlo in pausa
+  // per poi riattivarlo lo farebbe sparire e riapparire senza motivo.
+  // Senza source+external_id non c'è nessuna riga da ritrovare: in un indice
+  // unico i NULL sono distinti fra loro, quindi l'upsert inserisce comunque
+  // una riga nuova e la ricerca sarebbe solo una chiamata sprecata.
+  let isNew = true;
+  if (baseRow.source != null && baseRow.external_id != null) {
+    const { data: existing, error: errLookup } = await supabase
+      .from('listings')
+      .select('id')
+      .eq('source', baseRow.source)
+      .eq('external_id', baseRow.external_id)
+      .maybeSingle();
+    if (errLookup) throw errLookup;
+    isNew = !existing?.id;
+  }
+
   const { data, error } = await supabase
     .from('listings')
-    .upsert(baseRow, { onConflict: 'source,external_id' })
+    .upsert(isNew ? { ...baseRow, status: 'paused' } : baseRow, { onConflict: 'source,external_id' })
     .select('id')
     .single();
 
   if (error) throw error;
 
+  // Da qui in poi, su un annuncio appena creato, ogni errore va ripulito:
+  // la bozza in pausa non deve restare come residuo di un tentativo fallito.
+  const rollbackIfNew = async () => {
+    if (!isNew) return;
+    const { error: errDel } = await supabase.from('listings').delete().eq('id', data.id);
+    if (errDel) console.error('[fbIngest] rollback della bozza fallito:', errDel.message);
+  };
+
   if (trustAuditPayload) {
     try {
       await saveTrustAudit({ userId: resolvedOwnerId, listingId: data.id, payload: trustAuditPayload });
     } catch (e) {
-      console.error('[fbIngest] saveTrustAudit failed:', e?.message || e);
+      await rollbackIfNew();
+      throw new Error(`saveTrustAudit failed: ${e?.message || e}`);
     }
   }
 
-  // Il PNR è un dato riservato: va nella tabella segregata, mai in `listings`
+  // Il PNR è un dato riservato: va nella tabella segregata, mai in `listings`.
+  // Un errore qui è quasi sempre il rifiuto dell'indice ux_listings_live_pnr,
+  // cioè "questo biglietto è già in vendita da qualcun altro": pubblicare
+  // comunque significherebbe far convivere due annunci sullo stesso biglietto.
   if (parsed?.pnr) {
     const { error: errSecret } = await supabase
       .from('listing_secrets')
       .upsert({ listing_id: data.id, pnr: parsed.pnr });
     if (errSecret) {
-      console.error('[fbIngest] listing_secrets upsert failed:', errSecret.message);
+      await rollbackIfNew();
+      throw new Error(`listing_secrets upsert failed: ${errSecret.message}`);
+    }
+  }
+
+  // Tutto scritto: l'annuncio può diventare pubblico. È qui che scattano il
+  // tetto agli annunci attivi e il controllo anti-duplicato (entrambi
+  // coprono la transizione paused -> active, vedi 20260726120000).
+  if (isNew) {
+    const { error: errPublish } = await supabase
+      .from('listings')
+      .update({ status: 'active' })
+      .eq('id', data.id);
+    if (errPublish) {
+      await rollbackIfNew();
+      throw errPublish;
     }
   }
 

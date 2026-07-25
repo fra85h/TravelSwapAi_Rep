@@ -180,49 +180,38 @@ const tasks = fromListings.map((f) => async () => {
 const CONCURRENCY = Number(process.env.MATCH_AI_CONCURRENCY || 4);
 const rows = await runPool(tasks, CONCURRENCY);
 if (rows.length) {
-  // Ricalcolo riuscito: ORA è sicuro rimuovere i match precedenti delle
-  // sorgenti (pulizia dei candidati non più attivi) prima di inserire.
-  if (fromIds.length) {
-    const { error: delErr } = await supabase
-      .from('matches')
-      .delete()
-      .in('from_listing_id', fromIds);
-    if (delErr) throw delErr; // richiede SERVICE_ROLE_KEY lato server se RLS attiva
-  }
-
-  const CHUNK = Number(process.env.MATCH_INSERT_CHUNK || 100);
-
-  // mappa rapida per sicurezza (se vuoi recuperare l'owner dalla listing)
+  // Ricalcolo riuscito: ORA è sicuro sostituire i match precedenti delle
+  // sorgenti (pulizia dei candidati non più attivi).
+  //
+  // DELETE e INSERT vanno in UNA sola transazione, dentro la RPC
+  // replace_matches_for_sources. Prima erano una DELETE più una UPSERT per
+  // blocco da 100, ognuna una chiamata PostgREST a sé, quindi una
+  // transazione a sé: un errore a metà del ciclo (rete, timeout, riavvio del
+  // processo) lasciava l'utente con i match in parte cancellati e in parte
+  // ricostruiti, senza che nulla lo segnalasse. Ora o passa tutto, o restano
+  // intatti quelli di prima.
   const ownerByFromId = new Map(fromListings.map(l => [l.id, l.user_id || userId]));
 
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    // normalizza: aggiungi user_id e usa created_at al posto di generated_at
-    const slice = rows.slice(i, i + CHUNK).map(({ generated_at, bidirectional, model, explanation,...r }) => ({
-      user_id: ownerByFromId.get(r.from_listing_id) ?? user.id, // ⬅️ OBBLIGATORIO
-      from_listing_id: r.from_listing_id,
-      to_listing_id: r.to_listing_id,
-      score: r.score,
-      bidirectional,
-      model,
-      explanation,
-      created_at: generated_at ?? new Date().toISOString(),    // se vuoi forzare il timestamp
-    }));
+  const payload = rows.map(({ generated_at, bidirectional, model, explanation, ...r }) => ({
+    user_id: ownerByFromId.get(r.from_listing_id) ?? user.id, // ⬅️ OBBLIGATORIO
+    from_listing_id: r.from_listing_id,
+    to_listing_id: r.to_listing_id,
+    score: r.score,
+    bidirectional,
+    model,
+    explanation,
+    created_at: generated_at ?? new Date().toISOString(),
+  }));
 
-    // Se hai un vincolo unico, usa onConflict adeguato:
-    const { error, status } = await supabase
-      .from('matches')
-      .upsert(slice, {
-        onConflict: 'from_listing_id,to_listing_id', // oppure 'user_id,from_listing_id,to_listing_id' se il tuo UNIQUE è così
-        returning: 'minimal',
-      });
-      // In alternativa, se NON hai alcun UNIQUE: .insert(slice, { returning: 'minimal' })
+  const { error, status } = await supabase.rpc('replace_matches_for_sources', {
+    p_from_ids: fromIds,
+    p_rows: payload,
+  });
 
-    if (error) {
-      console.error('[matches insert] failed', { status, error });
-      throw new Error(`Supabase insert failed [${status}]: ${error.message}`);
-    }
+  if (error) {
+    console.error('[matches replace] failed', { status, error });
+    throw new Error(`Supabase replace failed [${status}]: ${error.message}`);
   }
-  
 }
 
   return { user, generatedAt: now, items: rows };
