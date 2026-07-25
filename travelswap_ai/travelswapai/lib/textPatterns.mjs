@@ -16,7 +16,7 @@
 // Qui dentro NON vanno import di React, di componenti o di i18n: deve
 // restare importabile da Node. L'unica dipendenza ammessa è l'elenco delle
 // stazioni, anch'esso .mjs e senza dipendenze proprie.
-import { STATIONS, cityOf, AMBIGUOUS_BARE_NAMES } from './trainStations.mjs';
+import { STATIONS, cityOf, AMBIGUOUS_BARE_NAMES, STATION_ALIASES } from './trainStations.mjs';
 
 /* ---------------------------------------------------------------
  * CERCO / VENDO
@@ -118,13 +118,21 @@ function normText(s) {
 // una frase normale diventa una tratta. Restano riconoscibili per nome
 // completo ("Ora — Termeno").
 const KNOWN_PLACES = [
-  ...new Set([
-    ...STATIONS,
-    ...STATIONS.map(cityOf).filter((c) => !AMBIGUOUS_BARE_NAMES.has(normText(c))),
-  ]),
+  ...[
+    ...new Set([
+      ...STATIONS,
+      ...STATIONS.map(cityOf).filter((c) => !AMBIGUOUS_BARE_NAMES.has(normText(c))),
+    ]),
+  ].map((name) => ({ name, norm: normText(name) })),
+  // Le forme brevi ("Mazara" per Mazara del Vallo) si cercano con la loro
+  // grafia ma restituiscono il nome canonico, così il campo compilato è
+  // identico a quello che produce l'autocompletamento.
+  ...Object.entries(STATION_ALIASES).map(([alias, name]) => ({ name, norm: normText(alias) })),
 ]
-  .map((name) => ({ name, norm: normText(name) }))
   .filter((p) => p.norm)
+  // Dal più lungo al più corto: l'alias breve non deve mai vincere sul nome
+  // completo quando nel testo c'è quest'ultimo ("Mazara del Vallo" prima di
+  // "Mazara"), altrimenti resterebbe fuori la coda "del Vallo".
   .sort((a, b) => b.norm.length - a.norm.length);
 
 // Insieme normalizzato, per riconoscere quando due "località" trovate dalle

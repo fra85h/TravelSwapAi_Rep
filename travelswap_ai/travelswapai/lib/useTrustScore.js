@@ -213,5 +213,13 @@ export function useTrustScore() {
     }
   }, []);
 
-  return { loading, data, error, evaluate };
+  // Azzera l'esito dell'ultima verifica. Serve a chi svuota la form
+  // ("Pulisci" in creazione): senza questo il badge continuava a mostrare il
+  // punteggio calcolato sui dati vecchi, ormai cancellati.
+  const reset = useCallback(() => {
+    setData(null);
+    setError(null);
+  }, []);
+
+  return { loading, data, error, evaluate, reset };
 }

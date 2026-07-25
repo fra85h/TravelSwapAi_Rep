@@ -106,10 +106,33 @@ const RAIL_CITIES = [
   'belluno', 'trieste', 'udine', 'pordenone', 'gorizia',
   'trento', 'bolzano', 'rovereto', 'bressanone', 'aosta',
 ];
+// Forme brevi con cui le città multi-parola qui sopra vengono normalmente
+// scritte da chi compila l'annuncio. Senza queste, l'allow-list riconosce
+// "Mazara del Vallo" ma NON "Mazara": la tratta Palermo→Mazara restava fuori
+// dalla soppressione e si beccava il falso positivo IMPLAUSIBLE_ROUTE dell'AI,
+// con il tetto a 35% su un annuncio corretto (caso reale segnalato).
+//
+// Criterio di inclusione: la forma breve deve essere servita da treno in OGNI
+// lettura plausibile, perché questa lista SOPPRIME una segnalazione — un
+// alias sbagliato nasconderebbe un problema vero. Per questo restano fuori le
+// forme troppo generiche ("Villa" per Villa San Giovanni, "Porto" per Porto
+// Torres): un campo con quel solo testo non identifica una città.
+const RAIL_CITY_ALIASES = [
+  'mazara',     // Mazara del Vallo
+  'lamezia',    // Lamezia Terme
+  'ascoli',     // Ascoli Piceno
+  'giardini',   // Giardini Naxos
+  'termini',    // Termini Imerese (e "Roma Termini", già coperta da 'roma')
+  'barcellona', // Barcellona Pozzo di Gotto (anche la Barcellona spagnola è su rotaia)
+  'reggio',     // Reggio Calabria e Reggio Emilia: entrambe su rete FS
+  'spezia',     // La Spezia
+  'aquila',     // L'Aquila (normPlace trasforma l'apostrofo in spazio)
+];
 export function isKnownRailCity(loc) {
   const n = normPlace(loc);
   if (!n) return false;
-  return RAIL_CITIES.some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
+  return [...RAIL_CITIES, ...RAIL_CITY_ALIASES]
+    .some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
 }
 
 // Notti tra check-in e check-out, o null se le date mancano/non sono valide
