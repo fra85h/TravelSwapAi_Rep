@@ -1,6 +1,7 @@
 // server/src/ai/score.js
 import OpenAI from "openai";
 import { mapWithConcurrency } from "../lib/concurrency.js";
+import { envInt } from "../lib/envNumber.js";
 
 // -----------------------------------------------------------------------------
 // Config
@@ -14,10 +15,20 @@ const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0); // default: deterministico
 const TOP_P = Number(process.env.MATCH_AI_TOP_P ?? 1);
 const MAX_LISTINGS_PER_CALL = Number(process.env.MATCH_AI_BATCH ?? 40);
-// Batch AI in volo contemporaneamente: basso di proposito, alzarlo troppo
-// espone ai rate limit di OpenAI (429) che costerebbero più della latenza
-// risparmiata.
-const AI_BATCH_CONCURRENCY = Number(process.env.MATCH_AI_CONCURRENCY ?? 3);
+// Batch AI in volo contemporaneamente DENTRO una singola chiamata a
+// scoreWithAI. È il livello INTERNO: chi chiama (models/matches.js) lancia a
+// sua volta più sorgenti in parallelo, quindi le due concorrenze si
+// MOLTIPLICANO.
+//
+// Prima questa costante leggeva MATCH_AI_CONCURRENCY, la stessa variabile del
+// livello esterno: con i default di allora (esterno 4, interno 3) il picco
+// reale era di 12 richieste OpenAI contemporanee, non 4 — ed è quello che ha
+// fatto sbattere l'account contro il limite di token al minuto (429). Peggio,
+// abbassare la variabile per rimediare abbassava ENTRAMBI i livelli
+// insieme, quindi l'effetto era quadratico e imprevedibile.
+//
+// Ora ha una variabile propria: i due livelli si regolano separatamente.
+const AI_BATCH_CONCURRENCY = envInt('MATCH_AI_BATCH_CONCURRENCY', 2);
 const MATCH_AI_TIMEOUT_MS = Number(process.env.MATCH_AI_TIMEOUT_MS ?? 45000); // default 45s
 
 

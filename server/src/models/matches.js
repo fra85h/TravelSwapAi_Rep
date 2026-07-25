@@ -12,6 +12,7 @@ import { listActiveListingsOfUser, listMatchesForFromMany, getLatestUserSnapshot
 import { listActiveListings } from './listings.js';
 import { sendExpoPush } from '../lib/push.js';
 import { mapWithConcurrency } from '../lib/concurrency.js';
+import { envInt } from '../lib/envNumber.js';
 
 // Snapshot rinfrescati in parallelo dopo propagate/retract. Tetto basso: ogni
 // snapshot fa comunque scritture su match_snapshots, e questo gira dentro una
@@ -177,7 +178,12 @@ const tasks = fromListings.map((f) => async () => {
 });
 
 // esegui con concorrenza limitata (configurabile via env)
-const CONCURRENCY = Number(process.env.MATCH_AI_CONCURRENCY || 4);
+// Sorgenti elaborate in parallelo. È il livello ESTERNO: ogni task qui dentro
+// chiama scoreWithAI, che a sua volta apre fino a MATCH_AI_BATCH_CONCURRENCY
+// richieste OpenAI. Il picco di chiamate contemporanee è il PRODOTTO dei due
+// (prima 4 x 3 = 12, ora 2 x 2 = 4): è la moltiplicazione che ha portato
+// l'account a superare il limite di token al minuto.
+const CONCURRENCY = envInt('MATCH_AI_CONCURRENCY', 2);
 const rows = await runPool(tasks, CONCURRENCY);
 if (rows.length) {
   // Ricalcolo riuscito: ORA è sicuro sostituire i match precedenti delle
