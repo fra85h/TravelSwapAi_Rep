@@ -410,12 +410,10 @@ export const translations = {
         // Box di dettaglio
         problemsTitle: "Possibili problemi",
         suggestionsTitle: "Suggerimenti AI",
-        splitTitle: "Rilevati 2 annunci distinti",
+        splitTitle: "Sembrano due biglietti diversi",
         splitBasis: "In base alla descrizione: {reason}",
         splitFallbackReason: "sono stati rilevati due elementi distinti (tratte/orari/hotel).",
-        splitNote1: "Al momento della pubblicazione verranno creati ",
-        splitNoteBold: "due annunci separati",
-        splitNote2: " con la stessa tratta/data e lo stesso prezzo del primo. Dopo la pubblicazione, apri il secondo annuncio e correggi tratta, data e prezzo con i dati reali del secondo biglietto.",
+        splitAdvice: "Verrà pubblicato un solo annuncio, con i dati che vedi qui. Se hai davvero due biglietti, pubblica questo e poi creane un altro con i dati del secondo.",
         // Motivi rilevamento "2 annunci"
         reasonRoutes: "Rilevate {n} tratte nel testo.",
         reasonTimes: "Rilevati più orari ({n}).",
@@ -614,8 +612,6 @@ export const translations = {
 
       checkAiAutoFailedTitle: "Verifica non riuscita",
       checkAiAutoFailedMsg: "Non sono riuscito a completare automaticamente la verifica AI. Riprova tra qualche secondo.",
-      splitPublishedTitle: "Pubblicati 2 annunci",
-      splitPublishedMsg: "Sono stati pubblicati due annunci con la stessa tratta/data e lo stesso prezzo. Apri il secondo in \"I miei annunci\" e correggi tratta, data e prezzo con i dati reali del secondo biglietto.",
       draftUnavailableTitle: "Bozza non disponibile",
       draftUnavailableMsg: "Salva direttamente le modifiche.",
 
@@ -1486,12 +1482,10 @@ export const translations = {
         seeDetails: "See details ›",
         problemsTitle: "Possible problems",
         suggestionsTitle: "AI suggestions",
-        splitTitle: "2 separate listings detected",
+        splitTitle: "This looks like two different tickets",
         splitBasis: "Based on the description: {reason}",
         splitFallbackReason: "two distinct items were detected (routes/times/hotels).",
-        splitNote1: "On publishing, ",
-        splitNoteBold: "two separate listings",
-        splitNote2: " will be created with the same route/date and price as the first. After publishing, open the second listing and correct the route, date and price with the real details of the second ticket.",
+        splitAdvice: "Only one listing will be published, with the details you see here. If you really have two tickets, publish this one and then create another with the second ticket's details.",
         reasonRoutes: "{n} routes detected in the text.",
         reasonTimes: "Multiple times detected ({n}).",
         reasonDates: "Multiple dates detected ({n}).",
@@ -1685,8 +1679,6 @@ export const translations = {
 
       checkAiAutoFailedTitle: "Verification failed",
       checkAiAutoFailedMsg: "I couldn't automatically complete the AI check. Please try again in a few seconds.",
-      splitPublishedTitle: "2 listings published",
-      splitPublishedMsg: "Two listings were published with the same route/date and price. Open the second one in \"My listings\" and correct the route, date and price with the real details of the second ticket.",
       draftUnavailableTitle: "Draft unavailable",
       draftUnavailableMsg: "Save the changes directly instead.",
 
@@ -2545,12 +2537,10 @@ export const translations = {
         seeDetails: "Ver detalles ›",
         problemsTitle: "Posibles problemas",
         suggestionsTitle: "Sugerencias IA",
-        splitTitle: "2 anuncios distintos detectados",
+        splitTitle: "Parecen dos billetes distintos",
         splitBasis: "Según la descripción: {reason}",
         splitFallbackReason: "se detectaron dos elementos distintos (trayectos/horarios/hoteles).",
-        splitNote1: "Al publicar se crearán ",
-        splitNoteBold: "dos anuncios separados",
-        splitNote2: " con la misma ruta/fecha y el mismo precio que el primero. Después de publicar, abre el segundo anuncio y corrige ruta, fecha y precio con los datos reales del segundo billete.",
+        splitAdvice: "Se publicará un solo anuncio, con los datos que ves aquí. Si de verdad tienes dos billetes, publica este y luego crea otro con los datos del segundo.",
         reasonRoutes: "{n} trayectos detectados en el texto.",
         reasonTimes: "Varios horarios detectados ({n}).",
         reasonDates: "Varias fechas detectadas ({n}).",
@@ -2747,8 +2737,6 @@ export const translations = {
 
       checkAiAutoFailedTitle: "Verificación fallida",
       checkAiAutoFailedMsg: "No he podido completar automáticamente la verificación AI. Vuelve a intentarlo en unos segundos.",
-      splitPublishedTitle: "2 anuncios publicados",
-      splitPublishedMsg: "Se publicaron dos anuncios con la misma ruta/fecha y el mismo precio. Abre el segundo en \"Mis anuncios\" y corrige ruta, fecha y precio con los datos reales del segundo billete.",
       draftUnavailableTitle: "Borrador no disponible",
       draftUnavailableMsg: "Guarda los cambios directamente.",
 

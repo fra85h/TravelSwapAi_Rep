@@ -426,7 +426,19 @@ export default function CreateListingScreen({
       const text = String(desc || "").toLowerCase();
       if (!text || text.length < 10) return { two: false, reason: "" };
 
-      const routeArrowRx = /([A-Za-zÀ-ÿ .'\-]{3,})\s*(?:\-+|—+|–+|>|→|a|to|verso)\s*([A-Za-zÀ-ÿ .'\-]{3,})/gi;
+      // Una "tratta" è due nomi di luogo separati da una freccia/trattino o
+      // dalle preposizioni a/to/verso. I separatori-parola richiedono spazi
+      // attorno: senza, la `a` veniva catturata DENTRO le parole comuni e
+      // qualunque descrizione italiana risultava piena di tratte inesistenti
+      // (su "vendo un biglietto per treno 8164 Milano Piacenza prima classe"
+      // ne trovava due: "vendo un bigliet|a|per treno" e "prima cl|a|sse").
+      // Anche i luoghi sono delimitati (1-3 parole, niente cifre): prima il
+      // gruppo inghiottiva spazi a piacere e due tratte REALI separate da "e"
+      // venivano contate come una sola — il conteggio sbagliava in entrambe
+      // le direzioni.
+      const PLACE = "[A-Za-zÀ-ÿ'’.-]{2,}(?:\\s+[A-Za-zÀ-ÿ'’.-]{2,}){0,2}";
+      const SEP = "(?:\\s*(?:-{1,2}|—|–|>|→)\\s*|\\s+(?:a|to|verso)\\s+)";
+      const routeArrowRx = new RegExp(`${PLACE}${SEP}${PLACE}`, "gi");
       const timeRx = /\b([01]?\d|2[0-3]):([0-5]\d)\b/g;
       const dateRx = /\b(\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{2,4}|\d{4}[\/\.\-]\d{1,2}[\/\.\-]\d{1,2})\b/g;
       const hotelWordRx = /\b(hotel|albergo|b&b|bb|bnb|ostello|resort|guesthouse)\b/gi;
@@ -1831,26 +1843,24 @@ const initialJsonRef = useRef(null);
         publishedIds = [idForUpdate];
         Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
       } else {
-        if (splitDetected) {
-          const baseTitle = String(payload.title || '').trim();
-          const p1 = { ...payload, title: baseTitle ? `${baseTitle} (1 di 2)` : baseTitle };
-          const p2 = { ...payload, title: baseTitle ? `${baseTitle} (2 di 2)` : baseTitle };
-          const r1 = await insertListing(p1);
-          const r2 = await insertListing(p2);
-          if (r1?.error) throw r1.error;
-          if (r2?.error) throw r2.error;
-          await flushPendingPhotos(r1?.id); // le foto vanno solo sul primo dei due annunci
-          await AsyncStorage.removeItem(DRAFT_KEY);
-          publishedIds = [r1?.id, r2?.id];
-          Alert.alert(t("createListing.splitPublishedTitle", "Pubblicati 2 annunci"), t("createListing.splitPublishedMsg", "Sono stati pubblicati due annunci separati con lo stesso prezzo. Puoi modificare i prezzi in seguito."));
-        } else {
-          const res = await insertListing(payload);
-          if (res?.error) throw res.error;
-          await flushPendingPhotos(res?.id);
-          await AsyncStorage.removeItem(DRAFT_KEY);
-          publishedIds = [res?.id];
-          Alert.alert(t("createListing.publishedTitle", "Pubblicato!"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
-        }
+        // "Sembrano due biglietti" resta un AVVISO, non un'azione: prima qui
+        // venivano creati due annunci in automatico, identici salvo il titolo
+        // ("(1 di 2)" / "(2 di 2)"). Due problemi. Il primo: erano duplicati
+        // esatti per tipo, prezzo, tratta e data, cioè esattamente ciò che il
+        // trigger before_insert_listings_block_duplicate rifiuta (il titolo
+        // non entra nel confronto) — il secondo insert falliva con 23505 dopo
+        // che il primo era già andato a buon fine, lasciando pubblicato un
+        // annuncio "(1 di 2)" e un errore a schermo. Il secondo: la decisione
+        // veniva da un'euristica testuale, e creare un annuncio che l'utente
+        // non ha chiesto (che occupa anche una delle 10 posizioni attive) è
+        // un prezzo troppo alto per un falso positivo. Ora si pubblica sempre
+        // e solo ciò che si vede nel form.
+        const res = await insertListing(payload);
+        if (res?.error) throw res.error;
+        await flushPendingPhotos(res?.id);
+        await AsyncStorage.removeItem(DRAFT_KEY);
+        publishedIds = [res?.id];
+        Alert.alert(t("createListing.publishedTitle", "Pubblicato!"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
       }
 
       // Ricalcolo match fire-and-forget: pubblicare/aggiornare un annuncio
@@ -2875,7 +2885,7 @@ const initialJsonRef = useRef(null);
                     <View style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#DBEAFE', borderWidth: 1, borderColor: '#60A5FA' }}>
                       <Text style={{ fontWeight: '800', marginBottom: 6 }}>{t("createListing.checkAi.splitTitle", "Rilevati 2 annunci distinti")}</Text>
                       <Text>{t("createListing.checkAi.splitBasis", `In base alla descrizione: ${splitReason || 'sono stati rilevati due elementi distinti (tratte/orari/hotel).'}`, { reason: splitReason || t("createListing.checkAi.splitFallbackReason", "sono stati rilevati due elementi distinti (tratte/orari/hotel).") })}</Text>
-                      <Text style={{ marginTop: 6 }}>{t("createListing.checkAi.splitNote1", "Al momento della pubblicazione verranno creati ")}<Text style={{ fontWeight: '700' }}>{t("createListing.checkAi.splitNoteBold", "due annunci separati")}</Text>{t("createListing.checkAi.splitNote2", " con lo stesso prezzo. Potrai modificare i prezzi in seguito.")}</Text>
+                      <Text style={{ marginTop: 6 }}>{t("createListing.checkAi.splitAdvice", "Verrà pubblicato un solo annuncio, con i dati che vedi qui. Se hai davvero due biglietti, pubblica questo e poi creane un altro con i dati del secondo.")}</Text>
                     </View>
                   )}
                   {trustData && trustData.aiAvailable === false && (
