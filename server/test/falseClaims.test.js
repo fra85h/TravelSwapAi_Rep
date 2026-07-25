@@ -119,6 +119,57 @@ test('i suggerimenti si filtrano uno per uno, non in blocco', () => {
   assert.ok(out.every((f) => !/numero del treno/i.test(f.suggestion)));
 });
 
+/* ===== Tratta messa in dubbio quando l'allow-list dice che è percorribile ===== */
+
+test('la tratta valida non può essere messa in dubbio in prosa', () => {
+  // computeTrustScore scartava già il FLAG IMPLAUSIBLE_ROUTE su questa tratta
+  // (punteggio 90, non il tetto di 35), ma la stessa obiezione scritta a
+  // parole passava intatta: stessa decisione, canale diverso.
+  const frase = 'Punteggio non massimo: La durata del viaggio è plausibile, ma la tratta Palermo → Mazara non è segnalata come valida per il treno.';
+  assert.deepEqual(falseMissingClaims(frase, ANNUNCIO), ['tratta_valida']);
+  assert.equal(reasonWithoutFalseClaims(frase, ANNUNCIO), null);
+
+  const fixes = [{ field: 'route', suggestion: "Verificare se la tratta è corretta o se esiste un'alternativa valida." }];
+  assert.deepEqual(fixesWithoutFalseClaims(fixes, ANNUNCIO), []);
+});
+
+test('il dubbio sulla tratta si sopprime anche in inglese e spagnolo', () => {
+  // Le frasi arrivano nella lingua dell'utente: coprire solo l'italiano
+  // lascerebbe passare lo stesso errore a chi usa en/es.
+  for (const frase of [
+    'The Palermo → Mazara route is not a valid train connection.',
+    'El trayecto Palermo → Mazara no es válido para el tren.',
+  ]) {
+    assert.equal(reasonWithoutFalseClaims(frase, ANNUNCIO), null, frase);
+  }
+});
+
+test('una tratta davvero impossibile resta segnalata', () => {
+  // Il punto delicato: se sopprimessimo anche questa, nasconderemmo un
+  // problema vero. Pantelleria è un'isola, non è nell'allow-list.
+  const isola = { ...ANNUNCIO, destination: 'Pantelleria' };
+  const frase = 'La tratta Palermo → Pantelleria non è valida per il treno.';
+  assert.deepEqual(falseMissingClaims(frase, isola), []);
+  assert.equal(reasonWithoutFalseClaims(frase, isola), frase);
+});
+
+test('"non ci sono treni diretti" è un\'altra affermazione e resta', () => {
+  // L'allow-list dice che la tratta è percorribile sulla rete, non che si
+  // faccia senza cambi: quella frase può essere vera e non va zittita.
+  for (const frase of [
+    'La tratta non è servita da treni diretti.',
+    'There is no direct train on this route.',
+  ]) {
+    assert.equal(reasonWithoutFalseClaims(frase, ANNUNCIO), frase, frase);
+  }
+});
+
+test('il dubbio su un hotel non viene trattato come dubbio di tratta', () => {
+  const hotel = { title: 'Hotel', description: 'Camera doppia', type: 'hotel', location: 'Firenze' };
+  const frase = 'La struttura non è indicata con chiarezza.';
+  assert.equal(reasonWithoutFalseClaims(frase, hotel), frase);
+});
+
 test('fixesWithoutFalseClaims regge input non validi', () => {
   assert.deepEqual(fixesWithoutFalseClaims(null, ANNUNCIO), []);
   assert.deepEqual(fixesWithoutFalseClaims(undefined, ANNUNCIO), []);

@@ -20,9 +20,69 @@
 // Non si riscrive la frase perché non si può sapere quale motivo VERO l'AI
 // avrebbe dovuto dare al suo posto: inventarlo sarebbe lo stesso errore.
 
+import { isKnownRailCity } from './heuristics.js';
+
 /** Testo su cui l'AI ha giudicato: titolo + descrizione. */
 function listingText(listing) {
   return [listing?.title, listing?.description].filter(Boolean).join(' \n ');
+}
+
+// ----------------------------------------------------------------------
+// Tratta messa in dubbio
+//
+// computeTrustScore scarta già il flag IMPLAUSIBLE_ROUTE dell'AI quando
+// origine e destinazione sono entrambe nell'allow-list delle città su rotaia.
+// Quella soppressione però copriva SOLO il flag: la stessa identica obiezione
+// scritta in prosa dentro 'textReason' passava intatta.
+//
+// Caso reale: tratta Palermo → Mazara, flag correttamente scartato (punteggio
+// 90, non il tetto di 35), ma la spiegazione diceva comunque "la tratta
+// Palermo → Mazara non è segnalata come valida per il treno". È una linea
+// regionale che esiste, e l'allow-list lo sa: la frase contraddice la
+// decisione che il sistema ha già preso.
+//
+// Le frasi arrivano nella lingua dell'utente (it/en/es), quindi i pattern
+// coprono le tre lingue.
+const ROUTE_MENTION_RE = /\b(tratta|percorso|collegamento|route|trayecto|recorrido|conexi[oó]n)\b/i;
+const ROUTE_DOUBT_RE = new RegExp(
+  [
+    // italiano
+    'non\\s+(?:è|e\')\\s+(?:segnalat|indicat|riconosciut|valid|percorribil|servit|copert|disponibil)\\w*',
+    'non\\s+(?:risulta|esiste|sembra|pare|appare)',
+    'potrebbe\\s+non\\s+essere',
+    '(?:tratta|percorso|collegamento)\\s+(?:non\\s+valid|dubbi|incert|sospett)\\w*',
+    'verificare\\s+se\\s+la\\s+tratta',
+    // inglese
+    'not\\s+(?:a\\s+)?(?:valid|recognized|recognised|served|listed|available)',
+    'does\\s+not\\s+(?:appear|exist|seem)',
+    // spagnolo
+    'no\\s+(?:es|est[aá])\\s+(?:v[aá]lid|reconocid|indicad|disponible)\\w*',
+    'no\\s+(?:figura|existe|parece)',
+  ].join('|'),
+  'i',
+);
+
+/**
+ * Vero se la frase mette in dubbio una tratta che il sistema considera
+ * percorribile. La prova è la stessa usata da computeTrustScore per scartare
+ * il flag: entrambi i capi nell'allow-list delle città servite dal treno.
+ */
+function questionsAValidRoute(sentence, listing) {
+  const tipo = String(listing?.type || '').toLowerCase();
+  if (tipo !== 'train' && tipo !== 'treno') return false;
+  if (!isKnownRailCity(listing?.origin) || !isKnownRailCity(listing?.destination)) return false;
+
+  const s = String(sentence || '');
+  if (!ROUTE_DOUBT_RE.test(s)) return false;
+  // "non ci sono treni DIRETTI" è un'altra affermazione, e può essere vera:
+  // l'allow-list dice che la tratta è percorribile sulla rete, non che si
+  // faccia senza cambi. Non è nostro compito zittirla.
+  if (/\b(dirett[oiae]|direct|directo)\b/i.test(s)) return false;
+  // Il dubbio deve riguardare la tratta, non un altro dato: o la frase nomina
+  // la tratta, o nomina entrambe le città.
+  if (ROUTE_MENTION_RE.test(s)) return true;
+  const citta = [listing.origin, listing.destination].map((c) => String(c || '').trim()).filter(Boolean);
+  return citta.length === 2 && citta.every((c) => new RegExp(`\\b${c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(s));
 }
 
 // Verbi con cui si afferma che un dato è assente.
@@ -103,14 +163,23 @@ const CLAIMABLE_ITEMS = [
 export function falseMissingClaims(sentence, listing) {
   const s = String(sentence || '');
   if (!s.trim()) return [];
-  if (!MISSING_CLAIM_RE.test(s)) return [];   // non afferma che manchi nulla
 
-  const text = listingText(listing);
-  if (!text.trim()) return [];                // niente con cui confrontare
+  const contraddette = [];
 
-  return CLAIMABLE_ITEMS
-    .filter((item) => item.named.test(s) && item.isPresent(text, listing))
-    .map((item) => item.id);
+  // Tratta messa in dubbio: si verifica sull'allow-list, non sul testo
+  // dell'annuncio, quindi vale anche quando titolo e descrizione sono vuoti.
+  if (questionsAValidRoute(s, listing)) contraddette.push('tratta_valida');
+
+  if (MISSING_CLAIM_RE.test(s)) {
+    const text = listingText(listing);
+    if (text.trim()) {                        // senza testo non c'è confronto
+      for (const item of CLAIMABLE_ITEMS) {
+        if (item.named.test(s) && item.isPresent(text, listing)) contraddette.push(item.id);
+      }
+    }
+  }
+
+  return contraddette;
 }
 
 /**
@@ -122,7 +191,7 @@ export function falseMissingClaims(sentence, listing) {
 export function reasonWithoutFalseClaims(reason, listing) {
   const bad = falseMissingClaims(reason, listing);
   if (!bad.length) return reason ?? null;
-  console.warn(`[trustscore] textReason soppresso, dichiara mancanti dati presenti: ${bad.join(', ')} — "${reason}"`);
+  console.warn(`[trustscore] textReason soppresso, contraddetto su: ${bad.join(', ')} — "${reason}"`);
   return null;
 }
 
@@ -143,7 +212,7 @@ export function fixesWithoutFalseClaims(fixes, listing) {
       : testo;
     const bad = falseMissingClaims(comeAssenza, listing);
     if (bad.length) {
-      console.warn(`[trustscore] suggerimento soppresso, dati già presenti: ${bad.join(', ')} — "${testo}"`);
+      console.warn(`[trustscore] suggerimento soppresso, contraddetto su: ${bad.join(', ')} — "${testo}"`);
       return false;
     }
     return true;
