@@ -417,7 +417,9 @@ useEffect(() => {
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <View style={{ flexShrink: 1 }}>
-                {typeof trustScore === "number" ? <TrustScoreBadge score={trustScore} /> : <View />}
+                {listing?.trust_pending_at
+                  ? <TrustScoreBadge pending />
+                  : (typeof trustScore === "number" ? <TrustScoreBadge score={trustScore} /> : <View />)}
               </View>
               <Text style={[styles.price, { color: textColor }]}>{fmtMoney(listing?.price, listing?.currency)}</Text>
             </View>

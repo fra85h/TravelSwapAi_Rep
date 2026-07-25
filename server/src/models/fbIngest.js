@@ -31,6 +31,18 @@ export function shouldGateChannel(channel) {
 
 export function evaluateTrustGate(scored, threshold = FB_FEED_MIN_TRUST_SCORE) {
   if (scored?.moderationFlagged) return { publishable: false, reason: 'moderation_flagged' };
+
+  // "Non verificato" e "verificato male" sono esiti diversi e vanno trattati
+  // diversamente. Prima si confondevano: quando l'AI non rispondeva il
+  // punteggio veniva tappato a 55, che è SOPRA questa soglia (50), quindi
+  // l'annuncio passava il gate e finiva online marchiato male — il contrario
+  // di quello che serve. Ora non c'è nessun punteggio da confrontare: il
+  // controllo non è stato eseguito, quindi l'annuncio non va pubblicato
+  // adesso; resta in bozza e ci riprova il ritentativo.
+  if (scored?.verificationPending || scored?.trustScore == null) {
+    return { publishable: false, reason: 'verification_pending' };
+  }
+
   if (Number(scored?.trustScore) < threshold) return { publishable: false, reason: 'low_trust_score' };
   return { publishable: true, reason: null };
 }
@@ -173,6 +185,7 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
   // moderazione): non pubblicare (il chiamante decide se loggare soltanto,
   // come per il Feed, o avvisare l'utente, come fa Messenger in index.js).
   let trustAuditPayload = null;
+  let verificationPending = false;
   if (shouldGateChannel(channel)) {
     const scored = await computeFullTrustScore({
       title: pres.title,
@@ -188,13 +201,28 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
     }, 'it');
 
     const gate = evaluateTrustGate(scored);
-    if (!gate.publishable) {
+
+    // Verifica non riuscita: NON è una bocciatura dell'annuncio, è un guasto
+    // nostro. Far rifare all'utente tutta la conversazione guidata del bot
+    // per un singhiozzo del server è sproporzionato, quindi l'annuncio viene
+    // creato lo stesso ma resta in BOZZA (paused, non pubblico) con la data
+    // del tentativo fallito: il ritentativo lo riprende e lo pubblica appena
+    // l'AI risponde. Nessun contenuto non moderato finisce online nel
+    // frattempo, perché in pausa non lo vede nessuno.
+    if (!gate.publishable && gate.reason === 'verification_pending') {
+      console.warn(`[fbIngest] Verifica non completata su ${channel}: l'annuncio resta in bozza e verrà ripreso dal ritentativo.`, {
+        externalId, kind: scored.aiUnavailableKind,
+      });
+      verificationPending = true;
+      trustAuditPayload = null;   // nessun punteggio da registrare: non c'è
+    } else if (!gate.publishable) {
       console.log(`[fbIngest] Listing scartato su canale ${channel} (TrustScore basso o contenuto segnalato):`, {
         externalId, trustScore: scored.trustScore, moderationFlagged: scored.moderationFlagged,
       });
       return { id: null, skipped: true, reason: gate.reason, trustScore: scored.trustScore };
+    } else {
+      trustAuditPayload = scored;
     }
-    trustAuditPayload = scored;
   }
 
   // Mappatura campi sul tuo schema
@@ -296,6 +324,22 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
       await rollbackIfNew();
       throw new Error(`listing_secrets upsert failed: ${errSecret.message}`);
     }
+  }
+
+  // Verifica non completata: l'annuncio resta in bozza e viene marcato, così
+  // il ritentativo sa quali riprendere. Non diventa pubblico adesso: sarebbe
+  // contenuto non verificato NÉ moderato (la moderazione passa dalla stessa
+  // chiamata che è appena fallita).
+  if (verificationPending) {
+    const { error: errPending } = await supabase
+      .from('listings')
+      .update({ trust_pending_at: new Date().toISOString() })
+      .eq('id', data.id);
+    if (errPending) {
+      await rollbackIfNew();
+      throw errPending;
+    }
+    return { id: data.id, pending: true };
   }
 
   // Tutto scritto: l'annuncio può diventare pubblico. È qui che scattano il

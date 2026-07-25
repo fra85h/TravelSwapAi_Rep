@@ -29,6 +29,7 @@ export const translations = {
     },
     trust: {
       scoreLabel: "Affidabilità",   // it
+      pendingLabel: "Verifica in corso",
       emailVerified: "Email verificata",
       hasHistory: "Con storico ({n})",
     },
@@ -1112,6 +1113,7 @@ export const translations = {
     },
     trust: {
       scoreLabel: "Reliability",
+      pendingLabel: "Check in progress",
       emailVerified: "Email verified",
       hasHistory: "With history ({n})",
     },
@@ -3190,6 +3192,7 @@ export const translations = {
 
     trust: {
       scoreLabel: "Fiabilidad",
+      pendingLabel: "Verificación en curso",
       emailVerified: "Email verificado",
       hasHistory: "Con historial ({n})",
     },

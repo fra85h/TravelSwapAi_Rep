@@ -44,3 +44,35 @@ test('evaluateTrustGate: moderazione ha priorità sul motivo se entrambi i probl
   const out = evaluateTrustGate({ trustScore: 10, moderationFlagged: true }, 50);
   assert.equal(out.reason, 'moderation_flagged');
 });
+
+/* ===== "Non verificato" non è "verificato male" ===== */
+
+test('verifica non completata: l\'annuncio NON si pubblica adesso', () => {
+  // Prima questo caso arrivava qui con trustScore 55 (il vecchio tetto), che
+  // è SOPRA la soglia di default (50): il gate lo lasciava passare e
+  // l'annuncio finiva online proprio quando non era stato controllato.
+  const esito = evaluateTrustGate({ verificationPending: true, trustScore: null });
+  assert.equal(esito.publishable, false);
+  assert.equal(esito.reason, 'verification_pending');
+});
+
+test('un punteggio assente vale come verifica non completata', () => {
+  // Difesa dal caso in cui il flag non arrivi ma il punteggio manchi: senza
+  // un numero non c'è niente da confrontare con la soglia.
+  for (const scored of [{ trustScore: null }, { trustScore: undefined }, {}]) {
+    assert.equal(evaluateTrustGate(scored).reason, 'verification_pending');
+  }
+});
+
+test('il motivo distingue il guasto nostro dalla bocciatura', () => {
+  // Sono due esiti diversi e il chiamante deve poterli distinguere: uno chiede
+  // all'utente di correggere, l'altro no.
+  assert.equal(evaluateTrustGate({ trustScore: 10 }).reason, 'low_trust_score');
+  assert.equal(evaluateTrustGate({ verificationPending: true }).reason, 'verification_pending');
+  assert.equal(evaluateTrustGate({ moderationFlagged: true, trustScore: 90 }).reason, 'moderation_flagged');
+});
+
+test('la moderazione resta prioritaria anche senza punteggio', () => {
+  const esito = evaluateTrustGate({ moderationFlagged: true, verificationPending: true, trustScore: null });
+  assert.equal(esito.reason, 'moderation_flagged');
+});

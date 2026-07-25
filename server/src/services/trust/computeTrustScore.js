@@ -72,17 +72,10 @@ export const TRUST_CAPS = {
 // Moderazione: contenuto segnalato è il problema più grave che ci sia.
 export const MODERATION_CAP = 15;
 
-// Verifica AI non riuscita (chiave mancante, quota esaurita, 429...). Quando
-// succede, aiTrust.js fa ripiegare textScore sul punteggio euristico, quindi
-// la media pesata restituisce le euristiche e basta: un annuncio formalmente a
-// posto arrivava al 100%, mostrato in VERDE proprio sopra il riquadro rosso
-// "Verifica AI non disponibile" — il massimo dell'affidabilità nel momento in
-// cui i controlli più profondi NON sono stati eseguiti.
-//
-// Le euristiche pesano il 45%: da sole non possono giustificare un punteggio
-// pieno. Non è un giudizio definitivo sull'annuncio — basta rilanciare il
-// Check AI quando il servizio torna disponibile per avere il punteggio vero.
-export const AI_UNAVAILABLE_CAP = 55;
+// NB: non esiste (più) un tetto per "verifica AI non riuscita". C'era, a 55,
+// ed era sbagliato: un numero basso comunica "controllato, non convince",
+// mentre lì non abbiamo controllato niente. Quel caso non produce più un
+// punteggio — vedi verificationPending in computeFullTrustScore.
 
 /**
  * Applica tutti i tetti a un punteggio già fuso. Funzione pura: è la politica
@@ -90,10 +83,10 @@ export const AI_UNAVAILABLE_CAP = 55;
  * test/trustCaps.test.js) senza dover simulare rete, AI e database.
  *
  * @param {number} score - punteggio dalla media pesata
- * @param {{flagCodes?: string[], moderationFlagged?: boolean, aiAvailable?: boolean}} ctx
+ * @param {{flagCodes?: string[], moderationFlagged?: boolean}} ctx
  * @returns {number} punteggio dopo i tetti
  */
-export function applyTrustCaps(score, { flagCodes = [], moderationFlagged = false, aiAvailable = true } = {}) {
+export function applyTrustCaps(score, { flagCodes = [], moderationFlagged = false } = {}) {
   let s = Number(score);
   if (!Number.isFinite(s)) return 0;
 
@@ -103,7 +96,6 @@ export function applyTrustCaps(score, { flagCodes = [], moderationFlagged = fals
   }
 
   if (moderationFlagged) s = Math.min(s, MODERATION_CAP);
-  if (!aiAvailable) s = Math.min(s, AI_UNAVAILABLE_CAP);
 
   return Math.max(0, Math.min(100, Math.round(s)));
 }
@@ -202,12 +194,13 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
   ].map((f) => String(f?.code || '').toUpperCase());
 
   const aiFlagCodes = (ai?.flags ?? []).map((f) => f?.code);
-  const aiAvailable = !aiFlagCodes.includes('AI_DISABLED') && !aiFlagCodes.includes('AI_ERROR');
+  const aiDisabled = aiFlagCodes.includes('AI_DISABLED');
+  const aiErrored = aiFlagCodes.includes('AI_ERROR');
+  const aiAvailable = !aiDisabled && !aiErrored;
 
   trustScore = applyTrustCaps(trustScore, {
     flagCodes: allFlagCodes,
     moderationFlagged: !!moderation.flagged,
-    aiAvailable,
   });
 
   let aiUnavailableReason = null;
@@ -216,10 +209,39 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
     aiUnavailableReason = f?.msg || 'Motivo non disponibile';
   }
 
+  // Chiave mancante NON è un guasto momentaneo: è una configurazione del
+  // server, e resta rotta finché qualcuno non la sistema. Senza distinguerla,
+  // il giorno che la chiave scade OGNI annuncio di OGNI utente risulterebbe
+  // "in verifica" per sempre, e nessun ritentativo potrebbe risolverlo. Va
+  // urlata nei log, non spalmata sugli annunci.
+  if (aiDisabled) {
+    console.error('[trustscore] OPENAI_API_KEY non impostata: nessun annuncio può essere verificato. Questa è una configurazione del server, non un guasto momentaneo.');
+  }
+
+  // Verifica non completata: il punteggio NON esiste, e non va inventato.
+  //
+  // Prima qui c'era un tetto (55): l'idea era "non deve sembrare
+  // rassicurante", ed era giusta contro il 100% verde che si vedeva prima.
+  // Ma un numero basso dice al compratore "abbiamo controllato e non
+  // convince", che è un'altra affermazione falsa — l'app non ha controllato
+  // niente. Peggio: quel 55 stava SOPRA la soglia di pubblicazione del gate
+  // (50), quindi un annuncio non verificato veniva pubblicato E marchiato.
+  //
+  // Nessun numero è quello giusto, perché non c'è nulla da misurare: il
+  // punteggio resta null e l'annuncio entra in stato "in verifica", da cui
+  // esce quando il ritentativo riesce. NULL è anche il valore che le query
+  // del feed già escludono da qualunque filtro di affidabilità.
+  const verificationPending = !aiAvailable;
+  if (verificationPending) trustScore = null;
+
   return {
     trustScore,
     aiAvailable,
     aiUnavailableReason,
+    // true = non abbiamo verificato (≠ abbiamo verificato e va male)
+    verificationPending,
+    // 'config' va risolto da chi gestisce il server, 'transient' dal tempo
+    aiUnavailableKind: aiDisabled ? 'config' : (aiErrored ? 'transient' : null),
     heuristicsAvailable,
     // Perché l'analisi del testo non ha dato il massimo, in una frase.
     // Serve a rendere spiegabile il caso più comune di punteggio non pieno:

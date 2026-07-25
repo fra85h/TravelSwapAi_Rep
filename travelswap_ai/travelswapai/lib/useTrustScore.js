@@ -7,7 +7,7 @@ import { parseLocalizedNumber } from './number';
  * Normalizza i valori della form nello schema atteso da POST /ai/trustscore
  * Accetta sia un oggetto "listing" già pronto sia i valori grezzi della form.
  */
-function normalizeFormToListing(input) {
+export function normalizeFormToListing(input) {
   if (!input || typeof input !== 'object') {
     return { description: ' ' }; // forza validazione a fallire in modo chiaro
   }

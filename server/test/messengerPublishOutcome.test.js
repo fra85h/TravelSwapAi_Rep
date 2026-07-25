@@ -28,3 +28,22 @@ test('risultato mancante/undefined non esplode e viene trattato come successo', 
   const out = decideMessengerPublishOutcome(undefined);
   assert.equal(out.clearSession, true);
 });
+
+test('verifica non riuscita: non si chiede all\'utente di rifare nulla', () => {
+  // È un guasto nostro, non un errore suo: la sessione si svuota (l'annuncio è
+  // già salvato in bozza) e il messaggio non deve suonare come un rifiuto.
+  const out = decideMessengerPublishOutcome({ id: 'abc', pending: true });
+  assert.equal(out.clearSession, true);
+  assert.match(out.message, /verifica automatica/i);
+  assert.doesNotMatch(out.message, /non ho pubblicato/i);
+  assert.doesNotMatch(out.message, /correggere/i);
+});
+
+test('bocciatura e verifica non riuscita danno messaggi diversi', () => {
+  const scartato = decideMessengerPublishOutcome({ skipped: true });
+  const sospeso = decideMessengerPublishOutcome({ pending: true });
+  assert.notEqual(scartato.message, sospeso.message);
+  // Solo la bocciatura tiene viva la sessione, perché lì c'è da correggere.
+  assert.equal(scartato.clearSession, false);
+  assert.equal(sospeso.clearSession, true);
+});

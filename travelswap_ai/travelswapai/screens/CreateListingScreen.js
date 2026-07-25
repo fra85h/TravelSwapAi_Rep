@@ -1837,7 +1837,15 @@ const initialJsonRef = useRef(null);
         // dalla pipeline server-side, che è l'unica autorizzata a scriverlo.
         // Questo ramo resta per compatibilità e non fa danni.
         ...(mode !== "edit"
-          ? { status: "active", trustScore: trustResult?.trustScore ?? null }
+          ? {
+              status: "active",
+              trustScore: trustResult?.trustScore ?? null,
+              // Verifica non riuscita: nessun punteggio da salvare, ma va
+              // registrato CHE ci abbiamo provato, altrimenti il ritentativo
+              // non sa quali annunci riprendere (trust_score NULL da solo
+              // significa già "mai verificato").
+              trustPendingAt: trustResult?.verificationPending ? new Date().toISOString() : null,
+            }
           : (Number.isFinite(Number(trustResult?.trustScore)) ? { trust_score: Number(trustResult.trustScore) } : {}))
       };
 
@@ -2245,7 +2253,7 @@ const initialJsonRef = useRef(null);
         <View style={styles.topHeaderRow}>
           <Text style={styles.topTitle}>{t("createListing.step1", "Dati principali")}</Text>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <TrustScoreBadge score={trustData?.trustScore} />
+            <TrustScoreBadge score={trustData?.trustScore} pending={trustData?.verificationPending === true} />
             <TrustInfo />
           </View>
         </View>
@@ -2427,7 +2435,7 @@ const initialJsonRef = useRef(null);
           </TouchableOpacity>
           <Text style={[styles.topTitle, { flex: 1 }]}>{t("createListing.step2", "Dettagli & pubblicazione")}</Text>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <TrustScoreBadge score={trustData?.trustScore} />
+            <TrustScoreBadge score={trustData?.trustScore} pending={trustData?.verificationPending === true} />
             <TrustInfo />
           </View>
         </View>

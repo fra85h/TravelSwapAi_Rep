@@ -6,6 +6,21 @@
 // viene svuotata quando l'annuncio è scartato dal TrustScore, così l'utente
 // può correggere testo/prezzo e riconfermare senza ripartire da zero.
 export function decideMessengerPublishOutcome(result) {
+  // Verifica non completata per un guasto NOSTRO (AI irraggiungibile): la
+  // sessione si svuota, perché all'utente non si sta chiedendo di correggere
+  // niente — non ha sbagliato. L'annuncio è già salvato in bozza e il
+  // ritentativo lo pubblica da solo, quindi il messaggio non deve suonare
+  // come un rifiuto né chiedergli di rifare la procedura.
+  if (result?.pending) {
+    return {
+      clearSession: true,
+      message:
+        "👍 Ho ricevuto il tuo annuncio e l'ho salvato.\n" +
+        "La verifica automatica è momentaneamente non disponibile: lo pubblico da solo appena riesco a completarla, " +
+        "non devi rifare nulla.",
+    };
+  }
+
   if (result?.skipped) {
     return {
       clearSession: false,

@@ -1,40 +1,47 @@
 // Tetti al TrustScore (applyTrustCaps in computeTrustScore.js).
 //
 // La media pesata 45/45/10 diluisce i problemi oggettivi: senza tetti una
-// tratta impossibile finirebbe all'83% e un annuncio mai verificato dall'AI al
-// 100%. Questi test fissano la regola più importante di tutte: un punteggio
-// con un problema noto, o senza la verifica AI, non deve MAI cadere nella
+// tratta impossibile finirebbe all'83%. Questi test fissano la regola più
+// importante: un punteggio con un problema NOTO non deve mai cadere nella
 // fascia verde di TrustScoreBadge.
+//
+// Il caso "verifica non riuscita" NON sta più qui: non produce un punteggio
+// da tappare, produce l'assenza di punteggio (vedi verificationPending).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  applyTrustCaps, TRUST_CAPS, MODERATION_CAP, AI_UNAVAILABLE_CAP,
+  applyTrustCaps, TRUST_CAPS, MODERATION_CAP,
 } from '../src/services/trust/computeTrustScore.js';
 
-// Soglie di colore di components/TrustScoreBadge.js
+// Soglia del verde in components/TrustScoreBadge.js
 const VERDE = 85;
-const GIALLO = 70;
 
-test('senza flag e con AI disponibile il punteggio non viene toccato', () => {
-  assert.equal(applyTrustCaps(100, { aiAvailable: true }), 100);
-  assert.equal(applyTrustCaps(72, { aiAvailable: true }), 72);
-  assert.equal(applyTrustCaps(0, { aiAvailable: true }), 0);
+test('senza flag il punteggio non viene toccato', () => {
+  assert.equal(applyTrustCaps(100), 100);
+  assert.equal(applyTrustCaps(72), 72);
+  assert.equal(applyTrustCaps(0), 0);
 });
 
-test('verifica AI non riuscita: il 100% diventa un punteggio non rassicurante', () => {
-  // Il caso che ha aperto la correzione: OpenAI risponde 429, aiTrust.js fa
-  // ripiegare textScore sulle euristiche, la media restituisce 100 e l'utente
-  // vedeva "Affidabilità: 100%" in verde SOPRA il riquadro rosso "Verifica AI
-  // non disponibile".
-  const s = applyTrustCaps(100, { aiAvailable: false });
-  assert.equal(s, AI_UNAVAILABLE_CAP);
-  assert.ok(s < GIALLO, `senza verifica AI non si può restare sopra ${GIALLO}: ${s}`);
+test('la verifica non riuscita NON è più un tetto: qui non arriva proprio', () => {
+  // Storia di questo test, in due giri.
+  //
+  // Prima: con l'AI irraggiungibile il punteggio finiva a 100 e verde, perché
+  // aiTrust faceva ripiegare textScore sulle euristiche. Sbagliato.
+  // Poi: tetto a 55. Sbagliato anche quello — un numero basso dice "abbiamo
+  // controllato e non convince", mentre non si era controllato niente, e
+  // quel 55 stava per giunta SOPRA la soglia del gate (50).
+  //
+  // Ora quel caso non produce nessun punteggio (verificationPending in
+  // computeFullTrustScore), quindi applyTrustCaps non lo vede mai: qui si
+  // fissa solo che nessun parametro residuo possa reintrodurre un tetto.
+  assert.equal(applyTrustCaps(100, { aiAvailable: false }), 100,
+    'aiAvailable non deve più influenzare i tetti');
+  assert.equal(applyTrustCaps(88, { verificationPending: true }), 88);
 });
 
 test('il tetto non ALZA mai un punteggio già basso', () => {
   // Un annuncio scadente che per giunta non è stato verificato resta scadente:
   // i tetti sono un massimo, non un valore da assegnare.
-  assert.equal(applyTrustCaps(20, { aiAvailable: false }), 20);
   assert.equal(applyTrustCaps(10, { moderationFlagged: true }), 10);
   assert.equal(applyTrustCaps(5, { flagCodes: ['IMPLAUSIBLE_ROUTE'] }), 5);
 });
@@ -55,7 +62,6 @@ test('il codice del flag è confrontato senza distinzione di maiuscole', () => {
 test('con più problemi insieme vince il tetto più basso', () => {
   const s = applyTrustCaps(100, {
     flagCodes: ['IRRELEVANT_IMAGES', 'IMPLAUSIBLE_ROUTE', 'PRICE_OUTLIER'],
-    aiAvailable: false,
   });
   assert.equal(s, TRUST_CAPS.IMPLAUSIBLE_ROUTE, 'deve prevalere il più severo');
 });
@@ -64,7 +70,6 @@ test('la moderazione batte qualunque altro tetto', () => {
   const s = applyTrustCaps(100, {
     flagCodes: ['IMPLAUSIBLE_ROUTE'],
     moderationFlagged: true,
-    aiAvailable: false,
   });
   assert.equal(s, MODERATION_CAP);
 });
@@ -83,8 +88,6 @@ test('input non numerici o fuori scala non producono punteggi assurdi', () => {
   assert.equal(applyTrustCaps(-30, {}), 0);
 });
 
-test('senza contesto si assume il caso ottimista (AI disponibile, nessun flag)', () => {
-  // Chi chiama senza secondo argomento non deve ritrovarsi il punteggio
-  // tappato a sorpresa.
+test('senza contesto non si tappa niente a sorpresa', () => {
   assert.equal(applyTrustCaps(88), 88);
 });

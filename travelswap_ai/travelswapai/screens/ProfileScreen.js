@@ -18,6 +18,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { listMyListings, updateListing, deleteMyListing, getCurrentUser, countMyActiveListings, ACTIVE_LISTING_CAP } from "../lib/db";
+import { retryPendingTrustChecks } from "../lib/trustRetry";
 import { retractListing, propagateListing, recomputeUserSnapshot } from "../lib/backendApi";
 import { useI18n } from "../lib/i18n";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -69,7 +70,7 @@ export default function ProfileScreen() {
   const isFocused = useIsFocused();
   const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { signOut } = useAuth();
 
   const [profile, setProfile] = useState(null);
@@ -116,6 +117,13 @@ export default function ProfileScreen() {
       // chiamarlo sopra il builder crashava la schermata Profilo sul web
       // ("catch is not a function"): il best-effort va fatto con try/await.
       try { await supabase.rpc("expire_my_stale_listings"); } catch {}
+      // Stesso schema della riga sopra: il progetto non ha uno scheduler, la
+      // manutenzione si aggancia a una schermata che l'utente apre comunque.
+      // Qui riprende i Check AI rimasti in sospeso perché l'AI non rispondeva:
+      // senza, quegli annunci resterebbero "in verifica" per sempre.
+      retryPendingTrustChecks({ locale }).then(({ risolti }) => {
+        if (risolti > 0) loadMine();
+      }).catch(() => {});
       const data = await listMyListings();
       // Gli annunci eliminati (stato terminale `deleted`) non compaiono più:
       // "Elimina" è definitivo, niente più "Rendi attivo" su di essi.
@@ -333,6 +341,15 @@ export default function ProfileScreen() {
         const raw = item.trustscore ?? item.trust_score ?? null;
         const n = raw != null ? Number(raw) : NaN;
         const score = Number.isFinite(n) ? n : null;
+        // Verifica ancora in sospeso: al proprietario va detto, altrimenti non
+        // sa perché il suo annuncio non ha un punteggio e pensa a un guasto.
+        if (item?.trust_pending_at) {
+          return (
+            <View style={{ alignItems: "flex-end", marginTop: 8 }}>
+              <TrustScoreBadge pending />
+            </View>
+          );
+        }
         return score != null ? (
           <View style={{ alignItems: "flex-end", marginTop: 8 }}>
             <TrustScoreBadge score={Number(score)} />
