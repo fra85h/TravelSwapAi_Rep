@@ -1646,6 +1646,21 @@ const initialJsonRef = useRef(null);
     // di un check manuale. Se fallisce (rete, o rate limit di 10s tra due
     // check) blocchiamo comunque la pubblicazione: mai un annuncio mai
     // verificato.
+    // L'esito del check va tenuto in una variabile locale, NON riletto da
+    // trustData più sotto: onTrustCheck aggiorna lo stato del componente con
+    // setData, e in React lo stato non cambia dentro il gestore che lo ha
+    // appena impostato — la funzione continua a vedere il valore del render
+    // corrente fino al re-render successivo.
+    //
+    // È il motivo per cui un annuncio pubblicato al primo colpo finiva a DB
+    // con trust_score NULL, quindi senza badge di affidabilità nel dettaglio:
+    // il Check AI partiva qui in automatico e riusciva, ma la riga che
+    // costruisce il payload leggeva trustData, ancora fermo a null.
+    // Succedeva solo quando il check veniva lanciato in automatico da qui;
+    // premendo prima "Check AI" a mano il re-render avveniva nel frattempo e
+    // il punteggio si salvava, il che spiega perché il difetto non saltava
+    // fuori a ogni pubblicazione.
+    let trustResult = trustData;
     if (needsCheckAI) {
       const checkRes = await onTrustCheck();
       if (!checkRes) {
@@ -1655,6 +1670,7 @@ const initialJsonRef = useRef(null);
         );
         return;
       }
+      trustResult = checkRes;
     }
 
     const validationErrors = computeErrors();
@@ -1807,14 +1823,22 @@ const initialJsonRef = useRef(null);
         accepts_swap: acceptsSwap,
         swap_wanted: swapWanted,
         // In creazione: salva la reliability calcolata (chiave camelCase, la
-        // mappa insertListing). In modifica: aggiorna il punteggio salvato
-        // SOLO se in questa sessione è stato rilanciato il Check AI — così
-        // ri-verificare un annuncio "guarisce" un punteggio vecchio/ingiusto,
-        // invece di restare congelato al valore della pubblicazione. La chiave
-        // qui è snake_case perché updateListing passa i campi come colonne.
+        // mappa insertListing). È l'UNICA strada che la scrive, perché il
+        // Check AI di un annuncio che ancora non esiste finisce in trust_audit
+        // con listing_id NULL, e il trigger che propaga il punteggio si ferma
+        // proprio lì.
+        //
+        // In modifica la chiave è snake_case (updateListing passa i campi come
+        // colonne), ma il valore viene comunque SCARTATO dal trigger
+        // before_update_listings_lock_columns, che in UPDATE riporta sempre
+        // new.trust_score := old.trust_score. Non è un difetto da correggere
+        // forzando la mano al trigger: in modifica l'annuncio ha un id, quindi
+        // il Check AI salva un trust_audit collegato e il punteggio arriva
+        // dalla pipeline server-side, che è l'unica autorizzata a scriverlo.
+        // Questo ramo resta per compatibilità e non fa danni.
         ...(mode !== "edit"
-          ? { status: "active", trustScore: trustData?.trustScore ?? null }
-          : (Number.isFinite(Number(trustData?.trustScore)) ? { trust_score: Number(trustData.trustScore) } : {}))
+          ? { status: "active", trustScore: trustResult?.trustScore ?? null }
+          : (Number.isFinite(Number(trustResult?.trustScore)) ? { trust_score: Number(trustResult.trustScore) } : {}))
       };
 
       const payload = form?.type === "hotel"
