@@ -4,9 +4,28 @@ import { View, Text, StyleSheet } from "react-native";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 
-export default function TrustScoreBadge({ score }) {
+export default function TrustScoreBadge({ score, pending = false }) {
   const { t } = useI18n();
   const label = t("trust.scoreLabel", "Affidabilità");
+
+  // Verifica non ancora completata (l'AI non ha risposto): stato NEUTRO, senza
+  // percentuale e senza colore di giudizio.
+  //
+  // Prima qui arrivava un punteggio tappato a 55, quindi rosso: l'app diceva
+  // al compratore "abbiamo controllato e non convince" mentre non aveva
+  // controllato niente, e il venditore si ritrovava marchiato per un guasto
+  // nostro. Un numero più gentile non risolverebbe: qualunque numero è una
+  // misura, e qui non c'è niente di misurato. L'unica cosa vera da mostrare è
+  // che il controllo è in corso.
+  if (pending) {
+    return (
+      <View style={[styles.badge, { backgroundColor: "#F1F3F8", borderColor: "#D5DAE5" }]}>
+        <Text style={[styles.text, { color: "#4A5268" }]}>
+          {t("trust.pendingLabel", "Verifica in corso")}
+        </Text>
+      </View>
+    );
+  }
 
   if (typeof score !== "number") return null;
 

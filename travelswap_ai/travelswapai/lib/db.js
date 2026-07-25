@@ -6,7 +6,7 @@ import { supabase } from "./supabase";
 const LISTING_PUBLIC_COLUMNS =
   "id, user_id, title, description, type, location, price, currency, status, created_at, " +
   "cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, operator, " +
-  "image_url, published_at, trust_score, is_named_ticket, contact_url, accepts_swap, swap_wanted";
+  "image_url, published_at, trust_score, trust_pending_at, is_named_ticket, contact_url, accepts_swap, swap_wanted";
 
 /** Utente corrente (o null) */
 export async function getCurrentUser() {
@@ -144,6 +144,10 @@ export async function insertListing(payload) {
     description: payload.description ?? null,
     location: payload.location ?? null,
     trust_score: payload.trustScore??null,
+    // Verifica AI non riuscita: nessun punteggio, ma si registra QUANDO
+    // ci abbiamo provato, così il ritentativo sa quali annunci riprendere.
+    // trust_score NULL da solo non basta: significa già "mai verificato".
+    trust_pending_at: payload.trustPendingAt ?? null,
     // CERCO/VENDO flag
     cerco_vendo: (payload.cerco_vendo === "CERCO" ? "CERCO" : "VENDO"),
 
