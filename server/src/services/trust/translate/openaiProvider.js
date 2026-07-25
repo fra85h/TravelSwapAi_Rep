@@ -7,18 +7,24 @@ import { createOpenAIClient } from "../../../lib/openaiClient.js";
 const client = createOpenAIClient();
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-const PH_RE = /(\{[A-Z0-9_]+\}|<<[A-Z0-9_]+>>)/gi;
-function protect(text="") {
+// Segnaposto da NON tradurre: {NOME} e <<NOME>>. Vengono sostituiti con un
+// token neutro prima di mandare il testo al modello e rimessi al loro posto
+// dopo, così una traduzione non può alterarli o tradurli.
+export const PH_RE = /(\{[A-Z0-9_]+\}|<<[A-Z0-9_]+>>)/gi;
+
+export function protect(text="") {
   const m = new Map(); let i=0;
   const safe = text.replace(PH_RE, (all) => { const k = `__PH_${i++}__`; m.set(k, all); return k; });
   return { safe, m };
 }
-function restore(text="", m) {
+
+export function restore(text="", m) {
   let out = text;
   for (const [k,v] of m.entries()) out = out.replaceAll(k, v);
   return out;
 }
-function normalize(s="") {
+
+export function normalize(s="") {
   return s.replace(/travelswapai/gi,"TravelSwapAI").replace(/trust\s*score/gi,"TrustScore");
 }
 
@@ -38,7 +44,12 @@ export async function openaiTranslate({ text, targetLang, sourceLang="auto" }) {
       temperature: 0.1,
     });
     const out = resp.choices?.[0]?.message?.content?.trim() || "";
-    return normalize(restore(out, m));
+    // normalize PRIMA di restore: applicata dopo, la sua sostituzione di
+    // "trust score" -> "TrustScore" riscriverebbe anche l'INTERNO di un
+    // segnaposto appena ripristinato (es. {TRUSTSCORE} diventerebbe
+    // {TrustScore}, e l'app non lo riconoscerebbe più). Sui token __PH_n__
+    // normalize non ha alcun effetto, quindi quest'ordine è sempre sicuro.
+    return restore(normalize(out), m);
   } catch (e) {
     console.error("[openaiTranslate] error", e);
     return null; // fallimento distinto da "" (niente da tradurre): il chiamante non deve spacciarlo per un successo

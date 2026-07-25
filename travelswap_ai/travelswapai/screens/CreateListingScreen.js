@@ -34,6 +34,23 @@ import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 import { parseLocalizedNumber } from "../lib/number";
 import { isConcludedStatus } from "../lib/listingStatus";
 import StationAutocomplete from "../components/StationAutocomplete";
+// Regole testuali (CERCO/VENDO, tratte, date, PNR, "sembrano due biglietti"):
+// vivono in un modulo puro perché la CI possa testarle — vedi il commento in
+// testa a lib/textPatterns.mjs e server/test/textPatterns.test.js.
+import {
+  guessCercoVendoFromText,
+  detectTwoListings as detectTwoListingsPure,
+  DATE_ANY_RE,
+  DATE_TEXT_RE,
+  TIME_RE,
+  FLIGHT_NO_RE,
+  IATA_PAIR_RE,
+  TRAIN_KEYWORDS_RE,
+  ROUTE_TEXT_RE,
+  ROUTE_ARROW_RE,
+  PNR_RE,
+  looksLikeRyanair,
+} from "../lib/textPatterns.mjs";
 
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
@@ -92,20 +109,8 @@ function buildAutoTitle(cercoVendo, type, routeFrom, routeTo, location) {
   return loc ? `${action} hotel ${loc}` : "";
 }
 
-/* Estrazione CERCO/VENDO dal testo descrizione (fallback locale se l'AI non lo imposta) */
-function guessCercoVendoFromText(text) {
-  const s = String(text || "").toLowerCase();
-  if (!s) return null;
-  // segnali di "cerco"
-  const cercoRx = /\b(cerco|cercasi|compro|acquisto|mi\s+serve|sto\s+cercando)\b/;
-  // segnali di "vendo"
-  const vendoRx = /\b(vendo|cedo|rivendo|offro|metto\s+in\s+vendita|scambio)\b/;
-  if (cercoRx.test(s) && !vendoRx.test(s)) return "CERCO";
-  if (vendoRx.test(s) && !cercoRx.test(s)) return "VENDO";
-  // priorità al "cerco" se sono presenti entrambi
-  if (cercoRx.test(s) && vendoRx.test(s)) return "CERCO";
-  return null;
-}
+/* Estrazione CERCO/VENDO dal testo: vedi guessCercoVendoFromText in
+   lib/textPatterns.mjs (importata sopra, testata in CI). */
 
 // Icone distinte e coerenti col significato di ciascuna azione (la vecchia
 // stella unica era decorativa e su "Clear all" pure fuorviante, perché non
@@ -238,15 +243,8 @@ const parseISODateTime = (s) => {
 /* ---------- AI PARSER helpers (semplificati) ---------- */
 const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa", LIN:"Milano Linate", BGY:"Bergamo Orio", VCE:"Venezia", BLQ:"Bologna", NAP:"Napoli", CTA:"Catania", PMO:"Palermo", CAG:"Cagliari", PSA:"Pisa", TRN:"Torino", VRN:"Verona", BRI:"Bari", OLB:"Olbia" };
 const MONTHS_IT = { GENNAIO:0, FEBBRAIO:1, MARZO:2, APRILE:3, MAGGIO:4, GIUGNO:5, LUGLIO:6, AGOSTO:7, SETTEMBRE:8, OTTOBRE:9, NOVEMBRE:10, DICEMBRE:11 };
-const DATE_ANY_RE = /\b(?:(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})|(\d{4})[\/-](\d{1,2})[\/-](\d{1,2}))\b/;
-const DATE_TEXT_RE = new RegExp(String.raw`\b(\d{1,2})\s([A-Za-zÀ-ÿ]{3,})\s(\d{4})\b`, "i");
-const TIME_RE = /\b([01]?\d|2[0-3]):([0-5]\d)\b/;
-const FLIGHT_NO_RE = /\b([A-Z]{2})\s?(\d{2,4})\b/;
-const IATA_PAIR_RE = /\b([A-Z]{3})\s*(?:-|–|—|>|→|to|verso)\s*([A-Z]{3})\b/;
-const TRAIN_KEYWORDS_RE = /\b(Trenitalia|Frecciarossa|FR\s?\d|Italo|NTV|Regionale|IC|Intercity|Frecciargento|Frecciabianca)\b/i;
-const ROUTE_TEXT_RE = /\b(?:da|from)\s([A-Za-zÀ-ÿ .'\-]+)\s(?:a|to)\s([A-Za-zÀ-ÿ .'\-]+)\b/i;
-const ROUTE_ARROW_RE = /([A-Za-zÀ-ÿ .'\-]{3,})\s*(?:-|–|—|>|→)\s*([A-Za-zÀ-ÿ .'\-]{3,})/;
-const PNR_RE = /\b(?:PNR|booking\s*reference|codice\s*(?:prenotazione|biglietto)|record\s*locator)\s*[:=]?\s([A-Z0-9]{5,8})\b/i;
+// DATE_ANY_RE, TIME_RE, PNR_RE e le altre sono importate da
+// lib/textPatterns.mjs (vedi import in testa al file).
 
 function parseAnyDate(text) {
   if (!text) return null;
@@ -302,7 +300,9 @@ function smartParseTicket(text) {
   if (pnr) out.pnr = pnr.toUpperCase();
   const hasTrain = TRAIN_KEYWORDS_RE.test(src);
   const flMatch = src.match(FLIGHT_NO_RE);
-  const mentionsRyanair = /Ryanair|FR\s?\d{1,4}\b/i.test(src);
+  // looksLikeRyanair, non la sola presenza di "FR ####": quel codice è anche
+  // il prefisso dei Frecciarossa (vedi lib/textPatterns.mjs).
+  const mentionsRyanair = looksLikeRyanair(src);
   let routeFrom = null, routeTo = null;
   const iata = src.match(IATA_PAIR_RE);
   if (iata) {
@@ -335,7 +335,10 @@ function smartParseTicket(text) {
   }
   const isHotelish = /\b(hotel|albergo|check[-\s]?in|check[-\s]?out|notti|night)\b/i.test(src);
   const twoPlainDatesOnly = (dateMatches.length >= 2 || dateTextMatch) && times.length === 0;
-  const isRyanair = mentionsRyanair || (flMatch && flMatch[1] === "FR");
+  // `flMatch[1] === "FR"` reintroduceva l'ambiguità già risolta da
+  // looksLikeRyanair (FR è anche il prefisso dei Frecciarossa): la decisione
+  // sta tutta lì.
+  const isRyanair = mentionsRyanair;
   if (isHotelish || (twoPlainDatesOnly && !hasTrain && !isRyanair)) {
     out.type = "hotel";
     let d1 = dateDepart || parseAnyDate(src);
@@ -421,52 +424,29 @@ export default function CreateListingScreen({
   const [splitReason, setSplitReason] = useState("");
 
   // Rilevamento "due annunci" basato su descrizione e tipo
+  // Adattatore i18n sopra la funzione pura in lib/textPatterns.mjs: la
+  // decisione (e le regex che la producono) vive lì perché sia testabile
+  // dalla CI; qui resta solo la traduzione del motivo da mostrare.
+  const REASON_FALLBACKS = useMemo(() => ({
+    reasonRoutes: "Rilevate {n} tratte nel testo.",
+    reasonTimes: "Rilevati più orari ({n}).",
+    reasonDates: "Rilevate più date ({n}).",
+    reasonHotels: "Rilevate più strutture ({n}).",
+    reasonMultiple: "Rilevati elementi multipli (tratte/date).",
+    reasonTwoTickets: "La descrizione cita due biglietti.",
+  }), []);
+
   const detectTwoListings = useCallback((desc, type) => {
     try {
-      const text = String(desc || "").toLowerCase();
-      if (!text || text.length < 10) return { two: false, reason: "" };
-
-      // Una "tratta" è due nomi di luogo separati da una freccia/trattino o
-      // dalle preposizioni a/to/verso. I separatori-parola richiedono spazi
-      // attorno: senza, la `a` veniva catturata DENTRO le parole comuni e
-      // qualunque descrizione italiana risultava piena di tratte inesistenti
-      // (su "vendo un biglietto per treno 8164 Milano Piacenza prima classe"
-      // ne trovava due: "vendo un bigliet|a|per treno" e "prima cl|a|sse").
-      // Anche i luoghi sono delimitati (1-3 parole, niente cifre): prima il
-      // gruppo inghiottiva spazi a piacere e due tratte REALI separate da "e"
-      // venivano contate come una sola — il conteggio sbagliava in entrambe
-      // le direzioni.
-      const PLACE = "[A-Za-zÀ-ÿ'’.-]{2,}(?:\\s+[A-Za-zÀ-ÿ'’.-]{2,}){0,2}";
-      const SEP = "(?:\\s*(?:-{1,2}|—|–|>|→)\\s*|\\s+(?:a|to|verso)\\s+)";
-      const routeArrowRx = new RegExp(`${PLACE}${SEP}${PLACE}`, "gi");
-      const timeRx = /\b([01]?\d|2[0-3]):([0-5]\d)\b/g;
-      const dateRx = /\b(\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{2,4}|\d{4}[\/\.\-]\d{1,2}[\/\.\-]\d{1,2})\b/g;
-      const hotelWordRx = /\b(hotel|albergo|b&b|bb|bnb|ostello|resort|guesthouse)\b/gi;
-
-      const routes = Array.from(text.matchAll(routeArrowRx));
-      const times = Array.from(text.matchAll(timeRx));
-      const dates = Array.from(text.matchAll(dateRx));
-      const hotels = Array.from(text.matchAll(hotelWordRx));
-
-      const ty = String(type || "").toLowerCase();
-      if (ty === "train") {
-        if (routes.length >= 2) return { two: true, reason: t("createListing.checkAi.reasonRoutes", `Rilevate ${routes.length} tratte nel testo.`, { n: routes.length }) };
-        if (routes.length === 1 && times.length >= 3) return { two: true, reason: t("createListing.checkAi.reasonTimes", `Rilevati più orari (${times.length}).`, { n: times.length }) };
-      } else if (ty === "hotel") {
-        // Soglie più alte che per il treno: una normale conferma di
-        // prenotazione (prenotato il / check-in / check-out / scadenza
-        // cancellazione gratuita) cita già 4 date e la parola "hotel" 2+
-        // volte per UN SOLO soggiorno — con soglie basse veniva segnalata
-        // come "2 annunci distinti" una prenotazione singola legittima.
-        if (dates.length >= 6) return { two: true, reason: t("createListing.checkAi.reasonDates", `Rilevate più date (${dates.length}).`, { n: dates.length }) };
-        if (hotels.length >= 3) return { two: true, reason: t("createListing.checkAi.reasonHotels", `Rilevate più strutture (${hotels.length}).`, { n: hotels.length }) };
-      } else {
-        if (routes.length >= 2 || dates.length >= 4) return { two: true, reason: t("createListing.checkAi.reasonMultiple", "Rilevati elementi multipli (tratte/date).") };
-      }
-      if (/\b(2|due)\s+bigliett/i.test(text)) return { two: true, reason: t("createListing.checkAi.reasonTwoTickets", "La descrizione cita due biglietti.") };
-      return { two: false, reason: "" };
+      const res = detectTwoListingsPure(desc, type);
+      if (!res.two) return { two: false, reason: "" };
+      const fallback = REASON_FALLBACKS[res.reasonKey] || "";
+      return {
+        two: true,
+        reason: t(`createListing.checkAi.${res.reasonKey}`, fallback.replace("{n}", res.n), { n: res.n }),
+      };
     } catch { return { two: false, reason: "" }; }
-  }, [t]);
+  }, [t, REASON_FALLBACKS]);
 
   // Stato form
   // location resta il campo per gli hotel; per i treni la tratta vive in due
