@@ -227,7 +227,38 @@ viene evidenziato: è il caso migliore.
 
 ---
 
-## 6. Proporre un acquisto o uno scambio
+## 6. Chiedere informazioni prima di proporre
+
+Su ogni annuncio altrui, sotto la descrizione, trovi **"Chiedi informazioni"**:
+un elenco di domande pronte a cui il venditore risponde con un tocco. Le
+risposte restano **pubbliche sull'annuncio**, così una risposta serve a tutti
+quelli che guardano dopo di te.
+
+Non è una chat: non si scrive testo libero, né nelle domande né nelle
+risposte. È una scelta di protezione — senza campi liberi non c'è modo di
+scambiarsi contatti fuori dall'app prima del tempo, e nessuno vede chi ha
+fatto la domanda (solo la risposta è pubblica).
+
+Per i **treni** puoi chiedere: operatore e classe (solo se non sono già
+scritti sulla scheda), se il biglietto è modificabile o rimborsabile, una foto
+del biglietto, chi si occupa del cambio nominativo e chi ne paga il costo
+(solo sui biglietti nominativi), e quando avviene la consegna.
+
+Per gli **hotel**: chi si occupa del cambio di intestatario, se la
+prenotazione è modificabile o rimborsabile, che tipo di camera è
+(matrimoniale, doppia a due letti, singola), quante camere comprende, se sono
+ammessi animali, se c'è il parcheggio, una foto della camera e l'aggiunta del
+nome dell'hotel all'annuncio.
+
+Quando chiedi, il venditore riceve una notifica; quando risponde, la ricevi
+tu. Ogni domanda si può fare **una sola volta** per annuncio. Se ti viene
+chiesta una foto del biglietto o della prenotazione, l'app ricorda al
+venditore di **coprire QR e codice di prenotazione**: chi li vede potrebbe
+usare il biglietto.
+
+---
+
+## 7. Proporre un acquisto o uno scambio
 
 Dal dettaglio di un annuncio altrui scegli una delle due strade. **Entrambe
 funzionano solo verso un VENDO**: su un CERCO i pulsanti non compaiono.
@@ -267,7 +298,7 @@ La prenotazione dura **7 giorni**.
 
 ---
 
-## 7. Concludere lo scambio: la chat e la doppia conferma
+## 8. Concludere lo scambio: la chat e la doppia conferma
 
 La chat serve a mettervi d'accordo: dove, quando, come passarvi il biglietto.
 
@@ -296,7 +327,7 @@ Hai anche due vie d'uscita:
 
 ---
 
-## 8. Scambi a 3
+## 9. Scambi a 3
 
 A volte due persone non si incastrano, ma tre sì: tu dai a Anna, Anna dà a
 Marco, Marco dà a te. L'app cerca questi **anelli chiusi** da sola e te li
@@ -316,7 +347,7 @@ catene: l'app non saprebbe quale dei tuoi stai offrendo.
 
 ---
 
-## 9. Avvisi di ricerca
+## 10. Avvisi di ricerca
 
 Se quello che cerchi non c'è ancora, crea un **avviso**: tipo di viaggio,
 tratta o località, prezzo massimo. Quando compare un annuncio che corrisponde,
@@ -327,7 +358,7 @@ cancellarli.
 
 ---
 
-## 10. Preferiti, notifiche, attività
+## 11. Preferiti, notifiche, attività
 
 **Preferiti** — la stella su un annuncio lo salva in un elenco a parte. Se è
 vuoto, l'app te lo dice e spiega come aggiungerne.
@@ -343,7 +374,7 @@ metà.
 
 ---
 
-## 11. Gestire i tuoi annunci
+## 12. Gestire i tuoi annunci
 
 Dal **Profilo** vedi tutti i tuoi annunci, filtrabili per stato.
 
@@ -359,7 +390,9 @@ Due cose da sapere:
   sarebbe solo un'altra pausa.
 - **Riattivare conta come pubblicare**: se sei già a 10 annunci attivi, la
   riattivazione viene bloccata.
-- **Un annuncio venduto o scambiato non è più modificabile**, in nessun modo.
+- **Un annuncio venduto o scambiato non è più modificabile né eliminabile**:
+  fa parte dello storico di uno scambio avvenuto e resta lì. Il pulsante
+  "Elimina" su questi annunci non compare proprio.
 
 Se modifichi il contenuto di un annuncio (titolo, descrizione, prezzo, tratta,
 date, foto) **l'affidabilità viene azzerata**: il punteggio vecchio si riferiva
@@ -368,7 +401,7 @@ frattempo l'annuncio resta fuori dagli elenchi filtrati per affidabilità.
 
 ---
 
-## 12. Pubblicare da Messenger
+## 13. Pubblicare da Messenger
 
 Puoi collegare il tuo account a **Facebook Messenger** dalla schermata
 "Collega Messenger": l'app genera un codice usa-e-getta, tu lo mandi alla
@@ -387,7 +420,7 @@ il canale semplicemente non riceve nulla.
 
 ---
 
-## 13. Lingue
+## 14. Lingue
 
 L'app è disponibile in **italiano, inglese e spagnolo**. La lingua si cambia
 dal profilo e vale ovunque, comprese le spiegazioni dell'AI e la traduzione
@@ -395,7 +428,7 @@ delle descrizioni altrui.
 
 ---
 
-## 14. Mappa delle schermate
+## 15. Mappa delle schermate
 
 ```
 Primo avvio
@@ -421,7 +454,7 @@ Dopo l'accesso — quattro schede in basso
 
 ---
 
-## 15. Stati che incontrerai
+## 16. Stati che incontrerai
 
 **Caricamento.** Rotellina all'avvio mentre l'app controlla la sessione;
 rotellina negli elenchi al primo caricamento. Durante il Check AI compare un
@@ -443,7 +476,7 @@ basso, e si ricaricano da soli quando ci torni sopra.
 
 ---
 
-## 16. Cosa l'app NON fa
+## 17. Cosa l'app NON fa
 
 Limiti reali, ricavati dal codice:
 
@@ -470,14 +503,15 @@ Limiti reali, ricavati dal codice:
   pertinenti: foto non attinenti abbassano il punteggio.
 - **Non riattiva un annuncio eliminato.**
 - **Non permette di modificare un annuncio già venduto o scambiato.**
-- **Non ha una chat generica.** Si può scrivere **solo** dopo che una proposta
-  è stata accettata: non esiste un modo per contattare un venditore prima.
+- **Non ha una chat libera prima dell'accordo.** Prima di proporre puoi solo
+  usare le domande a risposta chiusa (vedi sopra): il testo libero arriva
+  esclusivamente con la chat, dopo che una proposta è stata accettata.
 - **Non consegna nulla.** Nessuna spedizione, nessun ritiro: l'accordo su come
   passarsi il biglietto si prende in chat.
 
 ---
 
-## 17. In sintesi
+## 18. In sintesi
 
 Il percorso tipico, dall'inizio alla fine:
 

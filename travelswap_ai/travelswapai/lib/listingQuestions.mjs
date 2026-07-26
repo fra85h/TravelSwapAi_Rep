@@ -81,6 +81,71 @@ export const QUESTION_CATALOG = [
     answers: ['on_accept', 'day_before', 'agree_in_chat'],
     showWhen: () => true,
   },
+
+  // ---------- Hotel ----------
+  // Nessun showWhen condizionale: a differenza dei treni, qui non esistono
+  // colonne strutturate da cui questi dati possano già arrivare. Una
+  // prenotazione alberghiera è sempre intestata, quindi la domanda sul cambio
+  // compare sempre.
+  {
+    code: 'hotel_name_change',
+    type: 'hotel',
+    answers: ['seller', 'buyer', 'not_possible', ANSWER_UNKNOWN],
+    showWhen: () => true,
+  },
+  {
+    code: 'hotel_refundable',
+    type: 'hotel',
+    answers: ['both', 'changeable_only', 'neither', ANSWER_UNKNOWN],
+    showWhen: () => true,
+  },
+  {
+    code: 'hotel_room_type',
+    type: 'hotel',
+    // "doppia" in italiano è ambigua (letto matrimoniale o due letti?): le
+    // risposte distinguono esplicitamente, che è il motivo della domanda.
+    answers: ['double_bed', 'twin', 'single', ANSWER_UNKNOWN],
+    showWhen: () => true,
+  },
+  {
+    code: 'hotel_rooms_count',
+    type: 'hotel',
+    answers: ['one', 'two', 'three_plus', ANSWER_UNKNOWN],
+    showWhen: () => true,
+  },
+  {
+    code: 'hotel_pets',
+    type: 'hotel',
+    answers: ['yes', 'no', ANSWER_UNKNOWN],
+    showWhen: () => true,
+  },
+  {
+    code: 'hotel_parking',
+    type: 'hotel',
+    answers: ['yes_free', 'yes_paid', 'no', ANSWER_UNKNOWN],
+    showWhen: () => true,
+  },
+  {
+    code: 'hotel_photo',
+    type: 'hotel',
+    // Richiesta, come 'photo' per i treni. La conferma di prenotazione
+    // contiene il codice: stesso avviso di coprirlo prima di fotografare.
+    answers: ['added', 'declined'],
+    showWhen: () => true,
+    isRequest: true,
+  },
+  {
+    code: 'hotel_info',
+    type: 'hotel',
+    // "Metteresti il link all'hotel?" non può essere una risposta libera: un
+    // URL è testo libero, e questo canale non ne ammette. Diventa una
+    // richiesta: il venditore aggiunge nome/riferimento dell'hotel
+    // NELL'ANNUNCIO (descrizione), dove il contenuto passa dal Check AI e
+    // dalla moderazione come tutto il resto, e risponde "fatto".
+    answers: ['added', 'declined'],
+    showWhen: () => true,
+    isRequest: true,
+  },
 ];
 
 const BY_CODE = new Map(QUESTION_CATALOG.map((q) => [q.code, q]));

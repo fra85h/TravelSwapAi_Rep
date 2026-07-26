@@ -47,6 +47,14 @@ export const translations = {
       answerCta: "Rispondi",
       photoWarning: "⚠️ Copri il codice QR e il codice di prenotazione prima di fotografare il biglietto: chi li vede potrebbe usarlo.",
       q: {
+        hotel_name_change: "Chi si occupa del cambio di intestatario della prenotazione?",
+        hotel_refundable: "La prenotazione si può modificare o rimborsare?",
+        hotel_room_type: "Che camera è?",
+        hotel_rooms_count: "Quante camere comprende la prenotazione?",
+        hotel_pets: "Sono ammessi animali?",
+        hotel_parking: "C’è il parcheggio?",
+        hotel_photo: "Puoi aggiungere una foto della camera o della prenotazione?",
+        hotel_info: "Puoi indicare nell’annuncio il nome dell’hotel?",
         operator: "Con quale operatore viaggia il biglietto?",
         ticket_class: "In che classe è il posto?",
         refundable: "Il biglietto si può modificare o rimborsare?",
@@ -56,6 +64,49 @@ export const translations = {
         delivery: "Quando consegni il biglietto?",
       },
       a: {
+        hotel_name_change: {
+          seller: "Me ne occupo io",
+          buyer: "Deve farlo l’acquirente",
+          not_possible: "Non è possibile farlo",
+          unknown: "Non lo so",
+        },
+        hotel_refundable: {
+          both: "Modificabile e rimborsabile",
+          changeable_only: "Solo modificabile",
+          neither: "Tariffa non rimborsabile",
+          unknown: "Non lo so",
+        },
+        hotel_room_type: {
+          double_bed: "Matrimoniale",
+          twin: "Doppia (due letti)",
+          single: "Singola",
+          unknown: "Non lo so",
+        },
+        hotel_rooms_count: {
+          one: "Una camera",
+          two: "Due camere",
+          three_plus: "Tre o più",
+          unknown: "Non lo so",
+        },
+        hotel_pets: {
+          yes: "Sì",
+          no: "No",
+          unknown: "Non lo so",
+        },
+        hotel_parking: {
+          yes_free: "Sì, gratuito",
+          yes_paid: "Sì, a pagamento",
+          no: "No",
+          unknown: "Non lo so",
+        },
+        hotel_photo: {
+          added: "L’ho aggiunta",
+          declined: "Preferisco non pubblicarla",
+        },
+        hotel_info: {
+          added: "L’ho indicato",
+          declined: "Preferisco di no",
+        },
         operator: {
           trenitalia: "Trenitalia",
           italo: "Italo",
@@ -403,6 +454,7 @@ export const translations = {
         activate: "Rendi attivo",
         deleteTitle: "Elimina annuncio",
         deleteConfirm: "Vuoi eliminare definitivamente “{title}”? L'operazione non è reversibile (per nasconderlo temporaneamente usa “Metti in pausa”).",
+        deleteConcluded: "Questo annuncio fa parte di uno scambio già concluso: resta nello storico e non può essere eliminato.",
         more: "Azioni",
       },
 
@@ -1196,6 +1248,14 @@ export const translations = {
       answerCta: "Answer",
       photoWarning: "⚠️ Cover the QR code and the booking reference before photographing the ticket: anyone who sees them could use it.",
       q: {
+        hotel_name_change: "Who handles changing the booking holder?",
+        hotel_refundable: "Can the booking be changed or refunded?",
+        hotel_room_type: "What kind of room is it?",
+        hotel_rooms_count: "How many rooms does the booking include?",
+        hotel_pets: "Are pets allowed?",
+        hotel_parking: "Is there parking?",
+        hotel_photo: "Could you add a photo of the room or the booking?",
+        hotel_info: "Could you add the hotel name to the listing?",
         operator: "Which operator is the ticket for?",
         ticket_class: "What class is the seat?",
         refundable: "Can the ticket be changed or refunded?",
@@ -1205,6 +1265,49 @@ export const translations = {
         delivery: "When do you hand over the ticket?",
       },
       a: {
+        hotel_name_change: {
+          seller: "I take care of it",
+          buyer: "The buyer has to do it",
+          not_possible: "It cannot be done",
+          unknown: "I don’t know",
+        },
+        hotel_refundable: {
+          both: "Changeable and refundable",
+          changeable_only: "Changeable only",
+          neither: "Non-refundable rate",
+          unknown: "I don’t know",
+        },
+        hotel_room_type: {
+          double_bed: "Double bed",
+          twin: "Twin (two beds)",
+          single: "Single",
+          unknown: "I don’t know",
+        },
+        hotel_rooms_count: {
+          one: "One room",
+          two: "Two rooms",
+          three_plus: "Three or more",
+          unknown: "I don’t know",
+        },
+        hotel_pets: {
+          yes: "Yes",
+          no: "No",
+          unknown: "I don’t know",
+        },
+        hotel_parking: {
+          yes_free: "Yes, free",
+          yes_paid: "Yes, paid",
+          no: "No",
+          unknown: "I don’t know",
+        },
+        hotel_photo: {
+          added: "I added it",
+          declined: "I’d rather not publish it",
+        },
+        hotel_info: {
+          added: "I added it",
+          declined: "I’d rather not",
+        },
         operator: {
           trenitalia: "Trenitalia",
           italo: "Italo",
@@ -1545,6 +1648,7 @@ export const translations = {
         activate: "Activate",
         deleteTitle: "Delete listing",
         deleteConfirm: "Permanently delete “{title}”? This can't be undone (to hide it temporarily use “Pause”).",
+        deleteConcluded: "This listing is part of a completed exchange: it stays in your history and cannot be deleted.",
         more: "Actions",
       },
 
@@ -2600,6 +2704,7 @@ export const translations = {
         activate: "Activar",
         deleteTitle: "Eliminar anuncio",
         deleteConfirm: "¿Eliminar “{title}” de forma permanente? No se puede deshacer (para ocultarlo temporalmente usa “Pausar”).",
+        deleteConcluded: "Este anuncio forma parte de un intercambio ya concluido: permanece en tu historial y no se puede eliminar.",
         more: "Acciones",
       },
 
@@ -3340,6 +3445,14 @@ export const translations = {
       answerCta: "Responder",
       photoWarning: "⚠️ Tapa el código QR y el código de reserva antes de fotografiar el billete: quien los vea podría usarlo.",
       q: {
+        hotel_name_change: "¿Quién se encarga del cambio de titular de la reserva?",
+        hotel_refundable: "¿La reserva se puede cambiar o reembolsar?",
+        hotel_room_type: "¿Qué tipo de habitación es?",
+        hotel_rooms_count: "¿Cuántas habitaciones incluye la reserva?",
+        hotel_pets: "¿Se admiten mascotas?",
+        hotel_parking: "¿Hay aparcamiento?",
+        hotel_photo: "¿Puedes añadir una foto de la habitación o de la reserva?",
+        hotel_info: "¿Puedes indicar el nombre del hotel en el anuncio?",
         operator: "¿Con qué operador viaja el billete?",
         ticket_class: "¿En qué clase está la plaza?",
         refundable: "¿El billete se puede cambiar o reembolsar?",
@@ -3349,6 +3462,49 @@ export const translations = {
         delivery: "¿Cuándo entregas el billete?",
       },
       a: {
+        hotel_name_change: {
+          seller: "Me encargo yo",
+          buyer: "Debe hacerlo el comprador",
+          not_possible: "No es posible hacerlo",
+          unknown: "No lo sé",
+        },
+        hotel_refundable: {
+          both: "Cambiable y reembolsable",
+          changeable_only: "Solo cambiable",
+          neither: "Tarifa no reembolsable",
+          unknown: "No lo sé",
+        },
+        hotel_room_type: {
+          double_bed: "Cama de matrimonio",
+          twin: "Doble (dos camas)",
+          single: "Individual",
+          unknown: "No lo sé",
+        },
+        hotel_rooms_count: {
+          one: "Una habitación",
+          two: "Dos habitaciones",
+          three_plus: "Tres o más",
+          unknown: "No lo sé",
+        },
+        hotel_pets: {
+          yes: "Sí",
+          no: "No",
+          unknown: "No lo sé",
+        },
+        hotel_parking: {
+          yes_free: "Sí, gratuito",
+          yes_paid: "Sí, de pago",
+          no: "No",
+          unknown: "No lo sé",
+        },
+        hotel_photo: {
+          added: "La he añadido",
+          declined: "Prefiero no publicarla",
+        },
+        hotel_info: {
+          added: "Lo he indicado",
+          declined: "Prefiero que no",
+        },
         operator: {
           trenitalia: "Trenitalia",
           italo: "Italo",

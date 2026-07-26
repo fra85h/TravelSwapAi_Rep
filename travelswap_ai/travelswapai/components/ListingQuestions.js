@@ -112,7 +112,7 @@ export default function ListingQuestions({ listing, meId }) {
                     contiene QR e codice di prenotazione, cioè il dato che
                     l'app tiene segregato e non mostra mai. Pubblicarla in
                     chiaro significa regalare il biglietto a chi la vede. */}
-                {r.code === "photo" ? (
+                {r.code === "photo" || r.code === "hotel_photo" ? (
                   <Text style={styles.avviso}>
                     {t("listingQuestions.photoWarning", "⚠️ Copri il codice QR e il codice di prenotazione prima di fotografare il biglietto: chi li vede potrebbe usarlo.")}
                   </Text>

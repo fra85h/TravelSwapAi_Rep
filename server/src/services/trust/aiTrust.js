@@ -73,10 +73,19 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "Per un annuncio hotel, verifica solo che la città/location sia un luogo reale. " +
       "Quando la tratta è impossibile secondo questi criteri, aggiungi un flag " +
       "con code:'IMPLAUSIBLE_ROUTE' e un msg che spiega perché. " +
-      "Valuta anche la DURATA del viaggio (depart_at→arrive_at) rispetto alla " +
-      "tratta: se è palesemente incompatibile con la distanza reale (es. " +
-      "Milano→Roma in 20 minuti, o Torino→Bari in 45 minuti), aggiungi un flag " +
-      "con code:'IMPLAUSIBLE_DURATION' e un msg che spiega perché. " +
+      // Niente esempi di città qui (stessa lezione degli esempi su numero
+      // treno/classe: il modello li copiava). E soglia ALTA di proposito: il
+      // modello non ha orari reali, e su tratte regionali brevi tirava a
+      // indovinare — caso reale: 1h30 Piacenza→Brescia dichiarata "troppo
+      // lunga" quando è una durata normale via Cremona. Il backstop
+      // deterministico (computeTrustScore) scarta comunque i giudizi fini.
+      "Valuta anche la DURATA del viaggio (depart_at→arrive_at), ma segnala " +
+      "IMPLAUSIBLE_DURATION SOLO quando la durata è ASSURDA in modo evidente " +
+      "e incontestabile — ordini di grandezza sbagliati, non scostamenti. " +
+      "NON conosci gli orari reali dei treni: NON stimare mai quanto " +
+      "'dovrebbe' durare una specifica tratta, e NON segnalare differenze di " +
+      "decine di minuti o di un'ora. NEL DUBBIO non segnalare. Quando segnali, " +
+      "aggiungi un msg che spiega perché. " +
       "Se sono presenti immagini, valuta se sono COERENTI con un annuncio di " +
       "viaggio di questo tipo (biglietto, stazione, hotel, camera, luogo): " +
       "foto del tutto estranee (cibo, selfie, oggetti non pertinenti) meritano " +

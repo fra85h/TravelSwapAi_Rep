@@ -225,7 +225,16 @@ export default function ProfileScreen() {
               refreshMySnapshot();
               await loadMine();
             } catch (e) {
-              Alert.alert(t("common.error", "Errore"), e?.message || t("errors.delete", "Impossibile eliminare"));
+              // Il backstop DB parla la sua lingua ("concluded listings
+              // cannot be modified"): all'utente serve il perché, non l'id.
+              const grezzo = String(e?.message || "");
+              const concluso = /concluded listings cannot be modified|already (sold|swapped|exchanged|traded)/i.test(grezzo);
+              Alert.alert(
+                t("common.error", "Errore"),
+                concluso
+                  ? t("listing.actions.deleteConcluded", "Questo annuncio fa parte di uno scambio già concluso: resta nello storico e non può essere eliminato.")
+                  : (grezzo || t("errors.delete", "Impossibile eliminare"))
+              );
             }
           },
         },
@@ -658,7 +667,15 @@ export default function ProfileScreen() {
           ...(!isConcludedStatus(actionSheetItem.status)
             ? [{ label: t("common.edit", "Modifica"), onPress: () => onEdit(actionSheetItem) }]
             : []),
-          { label: t("common.delete", "Elimina"), destructive: true, onPress: () => onDeleteConfirm(actionSheetItem) },
+          // Un annuncio concluso è lo storico di uno scambio avvenuto: il
+          // trigger before_update_listings_lock_terminal rifiuta QUALUNQUE
+          // modifica, delete compreso (è un update a status='deleted').
+          // Prima l'opzione compariva comunque e il tocco finiva in un
+          // errore tecnico del database mostrato all'utente ("listing ... is
+          // already swapped: concluded listings cannot be modified").
+          ...(!isConcludedStatus(actionSheetItem.status)
+            ? [{ label: t("common.delete", "Elimina"), destructive: true, onPress: () => onDeleteConfirm(actionSheetItem) }]
+            : []),
         ] : []}
       />
     </SafeAreaView>
