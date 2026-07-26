@@ -7,6 +7,10 @@
 import { computeHeuristicChecks, isKnownRailCity } from './heuristics.js';
 import { aiTrustReview } from './aiTrust.js';
 import { moderateListing } from './moderation.js';
+// Da falseClaims e non definita qui: la stessa prova serve anche per scartare
+// le obiezioni in PROSA su durate normali (textReason/suggerimenti), e
+// importare in senso opposto creerebbe un ciclo con aiTrust.
+import { isTrainDurationAbsurd } from './falseClaims.js';
 
 // Pesi delle tre componenti del TrustScore (vedi CLAUDE.md).
 export const TRUST_WEIGHTS = { heuristics: 0.45, aiText: 0.45, aiImages: 0.10 };
@@ -185,6 +189,26 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
     ai.flags = (ai?.flags ?? []).filter((f) => String(f?.code || '').toUpperCase() !== 'IMPLAUSIBLE_ROUTE');
     if (ai.flags.length !== before && process.env.NODE_ENV !== 'production') {
       console.log(`[trustscore] soppresso IMPLAUSIBLE_ROUTE AI (falso positivo): ${listing.origin} → ${listing.destination}`);
+    }
+  }
+
+  // Falsi positivi di durata: l'AI non ha gli orari reali dei treni, e sulle
+  // tratte regionali brevi tirava a indovinare in ENTRAMBE le direzioni —
+  // caso reale: 1h30 su Piacenza→Brescia dichiarata "troppo lunga" (è una
+  // durata normale via Cremona), e qualunque intervallo l'utente provasse
+  // usciva "troppo corta" o "troppo lunga", con il punteggio inchiodato al
+  // tetto di 45. Nella fascia in cui solo un orario ferroviario potrebbe
+  // giudicare, il giudizio dell'AI non vale niente: il flag sopravvive SOLO
+  // quando la durata è assurda in modo verificabile senza orari — sotto i 10
+  // minuti o sopra le 16 ore (niente in Italia dura di più, Sicilia notturna
+  // compresa). Se le date mancano o non si leggono, il flag è senza base e
+  // cade comunque.
+  if (isTrainListing && (ai?.flags ?? []).some((f) => String(f?.code || '').toUpperCase() === 'IMPLAUSIBLE_DURATION')) {
+    if (!isTrainDurationAbsurd(listing.startDate, listing.endDate)) {
+      ai.flags = ai.flags.filter((f) => String(f?.code || '').toUpperCase() !== 'IMPLAUSIBLE_DURATION');
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[trustscore] soppresso IMPLAUSIBLE_DURATION AI (durata non giudicabile senza orari): ${listing.startDate} → ${listing.endDate}`);
+      }
     }
   }
 

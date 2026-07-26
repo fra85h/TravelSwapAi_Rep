@@ -13,6 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   falseMissingClaims, reasonWithoutFalseClaims, fixesWithoutFalseClaims,
+  isTrainDurationAbsurd,
 } from '../src/services/trust/falseClaims.js';
 
 const ANNUNCIO = {
@@ -174,4 +175,58 @@ test('fixesWithoutFalseClaims regge input non validi', () => {
   assert.deepEqual(fixesWithoutFalseClaims(null, ANNUNCIO), []);
   assert.deepEqual(fixesWithoutFalseClaims(undefined, ANNUNCIO), []);
   assert.deepEqual(fixesWithoutFalseClaims([{}], ANNUNCIO), [{}]);
+});
+
+/* ===== Durata messa in dubbio senza poterla giudicare ===== */
+
+test('la durata normale non può essere messa in dubbio (caso Piacenza→Brescia)', () => {
+  // Frase ESATTA dello screenshot: 1h30 dichiarata "troppo lunga" su una
+  // tratta dove è una durata normale via Cremona. L'AI non ha orari reali:
+  // nella fascia 10min–16h il suo giudizio non è mostrabile.
+  const L = { type: 'train', origin: 'Piacenza', destination: 'Brescia',
+              startDate: '2026-08-03T08:00:00', endDate: '2026-08-03T09:30:00' };
+  const frase = 'La durata del viaggio indicata è di 1 ora e 30 minuti, ma il viaggio in treno tra Piacenza e Brescia richiede generalmente meno tempo.';
+  assert.equal(reasonWithoutFalseClaims(frase, L), null);
+  assert.deepEqual(
+    fixesWithoutFalseClaims([{ suggestion: 'Aggiornare la durata del viaggio per riflettere un tempo più realistico.' }], L),
+    [],
+  );
+});
+
+test('una durata davvero assurda resta segnalabile', () => {
+  // 5 minuti non sono un viaggio, 20 ore non esistono in Italia: fuori dalla
+  // fascia il dubbio è verificabile senza orari e non va zittito.
+  const corto = { type: 'train', startDate: '2026-08-03T08:00:00', endDate: '2026-08-03T08:05:00' };
+  const lungo = { type: 'train', startDate: '2026-08-03T08:00:00', endDate: '2026-08-04T04:00:00' };
+  const frase = 'La durata del viaggio non è plausibile.';
+  assert.equal(reasonWithoutFalseClaims(frase, corto), frase);
+  assert.equal(reasonWithoutFalseClaims(frase, lungo), frase);
+});
+
+test('la fascia di giudicabilità della durata è quella dichiarata', () => {
+  assert.equal(isTrainDurationAbsurd('2026-08-03T08:00:00', '2026-08-03T08:05:00'), true,  '5 min');
+  assert.equal(isTrainDurationAbsurd('2026-08-03T08:00:00', '2026-08-03T08:12:00'), false, '12 min (Milano→Monza esiste)');
+  assert.equal(isTrainDurationAbsurd('2026-08-03T08:00:00', '2026-08-03T20:00:00'), false, '12 ore (notturni)');
+  assert.equal(isTrainDurationAbsurd('2026-08-03T08:00:00', '2026-08-04T04:00:00'), true,  '20 ore');
+  // date mancanti o rotte: nessuna base per giudicare, quindi non "assurda"
+  assert.equal(isTrainDurationAbsurd(null, '2026-08-03T09:00:00'), false);
+  assert.equal(isTrainDurationAbsurd('non-una-data', '2026-08-03T09:00:00'), false);
+  // ordine invertito: gestito altrove (DATE_SWAP + CHECK a DB), qui non scatta
+  assert.equal(isTrainDurationAbsurd('2026-08-03T09:00:00', '2026-08-03T08:00:00'), false);
+});
+
+test('il dubbio sulla durata in inglese e spagnolo viene soppresso allo stesso modo', () => {
+  const L = { type: 'train', startDate: '2026-08-03T08:00:00', endDate: '2026-08-03T09:30:00' };
+  for (const frase of [
+    'The stated duration is not plausible: this trip usually takes less time.',
+    'La duración indicada no es plausible: el viaje suele tardar menos.',
+  ]) {
+    assert.equal(reasonWithoutFalseClaims(frase, L), null, frase);
+  }
+});
+
+test('un hotel non entra nella logica della durata', () => {
+  const hotel = { type: 'hotel', startDate: '2026-08-20', endDate: '2026-08-22' };
+  const frase = 'La durata del soggiorno non è plausibile.';
+  assert.equal(reasonWithoutFalseClaims(frase, hotel), frase);
 });

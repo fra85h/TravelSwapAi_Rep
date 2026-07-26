@@ -71,9 +71,31 @@ test('le domande già poste non vengono riproposte', () => {
   assert.ok(codici.includes('delivery'));
 });
 
-test('un annuncio hotel non riceve le domande dei treni', () => {
+test('treni e hotel hanno cataloghi separati, senza travasi', () => {
+  const codiciHotel = questionsForListing({ ...TRENO, type: 'hotel' }).map((q) => q.code);
+  assert.ok(codiciHotel.length >= 7, 'le domande hotel esistono');
+  assert.ok(codiciHotel.every((c) => c.startsWith('hotel_')), 'niente domande treno su un hotel');
+
+  const codiciTreno = questionsForListing(TRENO).map((q) => q.code);
+  assert.ok(codiciTreno.every((c) => !c.startsWith('hotel_')), 'niente domande hotel su un treno');
+});
+
+test('il cambio intestatario per gli hotel compare sempre', () => {
+  // A differenza dei treni non c'è una colonna is_named_ticket: una
+  // prenotazione alberghiera è sempre intestata.
   const codici = questionsForListing({ ...TRENO, type: 'hotel' }).map((q) => q.code);
-  assert.deepEqual(codici, [], 'le domande hotel non sono ancora definite');
+  assert.ok(codici.includes('hotel_name_change'));
+});
+
+test('le richieste hotel (foto, nome hotel) restano a risposta chiusa', () => {
+  // "Metteresti il link all'hotel?" non può avere un URL come risposta: un
+  // URL è testo libero. È una richiesta con esito chiuso: il riferimento va
+  // nell'annuncio, dove passa da Check AI e moderazione come tutto il resto.
+  for (const code of ['hotel_photo', 'hotel_info']) {
+    const q = getQuestion(code);
+    assert.ok(q?.isRequest, `${code} deve essere una richiesta`);
+    assert.deepEqual(q.answers, ['added', 'declined']);
+  }
 });
 
 test('solo le risposte previste sono accettate', () => {

@@ -152,6 +152,75 @@ const CLAIMABLE_ITEMS = [
   { id: 'tratta',       named: /\btratta\b|\bpercorso\b|\bdestinazione\b|\bpartenza\b/i,             isPresent: (t, l) => hasRoute(t, l) },
 ];
 
+// ----------------------------------------------------------------------
+// Durata messa in dubbio
+//
+// L'AI non ha gli orari reali dei treni: sulle tratte regionali brevi
+// giudicava a caso in ENTRAMBE le direzioni (caso reale: 1h30 su
+// Piacenza→Brescia dichiarata "troppo lunga" quando è una durata normale via
+// Cremona; qualunque intervallo l'utente provasse usciva troppo corto o
+// troppo lungo). Nella fascia in cui solo un orario ferroviario potrebbe
+// giudicare, un dubbio sulla durata non è mostrabile: la stessa prova che
+// scarta il flag IMPLAUSIBLE_DURATION scarta anche la frase.
+//
+// Fascia: dai 10 minuti (Milano→Monza ne impiega 12) alle 16 ore (i notturni
+// per la Sicilia restano sotto). Fuori, la durata è assurda in modo
+// verificabile senza orari e il giudizio può restare.
+export const TRAIN_DURATION_MIN_MS = 10 * 60 * 1000;
+export const TRAIN_DURATION_MAX_MS = 16 * 60 * 60 * 1000;
+
+/**
+ * Vero SOLO quando la durata è assurda senza bisogno di orari: fuori dalla
+ * fascia qui sopra. Date mancanti o illeggibili → false: senza una durata
+ * calcolabile nessun giudizio ha base. Funzione pura, testata da sola.
+ */
+export function isTrainDurationAbsurd(startDate, endDate) {
+  if (!startDate || !endDate) return false;
+  const a = new Date(startDate);
+  const b = new Date(endDate);
+  if (!Number.isFinite(a.getTime()) || !Number.isFinite(b.getTime())) return false;
+  const ms = b.getTime() - a.getTime();
+  if (ms <= 0) return false; // ordine invertito: già coperto da DATE_SWAP e CHECK a DB
+  return ms < TRAIN_DURATION_MIN_MS || ms > TRAIN_DURATION_MAX_MS;
+}
+
+// La frase parla della durata (it/en/es)...
+const DURATION_MENTION_RE = /\b(durat\w*|duration|duraci[oó]n|tempo\s+di\s+(?:viaggio|percorrenza)|travel\s+time)\b/i;
+// ...e la mette in dubbio: troppo lunga/corta, non plausibile, "richiede
+// generalmente meno/più tempo", stime di quanto "dovrebbe" durare.
+const DURATION_DOUBT_RE = new RegExp(
+  [
+    'non\\s+(?:è|e\')\\s+(?:plausibil|realistic|coerent|compatibil)\\w*',
+    'troppo\\s+(?:lung|cort|brev|alt|bass)\\w*',
+    'richiede\\s+(?:generalmente|di\\s+solito|in\\s+genere|normalmente)',
+    '(?:meno|pi[uù])\\s+tempo',
+    'dovrebbe\\s+(?:durare|richiedere|impiegare)',
+    'not\\s+(?:plausible|realistic|consistent)',
+    'too\\s+(?:long|short)',
+    '(?:usually|generally|typically)\\s+takes',
+    'should\\s+take',
+    'no\\s+es\\s+(?:plausible|realista|coherente)',
+    'demasiado\\s+(?:larg|cort)\\w*',
+    '(?:suele|normalmente)\\s+(?:tardar|durar)',
+    // "aggiornare la durata per riflettere un tempo più realistico": chiede
+    // una correzione presupponendo che quella indicata sia sbagliata.
+    'pi[uù]\\s+realistic\\w*',
+    'more\\s+realistic',
+    'm[aá]s\\s+realista',
+  ].join('|'),
+  'i',
+);
+
+/** Vero se la frase mette in dubbio una durata che nessuno può giudicare. */
+function questionsAPlausibleDuration(sentence, listing) {
+  const tipo = String(listing?.type || '').toLowerCase();
+  if (tipo !== 'train' && tipo !== 'treno') return false;
+  // Durata assurda per davvero: il dubbio è legittimo e resta.
+  if (isTrainDurationAbsurd(listing?.startDate, listing?.endDate)) return false;
+  const s = String(sentence || '');
+  return DURATION_MENTION_RE.test(s) && DURATION_DOUBT_RE.test(s);
+}
+
 /**
  * Voci che una frase dichiara mancanti pur essendo presenti nell'annuncio.
  * Funzione pura: nessuna chiamata esterna, verificabile da sola.
@@ -169,6 +238,9 @@ export function falseMissingClaims(sentence, listing) {
   // Tratta messa in dubbio: si verifica sull'allow-list, non sul testo
   // dell'annuncio, quindi vale anche quando titolo e descrizione sono vuoti.
   if (questionsAValidRoute(s, listing)) contraddette.push('tratta_valida');
+
+  // Durata messa in dubbio quando solo un orario reale potrebbe giudicarla.
+  if (questionsAPlausibleDuration(s, listing)) contraddette.push('durata_non_giudicabile');
 
   if (MISSING_CLAIM_RE.test(s)) {
     const text = listingText(listing);
