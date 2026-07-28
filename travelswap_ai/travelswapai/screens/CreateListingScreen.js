@@ -1676,6 +1676,19 @@ const initialJsonRef = useRef(null);
     const validationErrors = computeErrors();
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) {
+      // Bug reale: "Pubblica" sta sulla Slide 2 insieme al Check AI, ma i
+      // campi obbligatori qui controllati (tratta/date/genere/titolo) vivono
+      // sulla Slide 1. Il Check AI può dare 100% "Nessun problema rilevato"
+      // pur con uno di questi campi vuoto — non è una contraddizione, sono
+      // due controlli diversi (l'AI valuta plausibilità/coerenza del
+      // contenuto presente, non la completezza dei campi) — ma per chi
+      // pubblica sembra un errore senza alcun avviso: l'Alert da solo
+      // compariva sopra una Slide 2 che non mostra affatto il campo
+      // mancante, ed era facile scambiarlo per "non succede niente".
+      // Portare alla Slide 1 rende visibile SUBITO l'errore inline sotto il
+      // campo (fieldError già lo mostra, ora che submitAttempted è true).
+      const slide1Fields = ["title", "routeFrom", "routeTo", "location", "checkIn", "checkOut", "departAt", "arriveAt", "gender"];
+      if (slide1Fields.some((k) => validationErrors[k])) goToSlide(0);
       Alert.alert(
         t("createListing.errors.cannotSaveTitle", "Impossibile salvare"),
         Object.values(validationErrors).join("\n")
