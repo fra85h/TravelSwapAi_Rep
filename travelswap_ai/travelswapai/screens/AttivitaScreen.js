@@ -204,6 +204,12 @@ export default function AttivitaScreen({ navigation }) {
     navigation?.getParent?.()?.navigate?.("ChainProposals");
   }, [navigation]);
 
+  const goChainChat = useCallback((chainId, giveTitle, receiveTitle) => {
+    const params = { chainId, giveTitle, receiveTitle };
+    navigation?.navigate?.("ChainChat", params);
+    navigation?.getParent?.()?.navigate?.("ChainChat", params);
+  }, [navigation]);
+
   const goListing = useCallback((listingId, matchId) => {
     if (matchId) markMatchSeen(matchId).catch(() => {});
     if (!listingId) return;
@@ -363,9 +369,40 @@ export default function AttivitaScreen({ navigation }) {
     );
   };
 
+  // Chat di uno swap a 3 completato: stesso ruolo di renderChat per le
+  // offerte 1:1 sotto, ma la fonte è chain_proposals/chain_messages, non
+  // offers/chat_messages (uno swap a catena non ha una riga in offers).
+  const renderChainChat = (c) => (
+    <TouchableOpacity
+      key={"chainchat_" + c.chainId}
+      style={styles.card}
+      onPress={() => goChainChat(c.chainId, c.myGiveTitle, c.myReceiveTitle)}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={t("chains.badge", "Scambio a 3")}
+    >
+      <View style={styles.rowBetween}>
+        <KickerRow icon="git-network-outline" color={theme.colors.accent}>{t("chains.badge", "Scambio a 3")}</KickerRow>
+        {c.unreadCount > 0 ? (
+          <View style={styles.countPill}>
+            <Text style={styles.countPillText}>{c.unreadCount}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.cardTitle} numberOfLines={2}>{c.myReceiveTitle || t("offerFlow.listing", "Annuncio")}</Text>
+      <Text style={[styles.cardMeta, { color: "#166534", fontWeight: "700" }]}>
+        {t("chains.completedShort", "Scambio completato")}
+      </Text>
+      <Text style={styles.cardMeta} numberOfLines={1}>
+        {c.lastBody || t("chat.noMessagesYet", "Nessun messaggio: inizia tu.")}
+      </Text>
+    </TouchableOpacity>
+  );
+
   // Chat delle proposte accettate: l'ingresso STABILE alla conversazione
   // (le card di esito spariscono una volta viste, questa resta).
   const renderChat = (c) => {
+    if (c.kind === "chain") return renderChainChat(c);
     const isSwap = String(c.type || "").toLowerCase() === "swap";
     return (
       <TouchableOpacity

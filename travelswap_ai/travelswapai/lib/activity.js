@@ -6,6 +6,7 @@ import { listMyChainProposals } from "./chains";
 import { listMyMatches } from "./savedSearches";
 import { listMyTransactions } from "./transactions";
 import { listMyChats } from "./chat";
+import { listMyChainChats } from "./chainChat";
 
 // Stessi stati che lib/offers.js considera "pendenti": una proposta
 // in_review deve comparire in Attività come una pending.
@@ -38,13 +39,14 @@ function isResolvedOffer(status) {
  *  - expired:  proposte (ricevute o inviate) scadute senza risposta
  */
 export async function loadActivity() {
-  const [incoming, outgoing, chains, matches, tx, chats] = await Promise.all([
+  const [incoming, outgoing, chains, matches, tx, chats, chainChats] = await Promise.all([
     listIncomingOffersAny().catch(() => []),
     listOutgoingOffersAny().catch(() => []),
     listMyChainProposals().catch(() => []),
     listMyMatches().catch(() => []),
     listMyTransactions().catch(() => []),
     listMyChats().catch(() => []),
+    listMyChainChats().catch(() => []),
   ]);
 
   const toDo = [];
@@ -87,11 +89,20 @@ export async function loadActivity() {
   const byNewest = (a, b) => new Date(b.sort || 0) - new Date(a.sort || 0);
   [toDo, waiting, resolved, found, history, expired].forEach((arr) => arr.sort(byNewest));
 
-  // Le chat arrivano già ordinate per ultimo messaggio (list_my_chats).
-  const unreadChatCount = chats.reduce((n, c) => n + (c.unreadCount || 0), 0);
+  // Le chat 1:1 (offerte accettate) e quelle degli swap a 3 completati sono
+  // due fonti diverse (offers vs chain_proposals, vedi lib/chat.js e
+  // lib/chainChat.js) ma nella casella Attività sono la stessa sezione: si
+  // uniscono qui, ordinate insieme per ultima attività, invece di avere due
+  // sezioni "Chat" separate che spezzerebbero l'ordine cronologico.
+  const allChats = [
+    ...chats.map((c) => ({ kind: "offer", ...c })),
+    ...chainChats.map((c) => ({ kind: "chain", ...c })),
+  ].sort((a, b) => new Date(b.lastAt || b.updatedAt || 0) - new Date(a.lastAt || a.updatedAt || 0));
+
+  const unreadChatCount = allChats.reduce((n, c) => n + (c.unreadCount || 0), 0);
 
   return {
-    toDo, waiting, resolved, found, history, expired, chats,
+    toDo, waiting, resolved, found, history, expired, chats: allChats,
     toDoCount: toDo.length,
     resolvedCount: resolved.length,
     unreadChatCount,

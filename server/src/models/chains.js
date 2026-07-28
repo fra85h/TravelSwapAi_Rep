@@ -4,9 +4,13 @@
 // create_chain_proposal() (RPC Postgres, fase 1 — vedi
 // supabase/migrations/20260712120000_swap_chains.sql).
 //
-// v1: un solo annuncio VENDO per utente considerato (se un utente ha più
-// annunci attivi in VENDO, viene escluso dal grafo — evita l'ambiguità
-// di "quale dei suoi annunci starebbe dando" finché non serve altro).
+// v2: un utente con più annunci VENDO attivi partecipa comunque al grafo.
+// L'ambiguità "quale dei suoi annunci starebbe dando" si risolve a livello
+// di singolo arco, non di utente: ogni arco owner(A)->owner(B) memorizza lo
+// SPECIFICO annuncio di B che soddisfa il CERCO di A (il migliore per
+// punteggio, se più di uno passa la soglia). create_chain_proposal() valida
+// comunque lato DB che ogni give_listing sia posseduto da chi lo dichiara e
+// sia active, quindi qui basta essere coerenti sull'id scelto.
 import { supabase } from "../db.js";
 import { listActiveListings } from "./listings.js";
 import { scoreChainCandidates, CHAIN_SCORE_PASS_THRESHOLD } from "../ai/chainMatch.js";
@@ -57,9 +61,9 @@ export function findThreeCycles(edges) {
 
 /**
  * Raggruppa gli annunci attivi per proprietario, tenendo solo i CERCO e i
- * VENDO. Esclude i proprietari con 0 o >1 annunci VENDO attivi (v1: un
- * solo annuncio da dare a testa, per evitare ambiguità su quale annuncio
- * verrebbe usato nella catena).
+ * VENDO. Nessun limite sul numero di annunci VENDO per proprietario: un
+ * utente con più annunci attivi in VENDO partecipa comunque, con tutti i
+ * suoi annunci come candidati.
  */
 function groupListings(allActive) {
   const vendoByOwner = new Map();
@@ -75,44 +79,42 @@ function groupListings(allActive) {
     }
   }
 
-  const singleVendoByOwner = new Map();
-  for (const [owner, listings] of vendoByOwner) {
-    if (listings.length === 1) singleVendoByOwner.set(owner, listings[0]);
-  }
-
-  return { singleVendoByOwner, cercoByOwner };
+  return { vendoByOwner, cercoByOwner };
 }
 
 /**
  * Costruisce il grafo dei desideri: arco owner(A) -> owner(B) se A ha un
  * annuncio CERCO soddisfatto (score >= soglia) da un annuncio VENDO di B.
- * Solo proprietari con esattamente 1 annuncio VENDO attivo partecipano
- * (vedi groupListings).
+ * Ogni proprietario con almeno un VENDO e un CERCO attivi partecipa, anche
+ * se possiede più annunci VENDO (vedi groupListings). `bestEdgeListing`
+ * risolve l'ambiguità "quale dei suoi annunci": tiene, per ogni coppia
+ * ordinata (A, B), il candidato di B con punteggio più alto tra quelli di B
+ * che soddisfano un CERCO di A.
  */
 export async function buildDesireGraph(allActive) {
-  const { singleVendoByOwner, cercoByOwner } = groupListings(allActive);
+  const { vendoByOwner, cercoByOwner } = groupListings(allActive);
   const edges = new Map();
+  const bestEdgeListing = new Map(); // key `${fromOwner}|${toOwner}` -> { listingId, score }
 
   // I VENDO raggruppati per tipo una volta sola: prima ogni annuncio CERCO
   // riscorreva l'INTERA mappa dei VENDO per filtrarli per tipo, cioè
   // O(cerco × vendo) scansioni ripetute sugli stessi dati a ogni ricalcolo.
+  const allVendo = [...vendoByOwner.values()].flat();
   const vendoByType = new Map();
-  for (const vendo of singleVendoByOwner.values()) {
+  for (const vendo of allVendo) {
     if (!vendoByType.has(vendo.type)) vendoByType.set(vendo.type, []);
     vendoByType.get(vendo.type).push(vendo);
   }
   // id -> proprietario: `candidates.find(...)` dentro il ciclo sui punteggi
   // era una ricerca lineare per ogni risultato, O(n²) sul lotto di candidati.
-  const ownerByListingId = new Map(
-    [...singleVendoByOwner.values()].map((v) => [String(v.id), v.user_id])
-  );
+  const ownerByListingId = new Map(allVendo.map((v) => [String(v.id), v.user_id]));
 
   // Una coppia (annuncio CERCO, lotto di candidati) per ogni valutazione:
   // scoreChainCandidates è una chiamata OpenAI e prima venivano fatte tutte
   // in fila, una per annuncio CERCO dell'intera piattaforma.
   const jobs = [];
   for (const [owner, cercoListings] of cercoByOwner) {
-    if (!singleVendoByOwner.has(owner)) continue; // niente da dare -> fuori dalle catene
+    if (!vendoByOwner.has(owner)) continue; // niente da dare -> fuori dalle catene
     for (const want of cercoListings) {
       const candidates = (vendoByType.get(want.type) || []).filter((v) => v.user_id !== owner);
       if (candidates.length) jobs.push({ owner, want, candidates });
@@ -133,10 +135,16 @@ export async function buildDesireGraph(allActive) {
       if (!candidateOwner) continue;
       if (!edges.has(owner)) edges.set(owner, new Set());
       edges.get(owner).add(candidateOwner);
+
+      const key = `${owner}|${candidateOwner}`;
+      const prev = bestEdgeListing.get(key);
+      if (!prev || s.score > prev.score) {
+        bestEdgeListing.set(key, { listingId: s.id, score: s.score });
+      }
     }
   });
 
-  return { edges, singleVendoByOwner };
+  return { edges, bestEdgeListing, listingById: new Map(allVendo.map((v) => [String(v.id), v])) };
 }
 
 /**
@@ -182,7 +190,7 @@ export async function findAndProposeChains() {
   }
 
   const allActive = await listActiveListings({ limit: 1000 });
-  const { edges, singleVendoByOwner } = await buildDesireGraph(allActive);
+  const { edges, bestEdgeListing, listingById } = await buildDesireGraph(allActive);
   const cycles = findThreeCycles(edges);
 
   const pending = await ownersWithPendingChain();
@@ -196,9 +204,18 @@ export async function findAndProposeChains() {
       continue;
     }
 
-    const listingA = singleVendoByOwner.get(a);
-    const listingB = singleVendoByOwner.get(b);
-    const listingC = singleVendoByOwner.get(c);
+    // Per ogni proprietario, l'annuncio SPECIFICO che dà in questo ciclo:
+    // quello che soddisfa il CERCO del proprietario precedente nel ciclo
+    // (arco precedente->questo). Con più annunci VENDO per proprietario,
+    // ognuno può usarne uno diverso a seconda del ciclo trovato.
+    const giveA = bestEdgeListing.get(`${c}|${a}`); // il CERCO di c è soddisfatto dal VENDO di a
+    const giveB = bestEdgeListing.get(`${a}|${b}`); // il CERCO di a è soddisfatto dal VENDO di b
+    const giveC = bestEdgeListing.get(`${b}|${c}`); // il CERCO di b è soddisfatto dal VENDO di c
+    if (!giveA || !giveB || !giveC) continue; // non dovrebbe succedere se il ciclo esiste negli edges
+
+    const listingA = listingById.get(String(giveA.listingId));
+    const listingB = listingById.get(String(giveB.listingId));
+    const listingC = listingById.get(String(giveC.listingId));
     if (!listingA || !listingB || !listingC) continue;
 
     const participants = [
@@ -237,10 +254,12 @@ export async function findAndProposeChains() {
     }
   }
 
+  const candidateOwners = new Set([...listingById.values()].map((v) => v.user_id));
+
   return {
     expiredChains: expiredCount,
     scannedListings: allActive.length,
-    candidateOwners: singleVendoByOwner.size,
+    candidateOwners: candidateOwners.size,
     cyclesFound: cycles.length,
     proposed,
     skipped,
