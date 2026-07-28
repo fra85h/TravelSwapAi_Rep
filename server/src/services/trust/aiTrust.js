@@ -106,18 +106,28 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "QUESTO È UN MARKETPLACE DI RIVENDITA: ogni annuncio valido riguarda per " +
       "definizione un viaggio/soggiorno FUTURO (è il motivo per cui viene " +
       "rivenduto). Una data di partenza o di check-in nel futuro è quindi " +
-      "NORMALE E ATTESA, mai un segnale sospetto: non scrivere MAI in " +
-      "'textReason' o in un 'msg' che la data è 'nel futuro', che 'non è " +
-      "chiaro se il viaggio esista davvero' o simili — è un ragionamento "  +
-      "capovolto per questo tipo di annuncio, non un problema reale. " +
+      "NORMALE E ATTESA, MAI un motivo valido per abbassare 'textScore' sotto " +
+      "100, in NESSUNA forma: non scriverla in 'textReason' o in un 'msg' né " +
+      "per dire che è un problema, né per dire che 'non lo è' o 'non lo è per " +
+      "questo tipo di annuncio' — anche citarla con quella precisazione è " +
+      "comunque presentarla come IL motivo di un punteggio non massimo, il " +
+      "che è una contraddizione (non puoi dire 'il punteggio non è massimo " +
+      "perché la data è nel futuro, ma non è un problema': o è un problema, e " +
+      "allora è falso che non lo sia, o non lo è, e allora non è un motivo). " +
+      "Se la data futura è l'UNICA cosa che noteresti, ignorala del tutto: " +
+      "resta un annuncio valido, assegna 'textScore':100 e lascia " +
+      "'textReason' vuoto anche se questo è l'unico modo per farlo. " +
       "SEMPRE, anche quando non c'è nessun flag da segnalare, spiega in " +
-      "'textReason' PERCHÉ hai assegnato quel 'textScore': una sola frase " +
-      "breve e CONCRETA, riferita a QUESTO annuncio, che dica cosa lo rende " +
-      "meno solido. Se il punteggio non è massimo un motivo esiste sempre: " +
-      "NON rispondere con frasi generiche tipo 'va bene' o 'nessun " +
-      "problema'. Se e solo se 'textScore' è 100, lascia 'textReason' come " +
-      "stringa vuota. Non citare mai il punteggio numerico dentro " +
-      "'textReason'. " +
+      "'textReason' PERCHÉ hai assegnato quel 'textScore', MA SOLO se il " +
+      "motivo è un problema REALE e concreto del contenuto (non la data " +
+      "futura, non un'assenza di dati verificata come presente altrove): una " +
+      "sola frase breve, riferita a QUESTO annuncio, che dica cosa lo rende " +
+      "meno solido. Se il punteggio non è massimo per un motivo reale, " +
+      "spiegalo sempre: NON rispondere con frasi generiche tipo 'va bene' o " +
+      "'nessun problema'. Se invece l'unico candidato a motivo è quello " +
+      "vietato sopra (data futura), tratta il punteggio come se fosse 100: " +
+      "'textReason' resta stringa vuota. Non citare mai il punteggio " +
+      "numerico dentro 'textReason'. " +
       // Nessun esempio di frase, e nessun elenco di dati "tipicamente
       // mancanti": erano lì per spiegare la regola, ma il modello li copiava
       // alla lettera. Un annuncio la cui descrizione diceva "546 seconda

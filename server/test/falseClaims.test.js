@@ -230,3 +230,38 @@ test('un hotel non entra nella logica della durata', () => {
   const frase = 'La durata del soggiorno non è plausibile.';
   assert.equal(reasonWithoutFalseClaims(frase, hotel), frase);
 });
+
+// Caso reale osservato in produzione dopo il primo fix (divieto nel prompt,
+// non ancora un backstop deterministico): il modello ha aggirato il divieto
+// scrivendo la data futura come motivo E smentendola nella stessa frase —
+// "il punteggio non è massimo per X, ma X non è un problema" è comunque
+// falso quanto affermare che X è un problema (non può essere entrambe le
+// cose), quindi va soppresso a prescindere da come viene infiocchettato.
+test('la data futura non può essere usata come motivo, nemmeno smentendola nella stessa frase', () => {
+  const treno = { type: 'train', title: 'Vendo biglietto Roma-Milano', startDate: '2026-09-01T08:00:00Z' };
+  const frase = 'La descrizione del treno è chiara, ma la data di partenza è nel futuro e non è un problema per questo tipo di annuncio.';
+  assert.deepEqual(falseMissingClaims(frase, treno), ['data_futura_non_motivo']);
+  assert.equal(reasonWithoutFalseClaims(frase, treno), null);
+});
+
+test('la data futura si sopprime anche presentata come problema diretto (bug originale)', () => {
+  const treno = { type: 'train', title: 'Vendo biglietto Roma-Milano', startDate: '2026-09-01T08:00:00Z' };
+  const frase = 'Punteggio non massimo: la data di partenza è nel futuro e non è chiaro se il treno esista realmente.';
+  assert.equal(reasonWithoutFalseClaims(frase, treno), null);
+});
+
+test('la data futura si sopprime anche per un hotel (check-in), in inglese e spagnolo', () => {
+  const hotel = { type: 'hotel', title: 'Stanza doppia' };
+  for (const frase of [
+    'The check-in date is in the future, which is expected for this listing.',
+    'La fecha de check-in está en el futuro, lo cual es normal para este tipo de anuncio.',
+  ]) {
+    assert.equal(reasonWithoutFalseClaims(frase, hotel), null, frase);
+  }
+});
+
+test('una frase che parla di date senza nominare il futuro non viene toccata', () => {
+  const treno = { type: 'train', title: 'Vendo biglietto Roma-Milano' };
+  const frase = 'Il prezzo indicato è superiore alla media per questa tratta.';
+  assert.equal(reasonWithoutFalseClaims(frase, treno), frase);
+});

@@ -221,6 +221,38 @@ function questionsAPlausibleDuration(sentence, listing) {
   return DURATION_MENTION_RE.test(s) && DURATION_DOUBT_RE.test(s);
 }
 
+// ----------------------------------------------------------------------
+// Data futura usata come motivo di punteggio non massimo
+//
+// Il prompt (aiTrust.js) vieta di segnalare la data di partenza/check-in
+// futura come un problema: è un marketplace di RIVENDITA, ogni annuncio
+// valido riguarda per definizione un viaggio futuro. Ma il divieto da solo
+// non basta — caso reale osservato in produzione: il modello ha aggirato
+// la regola scrivendo "la data di partenza è nel futuro e non è un
+// problema per questo tipo di annuncio" dentro 'textReason', cioè come SE
+// fosse comunque il motivo del punteggio non massimo, solo con
+// l'aggiunta di una smentita. È una frase autocontraddittoria (o è un
+// motivo, o non lo è — non può essere entrambi), quindi qui si sopprime a
+// prescindere da come viene infiocchettata: se textReason nomina la data
+// futura, la sta comunque presentando come motivo (è l'unico scopo del
+// campo), il che è sempre sbagliato per questo dominio.
+const FUTURE_DATE_RE = new RegExp(
+  [
+    // italiano
+    "data\\s+(?:di\\s+)?(?:partenza|check-?in|arrivo)\\s+(?:è|e')?\\s*nel\\s+futuro",
+    '(?:partenza|check-?in)\\s+nel\\s+futuro',
+    // inglese
+    '(?:departure|check-?in)\\s+date\\s+is\\s+in\\s+the\\s+future',
+    // spagnolo
+    'fecha\\s+de\\s+(?:salida|check-?in)\\s+(?:es|est[aá])?\\s*en\\s+el\\s+futuro',
+  ].join('|'),
+  'i',
+);
+
+function questionsAFutureDate(sentence) {
+  return FUTURE_DATE_RE.test(String(sentence || ''));
+}
+
 /**
  * Voci che una frase dichiara mancanti pur essendo presenti nell'annuncio.
  * Funzione pura: nessuna chiamata esterna, verificabile da sola.
@@ -241,6 +273,9 @@ export function falseMissingClaims(sentence, listing) {
 
   // Durata messa in dubbio quando solo un orario reale potrebbe giudicarla.
   if (questionsAPlausibleDuration(s, listing)) contraddette.push('durata_non_giudicabile');
+
+  // Data futura usata come motivo (anche smentendola nella stessa frase).
+  if (questionsAFutureDate(s)) contraddette.push('data_futura_non_motivo');
 
   if (MISSING_CLAIM_RE.test(s)) {
     const text = listingText(listing);
