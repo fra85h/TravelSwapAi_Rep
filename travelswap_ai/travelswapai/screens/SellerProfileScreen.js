@@ -102,8 +102,10 @@ export default function SellerProfileScreen() {
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
         )}
-        <Text style={styles.name} numberOfLines={1}>{name}</Text>
-        <UserRating userId={sellerId} style={{ marginTop: 2 }} />
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>{name}</Text>
+          <UserRating userId={sellerId} />
+        </View>
         <TrustBadges emailVerified={profile?.email_verified} salesCount={salesCount} />
         {since ? (
           <Text style={styles.meta}>{tt("sellerProfile.since", "Membro da {when}", { when: since })}</Text>
@@ -169,7 +171,8 @@ const styles = StyleSheet.create({
   avatar: { width: 88, height: 88, borderRadius: 44, backgroundColor: theme.colors.surfaceMuted },
   avatarPlaceholder: { alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.primary },
   avatarInitials: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 28 },
-  name: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, color: theme.colors.boardingText, marginTop: 12 },
+  name: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, color: theme.colors.boardingText, flexShrink: 1 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, maxWidth: "100%" },
   meta: { color: theme.colors.textMuted, marginTop: 4 },
   bio: { color: theme.colors.text, marginTop: 12, textAlign: "center", lineHeight: 20 },
   statsRow: { flexDirection: "row", gap: 12, marginTop: 16 },

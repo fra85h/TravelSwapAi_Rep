@@ -488,10 +488,12 @@ useEffect(() => {
                 </View>
               )}
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.sellerName, { color: textColor }]} numberOfLines={1}>
-                  {sellerName || "—"}
-                </Text>
-                <UserRating userId={listing?.user_id} style={{ marginTop: 2 }} />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Text style={[styles.sellerName, { color: textColor, flexShrink: 1 }]} numberOfLines={1}>
+                    {sellerName || "—"}
+                  </Text>
+                  <UserRating userId={listing?.user_id} />
+                </View>
                 <TrustBadges emailVerified={seller?.email_verified} salesCount={sellerSalesCount} />
                 {sellerSince ? (
                   <Text style={styles.sellerMeta} numberOfLines={1}>{L.sellerSince(sellerSince)}</Text>
