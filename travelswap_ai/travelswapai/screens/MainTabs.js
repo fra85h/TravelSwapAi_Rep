@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import HeaderLogo from "../components/HeaderLogo";
+import ChainPulseIcon from "../components/ChainPulseIcon";
 
 import HomeScreen from "./HomeScreen";
 import AttivitaScreen from "./AttivitaScreen";
@@ -43,11 +44,15 @@ function VendiButton() {
 
 function MainTabsInner() {
   const { t } = useI18n();
-  const { toDoCount, resolvedCount, unreadChatCount } = useActivity();
+  const { summary, toDoCount, resolvedCount, unreadChatCount } = useActivity();
   // Numeretto rosso = cose da fare + esiti non ancora visti delle proprie
   // proposte (accettata/rifiutata) + messaggi chat non letti: tutto ciò che
   // aspetta l'utente vive in Attività, il tab deve rifletterlo.
   const badgeCount = toDoCount + resolvedCount + unreadChatCount;
+  // Uno swap a 3 in attesa di TUA conferma è l'evento più raro dei due (serve
+  // l'incastro di 3 persone): quando c'è, prende lui l'icona del tab al posto
+  // della campanella — il numeretto resta cumulativo, cambia solo l'icona.
+  const hasChainToDo = (summary?.toDo || []).some((it) => it.kind === "chain");
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
@@ -82,12 +87,26 @@ function MainTabsInner() {
           name="Attivita"
           component={AttivitaScreen}
           options={{
-            tabBarLabel: t("tabs.activity", "Attività"),
-            tabBarBadge: badgeCount > 0 ? badgeCount : undefined,
-            tabBarBadgeStyle: { backgroundColor: theme.colors.danger },
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? "notifications" : "notifications-outline"} color={color} size={size} />
+            // Etichetta e badge seguono l'icona nello stesso oro dell'accento
+            // quando c'è una catena in attesa: è uno stato a parte, non il
+            // solito focused/unfocused, quindi non usa i tint standard del
+            // Navigator (boardingText/textMuted).
+            tabBarLabel: ({ color, focused }) => (
+              <Text style={{
+                fontSize: 11, fontWeight: "700", paddingBottom: 6,
+                color: hasChainToDo ? theme.colors.accent : color,
+              }}>
+                {t("tabs.activity", "Attività")}
+              </Text>
             ),
+            tabBarBadge: badgeCount > 0 ? badgeCount : undefined,
+            tabBarBadgeStyle: { backgroundColor: hasChainToDo ? theme.colors.accent : theme.colors.danger },
+            tabBarIcon: ({ color, size, focused }) =>
+              hasChainToDo ? (
+                <ChainPulseIcon color={theme.colors.accent} size={size} focused={focused} />
+              ) : (
+                <Ionicons name={focused ? "notifications" : "notifications-outline"} color={color} size={size} />
+              ),
           }}
         />
         <Tab.Screen

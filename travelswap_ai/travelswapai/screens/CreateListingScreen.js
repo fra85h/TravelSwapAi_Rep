@@ -2811,6 +2811,13 @@ const initialJsonRef = useRef(null);
                         <View style={{ flex: 1, paddingRight: 10 }}>
                           <Text style={styles.label}>{t("createListing.swap.title", "Accetti anche uno scambio?")}</Text>
                           <Text style={styles.note}>{t("createListing.swap.subtitle", "Oltre alla vendita puoi ricevere in cambio un altro biglietto. Indica cosa cerchi: lo useremo per proporti scambi compatibili.")}</Text>
+                          {/* Indipendente dal toggle sopra: riguarda lo scambio a 3
+                              automatico (fase 2/3/4), non lo scambio diretto 1:1 che
+                              questo campo dichiara. Non serve attivare nulla perché
+                              scatti. */}
+                          <Text style={styles.chainNote}>
+                            {t("createListing.swap.chainNote", "🔗 Anche senza attivarlo, cerchiamo comunque scambi a 3 tra te e altri due utenti, automaticamente ogni 15 minuti.")}
+                          </Text>
                         </View>
                         <Switch
                           value={!!form.acceptsSwap}
@@ -3281,6 +3288,11 @@ const styles = StyleSheet.create({
   inputError: { borderColor: theme.colors.danger, borderWidth: 1.5 },
   errorText: { color: theme.colors.danger, marginTop: 4, fontWeight: "600" },
   note: { fontSize: 12, lineHeight: 16, color: theme.colors.textMuted, marginTop: 6 },
+  chainNote: {
+    fontSize: 12, lineHeight: 16, color: theme.colors.boardingText,
+    backgroundColor: theme.colors.primary, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 8, marginTop: 8,
+  },
   swapBox: {
     marginTop: 14,
     padding: 12,
