@@ -212,6 +212,25 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
     }
   }
 
+  // Durata VERAMENTE assurda ma NON segnalata dall'AI: il blocco sopra sa
+  // solo RIMUOVERE il flag se l'AI lo dà per errore, non aggiungerlo se
+  // l'AI semplicemente non se ne accorge — l'unico giudice, prima di
+  // questo fix, era il modello stesso. Caso reale osservato in produzione:
+  // annuncio Napoli→Caserta (tratta reale di ~30-40 minuti) con orari che
+  // dichiaravano 22 ore di viaggio, "Nessun problema rilevato" e 100% di
+  // affidabilità. Stessa prova usata sopra per giudicare se un dubbio è
+  // legittimo, usata qui per GENERARE il flag quando manca del tutto.
+  if (
+    isTrainListing &&
+    isTrainDurationAbsurd(listing.startDate, listing.endDate) &&
+    !(ai?.flags ?? []).some((f) => String(f?.code || '').toUpperCase() === 'IMPLAUSIBLE_DURATION')
+  ) {
+    ai.flags = [...(ai?.flags ?? []), {
+      code: 'IMPLAUSIBLE_DURATION',
+      msg: 'Durata del viaggio non plausibile per un treno: controlla data e ora di partenza e arrivo.',
+    }];
+  }
+
   const allFlagCodes = [
     ...(heur?.flags ?? []),
     ...(ai?.flags ?? []),
