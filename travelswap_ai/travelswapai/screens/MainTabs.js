@@ -30,7 +30,13 @@ function VendiButton() {
     <TouchableOpacity
       style={styles.vendiWrap}
       activeOpacity={0.9}
-      onPress={() => navigation.navigate("CreateListing")}
+      // push, non navigate: CreateListingScreen resta montato nello stack
+      // anche dopo aver cambiato tab (è un fratello di MainTabs, non un suo
+      // figlio). navigate() riuserebbe quell'istanza già esistente — fase
+      // ("intro"/"manual") e form ancora quelli della sessione precedente —
+      // quindi il box "Importa il biglietto" spariva dopo la prima visita.
+      // push forza sempre un'istanza nuova, con lo stato resettato.
+      onPress={() => navigation.push("CreateListing")}
       accessibilityRole="button"
       accessibilityLabel={t("tabs.sell", "Vendi")}
     >

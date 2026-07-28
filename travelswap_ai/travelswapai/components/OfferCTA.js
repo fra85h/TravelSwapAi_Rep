@@ -65,7 +65,7 @@ export default function OfferCTAs({ listing, me }) {
   // con la stessa tratta/date del CERCO. Comparirà da solo tra i suggerimenti
   // di questa ricerca (nessuna offerta inversa, nessuna semantica denaro nuova).
   const onSellForCerco = () => {
-    navigation.navigate("CreateListing", {
+    navigation.push("CreateListing", {
       prefill: {
         type: listing?.type,
         location: listing?.location,

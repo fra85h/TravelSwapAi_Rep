@@ -518,7 +518,7 @@ export default function HomeScreen() {
             {myActiveCount === 0 ? (
               <TouchableOpacity
                 style={styles.perTeEmptyCta}
-                onPress={() => navigation.navigate("CreateListing")}
+                onPress={() => navigation.push("CreateListing")}
                 activeOpacity={0.85}
               >
                 <Ionicons name="add" size={16} color={theme.colors.accentOn} />

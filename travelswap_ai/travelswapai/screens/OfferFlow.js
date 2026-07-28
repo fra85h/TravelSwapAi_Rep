@@ -288,7 +288,7 @@ export default function OfferFlow() {
           {myListings.length === 0 ? (
             <View style={s.emptyBox}>
               <Text style={{ color: theme.colors.textMuted }}>{t("offerFlow.noActiveListings", "Non hai annunci attivi.")}</Text>
-              <TouchableOpacity onPress={() => navigation.navigate("CreateListing")} style={{ marginTop: 8 }}>
+              <TouchableOpacity onPress={() => navigation.push("CreateListing")} style={{ marginTop: 8 }}>
                 <Text style={{ color: theme.colors.accent, fontWeight: "800" }}>
                   {t("offerFlow.createListingCta", "＋ Crea prima un annuncio da offrire in scambio")}
                 </Text>
