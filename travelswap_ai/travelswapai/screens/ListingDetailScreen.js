@@ -384,7 +384,7 @@ useEffect(() => {
             (stesso vincolo lato DB, vedi trigger before_update_listings_lock_terminal). */}
         {isOwner && !concludedStatusKey ? (
           <TouchableOpacity
-            onPress={() => navigation.navigate("CreateListing", { mode: "edit", listingId })}
+            onPress={() => navigation.push("CreateListing", { mode: "edit", listingId })}
             style={{ alignSelf: "flex-start", marginBottom: 12, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface }}
           >
             <Text style={{ fontWeight: "700", color: theme.colors.text }}>

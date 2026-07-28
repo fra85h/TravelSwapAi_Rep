@@ -148,7 +148,7 @@ export default function ProfileScreen() {
     try { await loadMine(); } finally { setRefreshing(false); }
   };
 
-  const onEdit = (item) => navigation.navigate("CreateListing",{ mode: "edit", listingId: item.id });
+  const onEdit = (item) => navigation.push("CreateListing",{ mode: "edit", listingId: item.id });
 
   // Ritirare/riproporre l'annuncio nel "Per te" ALTRUI (retract/propagate)
   // copre solo metà del problema: se l'annuncio appena messo in pausa era
@@ -638,7 +638,7 @@ export default function ProfileScreen() {
       {/* FAB “+” */}
       <TouchableOpacity
         activeOpacity={0.9}
-        onPress={() => navigation.navigate("CreateListing")}
+        onPress={() => navigation.push("CreateListing")}
         style={[
           styles.fabWrap,
           { bottom: (tabBarHeight || 0) + (insets.bottom || 0) + 8 },
