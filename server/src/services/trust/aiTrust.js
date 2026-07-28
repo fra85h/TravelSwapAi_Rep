@@ -103,6 +103,13 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
       "NEL DUBBIO considera l'annuncio coerente e NON segnalarlo. Quando c'è una " +
       "contraddizione evidente, aggiungi un flag con code:'INCOHERENT_LISTING' " +
       "e un msg che spiega la discrepanza in modo concreto. " +
+      "QUESTO È UN MARKETPLACE DI RIVENDITA: ogni annuncio valido riguarda per " +
+      "definizione un viaggio/soggiorno FUTURO (è il motivo per cui viene " +
+      "rivenduto). Una data di partenza o di check-in nel futuro è quindi " +
+      "NORMALE E ATTESA, mai un segnale sospetto: non scrivere MAI in " +
+      "'textReason' o in un 'msg' che la data è 'nel futuro', che 'non è " +
+      "chiaro se il viaggio esista davvero' o simili — è un ragionamento "  +
+      "capovolto per questo tipo di annuncio, non un problema reale. " +
       "SEMPRE, anche quando non c'è nessun flag da segnalare, spiega in " +
       "'textReason' PERCHÉ hai assegnato quel 'textScore': una sola frase " +
       "breve e CONCRETA, riferita a QUESTO annuncio, che dica cosa lo rende " +

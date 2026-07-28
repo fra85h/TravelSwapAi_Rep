@@ -471,9 +471,11 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">{profile?.full_name  || "—"}</Text>
-            {/* Le mie stelle, come le vedono gli altri sul mio profilo venditore. */}
-            <UserRating userId={profile?.id} style={{ marginTop: 2 }} />
+            {/* Stelle accanto al nome, stile eBay: non una riga a parte. */}
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">{profile?.full_name  || "—"}</Text>
+              <UserRating userId={profile?.id} />
+            </View>
             <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{profile?.email || "—"}</Text>
             <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{profile?.phone || "—"}</Text>
             {/* Stessi badge che vedono gli altri quando guardano il tuo
@@ -713,7 +715,8 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: theme.colors.surface,
     alignItems: "center", justifyContent: "center",
   },
-  name: { fontFamily: theme.fonts.headingExtraBold, fontSize: 16, color: theme.colors.boardingText},
+  name: { fontFamily: theme.fonts.headingExtraBold, fontSize: 16, color: theme.colors.boardingText, flexShrink: 1 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
   metaText: { color: theme.colors.textMuted },
   bioText: { color: theme.colors.text, marginTop: 12, lineHeight: 20 },
   menuRow: {
