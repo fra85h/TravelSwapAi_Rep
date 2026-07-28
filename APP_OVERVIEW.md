@@ -363,6 +363,16 @@ cancellarli.
 **Preferiti** — la stella su un annuncio lo salva in un elenco a parte. Se è
 vuoto, l'app te lo dice e spiega come aggiungerne.
 
+**Valutazioni** — a scambio concluso, in chat compare la richiesta di dare da
+**1 a 5 stelle** all'altra persona. Solo stelle, nessun testo. Il voto è
+**definitivo** e resta **nascosto all'altra persona** finché non vota anche
+lei (o per 14 giorni): serve a evitare i voti per ritorsione, perché quando
+voti non sai cosa ha messo l'altro.
+
+La media compare accanto al nome — **★ 4,7 (12)** — sul profilo venditore, nel
+dettaglio annuncio e sul tuo profilo. Sotto i 3 voti si legge **"Nuovo"**
+invece della media: una media di 5,0 su un voto solo non dice niente.
+
 **Notifiche** — un elenco cronologico. Ti avvisa quando ricevi una proposta,
 quando la tua viene accettata o rifiutata, e quando arrivano nuovi annunci
 adatti a te. Se hai dato il permesso, arrivano anche come notifiche push.
@@ -497,8 +507,11 @@ Limiti reali, ricavati dal codice:
 - **Non fa scambi a 4 o più.** Le catene automatiche cercano solo anelli di
   esattamente tre persone.
 - **Non include nelle catene chi ha più di un annuncio in vendita.**
-- **Non ha un sistema di recensioni o voti tra utenti.** L'unico indicatore è
-  l'affidabilità del singolo annuncio, non la reputazione della persona.
+- **Non ha recensioni scritte.** La reputazione è solo un voto da 1 a 5
+  stelle a transazione conclusa: nessun commento, nessuna risposta del
+  venditore. Meno ricco di eBay, ma anche senza niente da moderare.
+- **Non si può cambiare un voto già dato**, né vedere chi ti ha votato cosa:
+  esce solo la media.
 - **Non permette più di 2 foto per annuncio**, e si aspetta che siano
   pertinenti: foto non attinenti abbassano il punteggio.
 - **Non riattiva un annuncio eliminato.**

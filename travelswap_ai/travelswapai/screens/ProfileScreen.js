@@ -29,6 +29,7 @@ import TrustScoreBadge from '../components/TrustScoreBadge';
 import ActionSheet from "../components/ui/ActionSheet";
 import { Ionicons } from "@expo/vector-icons";
 import TrustBadges from "../components/TrustBadges";
+import UserRating from "../components/UserRating";
 import Constants from "expo-constants";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { formatMoney } from "../lib/number";
@@ -471,6 +472,8 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">{profile?.full_name  || "—"}</Text>
+            {/* Le mie stelle, come le vedono gli altri sul mio profilo venditore. */}
+            <UserRating userId={profile?.id} style={{ marginTop: 2 }} />
             <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{profile?.email || "—"}</Text>
             <Text style={styles.metaText} numberOfLines={1} ellipsizeMode="tail">{profile?.phone || "—"}</Text>
             {/* Stessi badge che vedono gli altri quando guardano il tuo

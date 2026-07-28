@@ -9,27 +9,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 
+// Il badge "Con storico ({n})" non esiste più: il numero di scambi conclusi
+// diceva QUANTE transazioni, non COME sono andate. Al suo posto ci sono le
+// stelle (components/UserRating), mostrate accanto al nome. salesCount resta
+// accettato per compatibilità con i chiamanti ma non viene più mostrato.
 export default function TrustBadges({ emailVerified, salesCount = 0, style }) {
   const { t } = useI18n();
-  const hasEmail = !!emailVerified;
-  const hasHistory = Number(salesCount) > 0;
-  if (!hasEmail && !hasHistory) return null;
+  if (!emailVerified) return null;
   return (
     <View style={[styles.row, style]}>
-      {hasEmail ? (
-        <View style={[styles.badge, styles.badgeVerified]}>
-          <Ionicons name="shield-checkmark" size={12} color="#166534" style={{ marginRight: 4 }} />
-          <Text style={[styles.text, { color: "#166534" }]}>{t("trust.emailVerified", "Email verificata")}</Text>
-        </View>
-      ) : null}
-      {hasHistory ? (
-        <View style={[styles.badge, styles.badgeHistory]}>
-          <Ionicons name="ribbon-outline" size={12} color={theme.colors.accentOn} style={{ marginRight: 4 }} />
-          <Text style={[styles.text, { color: theme.colors.accentOn }]}>
-            {t("trust.hasHistory", "Con storico ({n})", { n: Number(salesCount) })}
-          </Text>
-        </View>
-      ) : null}
+      <View style={[styles.badge, styles.badgeVerified]}>
+        <Ionicons name="shield-checkmark" size={12} color="#166534" style={{ marginRight: 4 }} />
+        <Text style={[styles.text, { color: "#166534" }]}>{t("trust.emailVerified", "Email verificata")}</Text>
+      </View>
     </View>
   );
 }

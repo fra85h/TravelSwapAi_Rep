@@ -34,6 +34,14 @@ export const translations = {
       hasHistory: "Con storico ({n})",
     },
 
+    ratings: {
+      newUser: "Nuovo",
+      prompt: "Com'è andata? Valuta l'altra persona:",
+      confirmTitle: "Confermi la valutazione?",
+      confirmMsg: "{n} stelle su 5. La valutazione è definitiva e resta nascosta all’altra persona finché anche lei non vota (o per 14 giorni).",
+      thanks: "Grazie per la valutazione.",
+    },
+
     listingQuestions: {
       title: "Domande e risposte",
       askCta: "Chiedi informazioni",
@@ -1233,6 +1241,14 @@ export const translations = {
       pendingLabel: "Check in progress",
       emailVerified: "Email verified",
       hasHistory: "With history ({n})",
+    },
+
+    ratings: {
+      newUser: "New",
+      prompt: "How did it go? Rate the other person:",
+      confirmTitle: "Confirm your rating?",
+      confirmMsg: "{n} out of 5 stars. Ratings are final and stay hidden from the other person until they rate too (or for 14 days).",
+      thanks: "Thanks for your rating.",
     },
 
     listingQuestions: {
@@ -3430,6 +3446,14 @@ export const translations = {
       pendingLabel: "Verificación en curso",
       emailVerified: "Email verificado",
       hasHistory: "Con historial ({n})",
+    },
+
+    ratings: {
+      newUser: "Nuevo",
+      prompt: "¿Qué tal ha ido? Valora a la otra persona:",
+      confirmTitle: "¿Confirmas la valoración?",
+      confirmMsg: "{n} estrellas de 5. La valoración es definitiva y permanece oculta a la otra persona hasta que también vote (o durante 14 días).",
+      thanks: "Gracias por tu valoración.",
     },
 
     listingQuestions: {
