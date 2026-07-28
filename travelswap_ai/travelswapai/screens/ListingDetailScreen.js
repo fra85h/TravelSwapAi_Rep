@@ -25,6 +25,7 @@ import { usePriceCheck } from "../lib/usePriceCheck";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { normStatusKey, isConcludedStatus } from "../lib/listingStatus";
 import TrustBadges from "../components/TrustBadges";
+import UserRating from "../components/UserRating";
 
 /* ========= Utils ========= */
 
@@ -490,6 +491,7 @@ useEffect(() => {
                 <Text style={[styles.sellerName, { color: textColor }]} numberOfLines={1}>
                   {sellerName || "—"}
                 </Text>
+                <UserRating userId={listing?.user_id} style={{ marginTop: 2 }} />
                 <TrustBadges emailVerified={seller?.email_verified} salesCount={sellerSalesCount} />
                 {sellerSince ? (
                   <Text style={styles.sellerMeta} numberOfLines={1}>{L.sellerSince(sellerSince)}</Text>

@@ -18,6 +18,7 @@ import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import { formatMoney } from "../lib/number";
+import { myRatingForOffer, rateTransaction } from "../lib/ratingsApi";
 
 function formatTime(iso, locale) {
   try {
@@ -46,9 +47,35 @@ export default function ChatScreen() {
   const [hsBusy, setHsBusy] = useState(false);
   const listRef = useRef(null);
 
+  // Valutazione post-transazione: null = non caricata, 0 = non ancora
+  // votato, 1..5 = il mio voto. Il voto dell'altra parte non è leggibile
+  // (double-blind, applicato in SQL): qui si sa solo se IO ho già votato.
+  const [myStars, setMyStars] = useState(null);
+  const [starsBusy, setStarsBusy] = useState(false);
+
   const refreshHandshake = useCallback(async () => {
-    try { setHandshake(await getOfferHandshake(offerId)); } catch {}
+    try {
+      const hs = await getOfferHandshake(offerId);
+      setHandshake(hs);
+      if (String(hs?.status || "").toLowerCase() === "finalized") {
+        const mine = await myRatingForOffer(offerId).catch(() => null);
+        setMyStars(mine == null ? 0 : mine);
+      }
+    } catch {}
   }, [offerId]);
+
+  const vota = async (n) => {
+    if (starsBusy) return;
+    setStarsBusy(true);
+    try {
+      await rateTransaction(offerId, n);
+      setMyStars(n);
+    } catch (e) {
+      Alert.alert(t("common.error", "Errore"), e?.message || String(e));
+    } finally {
+      setStarsBusy(false);
+    }
+  };
 
   useEffect(() => {
     navigation.setOptions?.({ title });
@@ -225,11 +252,52 @@ export default function ChatScreen() {
             concluso. È il cuore del Punto 1: lo scambio si "chiude" solo
             quando ENTRAMBI confermano di aver ricevuto ciò che serve. */}
         {handshake?.status === "finalized" ? (
-          <View style={[styles.hsBar, styles.hsDone]}>
-            <Ionicons name="checkmark-done-circle" size={16} color="#166534" />
-            <Text style={[styles.hsText, { color: "#166534" }]}>
-              {isSwap ? t("chat.completed", "Scambio completato") : t("chat.completedBuy", "Acquisto completato")}
-            </Text>
+          <View>
+            <View style={[styles.hsBar, styles.hsDone]}>
+              <Ionicons name="checkmark-done-circle" size={16} color="#166534" />
+              <Text style={[styles.hsText, { color: "#166534" }]}>
+                {isSwap ? t("chat.completed", "Scambio completato") : t("chat.completedBuy", "Acquisto completato")}
+              </Text>
+            </View>
+            {/* Valutazione: solo stelle, niente testo, immutabile. Compare
+                quando so di NON aver ancora votato (myStars === 0); dopo il
+                voto resta il riepilogo. Il voto dell'altra parte non si vede
+                finché non vota anche lui o passano 14 giorni (double-blind,
+                regola applicata in SQL, non qui). */}
+            {myStars === 0 ? (
+              <View style={[styles.hsBar, { marginTop: 6, justifyContent: "space-between" }]}>
+                <Text style={[styles.hsText, { flex: 1 }]}>
+                  {t("ratings.prompt", "Com'è andata? Valuta l'altra persona:")}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 4 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <TouchableOpacity key={n} disabled={starsBusy} onPress={() => {
+                      Alert.alert(
+                        t("ratings.confirmTitle", "Confermi la valutazione?"),
+                        t("ratings.confirmMsg", "{n} stelle su 5. La valutazione è definitiva e resta nascosta all'altra persona finché anche lei non vota (o per 14 giorni).", { n }),
+                        [
+                          { text: t("common.cancel", "Annulla"), style: "cancel" },
+                          { text: t("common.ok", "OK"), onPress: () => vota(n) },
+                        ]
+                      );
+                    }}>
+                      <Ionicons name="star-outline" size={22} color="#D9A621" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : myStars > 0 ? (
+              <View style={[styles.hsBar, { marginTop: 6 }]}>
+                <View style={{ flexDirection: "row", gap: 2 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Ionicons key={n} name={n <= myStars ? "star" : "star-outline"} size={16} color="#D9A621" />
+                  ))}
+                </View>
+                <Text style={[styles.hsText, { marginLeft: 6 }]}>
+                  {t("ratings.thanks", "Grazie per la valutazione.")}
+                </Text>
+              </View>
+            ) : null}
           </View>
         ) : handshake?.status === "cancelled" ? (
           // Annullata: per conflitto rilevato automaticamente (annuncio già
