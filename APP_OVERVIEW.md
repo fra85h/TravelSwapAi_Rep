@@ -329,21 +329,35 @@ Hai anche due vie d'uscita:
 
 ## 9. Scambi a 3
 
-A volte due persone non si incastrano, ma tre sì: tu dai a Anna, Anna dà a
-Marco, Marco dà a te. L'app cerca questi **anelli chiusi** da sola e te li
-propone nella schermata "Scambi a 3".
+A volte due persone non si incastrano, ma tre sì: tu dai a qualcuno, quella
+persona dà a un'altra, che dà a te. L'app cerca questi **anelli chiusi** da
+sola, in automatico e in background **ogni 15 minuti** — non devi attivare
+nulla, e funziona anche se hai più di un annuncio in vendita
+contemporaneamente.
 
-Ogni proposta mostra chi dà cosa a chi e quante persone hanno già confermato
-(«2 di 3 hanno confermato»). Puoi **confermare**, **ritirare la conferma**
-finché lo scambio non è chiuso, oppure rifiutare.
+Ogni proposta mostra subito, in due riquadri ben distinti, **cosa cedi** e
+**cosa ricevi**. Il meccanismo completo — chi dà cosa a chi, in che ordine —
+resta disponibile aprendo "Vedi i dettagli del cerchio", per chi vuole
+capire come si chiude il giro prima di fidarsi. Un indicatore a pallini
+mostra quanti dei 3 partecipanti hanno già confermato.
 
-Quando tutti e tre confermano, lo scambio è fatto e lo ritrovi nello storico.
+Puoi **confermare**, **ritirare la conferma** finché lo scambio non è
+chiuso, oppure rifiutare: in quel caso la catena decade per tutti e 3, senza
+che nessuno perda l'annuncio.
+
+Quando tutti e tre confermano, lo scambio è concluso — lo ritrovi nello
+storico — e si apre una **chat dedicata fra i 3 partecipanti** per
+organizzare la consegna dei biglietti. Si apre solo a scambio concluso, mai
+prima: finché manca anche una sola conferma il giro può ancora saltare.
+
+Mentre l'app sta cercando in background uno scambio a 3 che ti riguarda,
+l'icona della sezione Attività cambia temporaneamente (diventa l'icona a 3
+nodi) per segnalartelo.
 
 ### Limite da conoscere
 
-Nella versione attuale partecipa **solo chi ha esattamente un annuncio in
-vendita**. Se ne hai due o più attivi contemporaneamente, resti fuori dalle
-catene: l'app non saprebbe quale dei tuoi stai offrendo.
+Le valutazioni a stelle (§8) oggi coprono solo gli scambi 1:1: uno scambio a
+3 concluso non genera ancora un voto per i partecipanti.
 
 ---
 

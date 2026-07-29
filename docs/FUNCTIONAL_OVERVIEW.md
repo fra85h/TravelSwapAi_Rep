@@ -101,6 +101,12 @@ TravelSwapAi_Rep/
 - i18n con dizionari **it / en / es** (`lib/i18n`), default italiano, fallback e interpolazione variabili.
 - **Traduzione on-demand degli annunci** nella lingua dell'utente via backend (`useListingTranslation` → `GET /api/listings/:id/translate?lang=xx`), con cache su DB.
 
+### 3.6 Swap a catena, valutazioni, domande pre-offerta
+- **Swap a 3** (`server/src/models/chains.js`, `ai/chainMatch.js`, `ai/chainExplain.js`): trova cicli chiusi di 3 utenti tra gli annunci attivi (`findAndProposeChains`, cron-only `POST /api/chains/recompute`, ogni 15 min). Un utente con più annunci VENDO attivi partecipa comunque: ogni arco del grafo di desiderio sceglie l'annuncio specifico con punteggio migliore (non esclude l'utente, comportamento della v1). Si chiude con `confirm_chain_participant` (lock ordinato sui 3 annunci prima di riservarli) solo quando tutti e 3 confermano; da quel momento chat dedicata (`chain_messages`, RLS aperta solo a catena `completed`).
+- **Valutazioni 1-5 stelle** (`transaction_ratings`, RPC `rate_transaction`/`get_user_rating`): solo per scambi 1:1 (i chain-swap non hanno una riga in `offers`, quindi non sono ancora votabili). Doppio cieco — voto nascosto finché anche l'altra parte vota o passano 14 giorni — e immutabile.
+- **Domande a risposta chiusa pre-offerta** (`lib/listingQuestions.mjs`): catalogo treno/hotel mostrato prima di proporre un'offerta, per ridurre lo scambio di contatti fuori app in chat.
+- **Race condition corrette** (`supabase/migrations/20260726120000`, `20260729120000`): lock ordinato su `accept_offer_any`/`confirm_exchange_any`/`confirm_chain_participant` e ricontrollo di stato in `release_my_stale_reservations`, per evitare che una pulizia lazy o una conferma concorrente sovrascrivano uno scambio appena concluso.
+
 ---
 
 ## 4. Funzionalità — Backend
@@ -276,7 +282,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 ### P2 — Qualità e prodotto
 
-16. ✅ **Test e CI presenti** — `server/test/` (96 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
+16. ✅ **Test e CI presenti** — `server/test/` (281 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
 17. ✅ **Codice morto/duplicato rimosso** — vedi P1.15; route `parseTwo` consolidata in `ai/descriptionParse.js` (vedi §4.3).
 18. ✅ **Migrazioni DB versionate** — vedi P0.7.
 19. **TypeScript** — il tsconfig c'è ma il codice è ancora tutto JS; una migrazione graduale (prima `lib/`, poi screens) resta da fare.
