@@ -203,3 +203,14 @@ test('notify_on_offer incoraggia a riprovare quando una proposta è rifiutata', 
   assert.match(body, /rifiutata\.\s*Non ti scoraggiare/i,
     `${file}: manca il messaggio di incoraggiamento dopo un rifiuto`);
 });
+
+test('confirm_exchange_any blocca la conferma su una prenotazione contestata', () => {
+  // Bug reale: 20260721210000_exchange_dispute.sql promette "la conferma
+  // viene bloccata per entrambi finché non si risolve", ma nessuna delle
+  // riscritture precedenti di confirm_exchange_any controllava mai
+  // offers.disputed_at — una prenotazione contestata poteva finalizzarsi
+  // normalmente come se non ci fosse nessuna contestazione in corso.
+  const { file, body } = latestDefinitionOf('confirm_exchange_any');
+  assert.match(body, /if\s+v_offer\.disputed_at\s+is\s+not\s+null\s+then\s+return\s+v_offer/i,
+    `${file}: manca il blocco della conferma quando l'offerta è contestata`);
+});

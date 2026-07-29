@@ -45,14 +45,11 @@ test("Contestazione: segnala un problema su una prenotazione accettata", async (
   });
 });
 
-// NON testato qui (richiede un DB reale, vedi PR): la checklist manuale
-// aspetta che "Prova a confermare da entrambi i lati: deve restare bloccato
-// finché non risolvete". Letta l'ultima versione di confirm_exchange_any
-// (supabase/migrations/20260726120000_data_integrity_hardening.sql) — e le
-// due precedenti — NESSUNA controlla offers.disputed_at prima di finalizzare:
-// un'offerta contestata può comunque essere confermata da entrambe le parti
-// e finalizzarsi normalmente (transactions create, listing venduto/scambiato),
-// nonostante il commento di 20260721210000_exchange_dispute.sql dica
-// esplicitamente "la conferma viene bloccata per entrambi finché non si
-// risolve". Sembra un gap reale, non solo un limite di questo test: senza
-// una modifica alla RPC non c'è nulla da verificare qui lato client.
+// NON testato qui (richiede un DB reale): la checklist manuale aspetta che
+// "Prova a confermare da entrambi i lati: deve restare bloccato finché non
+// risolvete". Era un bug reale — nessuna versione di confirm_exchange_any
+// controllava offers.disputed_at prima di finalizzare — corretto in
+// supabase/migrations/20260729150000_confirm_exchange_blocks_on_dispute.sql
+// (regression test statico in server/test/migrationsIntegrity.test.js).
+// Non replicato qui: la logica vive tutta nella RPC, un mock non la
+// eserciterebbe davvero.
