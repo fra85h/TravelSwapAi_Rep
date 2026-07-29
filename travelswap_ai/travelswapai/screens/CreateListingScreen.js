@@ -32,6 +32,7 @@ import { parseListingFromTextAI, parseListingFromPdfAI } from "../lib/descriptio
 import { Image } from "react-native";
 import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 import { parseLocalizedNumber } from "../lib/number";
+import { suggestListingPrice } from "../lib/priceSuggestion";
 import { isConcludedStatus } from "../lib/listingStatus";
 import StationAutocomplete from "../components/StationAutocomplete";
 // Regole testuali (CERCO/VENDO, tratte, date, PNR, "sembrano due biglietti"):
@@ -1553,24 +1554,15 @@ const initialJsonRef = useRef(null);
     try {
       setPriceLoading(true);
       // Simulazione di analisi AI locale: stima semplice basata su durata
-      let suggestion = parseLocalizedNumber(form.price) ?? 0;
-      if (!Number.isFinite(suggestion) || suggestion <= 0) suggestion = 0;
-
-      if (form.type === "hotel") {
-        const a = parseISODate(form.checkIn);
-        const b = parseISODate(form.checkOut);
-        const nights = (a && b) ? Math.max(1, Math.round((b - a) / (1000 * 60 * 60 * 24))) : 1;
-        const basePerNight = 80; // eur
-        suggestion = Math.max(40, Math.min(400, nights * basePerNight));
-      } else {
-        const da = parseISODateTime(form.departAt);
-        const ar = parseISODateTime(form.arriveAt);
-        const hours = (da && ar) ? Math.max(1, Math.round((ar - da) / (1000 * 60 * 60))) : 2;
-        const perHour = 12; // eur
-        suggestion = Math.max(10, Math.min(120, hours * perHour));
-      }
-      // arrotonda a 5€
-      suggestion = Math.round(suggestion / 5) * 5;
+      // (nessuna chiamata di rete). Calcolo puro in lib/priceSuggestion.js,
+      // testabile da solo; il parsing delle date resta qui.
+      const suggestion = suggestListingPrice({
+        type: form.type,
+        checkInDate: form.type === "hotel" ? parseISODate(form.checkIn) : null,
+        checkOutDate: form.type === "hotel" ? parseISODate(form.checkOut) : null,
+        departDate: form.type !== "hotel" ? parseISODateTime(form.departAt) : null,
+        arriveDate: form.type !== "hotel" ? parseISODateTime(form.arriveAt) : null,
+      });
 
       update({ price: String(suggestion) });
       Alert.alert(
