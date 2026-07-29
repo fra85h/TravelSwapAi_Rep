@@ -1,11 +1,43 @@
 // server/src/routes/priceCheck.js
 import express from "express";
 import { supabase } from "../db.js";
-import { checkPriceWithAI } from "../ai/priceCheck.js";
+import { checkPriceWithAI, suggestPriceWithAI } from "../ai/priceCheck.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { rateLimitPriceCheck } from "../middleware/rateLimit.js";
 
 export const priceCheckRouter = express.Router();
+
+// POST /api/listings/price-suggest — bozza in creazione, PRIMA di pubblicare:
+// l'annuncio non esiste ancora come riga (nessun id), quindi a differenza di
+// /price-check qui sotto i dati arrivano nel body, non da una select per id.
+// Stesso limite di frequenza di /price-check: stesso budget OpenAI, stessa
+// categoria di funzionalità ("analisi prezzo").
+priceCheckRouter.post("/api/listings/price-suggest", requireAuth, rateLimitPriceCheck, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const type = b.type === "hotel" ? "hotel" : "train";
+    const locale = ["it", "en", "es"].includes(b.locale) ? b.locale : "it";
+    const draft = {
+      type,
+      currency: b.currency || "EUR",
+      location: b.location || null,
+      route_from: b.routeFrom || null,
+      route_to: b.routeTo || null,
+      depart_at: b.departAt || null,
+      arrive_at: b.arriveAt || null,
+      check_in: b.checkIn || null,
+      check_out: b.checkOut || null,
+      title: b.title || null,
+      description: b.description || null,
+      purchase_price: b.purchasePrice ?? null,
+    };
+    const result = await suggestPriceWithAI(draft, locale);
+    return res.json(result);
+  } catch (e) {
+    console.error("[price-suggest][server] error", e);
+    return res.status(500).json({ available: false, reason: "server_error" });
+  }
+});
 
 // GET /api/listings/:id/price-check
 priceCheckRouter.get("/api/listings/:id/price-check", requireAuth, rateLimitPriceCheck, async (req, res) => {

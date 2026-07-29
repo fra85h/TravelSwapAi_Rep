@@ -9,6 +9,7 @@ import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
+import { usePriceSuggestAI } from '../lib/usePriceSuggestAI';
 import TrustInfo from '../components/TrustInfo';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
@@ -425,6 +426,7 @@ export default function CreateListingScreen({
 
   // TrustScore hook + UI state
   const { loading: trustLoading, data: trustData, error: trustError, evaluate, reset: resetTrust } = useTrustScore();
+  const { suggestPriceAI } = usePriceSuggestAI();
   const [splitDetected, setSplitDetected] = useState(false);
   const [splitReason, setSplitReason] = useState("");
 
@@ -1553,25 +1555,60 @@ const initialJsonRef = useRef(null);
   const analyzePriceAI = async () => {
     try {
       setPriceLoading(true);
-      // Simulazione di analisi AI locale: stima semplice basata su durata
-      // (nessuna chiamata di rete). Calcolo puro in lib/priceSuggestion.js,
-      // testabile da solo; il parsing delle date resta qui.
-      const suggestion = suggestListingPrice({
+
+      // Prova prima l'AI vera (POST /api/listings/price-suggest): a
+      // differenza del Check AI, qui l'annuncio non esiste ancora come riga
+      // (nessun id), quindi i dati della bozza viaggiano nel body.
+      const draft = {
         type: form.type,
-        checkInDate: form.type === "hotel" ? parseISODate(form.checkIn) : null,
-        checkOutDate: form.type === "hotel" ? parseISODate(form.checkOut) : null,
-        departDate: form.type !== "hotel" ? parseISODateTime(form.departAt) : null,
-        arriveDate: form.type !== "hotel" ? parseISODateTime(form.arriveAt) : null,
-      });
+        currency: "EUR",
+        location: form.type === "hotel" ? (form.location || null) : null,
+        routeFrom: form.type !== "hotel" ? (form.routeFrom || null) : null,
+        routeTo: form.type !== "hotel" ? (form.routeTo || null) : null,
+        departAt: form.type !== "hotel" ? (form.departAt || null) : null,
+        arriveAt: form.type !== "hotel" ? (form.arriveAt || null) : null,
+        checkIn: form.type === "hotel" ? (form.checkIn || null) : null,
+        checkOut: form.type === "hotel" ? (form.checkOut || null) : null,
+        title: form.title || null,
+        description: form.description || null,
+        purchasePrice: form.purchasePrice ? parseLocalizedNumber(form.purchasePrice) : null,
+      };
+      const aiRes = await suggestPriceAI(draft, locale);
+      const aiPrice = Number(aiRes?.suggestedPrice);
+
+      let suggestion;
+      let explanation = null;
+      if (aiRes?.available && Number.isFinite(aiPrice) && aiPrice > 0) {
+        suggestion = Math.round(aiPrice);
+        explanation = aiRes.explanation || null;
+      } else {
+        // Fallback deterministico locale se l'AI non è disponibile (nessuna
+        // chiave OpenAI, rete assente, rate limit): stessa formula usata
+        // prima che esistesse una vera AI qui — calcolo puro in
+        // lib/priceSuggestion.js, il parsing delle date resta qui.
+        suggestion = suggestListingPrice({
+          type: form.type,
+          checkInDate: form.type === "hotel" ? parseISODate(form.checkIn) : null,
+          checkOutDate: form.type === "hotel" ? parseISODate(form.checkOut) : null,
+          departDate: form.type !== "hotel" ? parseISODateTime(form.departAt) : null,
+          arriveDate: form.type !== "hotel" ? parseISODateTime(form.arriveAt) : null,
+        });
+      }
 
       update({ price: String(suggestion) });
       Alert.alert(
         t("createListing.priceSuggestionTitle", "Suggerimento prezzo"),
-        t(
-          "createListing.priceSuggestionMsg",
-          `In base ai dati inseriti, potresti proporre circa ${suggestion}€.\nÈ solo un consiglio: sentiti libero di adattarlo.`,
-          { price: suggestion }
-        )
+        explanation
+          ? t(
+              "createListing.priceSuggestionMsgAI",
+              `Potresti proporre circa ${suggestion}€. ${explanation}\nÈ solo un consiglio: sentiti libero di adattarlo.`,
+              { price: suggestion, explanation }
+            )
+          : t(
+              "createListing.priceSuggestionMsg",
+              `In base ai dati inseriti, potresti proporre circa ${suggestion}€.\nÈ solo un consiglio: sentiti libero di adattarlo.`,
+              { price: suggestion }
+            )
       );
     } catch {
       Alert.alert(t("common.error", "Errore"), t("createListing.priceEstimateErrorMsg", "Impossibile stimare il prezzo al momento."));
