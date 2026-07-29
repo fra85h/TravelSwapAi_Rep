@@ -441,7 +441,7 @@ export async function getOfferById(id) {
     .eq("id", id)
     .single();
 
-  if (error) throw new Error(error.message || "Impossibile caricare l'offerta");
+  if (error) { console.log("[getOfferById]", error.message); throw new Error("Impossibile caricare l'offerta"); }
   return data;
 }
 /** Dettaglio annuncio per id */
@@ -453,7 +453,7 @@ export async function getListingById(id) {
     .eq("id", id)
     .single();
 
-  if (error) throw new Error(error.message || "Impossibile caricare l'annuncio");
+  if (error) { console.log("[getListingById]", error.message); throw new Error("Impossibile caricare l'annuncio"); }
   return data;
 }
 
@@ -515,7 +515,7 @@ export async function updateOffer(id, status) {
     .select()
     .single();
 
-  if (error) throw new Error(error.message || "Impossibile aggiornare l'offerta");
+  if (error) { console.log("[updateOffer]", error.message); throw new Error("Impossibile aggiornare l'offerta"); }
   return data;
 }
 
@@ -531,6 +531,6 @@ export async function getPublicListingById(id) {
     .eq("status", "active")
     .single();
 
-  if (error) throw new Error(error.message || "Impossibile caricare l'annuncio");
+  if (error) { console.log("[getPublicListingById]", error.message); throw new Error("Impossibile caricare l'annuncio"); }
   return data;
 }

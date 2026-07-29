@@ -8,7 +8,7 @@ import { supabase } from "./supabase";
 /** Le mie chat di catena (swap a 3 completati), con ultimo messaggio e non letti. */
 export async function listMyChainChats() {
   const { data, error } = await supabase.rpc("list_my_chain_chats");
-  if (error) throw new Error(error.message || "Impossibile caricare le chat");
+  if (error) { console.log("[listMyChainChats]", error.message); throw new Error("Impossibile caricare le chat"); }
   return (data || []).map((r) => ({
     chainId: r.chain_id,
     completedAt: r.completed_at,
@@ -28,7 +28,7 @@ export async function listChainChatMessages(chainId) {
     .select("id, chain_id, sender_id, body, created_at, read_at")
     .eq("chain_id", chainId)
     .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message || "Impossibile caricare i messaggi");
+  if (error) { console.log("[listChainChatMessages]", error.message); throw new Error("Impossibile caricare i messaggi"); }
   return data || [];
 }
 
@@ -43,7 +43,7 @@ export async function sendChainChatMessage(chainId, body) {
     .insert([{ chain_id: chainId, sender_id: user.id, body: text.slice(0, 2000) }])
     .select()
     .single();
-  if (error) throw new Error(error.message || "Impossibile inviare il messaggio");
+  if (error) { console.log("[sendChainChatMessage]", error.message); throw new Error("Impossibile inviare il messaggio"); }
   return data;
 }
 
