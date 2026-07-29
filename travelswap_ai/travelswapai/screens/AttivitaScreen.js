@@ -364,7 +364,9 @@ export default function AttivitaScreen({ navigation }) {
             <Ionicons name="chatbubble-ellipses-outline" size={15} color={theme.colors.accent} />
             <Text style={styles.linkText}>{t("chat.open", "Apri la chat")}</Text>
           </View>
-        ) : null}
+        ) : (
+          <Text style={styles.cardMeta}>{t("activity.offerDeclinedEncouragement", "Non ti scoraggiare: nuove occasioni simili arrivano ogni giorno, riprova! 💪")}</Text>
+        )}
       </TouchableOpacity>
     );
   };
