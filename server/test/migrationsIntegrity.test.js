@@ -214,3 +214,15 @@ test('confirm_exchange_any blocca la conferma su una prenotazione contestata', (
   assert.match(body, /if\s+v_offer\.disputed_at\s+is\s+not\s+null\s+then\s+return\s+v_offer/i,
     `${file}: manca il blocco della conferma quando l'offerta è contestata`);
 });
+
+test('notify_on_chain_canceled avvisa gli altri partecipanti quando la catena decade', () => {
+  // Prima nessun trigger esisteva su chain_proposals: quando la catena
+  // passava a 'canceled' (rifiuto, annuncio non più disponibile) o
+  // 'expired' (timeout), la proposta spariva e basta dalla lista degli
+  // altri partecipanti — nessun messaggio, nessuna notifica.
+  const { file, body } = latestDefinitionOf('notify_on_chain_canceled');
+  assert.match(body, /new\.status\s+in\s*\(\s*'canceled'\s*,\s*'expired'\s*\)/i,
+    `${file}: manca la copertura di entrambi gli stati "decaduti"`);
+  assert.match(body, /non ti scoraggiare/i,
+    `${file}: manca il messaggio di incoraggiamento`);
+});
