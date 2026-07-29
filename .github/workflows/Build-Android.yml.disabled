@@ -1,3 +1,11 @@
+# DISATTIVATO (rinominato da .yml a .yml.disabled, non viene più letto da
+# GitHub Actions): falliva ad ogni push su main perché il progetto è Expo
+# managed puro — non esiste una cartella android/ committata nel repo, quindi
+# `cd android && ./gradlew assembleDebug` non ha mai potuto funzionare. Per
+# riattivare una build Android reale, il percorso corretto per un progetto
+# Expo managed è EAS Build (eas-cli ed eas.json sono già nel repo): serve un
+# token del proprio account Expo (EXPO_TOKEN) come secret GitHub, poi un job
+# che lancia `eas build --platform android --profile <profilo> --non-interactive`.
 name: Build Android APK
 
 on:
