@@ -13,4 +13,8 @@ module.exports = {
     ...transform,
     "\\.mjs$": transform["\\.[jt]sx?$"],
   },
+  // I test *.live.test.js colpiscono il Supabase reale (vedi jest.config.live.js
+  // + `npm run test:live`): esclusi dalla run di default, che deve restare
+  // veloce e offline.
+  testPathIgnorePatterns: ["/node_modules/", "\\.live\\.test\\.js$"],
 };
