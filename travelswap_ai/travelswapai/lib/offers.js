@@ -35,7 +35,7 @@ export async function createOfferBuy(listingId, { amount, currency = "EUR", mess
     status: "pending",
   };
   const { data, error } = await supabase.from("offers").insert([payload]).select().single();
-  if (error) throw new Error(error.message || "Impossibile creare l'offerta");
+  if (error) { console.log("[createOfferBuy]", error.message); throw new Error("Impossibile creare l'offerta"); }
   if (data?.id) notify("/api/notify/offer-received", { offerId: data.id });
   return data;
 }
@@ -55,7 +55,7 @@ export async function createOfferSwap(myListingId, targetListingId, { message } 
     status: "pending",
   };
   const { data, error } = await supabase.from("offers").insert([payload]).select().single();
-  if (error) throw new Error(error.message || "Impossibile creare l'offerta");
+  if (error) { console.log("[createOfferSwap]", error.message); throw new Error("Impossibile creare l'offerta"); }
   if (data?.id) notify("/api/notify/offer-received", { offerId: data.id });
   return data;
 }
@@ -63,7 +63,7 @@ export async function createOfferSwap(myListingId, targetListingId, { message } 
 /** Accetta offerta via RPC tollerante uuid/int */
 export async function acceptOffer(offerId) {
   const { data, error } = await supabase.rpc("accept_offer_any", { offer_id_text: String(offerId) });
-  if (error) throw new Error(error.message || "Impossibile accettare l'offerta");
+  if (error) { console.log("[acceptOffer]", error.message); throw new Error("Impossibile accettare l'offerta"); }
   // Avvisa il proponente solo se l'accettazione è andata davvero a buon fine.
   if (String(data?.status || "").toLowerCase() === "accepted") {
     notify("/api/notify/offer-accepted", { offerId: String(offerId) });
@@ -74,7 +74,7 @@ export async function acceptOffer(offerId) {
 /** Rifiuta offerta via RPC tollerante uuid/int */
 export async function declineOffer(offerId) {
   const { data, error } = await supabase.rpc("decline_offer_any", { offer_id_text: String(offerId) });
-  if (error) throw new Error(error.message || "Impossibile rifiutare l'offerta");
+  if (error) { console.log("[declineOffer]", error.message); throw new Error("Impossibile rifiutare l'offerta"); }
   return data;
 }
 
@@ -85,7 +85,7 @@ export async function declineOffer(offerId) {
  */
 export async function confirmExchange(offerId) {
   const { data, error } = await supabase.rpc("confirm_exchange_any", { offer_id_text: String(offerId) });
-  if (error) throw new Error(error.message || "Impossibile confermare lo scambio");
+  if (error) { console.log("[confirmExchange]", error.message); throw new Error("Impossibile confermare lo scambio"); }
   return data;
 }
 
@@ -96,7 +96,7 @@ export async function confirmExchange(offerId) {
  */
 export async function cancelAcceptedOffer(offerId) {
   const { data, error } = await supabase.rpc("cancel_accepted_offer_any", { offer_id_text: String(offerId) });
-  if (error) throw new Error(error.message || "Impossibile annullare lo scambio");
+  if (error) { console.log("[cancelAcceptedOffer]", error.message); throw new Error("Impossibile annullare lo scambio"); }
   return data;
 }
 
@@ -110,7 +110,7 @@ export async function reportExchangeProblem(offerId, reason) {
     offer_id_text: String(offerId),
     reason_text: String(reason || "").slice(0, 500),
   });
-  if (error) throw new Error(error.message || "Impossibile segnalare il problema");
+  if (error) { console.log("[reportExchangeProblem]", error.message); throw new Error("Impossibile segnalare il problema"); }
   return data;
 }
 
@@ -128,7 +128,7 @@ export async function cancelOffer(offerId) {
     .eq("status", "pending")
     .select()
     .single();
-  if (error) throw new Error(error.message || "Impossibile cancellare l'offerta");
+  if (error) { console.log("[cancelOffer]", error.message); throw new Error("Impossibile cancellare l'offerta"); }
   return data;
 }
 
@@ -192,14 +192,14 @@ export function getOfferExpiryInfo(expiresAt) {
 /** Offerte ricevute (inbox) via RPC tollerante uuid/int */
 export async function listIncomingOffersAny() {
   const { data, error } = await supabase.rpc("list_incoming_offers_any");
-  if (error) throw new Error(error.message || "Impossibile caricare proposte ricevute");
+  if (error) { console.log("[listIncomingOffersAny]", error.message); throw new Error("Impossibile caricare proposte ricevute"); }
   return (data || []).map(normalizeOfferRow);
 }
 
 /** Offerte inviate (outbox) via RPC tollerante uuid/int */
 export async function listOutgoingOffersAny() {
   const { data, error } = await supabase.rpc("list_outgoing_offers_any");
-  if (error) throw new Error(error.message || "Impossibile caricare proposte inviate");
+  if (error) { console.log("[listOutgoingOffersAny]", error.message); throw new Error("Impossibile caricare proposte inviate"); }
   return (data || []).map(normalizeOfferRow);
 }
 
@@ -209,7 +209,7 @@ export async function getMyPendingOfferFor(listingId) {
 const { data, error } = await supabase.rpc("get_my_pending_offer_any", {
 listing_id_text: String(listingId)
  });
- if (error) throw new Error(error.message || "Errore nel controllo proposta esistente");
+ if (error) { console.log("[getMyPendingOfferFor]", error.message); throw new Error("Errore nel controllo proposta esistente"); }
 
   // Consideriamo "pendente" solo stati effettivamente pendenti
   const PENDING_STATES = new Set(["pending", "in_review"]);
@@ -225,6 +225,6 @@ listing_id_text: String(listingId)
 /** Helper RPC: lista annunci attivi dell'utente (per SWAP) */
 export async function listMyActiveListings() {
   const { data, error } = await supabase.rpc("list_my_active_listings");
-  if (error) throw new Error(error.message || "Impossibile caricare i tuoi annunci");
+  if (error) { console.log("[listMyActiveListings]", error.message); throw new Error("Impossibile caricare i tuoi annunci"); }
   return data || [];
 }

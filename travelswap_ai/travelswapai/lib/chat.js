@@ -7,7 +7,7 @@ import { supabase } from "./supabase";
 /** Le mie chat (offerte accettate/finalizzate), con ultimo messaggio e non letti. */
 export async function listMyChats() {
   const { data, error } = await supabase.rpc("list_my_chats");
-  if (error) throw new Error(error.message || "Impossibile caricare le chat");
+  if (error) { console.log("[listMyChats]", error.message); throw new Error("Impossibile caricare le chat"); }
   return (data || []).map((r) => ({
     offerId: r.offer_id,
     type: r.type,
@@ -28,7 +28,7 @@ export async function listMyChats() {
 /** Stato conferma scambio di un'offerta (per la ChatScreen). */
 export async function getOfferHandshake(offerId) {
   const { data, error } = await supabase.rpc("get_offer_handshake", { offer_id_text: String(offerId) });
-  if (error) throw new Error(error.message || "Impossibile leggere lo stato dello scambio");
+  if (error) { console.log("[getOfferHandshake]", error.message); throw new Error("Impossibile leggere lo stato dello scambio"); }
   const r = Array.isArray(data) ? data[0] : data;
   if (!r) return null;
   return {
@@ -54,7 +54,7 @@ export async function listChatMessages(offerId) {
     .select("id, offer_id, sender_id, body, created_at, read_at")
     .eq("offer_id", offerId)
     .order("created_at", { ascending: true });
-  if (error) throw new Error(error.message || "Impossibile caricare i messaggi");
+  if (error) { console.log("[listChatMessages]", error.message); throw new Error("Impossibile caricare i messaggi"); }
   return data || [];
 }
 
@@ -69,7 +69,7 @@ export async function sendChatMessage(offerId, body) {
     .insert([{ offer_id: offerId, sender_id: user.id, body: text.slice(0, 2000) }])
     .select()
     .single();
-  if (error) throw new Error(error.message || "Impossibile inviare il messaggio");
+  if (error) { console.log("[sendChatMessage]", error.message); throw new Error("Impossibile inviare il messaggio"); }
   return data;
 }
 
