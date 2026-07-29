@@ -22,6 +22,7 @@ const ICON = {
   offer_declined: { name: "close-circle-outline", color: theme.colors.danger },
   new_matches:    { name: "sparkles-outline", color: theme.colors.boardingText },
   listing_ping:   { name: "flag-outline", color: theme.colors.accent },
+  chain_canceled: { name: "git-network-outline", color: theme.colors.danger },
 };
 
 function timeAgo(iso, t) {
@@ -81,6 +82,10 @@ export default function NotificationsScreen({ navigation }) {
     const d = n.data || {};
     if (n.type === "new_matches") {
       navigation.navigate("Matching");
+    } else if (n.type === "chain_canceled") {
+      // La catena specifica non c'è più (canceled/expired): non c'è un
+      // dettaglio da aprire, solo l'elenco (mostrerà le eventuali nuove).
+      navigation.navigate("ChainProposals");
     } else if (d.offerId != null && d.listingId) {
       // offers.id è bigint (es. "16"), listings.id è uuid: OfferDetailScreen
       // cerca l'ANNUNCIO (getListingById), quindi va sempre passato
