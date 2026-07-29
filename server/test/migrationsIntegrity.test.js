@@ -181,3 +181,11 @@ test('il trigger anti-duplicato copre solo le riattivazioni volontarie', () => {
     `${file}: transizioni coperte diverse da quelle del tetto agli attivi`,
   );
 });
+
+test('notify_on_offer incoraggia a riprovare quando una proposta è rifiutata', () => {
+  // Sia acquisto che scambio passano dallo stesso ramo 'declined': il body
+  // non deve limitarsi ad annunciare il rifiuto, ma invitare a riprovare.
+  const { file, body } = latestDefinitionOf('notify_on_offer');
+  assert.match(body, /rifiutata\.\s*Non ti scoraggiare/i,
+    `${file}: manca il messaggio di incoraggiamento dopo un rifiuto`);
+});
