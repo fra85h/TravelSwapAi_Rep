@@ -78,6 +78,25 @@ bundle finale per `debug-user` / `DEBUG_MOCK` deve dare 0).
   modifica invalida il Check AI precedente: va rilanciato prima di salvare.
 - **Ciclo di vita annuncio**: `active ⇄ paused` è reversibile; `deleted` è
   **terminale** (mai riattivabile — altrimenti equivarrebbe a "paused").
+- **Scambio a catena (a 3)**: quando due utenti non si incastrano ma tre sì
+  (A dà a B, B dà a C, C dà ad A), il matching li trova da solo e li propone
+  in "Scambi a 3" — ricalcolo cron-only ogni 15 min
+  (`POST /api/chains/recompute`, `server/src/models/chains.js`). Un utente
+  con più annunci VENDO attivi partecipa comunque: ogni arco del grafo di
+  desiderio sceglie l'annuncio specifico con punteggio migliore, non esclude
+  l'utente. Si chiude solo quando TUTTI E 3 confermano
+  (`confirm_chain_participant`); da quel momento hanno una chat dedicata
+  (`chain_messages`, RLS aperta solo a catena `completed` — mai prima, il
+  giro può ancora decadere).
+- **Valutazioni**: a transazione 1:1 conclusa, 1-5 stelle doppio cieco
+  (`transaction_ratings`, RPC `rate_transaction`/`get_user_rating`): il
+  proprio voto resta nascosto finché anche l'altra parte vota o passano 14
+  giorni; sotto 3 voti rivelati si mostra "Nuovo", mai una media; voto
+  immutabile. **Non copre ancora gli scambi a 3**: quelle transazioni non
+  hanno una riga in `offers`, quindi `rate_transaction` non si applica.
+- **Domande a risposta chiusa pre-offerta**: catalogo treno/hotel
+  (`lib/listingQuestions.mjs`) mostrato prima di proporre un'offerta, per
+  ridurre lo scambio di contatti fuori app in chat.
 
 ## Migration: workflow manuale
 
