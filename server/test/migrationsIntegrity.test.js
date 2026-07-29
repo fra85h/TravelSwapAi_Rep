@@ -145,6 +145,32 @@ test('replace_matches_for_sources fa DELETE e INSERT nella stessa funzione', () 
   assert.match(body, /on\s+conflict\s*\(\s*from_listing_id\s*,\s*to_listing_id\s*\)/i, file);
 });
 
+test('release_my_stale_reservations blocca la riga prima di scriverla', () => {
+  // Bug reale trovato in audit: senza SELECT ... FOR UPDATE, una
+  // finalizzazione concorrente (confirm_exchange_any) può committare
+  // 'finalized' dopo che questo cursore ha già preso lo snapshot, e la
+  // UPDATE finale sovrascriverebbe comunque a 'cancelled' un'offerta appena
+  // conclusa per davvero.
+  const { file, body } = latestDefinitionOf('release_my_stale_reservations');
+  assert.match(body, /select\s+\*\s+into\s+v_offer\s+from\s+public\.offers\s+where\s+id\s*=\s*r\.id\s+for\s+update/i,
+    `${file}: manca il lock sulla riga prima della scrittura`);
+  assert.match(body, /if\s+v_offer\.status\s*<>\s*'accepted'\s+then\s+continue/i,
+    `${file}: manca il ricontrollo dello stato dopo il lock`);
+});
+
+test('confirm_chain_participant blocca i 3 annunci prima di riservarli', () => {
+  // Stesso bug di accept_offer_any prima della correzione in 20260726120000,
+  // mai propagato qui: senza lock, un'offerta 1:1 su uno dei 3 annunci della
+  // catena può essere accettata nello stesso istante in cui la catena
+  // raggiunge la terza conferma, generando due transazioni in conflitto sullo
+  // stesso biglietto fisico.
+  const { file, body } = latestDefinitionOf('confirm_chain_participant');
+  assert.match(body, /order\s+by\s+l\.id\s+for\s+update/i,
+    `${file}: manca il lock ordinato sugli annunci della catena`);
+  assert.match(body, /set\s+status\s*=\s*'reserved'\s*\n?\s*where\s+id\s*=\s*v_participant\.give_listing_id\s+and\s+status\s*=\s*'active'/i,
+    `${file}: la UPDATE di riserva non ricontrolla lo stato`);
+});
+
 test('il trigger anti-duplicato copre solo le riattivazioni volontarie', () => {
   // Estenderlo a OGNI ritorno ad 'active' bloccherebbe le transizioni di
   // sistema (confirm_exchange_any che libera il lato non concluso,
