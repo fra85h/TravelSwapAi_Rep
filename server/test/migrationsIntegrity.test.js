@@ -94,6 +94,20 @@ test('accept_offer_any e confirm_exchange_any bloccano gli annunci in ordine sta
   }
 });
 
+test('accept_offer_any declina le proposte pending su ENTRAMBI gli annunci di uno scambio', () => {
+  // Bug reale trovato scrivendo il test funzionale sulla checklist manuale
+  // (Parte 3): per uno scambio, from_listing_id (l'annuncio ceduto in
+  // cambio) viene riservato esattamente come to_listing_id, ma il declino
+  // delle altre proposte pending copriva solo to_listing_id — un terzo
+  // utente con un'offerta pending su from_listing_id restava "in sospeso"
+  // a tempo indeterminato invece di ricevere subito la notifica di rifiuto.
+  const { file, body } = latestDefinitionOf('accept_offer_any');
+  const declineBlock = body.match(/update\s+public\.offers\s+set\s+status\s*=\s*'declined'[\s\S]{0,400}?status\s*=\s*'pending'/i);
+  assert.ok(declineBlock, `${file}: non trovo il blocco di declino delle proposte pending`);
+  assert.match(declineBlock[0], /from_listing_id/i,
+    `${file}: il declino copre solo to_listing_id, non from_listing_id`);
+});
+
 test('i controlli "conta-poi-inserisci" prendono il lock sull\'utente', () => {
   // Senza advisory lock due richieste concorrenti dello stesso utente leggono
   // entrambe una situazione ancora lecita e passano entrambe: si superano i
