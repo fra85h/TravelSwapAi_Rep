@@ -20,7 +20,8 @@ treno e prenotazioni hotel non utilizzati. Monorepo con due progetti:
 
 | Cosa | Comando |
 |---|---|
-| Test backend | `cd server && node --test` (96 test, devono passare tutti) |
+| Test backend | `cd server && node --test` (282 test, devono passare tutti) |
+| Test app RN/Expo | `cd travelswap_ai/travelswapai && npx jest` (Jest + jest-expo + Testing Library; per ora solo lo smoke test `__tests__/App.smoke.test.js`) |
 | Syntax check file server | `node --check <file>` |
 | Parse-check file RN (JSX) | `node -e "require('@babel/parser').parse(require('fs').readFileSync('<file>','utf8'),{sourceType:'module',plugins:['jsx']})"` |
 | Parità traduzioni it/en/es | vedi script sotto |
