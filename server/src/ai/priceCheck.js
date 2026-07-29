@@ -76,6 +76,80 @@ function describeListing(listing) {
   return extra.length ? `${base}\n${extra.join("\n")}` : base;
 }
 
+function suggestSystemPromptFor(locale, hasPurchaseCap) {
+  const langName = LOCALE_LANG_NAME[locale] || LOCALE_LANG_NAME.it;
+  return (
+    "Sei un valutatore prezzi per un marketplace dove privati rivendono " +
+    "biglietti treno e prenotazioni hotel non più utilizzabili (mercato italiano). Il venditore " +
+    "non ha ancora scelto un prezzo: suggerisci TU un valore plausibile in EUR, basato sulla tua " +
+    "conoscenza generale dei prezzi tipici in Italia — non hai accesso a dati di mercato in tempo " +
+    "reale, quindi resta prudente se l'informazione è insufficiente.\n" +
+    "Ragiona sugli stessi fattori di sempre quando la data è nota: stagionalità/giorno della " +
+    "settimana per un hotel, classe/tipologia di servizio per un treno. Se titolo/descrizione non " +
+    "specificano questi dettagli, NON assumere silenziosamente la fascia più economica: suggerisci " +
+    "un valore prudente e segnala nella spiegazione che l'assenza di dettagli rende la stima meno precisa.\n" +
+    (hasPurchaseCap
+      ? "- Tetto anti-bagarinaggio: ti viene indicato il prezzo di acquisto originale dichiarato dal " +
+        "venditore. Su questa piattaforma il prezzo di rivendita NON PUÒ MAI superarlo: è un vincolo " +
+        "tecnico bloccante lato server, non un consiglio. Non suggerire mai un prezzo più alto di quel " +
+        "tetto, anche se stimi che il valore di mercato sarebbe superiore — in quel caso proponi il " +
+        "tetto stesso (o poco sotto) e spiegalo brevemente.\n"
+      : "") +
+    "Rispondi SOLO con JSON valido: " +
+    `{ "suggestedPrice": number, "explanation": string } — explanation in ${langName}, max 2 frasi.`
+  );
+}
+
+/**
+ * Suggerisce un prezzo di partenza per un annuncio ancora in bozza (nessun
+ * id: non esiste come riga finché non si pubblica) — a differenza di
+ * checkPriceWithAI, che GIUDICA un prezzo già scelto su un annuncio già
+ * pubblicato, questa PROPONE un numero da zero.
+ *
+ * @param {object} draft - stessi campi di "listing" sopra, ma price è ignorato anche se presente
+ * @param {string} locale - "it" | "en" | "es"
+ * @returns {Promise<{available:true, suggestedPrice:number, explanation:string} | {available:false, reason:string}>}
+ */
+export async function suggestPriceWithAI(draft, locale = "it") {
+  if (!client) {
+    return { available: false, reason: "OPENAI_API_KEY non configurata sul server" };
+  }
+
+  const context = describeListing(draft);
+  const purchaseCap = Number(draft?.purchase_price);
+  const hasPurchaseCap = Number.isFinite(purchaseCap) && purchaseCap > 0;
+  const user = `${context}\nIl venditore non ha ancora indicato un prezzo: suggerisci tu un valore plausibile per la rivendita.`;
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: suggestSystemPromptFor(locale, hasPurchaseCap) },
+        { role: "user", content: user },
+      ],
+    });
+
+    const raw = completion?.choices?.[0]?.message?.content || "{}";
+    let parsed = {};
+    try { parsed = JSON.parse(raw); } catch { parsed = {}; }
+
+    const suggestedPrice = Number(parsed.suggestedPrice);
+    if (!Number.isFinite(suggestedPrice) || suggestedPrice <= 0) {
+      return { available: false, reason: "Suggerimento non valido" };
+    }
+    const explanation = (typeof parsed.explanation === "string" && parsed.explanation.trim())
+      ? parsed.explanation.trim()
+      : (FALLBACK_EXPLANATION[locale] || FALLBACK_EXPLANATION.it);
+
+    return { available: true, suggestedPrice: Math.round(suggestedPrice), explanation };
+  } catch (e) {
+    console.error("[suggestPriceWithAI] error:", e?.message || e);
+    return { available: false, reason: "Analisi non riuscita al momento" };
+  }
+}
+
 /**
  * @param {object} listing - riga della tabella listings (type, price, currency, location, route_from, route_to, check_in, check_out, depart_at, arrive_at, title, description, purchase_price)
  * @param {string} locale - "it" | "en" | "es", lingua della spiegazione restituita

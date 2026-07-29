@@ -743,6 +743,7 @@ export const translations = {
 
       priceSuggestionTitle: "Suggerimento prezzo",
       priceSuggestionMsg: "In base ai dati inseriti, potresti proporre circa {price}€.\nÈ solo un consiglio: sentiti libero di adattarlo.",
+      priceSuggestionMsgAI: "Potresti proporre circa {price}€. {explanation}\nÈ solo un consiglio: sentiti libero di adattarlo.",
       priceEstimateErrorMsg: "Impossibile stimare il prezzo al momento.",
 
       checkAiAutoFailedTitle: "Verifica non riuscita",
@@ -1945,6 +1946,7 @@ export const translations = {
 
       priceSuggestionTitle: "Price suggestion",
       priceSuggestionMsg: "Based on the entered data, you could ask around {price}€.\nIt's just a suggestion: feel free to adjust it.",
+      priceSuggestionMsgAI: "You could ask around {price}€. {explanation}\nIt's just a suggestion: feel free to adjust it.",
       priceEstimateErrorMsg: "Couldn't estimate the price right now.",
 
       checkAiAutoFailedTitle: "Verification failed",
@@ -3013,6 +3015,7 @@ export const translations = {
 
       priceSuggestionTitle: "Sugerencia de precio",
       priceSuggestionMsg: "Según los datos introducidos, podrías pedir unos {price}€.\nEs solo un consejo: siéntete libre de ajustarlo.",
+      priceSuggestionMsgAI: "Podrías pedir unos {price}€. {explanation}\nEs solo un consejo: siéntete libre de ajustarlo.",
       priceEstimateErrorMsg: "No se pudo estimar el precio en este momento.",
 
       checkAiAutoFailedTitle: "Verificación fallida",
