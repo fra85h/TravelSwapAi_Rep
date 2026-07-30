@@ -42,5 +42,22 @@ test("Annullamento post-accettazione: prima di qualunque conferma", async () => 
   expect(cancelled.status).toBe("cancelled");
   expect(cancelled.owner_confirmed_at).toBeNull();
   expect(cancelled.proposer_confirmed_at).toBeNull();
-  expect(mockRpc).toHaveBeenCalledWith("cancel_accepted_offer_any", { offer_id_text: String(OFFER_ID) });
+  expect(mockRpc).toHaveBeenCalledWith("cancel_accepted_offer_any", {
+    offer_id_text: String(OFFER_ID),
+    reason_text: null,
+  });
+});
+
+// Threat-modeling fase post-transazione (sezione A, punto 2): l'annullamento
+// ora registra sempre chi annulla e un motivo opzionale lato DB
+// (cancel_accepted_offer_any(offer_id_text, reason_text)) — qui si verifica
+// solo che il client passi il motivo quando fornito, non la logica DB
+// (coperta da migrationsIntegrity.test.js).
+test("Annullamento post-accettazione: passa il motivo quando fornito", async () => {
+  await cancelAcceptedOffer(OFFER_ID, "L'altra persona non risponde più");
+
+  expect(mockRpc).toHaveBeenCalledWith("cancel_accepted_offer_any", {
+    offer_id_text: String(OFFER_ID),
+    reason_text: "L'altra persona non risponde più",
+  });
 });
