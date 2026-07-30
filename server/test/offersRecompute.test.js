@@ -54,7 +54,10 @@ test('requireCronSecret: secret corretto -> chiama next()', () => {
   assert.equal(nextCalled, true);
 });
 
-test('POST /offers/recompute: scade le offerte pending E rilascia le prenotazioni scadute di TUTTI', async () => {
+test('POST /offers/recompute: scade le offerte pending, rilascia le prenotazioni scadute E manda i due promemoria proattivi', async () => {
+  // Analisi empatia/toni amichevoli, sezione C punto 10: prima nessuno
+  // spingeva l'utente a confermare uno scambio accettato o a valutare una
+  // transazione finalizzata.
   const calledRpc = [];
   mock.module('../src/db.js', {
     namedExports: {
@@ -63,6 +66,8 @@ test('POST /offers/recompute: scade le offerte pending E rilascia le prenotazion
           calledRpc.push(fn);
           if (fn === 'expire_old_offers') return { data: 3, error: null };
           if (fn === 'release_all_stale_reservations') return { data: 2, error: null };
+          if (fn === 'remind_pending_confirmations') return { data: 5, error: null };
+          if (fn === 'remind_pending_ratings') return { data: 4, error: null };
           return { data: null, error: null };
         },
       },
@@ -76,9 +81,16 @@ test('POST /offers/recompute: scade le offerte pending E rilascia le prenotazion
   const res = fakeRes();
   await handler(req, res);
 
-  assert.deepEqual(calledRpc, ['expire_old_offers', 'release_all_stale_reservations']);
+  assert.deepEqual(calledRpc, [
+    'expire_old_offers',
+    'release_all_stale_reservations',
+    'remind_pending_confirmations',
+    'remind_pending_ratings',
+  ]);
   assert.equal(res.body.expired, 3);
   assert.equal(res.body.releasedStale, 2);
+  assert.equal(res.body.confirmReminders, 5);
+  assert.equal(res.body.ratingReminders, 4);
 
   mock.reset();
 });

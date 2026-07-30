@@ -393,6 +393,56 @@ test('notify_on_chain_canceled distingue chi aveva già confermato da chi no', (
     `${file}: manca il messaggio dedicato a chi aveva già confermato`);
 });
 
+test('accept_offer_any e confirm_exchange_any scrivono accepted_at/finalized_at', () => {
+  // Analisi empatia/toni amichevoli, sezione C punto 10: i due reminder
+  // proattivi sotto hanno bisogno di sapere QUANDO un'offerta è diventata
+  // 'accepted'/'finalized' — prima non esisteva nessun timestamp dedicato
+  // (solo updated_at generico, toccato anche da conferme/dispute/cancel).
+  const accept = latestDefinitionOf('accept_offer_any');
+  assert.match(accept.body, /status\s*=\s*'accepted',\s*reservation_expires_at\s*=\s*now\(\)\s*\+\s*interval\s*'7 days',\s*accepted_at\s*=\s*now\(\)/i,
+    `${accept.file}: accept_offer_any non scrive più accepted_at`);
+
+  const confirm = latestDefinitionOf('confirm_exchange_any');
+  assert.match(confirm.body, /status\s*=\s*'finalized',\s*finalized_at\s*=\s*now\(\)/i,
+    `${confirm.file}: confirm_exchange_any non scrive più finalized_at`);
+});
+
+test('remind_pending_confirmations avvisa solo dopo 24h, esclude le offerte contestate, non rispedisce due volte', () => {
+  const { file, body } = latestDefinitionOf('remind_pending_confirmations');
+  assert.match(body, /o\.accepted_at\s*<\s*now\(\)\s*-\s*interval\s*'24 hours'/i,
+    `${file}: non filtra più per 24h dall'accettazione`);
+  assert.match(body, /o\.disputed_at\s+is\s+null/i,
+    `${file}: non esclude più le offerte contestate (lì serve una risoluzione, non un nudge a confermare)`);
+  assert.match(body, /o\.confirm_reminder_sent_at\s+is\s+null/i,
+    `${file}: manca la deduplicazione (rispedirebbe il promemoria ogni volta che gira il cron)`);
+  assert.match(body, /update\s+public\.offers\s+set\s+confirm_reminder_sent_at\s*=\s*now\(\)/i,
+    `${file}: non marca più confirm_reminder_sent_at dopo l'invio`);
+});
+
+test('remind_pending_ratings avvisa solo dopo 3 giorni dalla finalizzazione, solo chi non ha ancora votato', () => {
+  const { file, body } = latestDefinitionOf('remind_pending_ratings');
+  assert.match(body, /o\.finalized_at\s*<\s*now\(\)\s*-\s*interval\s*'3 days'/i,
+    `${file}: non filtra più per 3 giorni dalla finalizzazione`);
+  assert.match(body, /not\s+exists\s*\(\s*select\s+1\s+from\s+public\.transaction_ratings\s+where\s+offer_id\s*=\s*r\.id\s+and\s+rater_id\s*=\s*r\.owner_id\s*\)/i,
+    `${file}: non verifica più se il proprietario ha già votato`);
+  assert.match(body, /not\s+exists\s*\(\s*select\s+1\s+from\s+public\.transaction_ratings\s+where\s+offer_id\s*=\s*r\.id\s+and\s+rater_id\s*=\s*r\.proposer_id\s*\)/i,
+    `${file}: non verifica più se il proponente ha già votato`);
+  assert.match(body, /update\s+public\.offers\s+set\s+rating_reminder_sent_at\s*=\s*now\(\)/i,
+    `${file}: non marca più rating_reminder_sent_at dopo l'invio`);
+});
+
+test('remind_pending_confirmations e remind_pending_ratings sono chiamabili solo dal service_role', () => {
+  const sql = fs.readFileSync(
+    path.join(MIGRATIONS, '20260730180000_pending_confirm_and_rating_reminders.sql'), 'utf8',
+  );
+  for (const fn of ['remind_pending_confirmations', 'remind_pending_ratings']) {
+    assert.match(sql, new RegExp(`REVOKE ALL ON FUNCTION public\\.${fn}\\(\\) FROM PUBLIC`, 'i'),
+      `manca il REVOKE su ${fn}`);
+    assert.match(sql, new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${fn}\\(\\) TO service_role`, 'i'),
+      `manca il GRANT a service_role su ${fn}`);
+  }
+});
+
 test('release_all_stale_reservations ed expire_old_offers sono chiamabili solo dal service_role, non dal client', () => {
   // Bug collaterale trovato scrivendo il test sopra: expire_old_offers non
   // ha mai avuto un REVOKE/GRANT esplicito, quindi eredita l'EXECUTE di
