@@ -19,6 +19,8 @@ import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import { formatMoney } from "../lib/number";
 import { myRatingForOffer, rateTransaction } from "../lib/ratingsApi";
+import ExchangeProgressBar from "../components/ExchangeProgressBar";
+import HelpModal from "../components/HelpModal";
 
 function formatTime(iso, locale) {
   try {
@@ -53,6 +55,28 @@ export default function ChatScreen() {
   const [myStars, setMyStars] = useState(null);
   const [starsBusy, setStarsBusy] = useState(false);
 
+  // Centro assistenza contestuale (analisi empatia, sezione E punto 16):
+  // prima non c'era nessuna guida "cosa fare se..." raggiungibile da qui.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpItems = [
+    {
+      q: t("chat.help.q1Title", "🕐 L'altra persona non risponde da un po'?"),
+      a: t("chat.help.q1Body", "Aspetta ancora un po': a volte capita. Se passano più di 24 ore senza risposta, prova a riscrivere — oppure annulla lo scambio se non riesci più a fidarti: i vostri annunci tornano subito disponibili."),
+    },
+    {
+      q: t("chat.help.q2Title", "📦 Hai ricevuto qualcosa di diverso da quanto concordato?"),
+      a: t("chat.help.q2Body", "Non confermare: usa \"Segnala un problema\" qui sotto. La conferma resta bloccata per entrambi finché non si risolve, così non rischi di chiudere uno scambio andato storto."),
+    },
+    {
+      q: t("chat.help.q3Title", "🎫 Il biglietto ti sembra falso o già usato?"),
+      a: t("chat.help.q3Body", "Segnalalo subito con \"Segnala un problema\", spiegando cosa non torna. Per importi rilevanti, valuta anche una segnalazione alla Polizia Postale."),
+    },
+    {
+      q: t("chat.help.q4Title", "🔄 Perché serve la doppia conferma?"),
+      a: t("chat.help.q4Body", "Lo scambio si chiude solo quando ENTRAMBI confermate di aver ricevuto tutto: protegge sia te sia l'altra persona da conferme premature."),
+    },
+  ];
+
   const refreshHandshake = useCallback(async () => {
     try {
       const hs = await getOfferHandshake(offerId);
@@ -78,8 +102,20 @@ export default function ChatScreen() {
   };
 
   useEffect(() => {
-    navigation.setOptions?.({ title });
-  }, [navigation, title]);
+    navigation.setOptions?.({
+      title,
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setHelpOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("chat.help.open", "Cosa fare se...")}
+          style={{ paddingHorizontal: 8 }}
+        >
+          <Ionicons name="help-circle-outline" size={24} color={theme.colors.accent} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, title, t]);
 
   const load = useCallback(async () => {
     try {
@@ -245,6 +281,21 @@ export default function ChatScreen() {
                   : title}
               </Text>
             )}
+          </View>
+        ) : null}
+
+        {/* Barra di avanzamento (analisi UX, sezione F punto 18): colpo
+            d'occhio su quanto manca, complementa il testo di stato sotto —
+            stesso principio dei pallini già usati per le catene a 3. */}
+        {(handshake?.status === "accepted" || handshake?.status === "finalized") ? (
+          <View style={styles.progressWrap}>
+            <ExchangeProgressBar
+              iConfirmed={!!handshake.iConfirmed}
+              otherConfirmed={!!handshake.otherConfirmed}
+              finalized={handshake.status === "finalized"}
+              rated={myStars > 0}
+              t={t}
+            />
           </View>
         ) : null}
 
@@ -445,6 +496,13 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <HelpModal
+        visible={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        title={t("chat.help.title", "❓ Cosa fare se...")}
+        items={helpItems}
+        closeLabel={t("chat.help.close", "Ho capito")}
+      />
     </SafeAreaView>
   );
 }
@@ -460,6 +518,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: theme.colors.border,
   },
   dealBarText: { flex: 1, color: theme.colors.textMuted, fontSize: 12.5, fontWeight: "600" },
+
+  progressWrap: {
+    paddingHorizontal: 14, paddingTop: 8, paddingBottom: 2,
+    backgroundColor: theme.colors.surface,
+  },
 
   hsBar: {
     paddingHorizontal: 14, paddingVertical: 10, gap: 8,

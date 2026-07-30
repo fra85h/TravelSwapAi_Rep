@@ -18,6 +18,7 @@ import { getCurrentUser } from "../lib/db";
 import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
+import HelpModal from "../components/HelpModal";
 
 function formatTime(iso, locale) {
   try {
@@ -40,8 +41,37 @@ export default function ChainChatScreen() {
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
 
+  // Centro assistenza contestuale (analisi empatia, sezione E punto 16).
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpItems = [
+    {
+      q: t("chains.help.q1Title", "🕐 Un partecipante non risponde da un po'?"),
+      a: t("chains.help.q1Body", "Aspetta ancora un po': a volte capita. Se il silenzio si prolunga, prova a scrivere di nuovo — in un gruppo di 3 basta un messaggio per rimettere tutti d'accordo sui tempi."),
+    },
+    {
+      q: t("chains.help.q2Title", "🎫 Hai ricevuto qualcosa di diverso da quanto concordato, o il biglietto ti sembra falso?"),
+      a: t("chains.help.q2Body", "Scrivilo subito qui in chat, così resta una traccia visibile a tutti e 3. Per importi rilevanti, valuta anche una segnalazione alla Polizia Postale."),
+    },
+    {
+      q: t("chains.help.q3Title", "🔄 Perché questa chat si apre solo a scambio concluso?"),
+      a: t("chains.help.q3Body", "Perché lo scambio a 3 si chiude solo quando TUTTI E 3 confermano: fino a quel momento nessun annuncio viene toccato, quindi non c'è ancora nulla da consegnare."),
+    },
+  ];
+
   useEffect(() => {
-    navigation.setOptions?.({ title: t("chains.badge", "Scambio a 3") });
+    navigation.setOptions?.({
+      title: t("chains.badge", "Scambio a 3"),
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setHelpOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("chat.help.open", "Cosa fare se...")}
+          style={{ paddingHorizontal: 8 }}
+        >
+          <Ionicons name="help-circle-outline" size={24} color={theme.colors.accent} />
+        </TouchableOpacity>
+      ),
+    });
   }, [navigation, t]);
 
   const load = useCallback(async () => {
@@ -166,6 +196,13 @@ export default function ChainChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <HelpModal
+        visible={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        title={t("chains.help.title", "❓ Cosa fare se...")}
+        items={helpItems}
+        closeLabel={t("chat.help.close", "Ho capito")}
+      />
     </SafeAreaView>
   );
 }
