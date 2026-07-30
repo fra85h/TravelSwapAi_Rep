@@ -1,5 +1,6 @@
 // lib/chains.js — swap a catena (fase 4): lettura + conferma/rifiuto
 import { supabase } from "./supabase";
+import { getPublicProfilesByIds } from "./db";
 
 /**
  * Le proposte di catena attive di cui l'utente corrente fa parte, con i
@@ -108,4 +109,49 @@ export async function reportChainProblem(chainId, accusedUserId, reason) {
   });
   if (error) { console.log("[reportChainProblem]", error.message); throw new Error("Impossibile segnalare il problema"); }
   return data;
+}
+
+/**
+ * Gli ALTRI partecipanti (io escluso) di una catena, con nome pubblico e
+ * cosa danno — serve a ChainChatScreen per lasciar scegliere CONTRO CHI
+ * segnalare un problema (reportChainProblem sopra richiede un accusedUserId
+ * specifico, e listMyChainProposals() non copre le catene 'completed').
+ * Best effort: in errore ritorna array vuoto, mai un'eccezione (la chat
+ * resta comunque utilizzabile anche senza questa informazione).
+ */
+export async function getChainParticipants(chainId) {
+  if (!chainId) return [];
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: rows, error } = await supabase
+    .from("chain_participants")
+    .select("user_id, give_listing_id")
+    .eq("chain_id", chainId);
+  if (error) { console.log("[getChainParticipants]", error.message); return []; }
+
+  const others = (rows || []).filter((r) => r.user_id !== user.id);
+  if (!others.length) return [];
+
+  const listingIds = Array.from(new Set(others.map((r) => r.give_listing_id).filter(Boolean)));
+  let listingsById = new Map();
+  if (listingIds.length) {
+    const { data: listings } = await supabase.from("listings").select("id, title").in("id", listingIds);
+    listingsById = new Map((listings || []).map((l) => [l.id, l]));
+  }
+
+  let profilesById = new Map();
+  try {
+    const profiles = await getPublicProfilesByIds(others.map((r) => r.user_id));
+    profilesById = new Map(profiles.map((p) => [String(p.id), p]));
+  } catch {}
+
+  return others.map((r) => {
+    const profile = profilesById.get(String(r.user_id));
+    return {
+      userId: r.user_id,
+      displayName: profile?.full_name || profile?.username || null,
+      giveTitle: listingsById.get(r.give_listing_id)?.title || null,
+    };
+  });
 }

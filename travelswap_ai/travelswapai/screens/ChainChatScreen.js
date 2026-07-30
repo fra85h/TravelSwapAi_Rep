@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet,
+  KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet, Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRoute, useNavigation } from "@react-navigation/native";
@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import {
   listChainChatMessages, sendChainChatMessage, markChainChatRead, subscribeToChainChat,
 } from "../lib/chainChat";
+import { reportChainProblem, getChainParticipants } from "../lib/chains";
 import { getCurrentUser } from "../lib/db";
 import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
@@ -39,9 +40,12 @@ export default function ChainChatScreen() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [otherParticipants, setOtherParticipants] = useState([]);
   const listRef = useRef(null);
 
-  // Centro assistenza contestuale (analisi empatia, sezione E punto 16).
+  // Centro assistenza contestuale (analisi empatia, sezione E punto 16) +
+  // segnalazione (chiude il gap trovato in #221: report_chain_problem,
+  // creata in #218, non aveva ancora nessun bottone da nessuna parte).
   const [helpOpen, setHelpOpen] = useState(false);
   const helpItems = [
     {
@@ -50,13 +54,63 @@ export default function ChainChatScreen() {
     },
     {
       q: t("chains.help.q2Title", "🎫 Hai ricevuto qualcosa di diverso da quanto concordato, o il biglietto ti sembra falso?"),
-      a: t("chains.help.q2Body", "Scrivilo subito qui in chat, così resta una traccia visibile a tutti e 3. Per importi rilevanti, valuta anche una segnalazione alla Polizia Postale."),
+      a: t("chains.help.q2BodyWithAction", "Usa \"Segnala un problema\" qui sotto, specificando con chi dei due e cosa non torna: resta una traccia visibile e verrà esaminata. Per importi rilevanti, valuta anche una segnalazione alla Polizia Postale."),
     },
     {
       q: t("chains.help.q3Title", "🔄 Perché questa chat si apre solo a scambio concluso?"),
       a: t("chains.help.q3Body", "Perché lo scambio a 3 si chiude solo quando TUTTI E 3 confermano: fino a quel momento nessun annuncio viene toccato, quindi non c'è ancora nulla da consegnare."),
     },
   ];
+
+  const doReportChain = useCallback(async (participant, reason) => {
+    try {
+      await reportChainProblem(chainId, participant.userId, reason);
+      Alert.alert(
+        t("chains.reportSentTitle", "Segnalazione inviata"),
+        t("chains.reportSentMsg", "Grazie: verrà esaminata. Il motivo è visibile anche agli altri due partecipanti nella chat.")
+      );
+      await load();
+      notifyActivityChanged();
+    } catch (e) {
+      Alert.alert(t("common.error", "Errore"), e?.message || String(e));
+    }
+  }, [chainId, t]);
+
+  const pickReportReason = useCallback((participant) => {
+    Alert.alert(
+      t("chains.reportTitle", "Segnala un problema"),
+      t("chains.reportMsg", "Segnala solo se qualcosa non va con questa persona."),
+      [
+        { text: t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto"), onPress: () => doReportChain(participant, t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto")) },
+        { text: t("chat.reportReasonInvalid", "Biglietto non valido/già usato"), onPress: () => doReportChain(participant, t("chat.reportReasonInvalid", "Biglietto non valido/già usato")) },
+        { text: t("chat.reportReasonOther", "Altro problema"), onPress: () => doReportChain(participant, t("chat.reportReasonOther", "Altro problema")) },
+        { text: t("common.cancel", "Annulla"), style: "cancel" },
+      ]
+    );
+  }, [t, doReportChain]);
+
+  const onReportChain = useCallback(() => {
+    setHelpOpen(false);
+    if (!otherParticipants.length) {
+      Alert.alert(t("common.error", "Errore"), t("chains.reportNoParticipants", "Impossibile identificare gli altri partecipanti in questo momento. Riprova tra poco."));
+      return;
+    }
+    if (otherParticipants.length === 1) {
+      pickReportReason(otherParticipants[0]);
+      return;
+    }
+    Alert.alert(
+      t("chains.reportWhoTitle", "Contro chi vuoi segnalare il problema?"),
+      t("chains.reportWhoMsg", "Scegli la persona coinvolta."),
+      [
+        ...otherParticipants.map((p) => ({
+          text: p.displayName || t("chains.otherUser", "Un altro utente"),
+          onPress: () => pickReportReason(p),
+        })),
+        { text: t("common.cancel", "Annulla"), style: "cancel" },
+      ]
+    );
+  }, [otherParticipants, t, pickReportReason]);
 
   useEffect(() => {
     navigation.setOptions?.({
@@ -76,12 +130,14 @@ export default function ChainChatScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [u, msgs] = await Promise.all([
+      const [u, msgs, participants] = await Promise.all([
         getCurrentUser().catch(() => null),
         listChainChatMessages(chainId),
+        getChainParticipants(chainId).catch(() => []),
       ]);
       setMe(u);
       setMessages(msgs);
+      setOtherParticipants(participants);
       markChainChatRead(chainId).then(() => notifyActivityChanged());
     } finally {
       setLoading(false);
@@ -202,6 +258,8 @@ export default function ChainChatScreen() {
         title={t("chains.help.title", "❓ Cosa fare se...")}
         items={helpItems}
         closeLabel={t("chat.help.close", "Ho capito")}
+        actionLabel={t("chains.reportCta", "Segnala un problema")}
+        onAction={onReportChain}
       />
     </SafeAreaView>
   );
