@@ -46,3 +46,34 @@ export async function rateTransaction(offerId, stars) {
   if (error) throw error;
   return Array.isArray(data) ? data[0] : data;
 }
+
+/**
+ * Vota (1–5) un partecipante di una catena a 3 COMPLETATA. Ogni partecipante
+ * ha due controparti (chi gli ha dato l'annuncio, chi ha ricevuto il suo):
+ * qui si vota UNA delle due per volta, ratedUserId identifica quale.
+ * Immutabile: un voto diverso dal primo viene rifiutato dal DB.
+ */
+export async function rateChainTransaction(chainId, ratedUserId, stars) {
+  const { data, error } = await supabase.rpc("rate_chain_transaction", {
+    p_chain_id: chainId,
+    p_rated_id: ratedUserId,
+    p_stars: Number(stars),
+  });
+  if (error) { console.log("[rateChainTransaction]", error.message); throw new Error("Impossibile registrare la valutazione"); }
+  return Array.isArray(data) ? data[0] : data;
+}
+
+/** Il mio voto su un partecipante di una catena, o null se non ho ancora votato. */
+export async function myRatingForChain(chainId, ratedUserId) {
+  if (!chainId || !ratedUserId) return null;
+  const { data, error } = await supabase.rpc("my_rating_for_chain", {
+    p_chain_id: chainId,
+    p_rated_id: ratedUserId,
+  });
+  if (error) {
+    console.log("[myRatingForChain]", error.message);
+    return null;
+  }
+  const n = Number(data);
+  return Number.isFinite(n) && n >= 1 ? n : null;
+}
