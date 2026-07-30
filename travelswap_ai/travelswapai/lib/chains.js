@@ -91,3 +91,21 @@ export async function declineChain(chainId) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Segnala un problema con UNO specifico degli altri partecipanti di una
+ * catena COMPLETATA (non ha consegnato, il biglietto non era valido...).
+ * Prima non esisteva nessun equivalente di reportExchangeProblem per le
+ * catene a 3 — un solo partecipante disonesto danneggiava due persone
+ * innocenti senza che nessuna delle due avesse modo di segnalarlo. Pubblica
+ * il motivo in chat_chain, visibile a tutti e 3 nel thread.
+ */
+export async function reportChainProblem(chainId, accusedUserId, reason) {
+  const { data, error } = await supabase.rpc("report_chain_problem", {
+    p_chain_id: chainId,
+    p_accused_id: accusedUserId,
+    p_reason: String(reason || "").slice(0, 1000),
+  });
+  if (error) { console.log("[reportChainProblem]", error.message); throw new Error("Impossibile segnalare il problema"); }
+  return data;
+}
