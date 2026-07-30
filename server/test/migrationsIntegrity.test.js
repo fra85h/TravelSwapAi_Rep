@@ -245,6 +245,32 @@ test('release_all_stale_reservations copre TUTTI gli utenti, non solo chi è log
     `${file}: filtra per auth.uid(), un cron server-side non troverebbe mai righe da processare`);
 });
 
+test('cancel_accepted_offer_any registra chi annulla e segnala se l\'altra parte aveva già confermato', () => {
+  // Threat-modeling fase post-transazione (sezione A, punto 2): prima
+  // l'annullamento era completamente silenzioso — azzerava anche la
+  // conferma già data dall'altra parte senza lasciare traccia di chi
+  // avesse annullato o perché. Pattern di frode che questo abilitava: il
+  // venditore incassa fuori app, poi annulla per far sparire ogni prova.
+  const { file, body } = latestDefinitionOf('cancel_accepted_offer_any');
+  assert.match(body, /cancelled_by\s*=\s*auth\.uid\(\)/i,
+    `${file}: non registra più chi ha annullato`);
+  assert.match(body, /cancel_reason\s*=\s*coalesce\(reason_text,\s*cancel_reason\)/i,
+    `${file}: non registra più il motivo opzionale dell'annullamento`);
+  assert.match(body, /suspicious_cancel_at\s*=\s*case\s+when\s+v_other_already_confirmed\s+then\s+now\(\)\s+else\s+null\s+end/i,
+    `${file}: non segnala più il caso sospetto (l'altra parte aveva già confermato)`);
+});
+
+test('notify_on_offer avvisa l\'altra parte quando un\'offerta accettata viene annullata', () => {
+  // Prima nessuno veniva avvisato di un annullamento (il ramo UPDATE
+  // copriva solo 'accepted'/'declined'): lo scambio spariva e basta dalla
+  // vista dell'altra parte, senza nessun messaggio.
+  const { file, body } = latestDefinitionOf('notify_on_offer');
+  assert.match(body, /old\.status::text\s*=\s*'accepted'\s+and\s+new\.status::text\s*=\s*'cancelled'/i,
+    `${file}: manca il ramo che copre l'annullamento post-accettazione`);
+  assert.match(body, /v_notify_user\s*:=\s*case\s+when\s+new\.cancelled_by\s*=\s*v_owner\s+then\s+new\.proposer_id\s+else\s+v_owner\s+end/i,
+    `${file}: non notifica l'ALTRA parte rispetto a chi ha annullato`);
+});
+
 test('release_all_stale_reservations ed expire_old_offers sono chiamabili solo dal service_role, non dal client', () => {
   // Bug collaterale trovato scrivendo il test sopra: expire_old_offers non
   // ha mai avuto un REVOKE/GRANT esplicito, quindi eredita l'EXECUTE di

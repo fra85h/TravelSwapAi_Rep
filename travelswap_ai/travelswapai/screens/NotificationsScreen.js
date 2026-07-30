@@ -23,6 +23,7 @@ const ICON = {
   new_matches:    { name: "sparkles-outline", color: theme.colors.boardingText },
   listing_ping:   { name: "flag-outline", color: theme.colors.accent },
   chain_canceled: { name: "git-network-outline", color: theme.colors.danger },
+  offer_cancelled: { name: "close-circle-outline", color: theme.colors.danger },
 };
 
 function timeAgo(iso, t) {
