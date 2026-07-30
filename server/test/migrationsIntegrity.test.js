@@ -328,6 +328,40 @@ test('get_user_rating aggrega anche i voti di catena rivelati, non solo quelli 1
     `${file}: la condizione di "rivelato" per un voto di catena non cerca più la riga reciproca`);
 });
 
+test('report_chain_problem richiede una catena completata e reporter/accusato entrambi partecipanti', () => {
+  // Threat-modeling fase post-transazione (sezione A, punto 3, parte 2/2):
+  // prima non esisteva NESSUN equivalente di report_exchange_problem per
+  // le catene a 3 — un solo partecipante disonesto danneggiava due
+  // persone innocenti senza che nessuna delle due avesse modo di
+  // segnalarlo (verificato con grep incrociato su tutte le migrations e
+  // su server/src/models/chains.js).
+  const { file, body } = latestDefinitionOf('report_chain_problem');
+  assert.match(body, /if\s+v_chain\.status\s*<>\s*'completed'\s+then/i,
+    `${file}: manca il controllo che la catena sia completata`);
+  assert.match(body, /chain_participants\s+where\s+chain_id\s*=\s*p_chain_id\s+and\s+user_id\s*=\s*v_me/i,
+    `${file}: non verifica più che il reporter sia un partecipante`);
+  assert.match(body, /chain_participants\s+where\s+chain_id\s*=\s*p_chain_id\s+and\s+user_id\s*=\s*p_accused_id/i,
+    `${file}: non verifica più che l'accusato sia un partecipante`);
+  assert.match(body, /insert\s+into\s+public\.chain_messages/i,
+    `${file}: non pubblica più il motivo in chat, come report_exchange_problem coi 1:1`);
+});
+
+test('resolve_chain_dispute è chiamabile solo dal service_role e richiede un esito valido', () => {
+  const { file, body } = latestDefinitionOf('resolve_chain_dispute');
+  assert.match(body, /if\s+p_outcome\s+not\s+in\s*\(\s*'upheld'\s*,\s*'dismissed'\s*\)/i,
+    `${file}: manca la validazione dell'esito`);
+  assert.match(body, /if\s+v_dispute\.resolved_at\s+is\s+not\s+null\s+then/i,
+    `${file}: non impedisce più di risolvere due volte la stessa disputa`);
+
+  const sql = fs.readFileSync(
+    path.join(MIGRATIONS, '20260730160000_chain_disputes.sql'), 'utf8',
+  );
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.resolve_chain_dispute\(uuid,\s*text,\s*text\) FROM PUBLIC/i,
+    'manca il REVOKE su resolve_chain_dispute');
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.resolve_chain_dispute\(uuid,\s*text,\s*text\) TO service_role/i,
+    'manca il GRANT a service_role su resolve_chain_dispute');
+});
+
 test('release_all_stale_reservations ed expire_old_offers sono chiamabili solo dal service_role, non dal client', () => {
   // Bug collaterale trovato scrivendo il test sopra: expire_old_offers non
   // ha mai avuto un REVOKE/GRANT esplicito, quindi eredita l'EXECUTE di

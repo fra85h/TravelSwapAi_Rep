@@ -33,6 +33,7 @@ function lastHandler(router, method, path) {
   return stack[stack.length - 1].handle;
 }
 const handler = lastHandler(disputesRouter, 'post', '/resolve');
+const chainHandler = lastHandler(disputesRouter, 'post', '/resolve-chain');
 
 function fakeRes() {
   const res = { statusCode: 200, body: null };
@@ -108,4 +109,40 @@ test('POST /disputes/resolve: propaga l\'errore della RPC come 500', async () =>
   await handler(req, res);
 
   assert.equal(res.statusCode, 500);
+});
+
+// Threat-modeling fase post-transazione (sezione A, punto 3, parte 2/2):
+// equivalente di /resolve ma per le segnalazioni sulle catene a 3
+// (report_chain_problem) — qui non c'è nulla da annullare (la catena è già
+// 'completed'), l'esito è solo informativo ('upheld' | 'dismissed').
+test('POST /disputes/resolve-chain: 400 se manca disputeId o outcome', async () => {
+  const res1 = fakeRes();
+  await chainHandler({ body: { outcome: 'upheld' } }, res1);
+  assert.equal(res1.statusCode, 400);
+
+  const res2 = fakeRes();
+  await chainHandler({ body: { disputeId: 'dispute-1' } }, res2);
+  assert.equal(res2.statusCode, 400);
+});
+
+test('POST /disputes/resolve-chain: chiama resolve_chain_dispute coi parametri giusti', async () => {
+  const calls = [];
+  currentRpc = async (fn, params) => {
+    calls.push({ fn, params });
+    return { data: { id: 'dispute-1', resolution: 'upheld' }, error: null };
+  };
+
+  const req = { body: { disputeId: 'dispute-1', outcome: 'upheld', note: 'Confermato dal tracking del corriere' } };
+  const res = fakeRes();
+  await chainHandler(req, res);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].fn, 'resolve_chain_dispute');
+  assert.deepEqual(calls[0].params, {
+    p_dispute_id: 'dispute-1',
+    p_outcome: 'upheld',
+    p_note: 'Confermato dal tracking del corriere',
+  });
+  assert.equal(res.body.ok, true);
+  assert.equal(res.body.dispute.resolution, 'upheld');
 });

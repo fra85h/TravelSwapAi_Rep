@@ -31,3 +31,27 @@ disputesRouter.post("/resolve", rateLimitDisputes, requireAdminSecret, async (re
     return res.status(500).json({ error: 'Errore interno' });
   }
 });
+
+// Equivalente di /resolve ma per le segnalazioni sulle catene a 3
+// (report_chain_problem, 20260730160000_chain_disputes.sql): qui non c'è
+// nulla da annullare (la catena è già 'completed'), l'esito è solo
+// informativo/di reputazione ('upheld' | 'dismissed').
+disputesRouter.post("/resolve-chain", rateLimitDisputes, requireAdminSecret, async (req, res) => {
+  try {
+    if (!supabase) throw new Error("Supabase client not configured");
+    const { disputeId, outcome, note } = req.body || {};
+    if (!disputeId || !outcome) {
+      return res.status(400).json({ error: "disputeId e outcome sono obbligatori" });
+    }
+    const { data, error } = await supabase.rpc("resolve_chain_dispute", {
+      p_dispute_id: String(disputeId),
+      p_outcome: String(outcome),
+      p_note: note ? String(note).slice(0, 1000) : null,
+    });
+    if (error) throw error;
+    return res.status(200).json({ ok: true, dispute: data });
+  } catch (e) {
+    console.error("[disputes/resolve-chain] error:", e);
+    return res.status(500).json({ error: 'Errore interno' });
+  }
+});
