@@ -32,6 +32,7 @@ import { translateListingsRouter } from "./routes/translateListings.js";
 import { priceCheckRouter } from "./routes/priceCheck.js";
 import { reportsNotifyRouter } from './routes/reportsNotify.js';
 import { notifyRouter } from './routes/notify.js';
+import { disputesRouter } from './routes/disputes.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { rateLimitParse } from './middleware/rateLimit.js';
 
@@ -103,6 +104,7 @@ app.use('/api/listing-questions', listingQuestionsRouter);
 app.use('/api/fb-link', fbLinkRouter);
 app.use('/api/reports', reportsNotifyRouter);
 app.use('/api/notify', notifyRouter);
+app.use('/api/disputes', disputesRouter);
 
 // --- Versione web dell'app (build Expo committata in server/public/app) ---
 // Permette di provare l'app da qualsiasi browser senza installare nulla

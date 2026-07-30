@@ -246,7 +246,8 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `FB_VERIFY_TOKEN`, `FB_APP_SECRET`, `FB_PAGE_ACCESS_TOKEN` | webhook + Send API Messenger |
 | `ALLOW_UNVERIFIED_WEBHOOK` | ⚠️ bypass verifica firma FB |
 | `DEFAULT_LISTING_OWNER_ID` | owner degli annunci importati da FB |
-| `CHAIN_CRON_SECRET` | secret condiviso (header `X-Cron-Secret`) per gli endpoint cron-only `/api/chains/recompute` e `/api/saved-searches/recompute`; fail-closed (503) se assente |
+| `CHAIN_CRON_SECRET` | secret condiviso (header `X-Cron-Secret`) per gli endpoint cron-only `/api/chains/recompute`, `/api/saved-searches/recompute` e `/api/offers/recompute`; fail-closed (503) se assente |
+| `ADMIN_ACTION_SECRET` | secret condiviso (header `X-Admin-Secret`, distinto da `CHAIN_CRON_SECRET`) per azioni amministrative manuali — oggi solo `/api/disputes/resolve`, per risolvere una contestazione aperta da `report_exchange_problem` (nessun concetto di ruolo admin nel DB); fail-closed (503) se assente |
 | `PORT` (default 8080), `NODE_ENV` | runtime |
 
 ### Variabili d'ambiente — app
