@@ -271,6 +271,37 @@ test('notify_on_offer avvisa l\'altra parte quando un\'offerta accettata viene a
     `${file}: non notifica l'ALTRA parte rispetto a chi ha annullato`);
 });
 
+test('resolve_exchange_dispute richiede una disputa aperta e un esito valido', () => {
+  // Threat-modeling fase post-transazione (sezione A, punto 1): prima non
+  // esisteva NESSUNA RPC per risolvere una disputa aperta da
+  // report_exchange_problem — l'unica uscita era annullare con
+  // cancel_accepted_offer_any, che ignora disputed_at e non lascia traccia
+  // della disputa. Qui si verifica solo il testo (i test funzionali sulla
+  // logica reale vivono nella checklist manuale, come per le altre RPC).
+  const { file, body } = latestDefinitionOf('resolve_exchange_dispute');
+  assert.match(body, /if\s+p_outcome\s+not\s+in\s*\(\s*'resume'\s*,\s*'cancel_favor_proposer'\s*,\s*'cancel_favor_owner'\s*\)/i,
+    `${file}: manca la validazione dell'esito`);
+  assert.match(body, /if\s+v_offer\.disputed_at\s+is\s+null\s+then\s*\n?\s*raise\s+exception\s+'Offer is not disputed'/i,
+    `${file}: manca il controllo che l'offerta sia davvero contestata`);
+  assert.match(body, /set\s+disputed_at\s*=\s*null,\s*disputed_by\s*=\s*null,\s*dispute_reason\s*=\s*null/i,
+    `${file}: l'esito 'resume' non azzera più la disputa`);
+  assert.match(body, /cancel_reason\s*=\s*'dispute_resolved:'\s*\|\|\s*p_outcome/i,
+    `${file}: l'annullamento arbitrato non registra più l'esito in cancel_reason`);
+});
+
+test('resolve_exchange_dispute è chiamabile solo dal service_role, non dal client', () => {
+  // Nessun controllo "una delle due parti" al suo interno (è un'azione
+  // arbitrata dietro requireAdminSecret, non un'azione utente): non va MAI
+  // esposta come RPC pubblica al client mobile.
+  const sql = fs.readFileSync(
+    path.join(MIGRATIONS, '20260730140000_resolve_exchange_dispute.sql'), 'utf8',
+  );
+  assert.match(sql, /REVOKE ALL ON FUNCTION public\.resolve_exchange_dispute\(text,\s*text,\s*text\) FROM PUBLIC/i,
+    'manca il REVOKE su resolve_exchange_dispute');
+  assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.resolve_exchange_dispute\(text,\s*text,\s*text\) TO service_role/i,
+    'manca il GRANT a service_role su resolve_exchange_dispute');
+});
+
 test('release_all_stale_reservations ed expire_old_offers sono chiamabili solo dal service_role, non dal client', () => {
   // Bug collaterale trovato scrivendo il test sopra: expire_old_offers non
   // ha mai avuto un REVOKE/GRANT esplicito, quindi eredita l'EXECUTE di

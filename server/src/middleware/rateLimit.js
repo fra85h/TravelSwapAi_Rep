@@ -101,3 +101,8 @@ export const rateLimitPings = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 2
 // (una per persona per annuncio), quindi il tetto serve solo a impedire che
 // qualcuno le sparpagli su decine di annunci diversi in pochi minuti.
 export const rateLimitQuestions = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'domande' });
+
+// Risoluzione dispute: protetto da requireAdminSecret (nessun concetto di
+// ruolo admin nel DB), azione manuale rara — il tetto è solo un backstop,
+// non ci si aspetta mai di avvicinarcisi in uso normale.
+export const rateLimitDisputes = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'risoluzione dispute' });
