@@ -12,12 +12,20 @@ export const offersRouter = express.Router();
 // 20260718110001_offers_timeout.sql). Facoltativo: la scadenza pigra già
 // applicata da accept/decline_offer_any e dalle liste di Attività basta
 // per la correttezza anche se questo endpoint non viene mai chiamato.
+//
+// release_all_stale_reservations (20260730120000): stessa logica ma per le
+// offerte 'accepted' con reservation_expires_at scaduta (7 giorni). Prima
+// esisteva solo release_my_stale_reservations, scoped ad auth.uid() e
+// chiamata solo dal client al mount di AttivitaScreen — se nessuna delle
+// due parti riapriva l'app, la prenotazione restava bloccata per sempre.
 offersRouter.post("/recompute", rateLimitOffers, requireCronSecret, async (req, res) => {
   try {
     if (!supabase) throw new Error("Supabase client not configured");
-    const { data, error } = await supabase.rpc("expire_old_offers");
-    if (error) throw error;
-    return res.status(200).json({ expired: data ?? 0 });
+    const { data: expired, error: e1 } = await supabase.rpc("expire_old_offers");
+    if (e1) throw e1;
+    const { data: releasedStale, error: e2 } = await supabase.rpc("release_all_stale_reservations");
+    if (e2) throw e2;
+    return res.status(200).json({ expired: expired ?? 0, releasedStale: releasedStale ?? 0 });
   } catch (e) {
     console.error("[offers/recompute] error:", e);
     return res.status(500).json({ error: 'Errore interno' });
