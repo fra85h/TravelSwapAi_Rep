@@ -189,6 +189,20 @@ export async function findAndProposeChains() {
     expiredCount = expireResult ?? 0;
   }
 
+  // Protezione per chi conferma per primo (threat-modeling fase
+  // post-transazione, sezione A punto 5): prima chi aveva già confermato
+  // 2/3 di una catena non riceveva alcun segnale diverso da un silenzio
+  // totale fino alla scadenza delle 48h. Stesso agganciamento al cron di
+  // expire_old_chain_proposals qui sopra: un promemoria per catena,
+  // reminder_sent_at evita di rispedirlo ogni 15 minuti.
+  let remindedCount = 0;
+  const { data: remindResult, error: remindErr } = await supabase.rpc("remind_stale_chain_confirmers");
+  if (remindErr) {
+    console.error("[chains] remind_stale_chain_confirmers failed:", remindErr.message);
+  } else {
+    remindedCount = remindResult ?? 0;
+  }
+
   const allActive = await listActiveListings({ limit: 1000 });
   const { edges, bestEdgeListing, listingById } = await buildDesireGraph(allActive);
   const cycles = findThreeCycles(edges);
@@ -258,6 +272,7 @@ export async function findAndProposeChains() {
 
   return {
     expiredChains: expiredCount,
+    remindedChains: remindedCount,
     scannedListings: allActive.length,
     candidateOwners: candidateOwners.size,
     cyclesFound: cycles.length,

@@ -362,6 +362,37 @@ test('resolve_chain_dispute è chiamabile solo dal service_role e richiede un es
     'manca il GRANT a service_role su resolve_chain_dispute');
 });
 
+test('remind_stale_chain_confirmers avvisa solo le catene con ESATTAMENTE 2/3 conferme vicine alla scadenza, una volta sola', () => {
+  // Threat-modeling fase post-transazione (sezione A, punto 5, ultimo dei
+  // 5): prima chi aveva già confermato 2/3 di una catena non riceveva
+  // alcun segnale diverso da un silenzio totale fino alla scadenza delle
+  // 48h (confirm_chain_participant si limita a ritornare lo stato
+  // corrente se v_confirmed_count < 3, nessun timeout dedicato).
+  const { file, body } = latestDefinitionOf('remind_stale_chain_confirmers');
+  assert.match(body, /chain_participants\s+where\s+chain_id\s*=\s*cp\.id\s+and\s+confirmed\)\s*=\s*2/i,
+    `${file}: non filtra più per ESATTAMENTE 2/3 conferme`);
+  assert.match(body, /cp\.reminder_sent_at\s+is\s+null/i,
+    `${file}: manca la deduplicazione (rispedirebbe il promemoria ogni 15 minuti)`);
+  assert.match(body, /update\s+public\.chain_proposals\s+set\s+reminder_sent_at\s*=\s*now\(\)/i,
+    `${file}: non marca più reminder_sent_at dopo l'invio`);
+  assert.match(body, /where\s+part\.chain_id\s*=\s*r\.chain_id\s+and\s+not\s+part\.confirmed/i,
+    `${file}: manca l'avviso di urgenza a chi non ha ancora confermato`);
+  assert.match(body, /where\s+part\.chain_id\s*=\s*r\.chain_id\s+and\s+part\.confirmed/i,
+    `${file}: manca la rassicurazione a chi ha già confermato`);
+});
+
+test('notify_on_chain_canceled distingue chi aveva già confermato da chi no', () => {
+  // Prima il messaggio di scadenza era IDENTICO per tutti e 3 i
+  // partecipanti, indipendentemente da chi avesse effettivamente fatto la
+  // sua parte — nessun modo per chi aveva già confermato di sapere che il
+  // problema non era stato lui.
+  const { file, body } = latestDefinitionOf('notify_on_chain_canceled');
+  assert.match(body, /case\s+when\s+cp\.confirmed\s+then/i,
+    `${file}: non distingue più il messaggio in base a cp.confirmed`);
+  assert.match(body, /Avevi già confermato la tua parte/i,
+    `${file}: manca il messaggio dedicato a chi aveva già confermato`);
+});
+
 test('release_all_stale_reservations ed expire_old_offers sono chiamabili solo dal service_role, non dal client', () => {
   // Bug collaterale trovato scrivendo il test sopra: expire_old_offers non
   // ha mai avuto un REVOKE/GRANT esplicito, quindi eredita l'EXECUTE di
