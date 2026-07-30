@@ -24,6 +24,8 @@ const ICON = {
   listing_ping:   { name: "flag-outline", color: theme.colors.accent },
   chain_canceled: { name: "git-network-outline", color: theme.colors.danger },
   offer_cancelled: { name: "close-circle-outline", color: theme.colors.danger },
+  offer_confirm_reminder: { name: "mail-unread-outline", color: theme.colors.accent },
+  offer_rating_reminder: { name: "star-outline", color: theme.colors.accent },
 };
 
 function timeAgo(iso, t) {
