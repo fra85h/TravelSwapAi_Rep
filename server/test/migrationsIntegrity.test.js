@@ -302,6 +302,32 @@ test('resolve_exchange_dispute è chiamabile solo dal service_role, non dal clie
     'manca il GRANT a service_role su resolve_exchange_dispute');
 });
 
+test('rate_chain_transaction richiede che rater e rated siano entrambi partecipanti della stessa catena completata', () => {
+  // Threat-modeling fase post-transazione (sezione A, punto 3, parte 1/2):
+  // prima uno scambio a 3 completato non era mai valutabile
+  // (rate_transaction legge solo da offers, le catene non ci finiscono
+  // mai). Qui si verifica solo il testo dei controlli chiave — la logica
+  // reale (RLS, doppio cieco) resta coperta dalla checklist manuale.
+  const { file, body } = latestDefinitionOf('rate_chain_transaction');
+  assert.match(body, /if\s+v_chain\.status\s*<>\s*'completed'\s+then/i,
+    `${file}: manca il controllo che la catena sia completata`);
+  assert.match(body, /chain_participants\s+where\s+chain_id\s*=\s*p_chain_id\s+and\s+user_id\s*=\s*v_me/i,
+    `${file}: non verifica più che il rater sia un partecipante`);
+  assert.match(body, /chain_participants\s+where\s+chain_id\s*=\s*p_chain_id\s+and\s+user_id\s*=\s*p_rated_id/i,
+    `${file}: non verifica più che il rated sia un partecipante`);
+});
+
+test('get_user_rating aggrega anche i voti di catena rivelati, non solo quelli 1:1', () => {
+  // Bug che l'estensione sopra creerebbe da sola se dimenticato: senza
+  // questo, rate_chain_transaction scriverebbe voti che get_user_rating
+  // (l'UNICO aggregato letto dal profilo) non conterebbe mai.
+  const { file, body } = latestDefinitionOf('get_user_rating');
+  assert.match(body, /r\.chain_id\s+is\s+not\s+null\s+and\s+exists/i,
+    `${file}: non conta più i voti di catena`);
+  assert.match(body, /r2\.chain_id\s*=\s*r\.chain_id\s+and\s+r2\.rater_id\s*=\s*r\.rated_id\s+and\s+r2\.rated_id\s*=\s*r\.rater_id/i,
+    `${file}: la condizione di "rivelato" per un voto di catena non cerca più la riga reciproca`);
+});
+
 test('release_all_stale_reservations ed expire_old_offers sono chiamabili solo dal service_role, non dal client', () => {
   // Bug collaterale trovato scrivendo il test sopra: expire_old_offers non
   // ha mai avuto un REVOKE/GRANT esplicito, quindi eredita l'EXECUTE di
