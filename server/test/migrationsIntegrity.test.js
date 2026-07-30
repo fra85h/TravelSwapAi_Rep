@@ -226,3 +226,37 @@ test('notify_on_chain_canceled avvisa gli altri partecipanti quando la catena de
   assert.match(body, /non ti scoraggiare/i,
     `${file}: manca il messaggio di incoraggiamento`);
 });
+
+test('release_all_stale_reservations copre TUTTI gli utenti, non solo chi è loggato, e blocca la riga prima di scriverla', () => {
+  // Analisi threat-modeling fase post-transazione (sezione A, punto 4):
+  // release_my_stale_reservations è scoped ad auth.uid() e chiamata solo dal
+  // client al mount di AttivitaScreen — se nessuna delle due parti riapre
+  // l'app dopo la scadenza della prenotazione, gli annunci restano
+  // bloccati su 'reserved' per sempre. Questa versione batch deve avere lo
+  // stesso fix del lock (release_my_stale_reservations) ma SENZA il filtro
+  // auth.uid(), altrimenti da un cron server-side non troverebbe mai
+  // nessuna riga (auth.uid() è null fuori da un contesto utente loggato).
+  const { file, body } = latestDefinitionOf('release_all_stale_reservations');
+  assert.match(body, /select\s+\*\s+into\s+v_offer\s+from\s+public\.offers\s+where\s+id\s*=\s*r\.id\s+for\s+update/i,
+    `${file}: manca il lock sulla riga prima della scrittura`);
+  assert.match(body, /if\s+v_offer\.status\s*<>\s*'accepted'\s+then\s+continue/i,
+    `${file}: manca il ricontrollo dello stato dopo il lock`);
+  assert.doesNotMatch(body, /auth\.uid\(\)/i,
+    `${file}: filtra per auth.uid(), un cron server-side non troverebbe mai righe da processare`);
+});
+
+test('release_all_stale_reservations ed expire_old_offers sono chiamabili solo dal service_role, non dal client', () => {
+  // Bug collaterale trovato scrivendo il test sopra: expire_old_offers non
+  // ha mai avuto un REVOKE/GRANT esplicito, quindi eredita l'EXECUTE di
+  // default su PUBLIC di Postgres — chiamabile via supabase.rpc(...)
+  // direttamente dal client, bypassando il secret di requireCronSecret.
+  const sql = fs.readFileSync(
+    path.join(MIGRATIONS, '20260730120000_release_all_stale_reservations_cron.sql'), 'utf8',
+  );
+  for (const fn of ['release_all_stale_reservations', 'expire_old_offers']) {
+    assert.match(sql, new RegExp(`REVOKE ALL ON FUNCTION public\\.${fn}\\(\\) FROM PUBLIC`, 'i'),
+      `manca il REVOKE su ${fn}`);
+    assert.match(sql, new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${fn}\\(\\) TO service_role`, 'i'),
+      `manca il GRANT a service_role su ${fn}`);
+  }
+});
