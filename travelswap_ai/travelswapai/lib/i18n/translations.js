@@ -343,6 +343,15 @@ export const translations = {
       chatDealLine: "Hai ceduto: {give} · Hai ricevuto: {receive}",
       chatRules: "Organizzate qui la consegna con gli altri due partecipanti dello scambio. Non condividere dati sensibili (carte, documenti) e diffida di chi chiede di pagare fuori dai canali concordati.",
       chatEmpty: "Ancora nessun messaggio: rompi il ghiaccio e organizzate la consegna.",
+      help: {
+        title: "❓ Cosa fare se...",
+        q1Title: "🕐 Un partecipante non risponde da un po'?",
+        q1Body: "Aspetta ancora un po': a volte capita. Se il silenzio si prolunga, prova a scrivere di nuovo — in un gruppo di 3 basta un messaggio per rimettere tutti d'accordo sui tempi.",
+        q2Title: "🎫 Hai ricevuto qualcosa di diverso da quanto concordato, o il biglietto ti sembra falso?",
+        q2Body: "Scrivilo subito qui in chat, così resta una traccia visibile a tutti e 3. Per importi rilevanti, valuta anche una segnalazione alla Polizia Postale.",
+        q3Title: "🔄 Perché questa chat si apre solo a scambio concluso?",
+        q3Body: "Perché lo scambio a 3 si chiude solo quando TUTTI E 3 confermano: fino a quel momento nessun annuncio viene toccato, quindi non c'è ancora nulla da consegnare.",
+      },
     },
 
     savedSearches: {
@@ -860,6 +869,27 @@ export const translations = {
       nameChangeTitle: "Cambio nominativo da fare",
       nameChangeText: "Questo biglietto è nominativo: prima di viaggiare va reintestato a te presso l'operatore. Scambiati in chat nome e cognome completi (e documento, se richiesto), poi fai il cambio sul sito o app ufficiale — a volte è a pagamento o non consentito: verificalo con chi te lo cede.",
       nameChangeTextOperator: "Questo biglietto è nominativo: prima di viaggiare va reintestato a te presso {operator}. Scambiati in chat nome e cognome completi (e documento, se richiesto), poi fai il cambio sul sito o app ufficiale — a volte è a pagamento o non consentito: verificalo con chi te lo cede.",
+      progress: {
+        accepted: "Accettato",
+        you: "Tu",
+        other: "Altra parte",
+        done: "Concluso",
+        rated: "Valutato",
+        a11y: "Stato dello scambio",
+      },
+      help: {
+        open: "Cosa fare se...",
+        title: "❓ Cosa fare se...",
+        close: "Ho capito",
+        q1Title: "🕐 L'altra persona non risponde da un po'?",
+        q1Body: "Aspetta ancora un po': a volte capita. Se passano più di 24 ore senza risposta, prova a riscrivere — oppure annulla lo scambio se non riesci più a fidarti: i vostri annunci tornano subito disponibili.",
+        q2Title: "📦 Hai ricevuto qualcosa di diverso da quanto concordato?",
+        q2Body: "Non confermare: usa \"Segnala un problema\" qui sotto. La conferma resta bloccata per entrambi finché non si risolve, così non rischi di chiudere uno scambio andato storto.",
+        q3Title: "🎫 Il biglietto ti sembra falso o già usato?",
+        q3Body: "Segnalalo subito con \"Segnala un problema\", spiegando cosa non torna. Per importi rilevanti, valuta anche una segnalazione alla Polizia Postale.",
+        q4Title: "🔄 Perché serve la doppia conferma?",
+        q4Body: "Lo scambio si chiude solo quando ENTRAMBI confermate di aver ricevuto tutto: protegge sia te sia l'altra persona da conferme premature.",
+      },
     },
 
     offers: {
@@ -1558,6 +1588,15 @@ export const translations = {
       chatDealLine: "You gave: {give} · You received: {receive}",
       chatRules: "Arrange the handover here with the other two participants. Don't share sensitive data (cards, documents), and be wary of anyone asking to pay outside the agreed channels.",
       chatEmpty: "No messages yet: break the ice and arrange the handover.",
+      help: {
+        title: "❓ What to do if...",
+        q1Title: "🕐 A participant hasn't replied for a while?",
+        q1Body: "Give it a bit more time: it happens. If the silence goes on, try writing again — in a group of 3 it often just takes one message to get everyone back on the same page.",
+        q2Title: "🎫 Did you receive something different from what you agreed, or does the ticket look fake?",
+        q2Body: "Write it here in the chat right away, so there's a record visible to all 3 of you. For significant amounts, also consider reporting it to the police.",
+        q3Title: "🔄 Why does this chat only open once the exchange is completed?",
+        q3Body: "Because the 3-way exchange only closes once ALL THREE of you confirm: until then no listing is touched, so there's nothing to hand over yet.",
+      },
     },
 
     savedSearches: {
@@ -2060,6 +2099,27 @@ export const translations = {
       nameChangeTitle: "Name change needed",
       nameChangeText: "This ticket is named: it needs to be reissued in your name with the operator before you travel. Exchange your full name in chat (and ID, if required), then do the change on the operator's official site or app — it may be paid or not allowed: check with whoever is transferring it to you.",
       nameChangeTextOperator: "This ticket is named: it needs to be reissued in your name with {operator} before you travel. Exchange your full name in chat (and ID, if required), then do the change on the operator's official site or app — it may be paid or not allowed: check with whoever is transferring it to you.",
+      progress: {
+        accepted: "Accepted",
+        you: "You",
+        other: "Other side",
+        done: "Completed",
+        rated: "Rated",
+        a11y: "Exchange status",
+      },
+      help: {
+        open: "What to do if...",
+        title: "❓ What to do if...",
+        close: "Got it",
+        q1Title: "🕐 The other person hasn't replied for a while?",
+        q1Body: "Give it a bit more time: it happens. If more than 24 hours pass with no reply, try writing again — or cancel the exchange if you no longer trust it: your listings become available again right away.",
+        q2Title: "📦 Did you receive something different from what you agreed?",
+        q2Body: "Don't confirm: use \"Report a problem\" below. The confirmation stays blocked for both of you until it's resolved, so you don't risk closing an exchange that went wrong.",
+        q3Title: "🎫 Does the ticket look fake or already used?",
+        q3Body: "Report it right away with \"Report a problem\", explaining what's wrong. For significant amounts, also consider reporting it to the police.",
+        q4Title: "🔄 Why is a double confirmation needed?",
+        q4Body: "The exchange only closes once BOTH of you confirm you've received everything: it protects you and the other person from premature confirmations.",
+      },
     },
 
     offers: {
@@ -2624,6 +2684,15 @@ export const translations = {
       chatDealLine: "Cediste: {give} · Recibiste: {receive}",
       chatRules: "Organizad aquí la entrega con los otros dos participantes del intercambio. No compartáis datos sensibles (tarjetas, documentos) y desconfiad de quien pida pagar fuera de los canales acordados.",
       chatEmpty: "Todavía no hay mensajes: rompe el hielo y organizad la entrega.",
+      help: {
+        title: "❓ Qué hacer si...",
+        q1Title: "🕐 ¿Un participante no responde desde hace un rato?",
+        q1Body: "Espera un poco más: a veces pasa. Si el silencio se prolonga, prueba a escribir de nuevo — en un grupo de 3 suele bastar un mensaje para poner a todos de acuerdo con los tiempos.",
+        q2Title: "🎫 ¿Has recibido algo distinto de lo acordado, o el billete te parece falso?",
+        q2Body: "Escríbelo enseguida aquí en el chat, así queda constancia visible para los 3. Para importes relevantes, valora también una denuncia a la policía.",
+        q3Title: "🔄 ¿Por qué este chat se abre solo cuando el intercambio se ha completado?",
+        q3Body: "Porque el intercambio a 3 se cierra solo cuando los TRES confirmáis: hasta ese momento no se toca ningún anuncio, así que todavía no hay nada que entregar.",
+      },
     },
 
     savedSearches: {
@@ -3135,6 +3204,27 @@ export const translations = {
       nameChangeTitle: "Cambio de titular pendiente",
       nameChangeText: "Este billete es nominativo: antes de viajar hay que reintestarlo a tu nombre con el operador. Intercambia en el chat nombre y apellidos completos (y documento, si se requiere), y haz el cambio en el sitio o app oficial — a veces es de pago o no está permitido: compruébalo con quien te lo cede.",
       nameChangeTextOperator: "Este billete es nominativo: antes de viajar hay que reintestarlo a tu nombre con {operator}. Intercambia en el chat nombre y apellidos completos (y documento, si se requiere), y haz el cambio en el sitio o app oficial — a veces es de pago o no está permitido: compruébalo con quien te lo cede.",
+      progress: {
+        accepted: "Aceptado",
+        you: "Tú",
+        other: "La otra parte",
+        done: "Concluido",
+        rated: "Valorado",
+        a11y: "Estado del intercambio",
+      },
+      help: {
+        open: "Qué hacer si...",
+        title: "❓ Qué hacer si...",
+        close: "Entendido",
+        q1Title: "🕐 ¿La otra persona no responde desde hace un rato?",
+        q1Body: "Espera un poco más: a veces pasa. Si pasan más de 24 horas sin respuesta, prueba a escribir de nuevo — o cancela el intercambio si ya no te fías: vuestros anuncios vuelven a estar disponibles enseguida.",
+        q2Title: "📦 ¿Has recibido algo distinto de lo acordado?",
+        q2Body: "No confirmes: usa \"Denunciar un problema\" más abajo. La confirmación queda bloqueada para ambos hasta que se resuelva, así no arriesgas a cerrar un intercambio que salió mal.",
+        q3Title: "🎫 ¿El billete te parece falso o ya usado?",
+        q3Body: "Denúncialo enseguida con \"Denunciar un problema\", explicando qué no cuadra. Para importes relevantes, valora también una denuncia a la policía.",
+        q4Title: "🔄 ¿Por qué hace falta la doble confirmación?",
+        q4Body: "El intercambio se cierra solo cuando AMBOS confirmáis haber recibido todo: os protege a ti y a la otra persona de confirmaciones prematuras.",
+      },
     },
 
     offers: {
