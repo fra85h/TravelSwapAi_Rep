@@ -10,7 +10,11 @@ import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from "rea
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../lib/theme";
 
-export default function HelpModal({ visible, onClose, title, items, closeLabel }) {
+// actionLabel/onAction: azione secondaria opzionale (es. "Segnala un
+// problema" in ChainChatScreen) — solo se chi usa il modale la passa
+// davvero, mai promessa a chi non ce l'ha (es. ChatScreen ha già il suo
+// bottone di segnalazione dedicato fuori da qui).
+export default function HelpModal({ visible, onClose, title, items, closeLabel, actionLabel, onAction }) {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
@@ -29,6 +33,11 @@ export default function HelpModal({ visible, onClose, title, items, closeLabel }
               </View>
             ))}
           </ScrollView>
+          {actionLabel && onAction ? (
+            <TouchableOpacity style={styles.actionBtn} onPress={onAction}>
+              <Text style={styles.actionBtnText}>{actionLabel}</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
             <Text style={styles.closeBtnText}>{closeLabel}</Text>
           </TouchableOpacity>
@@ -56,8 +65,13 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 14, fontWeight: "800", color: theme.colors.text },
   itemBody: { fontSize: 13.5, color: theme.colors.textMuted, lineHeight: 19 },
   closeBtn: {
-    marginHorizontal: 18, marginTop: 14, paddingVertical: 12, borderRadius: 999,
+    marginHorizontal: 18, marginTop: 10, paddingVertical: 12, borderRadius: 999,
     backgroundColor: theme.colors.accent, alignItems: "center",
   },
   closeBtnText: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
+  actionBtn: {
+    marginHorizontal: 18, marginTop: 14, paddingVertical: 12, borderRadius: 999,
+    borderWidth: 1, borderColor: "#991B1B", alignItems: "center",
+  },
+  actionBtnText: { color: "#991B1B", fontWeight: "800", fontSize: 14 },
 });
