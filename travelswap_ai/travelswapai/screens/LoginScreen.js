@@ -222,13 +222,11 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
 
         {mode === "login" && (
-          <View style={{ alignItems: "flex-end" }}>
-            <TouchableOpacity onPress={() => navigation?.navigate?.("ForgotPassword")}>
-              <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
-                {t("auth.forgot", "Password dimenticata?")}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity onPress={() => navigation?.navigate?.("ForgotPassword")}>
+            <Text style={{ textAlign: "center", color: theme.colors.text, fontWeight: "600" }}>
+              {t("auth.forgot", "Password dimenticata?")}
+            </Text>
+          </TouchableOpacity>
         )}
       </View>
 
