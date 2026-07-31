@@ -26,6 +26,7 @@ const ICON = {
   offer_cancelled: { name: "close-circle-outline", color: theme.colors.danger },
   offer_confirm_reminder: { name: "mail-unread-outline", color: theme.colors.accent },
   offer_rating_reminder: { name: "star-outline", color: theme.colors.accent },
+  listing_price_dropped: { name: "trending-down-outline", color: theme.colors.accent },
 };
 
 function timeAgo(iso, t) {

@@ -166,7 +166,10 @@ Webhook Meta (`/webhooks/facebook`) con verifica firma HMAC-SHA256 sul raw body,
 ### 4.7 Segnalazioni e moderazione (`reports`, `POST /api/reports/notify`, `routes/reportActions.js`)
 L'utente segnala un annuncio/venditore (`reports`, insert diretto via RLS dal client, un motivo tra `fake`/`scam`/`inappropriate`/`duplicate`/`other`). Il client chiama poi `/api/reports/notify` (best-effort, fire-and-forget) per avvisare via email chi modera (`REPORT_NOTIFY_TO`). Se la segnalazione ha un annuncio associato, l'email include anche due link "un click" — **metti in pausa** / **elimina** l'annuncio segnalato — protetti da un token monouso con scadenza 7 giorni (`report_action_tokens`, `models/reportActionTokens.js`). Il click apre una pagina di conferma HTML servita dal server (`GET /api/report-actions/:token`, pubblica, nessun login: l'autorizzazione è il possesso del link); solo il submit del bottone (`POST /api/report-actions/:token/confirm`) consuma il token ed esegue davvero l'azione (`models/listings.js` → `moderatorSetListingStatus`, nessun `userId` proprietario richiesto). Separare GET da POST evita che un client email o uno scanner che pre-carica i link scateni l'azione da solo — rischio concreto per "elimina", stato terminale per un annuncio. Nessuna dashboard admin in-app: la moderazione oggi passa solo da questa email o dal Table Editor di Supabase.
 
-### 4.8 Endpoint di servizio
+### 4.8 Prezzo dinamico (`POST /api/price-decay/recompute`, `models/priceDecay.js`)
+Un annuncio VENDO vale il prezzo pieno fino a un attimo prima della partenza/check-in, poi vale zero — a differenza di un marketplace generico qui il "deperimento" è certo e calcolabile. Il venditore può attivare, per singolo annuncio (mai per un CERCO: lì `price` è un budget, non un prezzo di vendita), uno sconto automatico: `price` decade linearmente da `list_price` (il prezzo di partenza, riancorato ad ogni salvataggio col toggle attivo) fino a `price_floor` (il minimo, mai superato), negli ultimi `PRICE_DECAY_WINDOW_DAYS` giorni (default 7) prima di `depart_at`/`check_in`. Un cron periodico (stesso schema di catene/avvisi/scadenza offerte, protetto da `X-Cron-Secret`) aggiorna **solo** `price` — tutto il resto (matching, offerte, card) continua a leggerlo come oggi — e notifica il venditore in-app (`listing_price_dropped`) ad ogni scatto. Il decadimento è monotono per costruzione: il nuovo prezzo è sempre `min(prezzo corrente, target calcolato)`, non un aumento, anche se `list_price` fosse disallineata.
+
+### 4.9 Endpoint di servizio
 `/health`, `/dev/ping`, `/debug/env`, `/debug/supabase`, `/dev/token-check` (solo dev), mini-logger richieste in dev.
 
 ---
@@ -195,6 +198,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `image_url` text | |
 | `is_named_ticket` bool, `gender` text, `pnr` text | scritti dall'ingest FB ⚠️ (cfr. §7: il PNR dovrebbe stare solo in `listing_secrets`) |
 | `operator` text | solo treno; mai chiesto a mano, ricavato solo da "Compila con AI"/import PDF/import da conferma (cfr. §4.3); mostrato solo nel dettaglio annuncio, mai nelle card di Esplora |
+| `dynamic_pricing_enabled` bool, `price_floor` numeric, `list_price` numeric | prezzo dinamico (cfr. §4.8), solo VENDO — `list_price` è il prezzo di partenza della curva, `price_floor` il minimo mai superato |
 | `trust_score` numeric | scritto dall'app alla creazione (ridondante con `trust_audit`) |
 | `source`, `external_id`, `contact_url` | provenienza FB; **UNIQUE(source, external_id)** |
 | `published_at`, `created_at` timestamptz | |
@@ -254,7 +258,8 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `FB_VERIFY_TOKEN`, `FB_APP_SECRET`, `FB_PAGE_ACCESS_TOKEN` | webhook + Send API Messenger |
 | `ALLOW_UNVERIFIED_WEBHOOK` | ⚠️ bypass verifica firma FB |
 | `DEFAULT_LISTING_OWNER_ID` | owner degli annunci importati da FB |
-| `CHAIN_CRON_SECRET` | secret condiviso (header `X-Cron-Secret`) per gli endpoint cron-only `/api/chains/recompute`, `/api/saved-searches/recompute` e `/api/offers/recompute`; fail-closed (503) se assente |
+| `CHAIN_CRON_SECRET` | secret condiviso (header `X-Cron-Secret`) per gli endpoint cron-only `/api/chains/recompute`, `/api/saved-searches/recompute`, `/api/offers/recompute` e `/api/price-decay/recompute`; fail-closed (503) se assente |
+| `PRICE_DECAY_WINDOW_DAYS` (default `7`) | ampiezza in giorni della finestra di sconto automatico del prezzo dinamico (cfr. §4.8) prima di `depart_at`/`check_in` |
 | `ADMIN_ACTION_SECRET` | secret condiviso (header `X-Admin-Secret`, distinto da `CHAIN_CRON_SECRET`) per azioni amministrative manuali — `/api/disputes/resolve` (contestazione 1:1 aperta da `report_exchange_problem`) e `/api/disputes/resolve-chain` (contestazione su uno scambio a 3), nessun concetto di ruolo admin nel DB; fail-closed (503) se assente |
 | `RESEND_API_KEY`, `RESEND_FROM` | email di servizio via API HTTPS di Resend (`server/src/lib/mailer.js`) — offerta ricevuta/accettata (`routes/notify.js`) e notifica segnalazioni (`routes/reportsNotify.js`); se `RESEND_API_KEY` assente `mailerConfigured()` è `false` e ogni invio è un no-op silenzioso (nessuna feature si rompe, l'email semplicemente non parte). Sostituisce le vecchie `SMTP_*` (nodemailer): Render blocca l'SMTP in uscita su entrambe le porte comuni (465/587), quindi serve un trasporto HTTPS. Il dominio di test `onboarding@resend.dev` (default di `RESEND_FROM` se non impostato) consegna solo al proprio indirizzo verificato su Resend — per mandare a utenti reali serve un dominio proprio verificato (Dashboard Resend → Domains, record SPF/DKIM) |
 | `REPORT_NOTIFY_TO` | indirizzo che riceve l'email quando arriva una nuova segnalazione (`/api/reports/notify`) — senza questa variabile (o senza Resend configurato) la segnalazione resta comunque salvata nella tabella `reports`, ma nessuno viene avvisato: va controllata a mano nel Table Editor di Supabase (non esiste ancora una schermata admin in-app). L'email include anche due link "un click" (pausa/elimina l'annuncio segnalato, con pagina di conferma), generati da `models/reportActionTokens.js` — token monouso valido 7 giorni, vedi migrazione `20260731100000_report_action_tokens.sql` |
@@ -294,7 +299,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 ### P2 — Qualità e prodotto
 
-16. ✅ **Test e CI presenti** — `server/test/` (325 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
+16. ✅ **Test e CI presenti** — `server/test/` (332 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
 17. ✅ **Codice morto/duplicato rimosso** — vedi P1.15; route `parseTwo` consolidata in `ai/descriptionParse.js` (vedi §4.3).
 18. ✅ **Migrazioni DB versionate** — vedi P0.7.
 19. **TypeScript** — il tsconfig c'è ma il codice è ancora tutto JS; una migrazione graduale (prima `lib/`, poi screens) resta da fare.

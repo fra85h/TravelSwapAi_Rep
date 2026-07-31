@@ -98,6 +98,10 @@ export const rateLimitSavedSearches = makeRateLimiter({ windowMs: 10 * 60 * 1000
 // protetto solo dal secret condiviso, senza freno di frequenza.
 export const rateLimitOffers = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'richieste cron' });
 
+// Stesso principio di rateLimitChains: endpoint cron prezzo dinamico,
+// protetto solo dal secret condiviso, senza freno di frequenza.
+export const rateLimitPriceDecay = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'richieste cron' });
+
 // Limite feature "Ping" (segnala il tuo VENDO a chi cerca): 20 ogni 10 minuti
 // per utente. Il vincolo UNIQUE lato DB impedisce comunque i duplicati sulla
 // stessa coppia di annunci: questo limite frena solo il volume di segnalazioni.

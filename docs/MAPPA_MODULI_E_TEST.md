@@ -37,6 +37,7 @@ dei fix P0-P2), `docs/matching.md` (algoritmo di matching 1:1 in dettaglio),
 | POST | `/api/chains/recompute` | `chains.js` | **cron-only** (secret) | Ricalcola gli swap a catena su tutta la piattaforma — pensato per girare ogni 15 min. |
 | POST | `/api/saved-searches/recompute` | `savedSearches.js` | **cron-only** | Ricalcola i match per gli avvisi di ricerca. |
 | POST | `/api/offers/recompute` | `offers.js` | **cron-only** | Scade le proposte pending oltre 48h (facoltativo: la scadenza pigra lato client basta già). |
+| POST | `/api/price-decay/recompute` | `priceDecay.js` | **cron-only** | Prezzo dinamico: fa scendere `price` verso `price_floor` per gli annunci VENDO che l'hanno attivato. |
 | POST | `/api/pings` | `pings.js` | requireAuth + rate limit | Feature "Ping": segnala un proprio VENDO al proprietario di un CERCO (solo notifica, niente offerta). |
 | POST | `/api/listing-questions` | `listingQuestions.js` | requireAuth + rate limit | Registra una domanda a risposta chiusa su un annuncio altrui. |
 | POST | `/api/listing-questions/:id/answered` | `listingQuestions.js` | requireAuth + rate limit | Segna una domanda come risposta. |
@@ -71,6 +72,7 @@ non esiste nel repo.
 | `fbLink.js` | Genera/verifica il codice a 6 caratteri per collegare account TravelSwapAI ↔ utente Messenger. |
 | `fbSessionStore.js` | Stato conversazionale per utente Messenger (`fb_sessions`), usato dal webhook per ricordare a che punto è l'ingest. |
 | `reportActionTokens.js` | Crea/legge/consuma i token "un click" pausa/elimina inviati nell'email di segnalazione (stesso pattern di `fbLink.js`). |
+| `priceDecay.js` | Prezzo dinamico: `computeTargetPrice` (curva lineare pura) + `recomputeDynamicPrices`, che aggiorna solo `price` verso `price_floor` e notifica il venditore ad ogni scatto. |
 
 ---
 
@@ -198,7 +200,7 @@ pura, nessuna dipendenza React Native, importabile da Node senza bundler —
 
 ---
 
-## 8. Copertura test — cosa è testato davvero (`server/test/`, 37 file)
+## 8. Copertura test — cosa è testato davvero (`server/test/`, 38 file)
 
 Raggruppati per area:
 
@@ -224,6 +226,10 @@ Raggruppati per area:
 - **Sicurezza endpoint amministrativi/cron**: `disputesResolve.test.js`
   (`requireAdminSecret` fail-closed), `offersRecompute.test.js`
   (`requireCronSecret` fail-closed).
+- **Prezzo dinamico**: `priceDecay.test.js` — curva lineare pura
+  (`computeTargetPrice`: fuori finestra, a metà finestra, evento passato,
+  hotel via `check_in`, dati mancanti) + route con mock Supabase (aggiorna
+  solo l'annuncio che deve scendere, l'altro già al minimo resta intatto).
 - **Checklist manuale coperta da automatismi** (mock completo del client
   Supabase, nessun DB reale — vedi `docs/CHECKLIST_TEST_MANUALE.md`):
   `createListingPublish.test.js` (Parte 1, step 1+3: pubblicazione annuncio
@@ -239,7 +245,7 @@ Raggruppati per area:
   precedenza (lock, cast, ordine). Vedi `CLAUDE.md` per la regressione reale
   che l'ha motivato.
 
-**325 test**, tutti eseguiti con `cd server && node --experimental-test-module-mocks --test`
+**332 test**, tutti eseguiti con `cd server && node --experimental-test-module-mocks --test`
 (il flag serve a `mock.module()`, usato dai test che sostituiscono il client
 Supabase), nessuna rete reale (OpenAI/Supabase non sono raggiungibili in CI:
 dove serve, si testa il percorso di fallback deterministico).
@@ -284,7 +290,7 @@ dove serve, si testa il percorso di fallback deterministico).
 ## 10. Come testare in pratica
 
 ```bash
-# Suite completa backend (325 test; il flag serve a mock.module(), usato dai
+# Suite completa backend (332 test; il flag serve a mock.module(), usato dai
 # test che sostituiscono il client Supabase)
 cd server && node --experimental-test-module-mocks --test
 

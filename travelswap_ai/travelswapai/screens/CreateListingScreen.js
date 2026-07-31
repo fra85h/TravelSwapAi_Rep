@@ -482,6 +482,10 @@ export default function CreateListingScreen({
     // Prezzo di acquisto (anti-bagarinaggio): quanto il venditore ha pagato il
     // biglietto. Il prezzo di vendita non può superarlo (vedi computeErrors).
     purchasePrice: "",
+    // Prezzo dinamico (solo VENDO): se attivo, il prezzo scende da solo negli
+    // ultimi giorni verso la partenza/check-in, fino a priceFloor (mai sotto).
+    dynamicPricingEnabled: false,
+    priceFloor: "",
     // Scambio (B): solo per VENDO. Se attivo, l'utente dichiara cosa cerca in
     // cambio (tratta per treno, località per hotel) → l'AI abbina scambi reali.
     acceptsSwap: false,
@@ -756,6 +760,8 @@ const initialJsonRef = useRef(null);
               description: l.description ?? prev.description,
               price: l.price != null ? String(l.price) : prev.price,
               purchasePrice: l.purchase_price != null ? String(l.purchase_price) : (prev.purchasePrice || ""),
+              dynamicPricingEnabled: !!l.dynamic_pricing_enabled,
+              priceFloor: l.price_floor != null ? String(l.price_floor) : "",
               checkIn: l.check_in || "",
               checkOut: l.check_out || "",
               // depart_at/arrive_at arrivano dal DB come timestamptz completi
@@ -1479,6 +1485,21 @@ const initialJsonRef = useRef(null);
           e.price = t("createListing.errors.priceAbovePurchase", "Il prezzo di vendita non può superare quello di acquisto ({purchase}€).", { purchase: purchNum });
         }
       }
+
+      // Prezzo dinamico: il minimo deve esistere, essere positivo e non
+      // superare il prezzo di vendita attuale (altrimenti la curva "salirebbe").
+      if (form.dynamicPricingEnabled) {
+        const floorStr = String(form.priceFloor || "").trim();
+        if (!floorStr) e.priceFloor = t("createListing.errors.priceFloorRequired", "Prezzo minimo obbligatorio se il prezzo dinamico è attivo.");
+        else {
+          const floorNum = parseLocalizedNumber(floorStr) ?? NaN;
+          if (!Number.isFinite(floorNum)) e.priceFloor = t("createListing.errors.priceFloorInvalid", "Prezzo minimo non valido.");
+          else if (floorNum <= 0) e.priceFloor = t("createListing.errors.priceFloorNonPositive", "Il prezzo minimo deve essere maggiore di zero.");
+          else if (Number.isFinite(priceNum) && floorNum > priceNum) {
+            e.priceFloor = t("createListing.errors.priceFloorAbovePrice", "Il prezzo minimo non può superare il prezzo di vendita.");
+          }
+        }
+      }
     }
     return e;
   }, [form, t, mode]);
@@ -1868,6 +1889,19 @@ const initialJsonRef = useRef(null);
           : (parseLocalizedNumber(String(form.purchasePrice || "").trim()) ?? null),
         accepts_swap: acceptsSwap,
         swap_wanted: swapWanted,
+        // Prezzo dinamico: solo VENDO. "list_price" è il prezzo di partenza
+        // della curva di sconto — riancorato al prezzo appena salvato ad ogni
+        // save col toggle attivo (attivazione o modifica), così il cron che
+        // fa scendere "price" parte sempre dal valore che l'utente ha appena
+        // confermato, non da uno vecchio. Disattivando il toggle si azzerano
+        // entrambi, niente dati residui a DB.
+        dynamic_pricing_enabled: form.cercoVendo !== "CERCO" && !!form.dynamicPricingEnabled,
+        price_floor: (form.cercoVendo !== "CERCO" && form.dynamicPricingEnabled)
+          ? (parseLocalizedNumber(String(form.priceFloor || "").trim()) ?? null)
+          : null,
+        list_price: (form.cercoVendo !== "CERCO" && form.dynamicPricingEnabled)
+          ? (Number.isFinite(priceNum) ? priceNum : null)
+          : null,
         // In creazione: salva la reliability calcolata (chiave camelCase, la
         // mappa insertListing). È l'UNICA strada che la scrive, perché il
         // Check AI di un annuncio che ancora non esiste finisce in trust_audit
@@ -2832,6 +2866,41 @@ const initialJsonRef = useRef(null);
                     </Text>
                   )}
                   {!!fieldError("price") && <Text style={styles.errorText}>{fieldError("price")}</Text>}
+
+                  {/* Prezzo dinamico (solo Vendo): sconto automatico verso
+                      priceFloor negli ultimi giorni prima della partenza/
+                      check-in. Un CERCO usa "price" come budget, non come
+                      prezzo di vendita: non ha senso farlo scendere. */}
+                  {!isCerco && (
+                    <View style={styles.swapBox}>
+                      <View style={styles.swapHeaderRow}>
+                        <View style={{ flex: 1, paddingRight: 10 }}>
+                          <Text style={styles.label}>{t("createListing.dynamicPricing.title", "Prezzo dinamico")}</Text>
+                          <Text style={styles.note}>{t("createListing.dynamicPricing.subtitle", "Il prezzo scende da solo avvicinandosi alla partenza, fino al minimo che indichi tu — mai sotto.")}</Text>
+                        </View>
+                        <Switch
+                          value={!!form.dynamicPricingEnabled}
+                          onValueChange={(v) => update({ dynamicPricingEnabled: v })}
+                          trackColor={{ true: theme.colors.primary }}
+                        />
+                      </View>
+                      {form.dynamicPricingEnabled && (
+                        <View style={{ marginTop: 10 }}>
+                          <Text style={styles.label}>{t("createListing.dynamicPricing.floorLabel", "Prezzo minimo (€) *")}</Text>
+                          <TextInput
+                            value={String(form.priceFloor)}
+                            onChangeText={(v) => update({ priceFloor: v.replace(",", ".") })}
+                            onBlur={() => markTouched("priceFloor")}
+                            placeholder={t("createListing.dynamicPricing.floorPlaceholder", "Es. 40 — non scenderà mai sotto questo")}
+                            keyboardType="decimal-pad"
+                            style={[styles.input, fieldError("priceFloor") && styles.inputError]}
+                            placeholderTextColor={theme.colors.textMuted}
+                          />
+                          {!!fieldError("priceFloor") && <Text style={styles.errorText}>{fieldError("priceFloor")}</Text>}
+                        </View>
+                      )}
+                    </View>
+                  )}
 
                   {/* Info + Pulsante Analisi Prezzo con AI */}
                   <View style={styles.infoRow}>

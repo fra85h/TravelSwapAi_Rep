@@ -291,6 +291,25 @@ curl -X POST https://<tuo-dominio>/api/chains/recompute \
   Riprova ad aprire di nuovo il link pausa (ancora nei 7 giorni): deve
   gestire con garbo il caso "annuncio già eliminato", senza tentare di
   farlo tornare `paused`.
+- [ ] 42. **Prezzo dinamico**: crea un annuncio VENDO treno con partenza tra
+      pochi giorni (es. 2 giorni, dentro la finestra di default di 7),
+      attiva il toggle "Prezzo dinamico" e imposta un prezzo minimo più
+      basso del prezzo di vendita. Forza il ricalcolo a mano (secret di cron
+      da `.env`/Render, variabile `CHAIN_CRON_SECRET`):
+  ```bash
+  curl -X POST https://<tuo-dominio>/api/price-decay/recompute \
+    -H "X-Cron-Secret: <il tuo secret>"
+  ```
+  ```sql
+  select price, list_price, price_floor, dynamic_pricing_enabled
+  from listings where id = '<id annuncio>';
+  ```
+  Atteso: `price` sceso verso `price_floor` (mai sotto), coerente con i
+  giorni mancanti alla partenza. Riapri l'annuncio in app: deve comparire il
+  badge "Prezzo dinamico" nel dettaglio, e una notifica in-app deve
+  avvisare del nuovo prezzo. Ripeti la `curl` subito dopo: il prezzo non
+  deve scendere ulteriormente se non è passato abbastanza tempo (nessun
+  doppio taglio nello stesso istante).
 
 ---
 
