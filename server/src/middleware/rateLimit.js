@@ -67,6 +67,12 @@ export const rateLimitPriceCheck = makeRateLimiter({ windowMs: 10 * 60 * 1000, m
 // Limite notifiche segnalazione: 10 ogni 10 minuti per utente
 export const rateLimitReportNotify = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 10, name: 'segnalazioni' });
 
+// Link pausa/elimina nell'email di segnalazione: nessun login (chi clicca
+// non ha una sessione), quindi il bucket è per IP. Il token è già
+// imprevedibile (32 byte casuali) e monouso — questo limite è solo un
+// backstop contro tentativi di indovinare/riprovare in loop.
+export const rateLimitReportActions = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'richieste' });
+
 export const rateLimitNotify = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 30, name: 'notifiche' });
 
 // Endpoint di matching: sono i più costosi del server (fan-out sugli altri

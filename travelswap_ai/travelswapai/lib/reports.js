@@ -14,13 +14,17 @@ export async function submitReport({ listingId = null, reportedUserId = null, re
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "not_authenticated" };
 
-  const { error } = await supabase.from("reports").insert({
-    reporter_id: user.id,
-    listing_id: listingId,
-    reported_user_id: reportedUserId,
-    reason,
-    details: details || null,
-  });
+  const { data, error } = await supabase
+    .from("reports")
+    .insert({
+      reporter_id: user.id,
+      listing_id: listingId,
+      reported_user_id: reportedUserId,
+      reason,
+      details: details || null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     // 23505 = violazione unique index (annuncio già segnalato da questo utente)
@@ -30,9 +34,10 @@ export async function submitReport({ listingId = null, reportedUserId = null, re
 
   // Notifica email al moderatore: best-effort, non blocca né fallisce la
   // segnalazione (che è già salvata a DB) se il server/SMTP non risponde.
+  // reportId serve al server per generare i link "pausa/elimina" nell'email.
   fetchJson("/api/reports/notify", {
     method: "POST",
-    body: { listingId, listingTitle, reportedUserId, reason, details },
+    body: { reportId: data?.id || null, listingId, listingTitle, reportedUserId, reason, details },
     timeoutMs: 10000,
   }).catch(() => {});
 

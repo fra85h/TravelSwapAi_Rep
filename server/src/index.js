@@ -31,6 +31,7 @@ import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
 import { translateListingsRouter } from "./routes/translateListings.js";
 import { priceCheckRouter } from "./routes/priceCheck.js";
 import { reportsNotifyRouter } from './routes/reportsNotify.js';
+import { reportActionsRouter } from './routes/reportActions.js';
 import { notifyRouter } from './routes/notify.js';
 import { disputesRouter } from './routes/disputes.js';
 import { requireAuth } from './middleware/requireAuth.js';
@@ -103,6 +104,7 @@ app.use('/api/pings', pingsRouter);
 app.use('/api/listing-questions', listingQuestionsRouter);
 app.use('/api/fb-link', fbLinkRouter);
 app.use('/api/reports', reportsNotifyRouter);
+app.use('/api/report-actions', reportActionsRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/disputes', disputesRouter);
 

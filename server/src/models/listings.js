@@ -305,3 +305,31 @@ export async function softDeleteListing(userId, id) {
   if (error) throw error;
   return { ok: true };
 }
+
+/**
+ * Pausa/elimina un annuncio per moderazione (link "un click" nell'email di
+ * notifica segnalazione, vedi routes/reportActions.js) — nessun userId
+ * proprietario: l'autorizzazione è il possesso del link (token monouso in
+ * reportActionTokens.js), non una sessione utente. Idempotente: se
+ * l'annuncio è già nello stato richiesto non tocca nulla, e "deleted"
+ * resta terminale (non lo si "ripausa" da qui).
+ */
+export async function moderatorSetListingStatus(listingId, status) {
+  if (!isUUID(listingId)) throw new Error("Invalid listingId");
+  if (status !== "paused" && status !== "deleted") throw new Error("Invalid status");
+
+  const { data: current, error: readErr } = await supabase
+    .from("listings")
+    .select("id, status")
+    .eq("id", listingId)
+    .maybeSingle();
+  if (readErr) throw readErr;
+  if (!current) return { ok: false, reason: "not_found" };
+  if (current.status === status) return { ok: true, status, alreadyDone: true };
+  if (current.status === "deleted") return { ok: false, reason: "already_deleted" };
+
+  const { error } = await supabase.from("listings").update({ status }).eq("id", listingId);
+  if (error) throw error;
+
+  return { ok: true, status };
+}
