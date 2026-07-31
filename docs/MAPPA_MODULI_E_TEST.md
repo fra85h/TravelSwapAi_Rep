@@ -22,7 +22,8 @@ dei fix P0-P2), `docs/matching.md` (algoritmo di matching 1:1 in dettaglio),
 | POST | `/api/listings` | `listing.js` | requireAuth | Crea annuncio. |
 | PATCH | `/api/listings/:id` | `listing.js` | requireAuth | Modifica annuncio. |
 | POST | `/api/listings/:id/cancel` | `listing.js` | requireAuth | Elimina/annulla annuncio. |
-| GET | `/api/listings/:id/price-check` | `priceCheck.js` | requireAuth + rate limit | Stima prezzo consigliato via AI. |
+| GET | `/api/listings/:id/price-check` | `priceCheck.js` | requireAuth + rate limit | Stima prezzo consigliato via AI, per un annuncio già pubblicato. |
+| POST | `/api/listings/price-suggest` | `priceCheck.js` | requireAuth + rate limit | Stessa stima, ma pre-pubblicazione (nessun `id` ancora, campi passati nel body). |
 | GET | `/api/listings/:id/translate` | `translateListings.js` | requireAuth + rate limit | Traduzione on-demand nella lingua dell'utente, cache su DB. |
 | POST | `/ai/trustscore` | `trustscore.js` | requireAuth + rate limit | Check AI: calcola il TrustScore (euristiche + AI testo + AI foto + moderazione). |
 | POST | `/ai/parse-description` | `ai/descriptionParse.js` | requireAuth | "Compila con AI": estrae i campi da una descrizione libera. |
@@ -40,7 +41,11 @@ dei fix P0-P2), `docs/matching.md` (algoritmo di matching 1:1 in dettaglio),
 | POST | `/api/listing-questions` | `listingQuestions.js` | requireAuth + rate limit | Registra una domanda a risposta chiusa su un annuncio altrui. |
 | POST | `/api/listing-questions/:id/answered` | `listingQuestions.js` | requireAuth + rate limit | Segna una domanda come risposta. |
 | POST | `/api/fb-link/code` | `fbLink.js` | requireAuth + rate limit | Genera il codice per collegare l'account al bot Messenger. |
-| POST | `/api/reports/notify` | `reportsNotify.js` | requireAuth + rate limit | Email "best effort" a chi modera quando arriva una segnalazione (già salvata via RLS lato client). |
+| POST | `/api/reports/notify` | `reportsNotify.js` | requireAuth + rate limit | Email "best effort" a chi modera quando arriva una segnalazione (già salvata via RLS lato client); genera anche i due token pausa/elimina se la segnalazione ha un annuncio. |
+| GET | `/api/report-actions/:token` | `reportActions.js` | nessuna (token nel path) + rate limit per IP | Pagina di conferma (HTML) per il link pausa/elimina — non consuma il token. |
+| POST | `/api/report-actions/:token/confirm` | `reportActions.js` | nessuna (token nel path) + rate limit per IP | Consuma il token ed esegue davvero pausa/elimina sull'annuncio segnalato. |
+| POST | `/api/disputes/resolve` | `disputes.js` | requireAdminSecret + rate limit | Risolve una contestazione aperta su uno scambio 1:1. |
+| POST | `/api/disputes/resolve-chain` | `disputes.js` | requireAdminSecret + rate limit | Risolve una contestazione aperta su uno scambio a 3. |
 | POST | `/api/notify/offer-received` | `notify.js` | requireAuth + rate limit | Email transazionale: hai ricevuto una proposta. |
 | POST | `/api/notify/offer-accepted` | `notify.js` | requireAuth + rate limit | Email transazionale: la tua proposta è stata accettata. |
 | GET | `/debug/*`, `/dev/*` | `index.js` | **solo fuori produzione** | Diagnostica (env, connessione Supabase, token). |
@@ -57,7 +62,7 @@ non esiste nel repo.
 | File | Cosa fa |
 |---|---|
 | `chains.js` | Motore di ricerca degli swap a catena: costruisce il grafo dei desideri (`buildDesireGraph`), trova cicli chiusi di 3 (`findThreeCycles`), propone via RPC `create_chain_proposal`. |
-| `listings.js` | Query di lettura annunci (elenco pubblico, filtri, ordinamento — spostato in SQL per performance). |
+| `listings.js` | Query di lettura annunci (elenco pubblico, filtri, ordinamento — spostato in SQL per performance); `moderatorSetListingStatus` per le azioni pausa/elimina da token email (nessun `userId` proprietario, autorizzazione = possesso del token). |
 | `matches.js` | Ricalcolo snapshot dei match 1:1 (euristico + AI), propagate/retract. |
 | `savedSearches.js` | CRUD avvisi di ricerca + ricalcolo dei match che li soddisfano. |
 | `listingQuestions.js` | Inserimento domanda pre-offerta (solo da qui, service-role, dopo validazione dominio) + notifica push al proprietario. |
@@ -65,6 +70,7 @@ non esiste nel repo.
 | `fbIngest.js` | Riceve il testo/foto da Messenger, lo fa passare dal TrustScore, pubblica l'annuncio (o lo scarta se il punteggio è troppo basso). |
 | `fbLink.js` | Genera/verifica il codice a 6 caratteri per collegare account TravelSwapAI ↔ utente Messenger. |
 | `fbSessionStore.js` | Stato conversazionale per utente Messenger (`fb_sessions`), usato dal webhook per ricordare a che punto è l'ingest. |
+| `reportActionTokens.js` | Crea/legge/consuma i token "un click" pausa/elimina inviati nell'email di segnalazione (stesso pattern di `fbLink.js`). |
 
 ---
 
@@ -98,7 +104,7 @@ non esiste nel repo.
 | `lib/envNumber.js` | Legge un intero da env senza il trabocchetto `Number(x || default)` su stringa vuota. |
 | `lib/openaiClient.js` | Factory del client OpenAI: costruito solo se la chiave è presente (altrimenti il costruttore stesso farebbe cadere il server all'avvio). |
 | `lib/push.js` | Invio push Expo — no-op silenzioso finché nessun client nativo registra un token. |
-| `lib/mailer.js` | Invio email SMTP — no-op con warning se non configurato. |
+| `lib/mailer.js` | Invio email via API HTTPS di Resend (Render blocca l'SMTP in uscita) — no-op con warning se `RESEND_API_KEY` non configurata. |
 | `lib/fbSend.js` | Send API di Messenger/Instagram (Page Access Token). |
 | `lib/webhookPlatform.js` | Mappa `object` del payload webhook Meta → piattaforma interna (`page`→messenger, `instagram`→instagram). |
 | `lib/messengerPublishOutcome.js` | Decide il messaggio di risposta e se svuotare la sessione, dato l'esito della pubblicazione da Facebook. |
@@ -192,23 +198,39 @@ pura, nessuna dipendenza React Native, importabile da Node senza bundler —
 
 ---
 
-## 8. Copertura test — cosa è testato davvero (`server/test/`, 27 file)
+## 8. Copertura test — cosa è testato davvero (`server/test/`, 37 file)
 
 Raggruppati per area:
 
 - **Matching 1:1**: `heuristicScore.test.js`, `heuristicScoreFromListing.test.js`,
   `heuristicSwap.test.js`, `matchBudgetDate.test.js`, `fuseTrustScore.test.js`.
 - **Swap a catena**: `chains.test.js`, `chainExplain.test.js`,
-  `heuristicChainScore.test.js`.
+  `heuristicChainScore.test.js`, `chainsRemind.test.js` (promemoria ai
+  partecipanti che non hanno ancora confermato).
 - **TrustScore / Check AI**: `heuristics.test.js`, `trustCaps.test.js`,
   `cleanTextReason.test.js`, `falseClaims.test.js`,
   `computeTrustScoreDuration.test.js`, `railCities.test.js`.
-- **Facebook/Messenger**: `fbIngestTrustGate.test.js`, `fbLink.test.js`,
-  `messengerPublishOutcome.test.js`, `webhookPlatform.test.js`,
+- **Stima prezzo AI**: `suggestPriceWithAI.test.js` (fallback senza
+  `OPENAI_API_KEY`).
+- **Facebook/Messenger**: `fbIngestTrustGate.test.js`, `fbIngestPublishGate.test.js`,
+  `fbLink.test.js`, `messengerPublishOutcome.test.js`, `webhookPlatform.test.js`,
   `announceRules.test.js`.
 - **Valutazioni**: `ratingDisplay.test.js`.
-- **Domande pre-offerta**: `listingQuestions.test.js`.
+- **Domande pre-offerta**: `listingQuestions.test.js`, `askListingQuestion.test.js`.
 - **Avvisi di ricerca**: `savedSearches.test.js`.
+- **Email transazionali (Resend)**: `mailerResend.test.js` (wrapper invio),
+  `notifyOfferReceived.test.js`, `notifyOfferAccepted.test.js` (route +
+  autorizzazione: solo chi di dovere può innescare l'invio).
+- **Sicurezza endpoint amministrativi/cron**: `disputesResolve.test.js`
+  (`requireAdminSecret` fail-closed), `offersRecompute.test.js`
+  (`requireCronSecret` fail-closed).
+- **Checklist manuale coperta da automatismi** (mock completo del client
+  Supabase, nessun DB reale — vedi `docs/CHECKLIST_TEST_MANUALE.md`):
+  `createListingPublish.test.js` (Parte 1, step 1+3: pubblicazione annuncio
+  treno), `askListingQuestion.test.js` (Parte 2, step 7: domanda
+  pre-offerta). Non sostituiscono la checklist: trigger Postgres reali (cap
+  annunci, whitelist tratte, RLS, vincoli di unicità) restano coperti solo
+  lì.
 - **Utility pure**: `textPatterns.test.js`, `translatePlaceholders.test.js`,
   `envNumber.test.js`, `concurrency.test.js`.
 - **Regressione sulle migration SQL**: `migrationsIntegrity.test.js` — non
@@ -217,9 +239,10 @@ Raggruppati per area:
   precedenza (lock, cast, ordine). Vedi `CLAUDE.md` per la regressione reale
   che l'ha motivato.
 
-**281 test**, tutti eseguiti con `cd server && node --test`, nessuna rete
-reale (OpenAI/Supabase non sono raggiungibili in CI: dove serve, si testa il
-percorso di fallback deterministico).
+**325 test**, tutti eseguiti con `cd server && node --experimental-test-module-mocks --test`
+(il flag serve a `mock.module()`, usato dai test che sostituiscono il client
+Supabase), nessuna rete reale (OpenAI/Supabase non sono raggiungibili in CI:
+dove serve, si testa il percorso di fallback deterministico).
 
 ### Cosa NON è testato automaticamente
 
@@ -261,8 +284,9 @@ percorso di fallback deterministico).
 ## 10. Come testare in pratica
 
 ```bash
-# Suite completa backend (281 test)
-cd server && node --test
+# Suite completa backend (325 test; il flag serve a mock.module(), usato dai
+# test che sostituiscono il client Supabase)
+cd server && node --experimental-test-module-mocks --test
 
 # Sintassi di un singolo file server dopo una modifica
 node --check server/src/percorso/del/file.js

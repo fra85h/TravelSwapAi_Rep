@@ -41,7 +41,12 @@ cosa l'app filtra per l'utente.
   punteggio è NULL, "in verifica").
 - [ ] 4. Ripeti la creazione di un secondo annuncio usando **l'import
       automatico** (box giallo "Hai già il biglietto?", scegli PNR o
-      incolla testo) per testare quel percorso alternativo.
+      incolla testo) per testare quel percorso alternativo. Nel testo
+      incollato scrivi solo il nome del servizio, non dell'azienda (es.
+      "biglietto Frecciarossa Roma-Milano" senza mai scrivere
+      "Trenitalia"): dopo "Compila con AI" il campo **Operatore** (visibile
+      nel dettaglio annuncio, sezione treno) deve risultare "Trenitalia" da
+      solo — verifica anche con "Italo" (già il nome del treno).
 - [ ] 5. Dal tab **Profilo**, tocca "+" per creare un terzo annuncio: deve
       comparire di nuovo il box import in cima (verifica del fix
       `navigate`→`push` — se sparisse dopo la prima visita, è regredito).
@@ -265,9 +270,27 @@ curl -X POST https://<tuo-dominio>/api/chains/recompute \
       invia i dati di un biglietto in chat al bot → verifica che l'annuncio
       creato passi dallo stesso TrustScore gate dell'app (un punteggio
       troppo basso non deve pubblicare).
-- [ ] 40. **Notifiche email** (se SMTP configurato su Render): verifica che
-      arrivino le email "hai ricevuto una proposta" e "la tua proposta è
-      stata accettata".
+- [ ] 40. **Notifiche email** (se Resend configurato su Render, variabile
+      `RESEND_API_KEY`): verifica che arrivino le email "hai ricevuto una
+      proposta" e "la tua proposta è stata accettata".
+- [ ] 41. **Segnalazione + link pausa/elimina** (se `REPORT_NOTIFY_TO`
+      configurato): da un account, segnala un annuncio dell'altro
+      (`ListingDetailScreen` → "Segnala annuncio"). Verifica che arrivi
+      un'email a `REPORT_NOTIFY_TO` con due link, "metti in pausa" e
+      "elimina". Apri il primo link: deve mostrare una **pagina di
+      conferma** (non deve ancora succedere nulla). Tocca il bottone:
+      l'annuncio deve passare a `paused`.
+  ```sql
+  select status from listings where id = '<listing_id segnalato>';
+  select used_at from report_action_tokens where listing_id = '<listing_id>' and action = 'pause';
+  ```
+  Atteso: `status='paused'`, il token `pause` ha `used_at` valorizzato.
+  Riapri lo **stesso** link pausa una seconda volta: deve mostrare "azione
+  già eseguita", non ripetere l'azione né dare errore. Poi apri il link
+  "elimina" e conferma: l'annuncio deve passare a `deleted` (terminale).
+  Riprova ad aprire di nuovo il link pausa (ancora nei 7 giorni): deve
+  gestire con garbo il caso "annuncio già eliminato", senza tentare di
+  farlo tornare `paused`.
 
 ---
 
