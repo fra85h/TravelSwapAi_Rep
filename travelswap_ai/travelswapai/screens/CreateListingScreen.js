@@ -1165,6 +1165,10 @@ const initialJsonRef = useRef(null);
 
       logStep(t("createListing.checkAi.logAiFillDone", "Fatto. Controlla i campi e completa ciò che manca."), 100);
       clearLogSoon();
+      // Come gli altri import (QR/PNR/PDF/testo): dopo un fill riuscito si
+      // passa alla schermata di revisione campi, invece di lasciare visibile
+      // anche il link "Inserisci manualmente" sopra ai campi appena compilati.
+      goToManualStep(1);
     } catch {
       logStep(t("createListing.checkAi.logAiFillError", "Errore durante la compilazione AI."), 100);
       clearLogSoon();

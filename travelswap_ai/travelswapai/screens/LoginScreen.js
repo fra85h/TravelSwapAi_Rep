@@ -102,6 +102,7 @@ export async function signInWithProviderOAuth(provider) {
 
 export default function LoginScreen({ navigation }) {
   const { t } = useI18n();
+  const [mode, setMode] = useState("login"); // "login" | "signup"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -178,10 +179,14 @@ export default function LoginScreen({ navigation }) {
     <View style={{ flex: 1, padding: 20, backgroundColor: theme.colors.background }}>
       <View style={{ alignItems: "center", marginTop: 40, marginBottom: 24 }}>
         <Text style={{ fontFamily: theme.fonts.headingExtraBold, fontSize: 28, color: theme.colors.text }}>
-          {t("auth.welcomeTitle", "Benvenuto 👋")}
+          {mode === "signup"
+            ? t("auth.welcomeTitleSignup", "Crea il tuo account 👋")
+            : t("auth.welcomeTitle", "Benvenuto 👋")}
         </Text>
         <Text style={{ marginTop: 6, color: theme.colors.textMuted }}>
-          {t("auth.welcomeSubtitle", "Accedi per continuare")}
+          {mode === "signup"
+            ? t("auth.welcomeSubtitleSignup", "Registrati per iniziare")
+            : t("auth.welcomeSubtitle", "Accedi per continuare")}
         </Text>
       </View>
 
@@ -202,16 +207,29 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setPassword}
         />
 
-        <Button title={t("auth.login", "Accedi")} onPress={signInWithEmail} loading={loading} />
-        <Button title={t("auth.signup", "Registrati")} variant="outline" onPress={signUpWithEmail} loading={loading} />
+        {mode === "signup" ? (
+          <Button title={t("auth.signup", "Registrati")} onPress={signUpWithEmail} loading={loading} />
+        ) : (
+          <Button title={t("auth.login", "Accedi")} onPress={signInWithEmail} loading={loading} />
+        )}
 
-        <View style={{ alignItems: "flex-end" }}>
-          <TouchableOpacity onPress={() => navigation?.navigate?.("ForgotPassword")}>
-            <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
-              {t("auth.forgot", "Password dimenticata?")}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={() => setMode(mode === "signup" ? "login" : "signup")}>
+          <Text style={{ textAlign: "center", color: theme.colors.text, fontWeight: "600" }}>
+            {mode === "signup"
+              ? t("auth.switchToLogin", "Hai già un account? Accedi")
+              : t("auth.switchToSignup", "Non hai un account? Registrati")}
+          </Text>
+        </TouchableOpacity>
+
+        {mode === "login" && (
+          <View style={{ alignItems: "flex-end" }}>
+            <TouchableOpacity onPress={() => navigation?.navigate?.("ForgotPassword")}>
+              <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
+                {t("auth.forgot", "Password dimenticata?")}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <View style={{ marginVertical: 24, alignItems: "center" }}>
