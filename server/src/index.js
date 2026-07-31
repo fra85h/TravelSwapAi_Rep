@@ -13,6 +13,7 @@ import { matchesRouter } from './routes/match.js';
 import { chainsRouter } from './routes/chains.js';
 import { savedSearchesRouter } from './routes/savedSearches.js';
 import { offersRouter } from './routes/offers.js';
+import { priceDecayRouter } from './routes/priceDecay.js';
 import { pingsRouter } from './routes/pings.js';
 import { listingQuestionsRouter } from './routes/listingQuestions.js';
 
@@ -100,6 +101,7 @@ app.use('/api/matches', matchesRouter);
 app.use('/api/chains', chainsRouter);
 app.use('/api/saved-searches', savedSearchesRouter);
 app.use('/api/offers', offersRouter);
+app.use('/api/price-decay', priceDecayRouter);
 app.use('/api/pings', pingsRouter);
 app.use('/api/listing-questions', listingQuestionsRouter);
 app.use('/api/fb-link', fbLinkRouter);
