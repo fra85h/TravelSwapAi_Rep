@@ -60,7 +60,11 @@ Regole vincolanti:
 - Restituisci SOLO JSON (nessun testo extra). Nessuna chiave aggiuntiva rispetto allo schema.
 
 8) Fornitore
-- "provider": se il testo è chiaramente una conferma di prenotazione di un fornitore riconoscibile (es. "Booking.com", "Trenitalia", "Italo", "Ryanair", "EasyJet", "Airbnb", "Expedia", "Trainline"), indicalo col nome comune del fornitore. Se il testo non lo indica chiaramente, metti null: non inventare mai un fornitore.
+- "provider": indicalo col nome comune del fornitore (es. "Booking.com", "Trenitalia", "Italo", "Ryanair", "EasyJet", "Airbnb", "Expedia", "Trainline") quando è ragionevolmente deducibile dal testo, in due casi:
+  a) il testo è chiaramente una conferma di prenotazione o nomina il fornitore esplicitamente;
+  b) PER I TRENI, il testo nomina un servizio/marchio commerciale esclusivo di un operatore, anche senza dire il nome dell'azienda: "Frecciarossa", "Frecciargento", "Freccia Bianca"/"Frecciabianca", "Intercity", "Intercity Notte", "EuroCity", "Euronight" → "Trenitalia"; "Italo" (il treno stesso si chiama così) → "Italo".
+- "Regionale"/"Regionale Veloce" da soli NON bastano a dedurre l'operatore: sono gestiti da più aziende diverse a seconda della regione (Trenitalia, Trenord, TPER…) — lascia "provider" null a meno che il testo non nomini esplicitamente anche l'azienda.
+- Se resta ambiguo o non chiaro, metti null: non inventare mai un fornitore.
 `;
 
 // Schema con chiavi estese (origin, destination, route, imageUrl)
