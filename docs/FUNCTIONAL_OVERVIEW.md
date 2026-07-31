@@ -34,11 +34,11 @@ TravelSwapAi_Rep/
 ├── server/                      # Backend Node.js/Express (layer AI + webhook Facebook)
 │   └── src/
 │       ├── index.js             # Bootstrap, webhook FB, bot Messenger
-│       ├── routes/              # listing, match, trustscore, translateListings, offers, chains, savedSearches, pings, fbLink, notify, reportsNotify, priceCheck
+│       ├── routes/              # listing, match, trustscore, translateListings, offers, chains, savedSearches, pings, fbLink, notify, reportsNotify, reportActions, disputes, priceCheck
 │       ├── ai/                  # score.js (matching AI), descriptionParse.js, chainMatch.js, chainExplain.js, priceCheck.js
 │       ├── services/trust/      # heuristics, aiTrust, store, translate
 │       ├── parsers/fbParser.js  # Estrazione campi da testi Facebook
-│       ├── models/              # listings, matches, fbIngest, fbSessionStore, chains, fbLink, pings, savedSearches
+│       ├── models/              # listings, matches, fbIngest, fbSessionStore, chains, fbLink, pings, savedSearches, listingQuestions, reportActionTokens
 │       ├── middleware/          # requireAuth (JWT Supabase), rateLimit, requireCronSecret
 │       └── lib/                 # announceRules, fbSend, mailer, push
 └── travelswap_ai/travelswapai/  # App mobile React Native + Expo SDK 54
@@ -134,8 +134,10 @@ Pipeline a due stadi con fusione pesata:
 
 Corredato da: autenticazione bearer (JWT Supabase), **rate limiting** (10 chiamate / 10 minuti per utente), validazione input (express-validator), **audit log** su tabella `trust_audit` (best-effort, non blocca la risposta). Il punteggio più recente per annuncio è esposto dalla vista `v_latest_trustscore`, usata per filtrare/ordinare le liste (`minTrust`, `sort=trust_desc`).
 
-### 4.3 Parsing descrizioni (`/ai/parse-description`, `ai/descriptionParse.js`, protetto da `requireAuth`)
-Estrazione di campi strutturati da testo libero (usata dall'auto-compilazione del form): `asset_type`, `cerco_vendo`, `from/to_location`, date e orari, `price`, `currency`, `is_named_ticket`, `gender`, `pnr`, `notes`. Prompt few-shot, output solo JSON, regola "non inventare: se non deducibile ⇒ null".
+### 4.3 Parsing descrizioni (`/ai/parse-description`, `/ai/parse-ticket-pdf`, `ai/descriptionParse.js`, protetti da `requireAuth`)
+Estrazione di campi strutturati (usata da "Compila con AI", import PDF biglietto e import da conferma incollata — stesso prompt/schema per tutti e tre): `cercoVendo`, `type`, `title` (standardizzato, mai con prezzo/data), `origin`/`destination`/`route` (arrow ASCII `"-->"`), `location`, `checkIn`/`checkOut` (hotel) o `departAt`/`arriveAt` (treno, con rollover al primo anno futuro se manca l'anno), `price`, `isNamedTicket`, `gender`, `pnr`, `imageUrl`, `provider`. Output JSON strutturato (`json_schema` strict), tutte le chiavi sempre presenti, regola "non inventare: se non deducibile ⇒ null".
+
+`provider` (mappato su `listings.operator` lato app) viene dedotto in due casi: testo chiaramente una conferma di prenotazione con fornitore esplicito, oppure — solo per i treni — un marchio commerciale esclusivo di un operatore (Frecciarossa/Frecciargento/Freccia Bianca/Intercity/Intercity Notte/EuroCity/Euronight → Trenitalia; Italo → Italo) anche senza nominare l'azienda. `Regionale`/`Regionale Veloce` restano volutamente esclusi (gestiti da più aziende diverse per regione).
 
 ### 4.4 Traduzione annunci (`GET /api/listings/:id/translate?lang=xx`)
 Traduzione titolo+descrizione via OpenAI (source auto-detect) con **cache su tabella `listing_translations`** (best-effort: se la tabella non esiste, traduce comunque).
@@ -161,7 +163,10 @@ Webhook Meta (`/webhooks/facebook`) con verifica firma HMAC-SHA256 sul raw body,
 - sessioni persistite su DB (`fb_sessions`) con **TTL 24h**, normalizzazione IT→EN (treno→train), comandi testuali "riepilogo"/"annulla";
 - endpoint `/simulate/facebook` (solo dev) per testare l'ingest senza Meta.
 
-### 4.7 Endpoint di servizio
+### 4.7 Segnalazioni e moderazione (`reports`, `POST /api/reports/notify`, `routes/reportActions.js`)
+L'utente segnala un annuncio/venditore (`reports`, insert diretto via RLS dal client, un motivo tra `fake`/`scam`/`inappropriate`/`duplicate`/`other`). Il client chiama poi `/api/reports/notify` (best-effort, fire-and-forget) per avvisare via email chi modera (`REPORT_NOTIFY_TO`). Se la segnalazione ha un annuncio associato, l'email include anche due link "un click" — **metti in pausa** / **elimina** l'annuncio segnalato — protetti da un token monouso con scadenza 7 giorni (`report_action_tokens`, `models/reportActionTokens.js`). Il click apre una pagina di conferma HTML servita dal server (`GET /api/report-actions/:token`, pubblica, nessun login: l'autorizzazione è il possesso del link); solo il submit del bottone (`POST /api/report-actions/:token/confirm`) consuma il token ed esegue davvero l'azione (`models/listings.js` → `moderatorSetListingStatus`, nessun `userId` proprietario richiesto). Separare GET da POST evita che un client email o uno scanner che pre-carica i link scateni l'azione da solo — rischio concreto per "elimina", stato terminale per un annuncio. Nessuna dashboard admin in-app: la moderazione oggi passa solo da questa email o dal Table Editor di Supabase.
+
+### 4.8 Endpoint di servizio
 `/health`, `/dev/ping`, `/debug/env`, `/debug/supabase`, `/dev/token-check` (solo dev), mini-logger richieste in dev.
 
 ---
@@ -189,6 +194,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `check_in`, `check_out` date | solo hotel |
 | `image_url` text | |
 | `is_named_ticket` bool, `gender` text, `pnr` text | scritti dall'ingest FB ⚠️ (cfr. §7: il PNR dovrebbe stare solo in `listing_secrets`) |
+| `operator` text | solo treno; mai chiesto a mano, ricavato solo da "Compila con AI"/import PDF/import da conferma (cfr. §4.3); mostrato solo nel dettaglio annuncio, mai nelle card di Esplora |
 | `trust_score` numeric | scritto dall'app alla creazione (ridondante con `trust_audit`) |
 | `source`, `external_id`, `contact_url` | provenienza FB; **UNIQUE(source, external_id)** |
 | `published_at`, `created_at` timestamptz | |
@@ -220,6 +226,8 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 **`fb_sessions`** — stato conversazioni Messenger: `sender_id`, dati sessione (json con `_ts` per il TTL applicativo).
 
+**`report_action_tokens`** — token "un click" (pausa/elimina) inviati nell'email di notifica segnalazione: `token` text PK, `report_id`/`listing_id` FK, `action` (`pause`\|`delete`), `expires_at` (7gg), `used_at`. Service-role only (RLS abilitata, nessuna policy), stesso pattern di `fb_link_codes`. Vedi §4.7.
+
 ### Viste e funzioni RPC
 
 | Oggetto | Uso |
@@ -247,9 +255,9 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `ALLOW_UNVERIFIED_WEBHOOK` | ⚠️ bypass verifica firma FB |
 | `DEFAULT_LISTING_OWNER_ID` | owner degli annunci importati da FB |
 | `CHAIN_CRON_SECRET` | secret condiviso (header `X-Cron-Secret`) per gli endpoint cron-only `/api/chains/recompute`, `/api/saved-searches/recompute` e `/api/offers/recompute`; fail-closed (503) se assente |
-| `ADMIN_ACTION_SECRET` | secret condiviso (header `X-Admin-Secret`, distinto da `CHAIN_CRON_SECRET`) per azioni amministrative manuali — oggi solo `/api/disputes/resolve`, per risolvere una contestazione aperta da `report_exchange_problem` (nessun concetto di ruolo admin nel DB); fail-closed (503) se assente |
+| `ADMIN_ACTION_SECRET` | secret condiviso (header `X-Admin-Secret`, distinto da `CHAIN_CRON_SECRET`) per azioni amministrative manuali — `/api/disputes/resolve` (contestazione 1:1 aperta da `report_exchange_problem`) e `/api/disputes/resolve-chain` (contestazione su uno scambio a 3), nessun concetto di ruolo admin nel DB; fail-closed (503) se assente |
 | `RESEND_API_KEY`, `RESEND_FROM` | email di servizio via API HTTPS di Resend (`server/src/lib/mailer.js`) — offerta ricevuta/accettata (`routes/notify.js`) e notifica segnalazioni (`routes/reportsNotify.js`); se `RESEND_API_KEY` assente `mailerConfigured()` è `false` e ogni invio è un no-op silenzioso (nessuna feature si rompe, l'email semplicemente non parte). Sostituisce le vecchie `SMTP_*` (nodemailer): Render blocca l'SMTP in uscita su entrambe le porte comuni (465/587), quindi serve un trasporto HTTPS. Il dominio di test `onboarding@resend.dev` (default di `RESEND_FROM` se non impostato) consegna solo al proprio indirizzo verificato su Resend — per mandare a utenti reali serve un dominio proprio verificato (Dashboard Resend → Domains, record SPF/DKIM) |
-| `REPORT_NOTIFY_TO` | indirizzo che riceve l'email quando arriva una nuova segnalazione (`/api/reports/notify`) — senza questa variabile (o senza SMTP configurato) la segnalazione resta comunque salvata nella tabella `reports`, ma nessuno viene avvisato: va controllata a mano nel Table Editor di Supabase (non esiste ancora una schermata admin in-app). L'email include anche due link "un click" (pausa/elimina l'annuncio segnalato, con pagina di conferma), generati da `models/reportActionTokens.js` — token monouso valido 7 giorni, vedi migrazione `20260731100000_report_action_tokens.sql` |
+| `REPORT_NOTIFY_TO` | indirizzo che riceve l'email quando arriva una nuova segnalazione (`/api/reports/notify`) — senza questa variabile (o senza Resend configurato) la segnalazione resta comunque salvata nella tabella `reports`, ma nessuno viene avvisato: va controllata a mano nel Table Editor di Supabase (non esiste ancora una schermata admin in-app). L'email include anche due link "un click" (pausa/elimina l'annuncio segnalato, con pagina di conferma), generati da `models/reportActionTokens.js` — token monouso valido 7 giorni, vedi migrazione `20260731100000_report_action_tokens.sql` |
 | `PUBLIC_BASE_URL` (default `https://travelswapai.onrender.com`) | dominio pubblico usato per costruire i link pausa/elimina nell'email di segnalazione (`routes/reportsNotify.js`) — non derivato da `req.protocol`/`req.get('host')` perché dietro il proxy di Render non è affidabile senza `trust proxy` |
 | `PORT` (default 8080), `NODE_ENV` | runtime |
 
@@ -286,7 +294,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 ### P2 — Qualità e prodotto
 
-16. ✅ **Test e CI presenti** — `server/test/` (281 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
+16. ✅ **Test e CI presenti** — `server/test/` (325 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
 17. ✅ **Codice morto/duplicato rimosso** — vedi P1.15; route `parseTwo` consolidata in `ai/descriptionParse.js` (vedi §4.3).
 18. ✅ **Migrazioni DB versionate** — vedi P0.7.
 19. **TypeScript** — il tsconfig c'è ma il codice è ancora tutto JS; una migrazione graduale (prima `lib/`, poi screens) resta da fare.
