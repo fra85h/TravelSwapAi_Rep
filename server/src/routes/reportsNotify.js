@@ -9,8 +9,17 @@ import { body, validationResult } from 'express-validator';
 import { requireAuth } from '../middleware/requireAuth.js';
 import { rateLimitReportNotify } from '../middleware/rateLimit.js';
 import { sendMail, mailerConfigured } from '../lib/mailer.js';
+import { createReportActionToken } from '../models/reportActionTokens.js';
+import { isUUID } from '../util/uuid.js';
 
 export const reportsNotifyRouter = express.Router();
+
+// Dominio pubblico su cui gira questo stesso server (API + bundle web
+// dell'app, vedi CLAUDE.md "Rebuild bundle web"): usato per costruire i
+// link "un click" pausa/elimina nell'email. Non derivato da req.protocol/
+// req.get('host') perché dietro il proxy di Render non è affidabile senza
+// `trust proxy` configurato.
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || 'https://travelswapai.onrender.com').replace(/\/+$/, '');
 
 const REASON_LABELS = {
   fake: 'Annuncio falso',
@@ -25,6 +34,7 @@ reportsNotifyRouter.post(
   requireAuth,
   rateLimitReportNotify,
   body('reason').isString().isLength({ min: 2, max: 40 }),
+  body('reportId').optional({ nullable: true }).isString().isLength({ max: 80 }),
   body('listingId').optional({ nullable: true }).isString().isLength({ max: 80 }),
   body('listingTitle').optional({ nullable: true }).isString().isLength({ max: 200 }),
   body('reportedUserId').optional({ nullable: true }).isString().isLength({ max: 80 }),
@@ -41,8 +51,28 @@ reportsNotifyRouter.post(
       return res.json({ ok: true, sent: false, reason: 'mailer_not_configured' });
     }
 
-    const { listingId, listingTitle, reportedUserId, reason, details } = req.body;
+    const { reportId, listingId, listingTitle, reportedUserId, reason, details } = req.body;
     const reasonLabel = REASON_LABELS[reason] || reason;
+
+    // I link pausa/elimina hanno senso solo con un annuncio e una
+    // segnalazione validi: il client li manda entrambi (submitReport
+    // inserisce la riga in `reports` prima di chiamare questo endpoint),
+    // ma restano opzionali per non rompere l'invio se mancano.
+    let actionLinks = null;
+    if (isUUID(reportId) && isUUID(listingId)) {
+      try {
+        const [pause, del] = await Promise.all([
+          createReportActionToken(reportId, listingId, 'pause'),
+          createReportActionToken(reportId, listingId, 'delete'),
+        ]);
+        actionLinks = {
+          pause: `${PUBLIC_BASE_URL}/api/report-actions/${pause.token}`,
+          delete: `${PUBLIC_BASE_URL}/api/report-actions/${del.token}`,
+        };
+      } catch (e) {
+        console.error('[reportsNotify] errore creazione token azione:', e?.message || e);
+      }
+    }
 
     const lines = [
       'Nuova segnalazione su TravelSwapAI',
@@ -56,6 +86,10 @@ reportsNotifyRouter.post(
       '',
       `Data: ${new Date().toISOString()}`,
       '',
+      actionLinks ? `Metti in pausa l'annuncio: ${actionLinks.pause}` : null,
+      actionLinks ? `Elimina l'annuncio: ${actionLinks.delete}` : null,
+      actionLinks ? '(link validi 7 giorni, chiedono conferma prima di agire)' : null,
+      actionLinks ? '' : null,
       'Controlla la tabella "reports" su Supabase per gestire la segnalazione.',
     ].filter((l) => l !== null);
 
