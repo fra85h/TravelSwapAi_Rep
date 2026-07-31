@@ -77,6 +77,15 @@ bundle finale per `debug-user` / `DEBUG_MOCK` deve dare 0).
   (biglietto per treno, stanza/prenotazione per hotel). Gestibili solo da
   "Modifica annuncio" (mai scorciatoie senza controllo). Cambiare le foto in
   modifica invalida il Check AI precedente: va rilanciato prima di salvare.
+  Stessa cosa per i campi "critici" ai fini antifrode (prezzo, tratta,
+  date/orari) — un'affidabilità calcolata sul prezzo vecchio non ha più
+  senso su quello nuovo. Titolo/descrizione/altri campi secondari restano
+  invece esclusi, per non intralciare piccole correzioni di testo.
+  **Un ricontrollo fallito non deve mai cancellare un punteggio precedente
+  valido**: regressione reale corretta in `20260731150000` — il trigger che
+  propaga il punteggio da `trust_audit` sovrascriveva sempre `trust_score`
+  anche quando la nuova verifica non produceva un punteggio (fallita/in
+  sospeso), azzerando un'affidabilità buona già mostrata all'utente.
 - **Ciclo di vita annuncio**: `active ⇄ paused` è reversibile; `deleted` è
   **terminale** (mai riattivabile — altrimenti equivarrebbe a "paused").
 - **Scambio a catena (a 3)**: quando due utenti non si incastrano ma tre sì

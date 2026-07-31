@@ -150,6 +150,21 @@ test('update_listing_trust_score apre e richiude la finestra di sincronizzazione
   assert.match(body, /set_config\('app\.sync_trust_score',\s*'off',\s*true\)/i, file);
 });
 
+test('update_listing_trust_score non cancella mai un punteggio precedente valido', () => {
+  // Bug reale corretto in 20260731150000: la funzione faceva SEMPRE
+  // "trust_score = NEW.trust_score" (verifica riuscita O fallita). Un
+  // ricontrollo fallito su un annuncio già verificato (NEW.trust_score
+  // NULL) scriveva NULL sopra un punteggio buono, facendo sparire
+  // l'affidabilità da un annuncio invariato. La UPDATE che propaga il
+  // nuovo punteggio deve stare dentro un ramo che verifica esplicitamente
+  // NEW.trust_score IS NOT NULL.
+  const { file, body } = latestDefinitionOf('update_listing_trust_score');
+  const guarded = body.match(/IF\s+NEW\.trust_score\s+IS\s+NOT\s+NULL\s+THEN([\s\S]*?)END\s+IF;/i);
+  assert.ok(guarded, `${file}: manca il guard "IF NEW.trust_score IS NOT NULL"`);
+  assert.match(guarded[1], /SET\s+trust_score\s*=\s*NEW\.trust_score/i,
+    `${file}: la propagazione del punteggio non è dentro il guard`);
+});
+
 test('replace_matches_for_sources fa DELETE e INSERT nella stessa funzione', () => {
   // È tutto il punto della RPC: separarli in due chiamate PostgREST rimette
   // il ricalcolo dei match in due transazioni distinte.

@@ -851,6 +851,15 @@ const initialJsonRef = useRef(null);
     });
   }, [queueAutoSave]);
 
+  // Come update(), ma per i campi che in modifica devono forzare un nuovo
+  // Check AI (prezzo, tratta, date/orari — vedi criticalFieldsDirtySinceCheck).
+  // Solo un evento utente esplicito, mai il prefill iniziale (che scrive
+  // form direttamente con setForm, non passa da qui).
+  const markCriticalDirty = useCallback((patch) => {
+    update(patch);
+    if (mode === "edit") setCriticalFieldsDirtySinceCheck(true);
+  }, [update, mode]);
+
   const onChangeType = (nextType) => {
     userTouchedType.current = true;
     if (form?.type === nextType) return;
@@ -900,11 +909,19 @@ const initialJsonRef = useRef(null);
   const [photoBusy, setPhotoBusy] = useState(false);
 
   // In modifica il salvataggio non richiede di norma un nuovo Check AI (per
-  // non intralciare piccole correzioni di testo/prezzo). Ma le foto sono
-  // valutate SOLO dal Check AI (pertinenza, moderazione): se cambiano dopo
-  // l'ultima verifica, quella verifica non le ha mai viste. Questo flag forza
-  // un nuovo Check AI prima di salvare, solo quando le foto sono cambiate.
+  // non intralciare piccole correzioni di testo secondario, es. il titolo).
+  // Ma le foto sono valutate SOLO dal Check AI (pertinenza, moderazione): se
+  // cambiano dopo l'ultima verifica, quella verifica non le ha mai viste.
+  // Questo flag forza un nuovo Check AI prima di salvare, solo quando le
+  // foto sono cambiate.
   const [photosDirtySinceCheck, setPhotosDirtySinceCheck] = useState(false);
+
+  // Stesso principio delle foto, ma per i campi "critici" ai fini
+  // antifrode: prezzo, tratta, date/orari. Un'affidabilità dell'85% calcolata
+  // su un prezzo o una tratta poi cambiati non significa più nulla — a
+  // differenza del titolo/descrizione, qui vale la pena forzare il
+  // ricontrollo anche in modifica. Impostato da markCriticalDirty().
+  const [criticalFieldsDirtySinceCheck, setCriticalFieldsDirtySinceCheck] = useState(false);
 
   // Solo in CREAZIONE: se il Check AI è già stato eseguito ma poi si modifica
   // un campo testuale rilevante (titolo, descrizione, tratta/data, prezzo…),
@@ -1304,6 +1321,7 @@ const initialJsonRef = useRef(null);
       logStep(t("createListing.checkAi.logDone", "Fatto."), 100);
       setLastTrustRunAt(Date.now()); // <-- mark that Check AI has been run
       setPhotosDirtySinceCheck(false); // le foto correnti sono state appena valutate
+      setCriticalFieldsDirtySinceCheck(false); // idem per prezzo/tratta/date
       lastCheckedContentRef.current = JSON.stringify(buildContentSnapshot());
       clearLogSoon();
       if (!res && trustError) {
@@ -1570,6 +1588,7 @@ const initialJsonRef = useRef(null);
     setSplitDetected(false);
     setSplitReason("");
     setPhotosDirtySinceCheck(false);
+    setCriticalFieldsDirtySinceCheck(false);
     lastCheckedContentRef.current = null;
   }, [update, resetTrust]);
 
@@ -1680,9 +1699,12 @@ const initialJsonRef = useRef(null);
     // modalità anche se le foto sono cambiate dall'ultima verifica —
     // altrimenti si potrebbe verificare, poi sostituire le foto con altre mai
     // valutate e pubblicare comunque un trustScore calcolato su foto diverse
-    // da quelle pubblicate. Correggere testo/prezzo in modifica non richiede
-    // invece di rilanciare tutto il Check AI, vedi commento su
-    // photosDirtySinceCheck. In creazione conta anche il testo
+    // da quelle pubblicate. In modifica forza il ricontrollo anche se cambia
+    // un campo "critico" ai fini antifrode (prezzo, tratta, date/orari —
+    // criticalFieldsDirtySinceCheck): un punteggio calcolato sul prezzo
+    // vecchio non ha più senso su quello nuovo. Titolo/descrizione/altri
+    // campi secondari restano invece esclusi, per non intralciare piccole
+    // correzioni. In creazione conta anche tutto il resto del testo
     // (contentDirtySinceCheck): senza, un Check AI fatto su una bozza e mai
     // ripetuto dopo aver riscritto titolo/descrizione restava "valido" per
     // sempre.
@@ -1692,7 +1714,7 @@ const initialJsonRef = useRef(null);
       JSON.stringify(buildContentSnapshot()) !== lastCheckedContentRef.current;
     const needsCheckAI = mode !== "edit"
       ? (!hasRunCheckAI || photosDirtySinceCheck || contentDirtySinceCheck)
-      : photosDirtySinceCheck;
+      : (photosDirtySinceCheck || criticalFieldsDirtySinceCheck);
 
     // Invece di bloccare con un Alert che rimanda a un bottone "Check AI" a
     // parte (due bottoni, non ovvio quale premere prima prima di pubblicare),
@@ -2596,7 +2618,7 @@ const initialJsonRef = useRef(null);
                           style={{ flex: 1, minWidth: 0 }}
                           editable={editableFields.location}
                           value={form.routeFrom}
-                          onChangeText={(v) => update({ routeFrom: v })}
+                          onChangeText={(v) => markCriticalDirty({ routeFrom: v })}
                           onBlur={() => markTouched("routeFrom")}
                           placeholder={t("createListing.routeFromPlaceholder", "Da: es. Milano Centrale")}
                           inputStyle={[styles.input, !editableFields.location && styles.inputDisabled, fieldError("routeFrom") && styles.inputError]}
@@ -2606,7 +2628,7 @@ const initialJsonRef = useRef(null);
                           style={{ flex: 1, minWidth: 0 }}
                           editable={editableFields.location}
                           value={form.routeTo}
-                          onChangeText={(v) => update({ routeTo: v })}
+                          onChangeText={(v) => markCriticalDirty({ routeTo: v })}
                           onBlur={() => markTouched("routeTo")}
                           placeholder={t("createListing.routeToPlaceholder", "A: es. Roma Termini")}
                           inputStyle={[styles.input, !editableFields.location && styles.inputDisabled, fieldError("routeTo") && styles.inputError]}
@@ -2642,7 +2664,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                       <View style={[styles.fieldContainer, { opacity: checkInLocked ? 0.7 : 1 }]}>
-                        <DateField label="" required value={form.checkIn} onChange={(v) => update({ checkIn: normalizeDateStr(v) })} onBlur={() => markTouched("checkIn")} error={fieldError("checkIn")} disabled={checkInLocked} />
+                        <DateField label="" required value={form.checkIn} onChange={(v) => markCriticalDirty({ checkIn: normalizeDateStr(v) })} onBlur={() => markTouched("checkIn")} error={fieldError("checkIn")} disabled={checkInLocked} />
                         {checkInLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
                       </View>
                       <View style={styles.labelRow}>
@@ -2652,7 +2674,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                       <View style={[styles.fieldContainer, { opacity: checkOutLocked ? 0.7 : 1 }]}>
-                        <DateField label="" required value={form.checkOut} onChange={(v) => update({ checkOut: normalizeDateStr(v) })} onBlur={() => markTouched("checkOut")} error={fieldError("checkOut")} disabled={checkOutLocked} />
+                        <DateField label="" required value={form.checkOut} onChange={(v) => markCriticalDirty({ checkOut: normalizeDateStr(v) })} onBlur={() => markTouched("checkOut")} error={fieldError("checkOut")} disabled={checkOutLocked} />
                         {checkOutLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
                       </View>
                     </>
@@ -2665,7 +2687,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                       <View style={[styles.fieldContainer, { opacity: departLocked ? 0.7 : 1 }]}>
-                        <DateTimeField label="" required value={form.departAt} onChange={(v) => update({ departAt: v })} onBlur={() => markTouched("departAt")} error={fieldError("departAt")} disabled={departLocked} />
+                        <DateTimeField label="" required value={form.departAt} onChange={(v) => markCriticalDirty({ departAt: v })} onBlur={() => markTouched("departAt")} error={fieldError("departAt")} disabled={departLocked} />
                         {departLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
                       </View>
                       <View style={styles.labelRow}>
@@ -2675,7 +2697,7 @@ const initialJsonRef = useRef(null);
                         </TouchableOpacity>
                       </View>
                       <View style={[styles.fieldContainer, { opacity: arriveLocked ? 0.7 : 1 }]}>
-                        <DateTimeField label="" required value={form.arriveAt} onChange={(v) => update({ arriveAt: v })} onBlur={() => markTouched("arriveAt")} error={fieldError("arriveAt")} disabled={arriveLocked} />
+                        <DateTimeField label="" required value={form.arriveAt} onChange={(v) => markCriticalDirty({ arriveAt: v })} onBlur={() => markTouched("arriveAt")} error={fieldError("arriveAt")} disabled={arriveLocked} />
                         {arriveLocked && <View pointerEvents="auto" style={styles.disabledOverlay} /> }
                       </View>
                     </>
@@ -2851,7 +2873,7 @@ const initialJsonRef = useRef(null);
                   </Text>
                   <TextInput
                     value={String(form.price)}
-                    onChangeText={(v) => update({ price: v.replace(",", ".") })}
+                    onChangeText={(v) => markCriticalDirty({ price: v.replace(",", ".") })}
                     onBlur={() => markTouched("price")}
                     placeholder={isCerco
                       ? t("createListing.budgetMaxPlaceholder", "Es. 60 — quanto vuoi pagare al massimo")
