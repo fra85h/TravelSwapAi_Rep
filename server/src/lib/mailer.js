@@ -21,6 +21,12 @@ const transporter = HOST && USER && PASS
       port: PORT,
       secure: PORT === 465, // 465 = SSL; 587 = STARTTLS
       auth: { user: USER, pass: PASS },
+      // Bug reale in produzione (Render): smtp.gmail.com risolve anche su
+      // IPv6, ma il container non ha connettività IPv6 in uscita — il
+      // tentativo falliva subito con "connect ENETUNREACH <indirizzo
+      // IPv6>", ancora prima di arrivare a un controllo delle credenziali.
+      // family:4 forza la risoluzione DNS su IPv4, che invece funziona.
+      family: 4,
     })
   : null;
 
