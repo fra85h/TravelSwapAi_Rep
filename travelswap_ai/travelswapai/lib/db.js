@@ -6,7 +6,8 @@ import { supabase } from "./supabase";
 const LISTING_PUBLIC_COLUMNS =
   "id, user_id, title, description, type, location, price, currency, status, created_at, " +
   "cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, operator, " +
-  "image_url, published_at, trust_score, trust_pending_at, is_named_ticket, contact_url, accepts_swap, swap_wanted, ticket_class";
+  "image_url, published_at, trust_score, trust_pending_at, is_named_ticket, contact_url, accepts_swap, swap_wanted, ticket_class, " +
+  "dynamic_pricing_enabled, price_floor, list_price";
 
 /** Utente corrente (o null) */
 export async function getCurrentUser() {
@@ -176,6 +177,12 @@ export async function insertListing(payload) {
     purchase_price: payload.cerco_vendo === "CERCO" ? null : (payload.purchase_price ?? null),
     currency: payload.currency ?? "EUR",
     status: payload.status || "active", // listing_status
+
+    // Prezzo dinamico: solo un VENDO ha un prezzo di vendita da scontare (un
+    // CERCO usa "price" come budget massimo, non ha senso farlo "scendere").
+    dynamic_pricing_enabled: payload.cerco_vendo === "CERCO" ? false : !!payload.dynamic_pricing_enabled,
+    price_floor: payload.cerco_vendo === "CERCO" ? null : (payload.price_floor ?? null),
+    list_price: payload.cerco_vendo === "CERCO" ? null : (payload.list_price ?? null),
   };
 
   const { data, error } = await supabase

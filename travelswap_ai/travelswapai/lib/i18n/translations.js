@@ -659,6 +659,12 @@ export const translations = {
         note: "Nota (facoltativa)",
         notePh: "Es. stesse date, anche alta velocità",
       },
+      dynamicPricing: {
+        title: "Prezzo dinamico",
+        subtitle: "Il prezzo scende da solo avvicinandosi alla partenza, fino al minimo che indichi tu — mai sotto.",
+        floorLabel: "Prezzo minimo (€) *",
+        floorPlaceholder: "Es. 40 — non scenderà mai sotto questo",
+      },
       imageUrl: "URL immagine",
       imageHint: "Aggiungi un URL immagine per vedere l’anteprima",
       imageLoadError: "Impossibile caricare l’immagine",
@@ -811,6 +817,10 @@ export const translations = {
         purchaseNonPositive: "Il prezzo di acquisto deve essere maggiore di zero.",
         priceAbovePurchase: "Il prezzo di vendita non può superare quello di acquisto ({purchase}€).",
         priceAbovePurchaseShort: "Il prezzo di vendita non può superare quello di acquisto.",
+        priceFloorRequired: "Prezzo minimo obbligatorio se il prezzo dinamico è attivo.",
+        priceFloorInvalid: "Prezzo minimo non valido.",
+        priceFloorNonPositive: "Il prezzo minimo deve essere maggiore di zero.",
+        priceFloorAbovePrice: "Il prezzo minimo non può superare il prezzo di vendita.",
       },
     },
 
@@ -1045,6 +1055,10 @@ export const translations = {
       description: "Descrizione",
       price: "Prezzo",
       editListing: "Modifica annuncio",
+      dynamicPricing: {
+        badge: "🔽 Il prezzo scende avvicinandosi alla partenza",
+        badgeOwner: "🔽 Prezzo dinamico — minimo {floor}€",
+      },
 
       // 🔻 NUOVE CHIAVI
       info: "Informazioni",
@@ -1904,6 +1918,12 @@ export const translations = {
         note: "Note (optional)",
         notePh: "e.g. same dates, high-speed ok",
       },
+      dynamicPricing: {
+        title: "Dynamic pricing",
+        subtitle: "The price drops on its own as departure gets closer, down to the minimum you set — never below.",
+        floorLabel: "Minimum price (€) *",
+        floorPlaceholder: "e.g. 40 — it will never go below this",
+      },
       imageUrl: "Image URL",
       imageHint: "Add an image URL to preview",
       imageLoadError: "Unable to load image",
@@ -2054,6 +2074,10 @@ export const translations = {
         purchaseNonPositive: "The purchase price must be greater than zero.",
         priceAbovePurchase: "The sale price cannot exceed the purchase price ({purchase}€).",
         priceAbovePurchaseShort: "The sale price cannot exceed the purchase price.",
+        priceFloorRequired: "Minimum price is required when dynamic pricing is on.",
+        priceFloorInvalid: "Invalid minimum price.",
+        priceFloorNonPositive: "The minimum price must be greater than zero.",
+        priceFloorAbovePrice: "The minimum price cannot exceed the sale price.",
       },
     },
 
@@ -2285,6 +2309,10 @@ export const translations = {
       description: "Description",
       price: "Price",
       editListing: "Edit listing",
+      dynamicPricing: {
+        badge: "🔽 Price drops as departure gets closer",
+        badgeOwner: "🔽 Dynamic pricing — minimum {floor}€",
+      },
 
       // 🔻 NEW KEYS
       info: "Information",
@@ -3012,6 +3040,12 @@ export const translations = {
         note: "Nota (opcional)",
         notePh: "Ej. mismas fechas, alta velocidad ok",
       },
+      dynamicPricing: {
+        title: "Precio dinámico",
+        subtitle: "El precio baja solo a medida que se acerca la salida, hasta el mínimo que indiques — nunca por debajo.",
+        floorLabel: "Precio mínimo (€) *",
+        floorPlaceholder: "Ej. 40 — nunca bajará de esto",
+      },
       imageUrl: "URL de la imagen",
       imageHint: "Añade una URL de imagen para previsualizar",
       imageLoadError: "No se puede cargar la imagen",
@@ -3171,6 +3205,10 @@ export const translations = {
         purchaseNonPositive: "El precio de compra debe ser mayor que cero.",
         priceAbovePurchase: "El precio de venta no puede superar el de compra ({purchase}€).",
         priceAbovePurchaseShort: "El precio de venta no puede superar el de compra.",
+        priceFloorRequired: "El precio mínimo es obligatorio si el precio dinámico está activo.",
+        priceFloorInvalid: "Precio mínimo no válido.",
+        priceFloorNonPositive: "El precio mínimo debe ser mayor que cero.",
+        priceFloorAbovePrice: "El precio mínimo no puede superar el precio de venta.",
       },
     },
 
@@ -3402,6 +3440,10 @@ export const translations = {
       description: "Descripción",
       price: "Precio",
       editListing: "Editar anuncio",
+      dynamicPricing: {
+        badge: "🔽 El precio baja a medida que se acerca la salida",
+        badgeOwner: "🔽 Precio dinámico — mínimo {floor}€",
+      },
 
       // 🔻 CLAVES NUEVAS
       info: "Información",

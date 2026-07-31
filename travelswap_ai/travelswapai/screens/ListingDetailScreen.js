@@ -423,7 +423,16 @@ useEffect(() => {
                   ? <TrustScoreBadge pending />
                   : (typeof trustScore === "number" ? <TrustScoreBadge score={trustScore} /> : <View />)}
               </View>
-              <Text style={[styles.price, { color: textColor }]}>{fmtMoney(listing?.price, listing?.currency)}</Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={[styles.price, { color: textColor }]}>{fmtMoney(listing?.price, listing?.currency)}</Text>
+                {!!listing?.dynamic_pricing_enabled && (
+                  <Text style={[styles.dynamicPricingBadge, { color: textColor }]}>
+                    {isOwner
+                      ? t("listingDetail.dynamicPricing.badgeOwner", "🔽 Prezzo dinamico — minimo {floor}€", { floor: listing?.price_floor })
+                      : t("listingDetail.dynamicPricing.badge", "🔽 Il prezzo scende avvicinandosi alla partenza")}
+                  </Text>
+                )}
+              </View>
             </View>
           </LinearGradient>
         </View>
@@ -712,6 +721,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: theme.fonts.headingExtraBold, fontSize: 22 },
   subtitle: { marginTop: 6 },
   price: { fontSize: 22, fontWeight: "800" },
+  dynamicPricingBadge: { fontSize: 11, marginTop: 2, opacity: 0.8, textAlign: "right" },
   card: { marginTop: 16, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 16, padding: 14,
     backgroundColor: theme.colors.surface, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   cardTitle: { fontSize: 16, fontWeight: "800" },
