@@ -54,8 +54,15 @@ function VendiButton() {
       accessibilityRole="button"
       accessibilityLabel={t("tabs.sell", "Vendi")}
     >
-      <View style={styles.vendiDisc}>
-        <Ionicons name="add" size={24} color={theme.colors.accentOn} />
+      {/* Il disco vive dentro una fessura alta quanto le icone degli altri
+          tab e ne trabocca simmetricamente (sopra e sotto). È l'unico modo
+          per tenere l'etichetta "Vendi" sulla stessa riga di "Esplora",
+          "Attività" e "Profilo": misurando il disco intero, il testo veniva
+          spinto più in basso delle altre tre e l'allineamento si rompeva. */}
+      <View style={styles.vendiSlot}>
+        <View style={styles.vendiDisc}>
+          <Ionicons name="add" size={22} color={theme.colors.accentOn} />
+        </View>
       </View>
       <Text style={styles.vendiLabel}>{t("tabs.sell", "Vendi")}</Text>
     </TouchableOpacity>
@@ -185,12 +192,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "flex-start",
-    paddingTop: 2,
+  },
+  // Stessa altezza dell'icona degli altri tab: è questa a dettare dove cade
+  // l'etichetta, non la dimensione del disco.
+  vendiSlot: {
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
   },
   vendiDisc: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: theme.colors.accent,
     alignItems: "center",
     justifyContent: "center",
@@ -200,7 +213,9 @@ const styles = StyleSheet.create({
     }),
   },
   vendiLabel: {
-    marginTop: 2,
+    // Stesso scarto di tabBarLabelStyle, così le quattro etichette sono
+    // esattamente sulla stessa riga.
+    marginTop: -2,
     fontSize: 10,
     fontWeight: "800",
     color: theme.colors.boardingText,
