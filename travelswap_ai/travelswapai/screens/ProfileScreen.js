@@ -186,7 +186,15 @@ export default function ProfileScreen() {
           return;
         }
       }
-      await updateListing(item.id, { status: next });
+      // updateListing NON lancia in caso di errore: ritorna { error }
+      // (lib/db.js:212-219). Senza questo controllo una pausa rifiutata — da
+      // una RLS, da un trigger, da un id non trovato — non produceva NESSUN
+      // segnale: nessun errore a schermo e l'annuncio restava attivo, mentre
+      // chi aveva premuto "Metti in pausa" era convinto di averlo fatto. È
+      // esattamente il modo in cui ci si ritrova col messaggio "hai già 10
+      // annunci attivi" pur credendo di averli messi tutti in pausa.
+      const res = await updateListing(item.id, { status: next });
+      if (res?.error) throw res.error;
       // In pausa: ritira l'annuncio dal "Per te" di chi lo aveva suggerito
       // (altrimenti resta un annuncio fantasma finché quella persona non
       // ricalcola per conto proprio). Riattivato: lo ripropone, simmetrico

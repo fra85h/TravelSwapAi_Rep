@@ -129,6 +129,35 @@ cosa l'app filtra per l'utente.
 - [ ] 16. Prova ad aprire "Modifica" su uno degli annunci coinvolti: deve
       essere nascosto o bloccato (stato terminale, mai più modificabile).
 
+### Passaggi guidati e dichiarazione del pagamento
+
+- [ ] 16a. Dalla chat di una proposta accettata apri **"Cosa fare adesso"**.
+      Atteso: un solo passaggio espanso, il numero di passaggi mancanti in
+      testa, e su ogni tappa il turno ("Tocca a te" / "Tocca a loro" /
+      "Tocca a entrambi").
+- [ ] 16b. Su uno **SCAMBIO**: il passaggio "Pagamento" **non deve esistere**
+      (biglietto contro biglietto, fra le parti non gira denaro). Se il
+      biglietto è nominativo compare invece "Cambio nominativo", intestato a
+      entrambi.
+- [ ] 16c. Su un **ACQUISTO**: nel passaggio "Pagamento" compare il blocco di
+      dichiarazione. Registra importo, metodo e data.
+  ```sql
+  select user_id, role, amount, currency, method, paid_at
+  from payment_declarations where offer_id = <id offerta>;
+  ```
+  Atteso: una riga sola, con `role` coerente (chi ha proposto l'acquisto è
+  `buyer`), scritta dalla RPC e non dal client.
+- [ ] 16d. **Doppio cieco**: con una sola dichiarazione fatta, l'altro account
+      deve vedere "L'altra persona ha già dichiarato" ma **non** importo,
+      metodo o data. Solo dopo aver dichiarato anche lui compaiono i valori.
+- [ ] 16e. **Discordanza**: fai dichiarare due importi diversi. Atteso:
+      avviso "Le due dichiarazioni non coincidono", e nient'altro — la
+      conferma reciproca deve restare possibile (la dichiarazione è un dato
+      di osservazione, non un vincolo).
+- [ ] 16f. Prova a dichiarare un pagamento su uno **scambio** o con una data
+      **futura**: la RPC deve rifiutare, e l'errore deve arrivare a schermo
+      (non un bottone che sembra non fare nulla).
+
 ---
 
 ## Parte 5 — Valutazione
