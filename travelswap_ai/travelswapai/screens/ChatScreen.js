@@ -560,7 +560,14 @@ const styles = StyleSheet.create({
   nameChangeText: { color: "#92400E", fontSize: 12.5, lineHeight: 17 },
   hsReportTxt: { color: "#991B1B", fontWeight: "700", fontSize: 13 },
   hsText: { color: theme.colors.text, fontSize: 12.5, lineHeight: 17 },
-  hsBtns: { flexDirection: "row", gap: 8 },
+  // flexWrap: con tre azioni ("Acquisto avvenuto", "Annulla acquisto",
+  // "Segnala un problema") la riga superava la larghezza dello schermo su
+  // telefono e la terza finiva tagliata fuori dal bordo destro — senza
+  // scroll orizzontale, quindi irraggiungibile: chi aveva un problema da
+  // segnalare non poteva farlo proprio dal punto in cui serve. Le etichette
+  // sono tradotte, quindi la larghezza cambia con la lingua: mandare a capo
+  // è l'unica soluzione che regge tutte e tre.
+  hsBtns: { flexDirection: "row", flexWrap: "wrap", gap: 8, rowGap: 8 },
   hsBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
   hsBtnPrimary: { backgroundColor: theme.colors.accent },
   hsBtnPrimaryTxt: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 13 },
