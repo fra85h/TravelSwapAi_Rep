@@ -15,7 +15,6 @@ import {
   Image,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { listMyListings, updateListing, deleteMyListing, getCurrentUser, countMyActiveListings, countMyListingsByStatus, MY_LISTINGS_PAGE_SIZE, ACTIVE_LISTING_CAP } from "../lib/db";
 import { retryPendingTrustChecks } from "../lib/trustRetry";
@@ -69,7 +68,6 @@ function SkeletonRow() {
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
-  const tabBarHeight = useBottomTabBarHeight();
   const insets = useSafeAreaInsets();
   const { t, locale } = useI18n();
   const { signOut } = useAuth();
@@ -687,7 +685,11 @@ export default function ProfileScreen() {
         }
         contentContainerStyle={{
           paddingTop: 0,
-          paddingBottom: (tabBarHeight || 0) + 24 + 72,
+          // Lo spazio per la barra dei tab lo mette già il Navigator
+          // (sceneStyle in MainTabs, necessario da quando la barra galleggia
+          // sopra il contenuto): qui resta solo quello per il FAB, altrimenti
+          // si sommavano due volte e la lista finiva con un buco enorme.
+          paddingBottom: 24 + 72,
           paddingHorizontal: 16,
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -699,7 +701,8 @@ export default function ProfileScreen() {
         onPress={() => navigation.push("CreateListing")}
         style={[
           styles.fabWrap,
-          { bottom: (tabBarHeight || 0) + (insets.bottom || 0) + 8 },
+          // Il fondo della schermata è già sopra la barra: bastano pochi px.
+          { bottom: 16 },
         ]}
         accessibilityRole="button"
         accessibilityLabel={t("profile.publishListing", "Pubblica annuncio")}
