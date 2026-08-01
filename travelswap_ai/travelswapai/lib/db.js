@@ -88,6 +88,41 @@ export async function countMyActiveListings(excludeId = null) {
 }
 
 /**
+ * Censimento degli stati di TUTTI i propri annunci, senza la finestra di 100
+ * righe di listMyListings.
+ *
+ * Serve perché i contatori del Profilo ("Attivi", "In pausa"…) erano calcolati
+ * sulla lista mostrata, cioè sui 100 annunci più recenti: con 500 annunci
+ * dicevano quanti attivi ci sono FRA QUEI 100, non quanti ne esistono. Chi ne
+ * aveva centinaia leggeva "0 attivi" e poi si vedeva rifiutare la riattivazione
+ * di un annuncio in pausa dal tetto — che invece contava quelli veri. I due
+ * numeri venivano da due domande diverse e nessuno lo diceva.
+ *
+ * Legge solo id+status (righe minuscole), quindi anche con qualche migliaio di
+ * annunci resta una singola query leggera — molto meno di una count per stato.
+ */
+export async function countMyListingsByStatus() {
+  const me = await getCurrentUser();
+  if (!me) throw new Error("Not authenticated");
+  const { data, error } = await supabase
+    .from("listings")
+    .select("id, status")
+    .eq("user_id", me.id)
+    .limit(10000);
+  if (error) throw error;
+  const byStatus = {};
+  let total = 0;
+  for (const row of data || []) {
+    const st = String(row?.status || "active").toLowerCase();
+    byStatus[st] = (byStatus[st] || 0) + 1;
+    // Gli eliminati non esistono più per l'utente: fuori dal totale mostrato,
+    // esattamente come sono fuori dalla lista.
+    if (st !== "deleted") total += 1;
+  }
+  return { total, byStatus };
+}
+
+/**
  * Vero se il PNR "sembra" reale: non esiste un'API pubblica Trenitalia/Italo
  * per verificarne l'esistenza vera, quindi qui controlliamo solo la
  * plausibilità del formato (stesso range 5–8 alfanumerici già indicato
@@ -361,7 +396,11 @@ export async function listPublicListings({ limit = 50, excludeMine = true, befor
 }
 
 /** Lista dei miei annunci */
-export async function listMyListings({ status, limit = 100 } = {}) {
+/** Quanti annunci carica al massimo listMyListings in una volta. Esportata
+ *  perché il Profilo deve poter dire "ne sto mostrando solo una parte". */
+export const MY_LISTINGS_PAGE_SIZE = 100;
+
+export async function listMyListings({ status, limit = MY_LISTINGS_PAGE_SIZE } = {}) {
   const me = await getCurrentUser();
   if (!me) throw new Error("Not authenticated");
   let q = supabase

@@ -259,6 +259,7 @@ export const translations = {
 
     // --- Profilo ---
     profile: {
+      listTruncated: "Mostrati i {shown} annunci più recenti su {total}. I numeri qui sopra contano tutti i tuoi annunci.",
       title: "Profilo",
       editProfile: "Modifica profilo",
       savedListings: "I miei preferiti",
@@ -1609,6 +1610,7 @@ export const translations = {
     receivedOffers: "Received offers",
 
     profile: {
+      listTruncated: "Showing the {shown} most recent listings out of {total}. The numbers above count all of your listings.",
       title: "Profile",
       editProfile: "Edit profile",
       savedListings: "My favorites",
@@ -2810,6 +2812,7 @@ export const translations = {
     receivedOffers: "Ofertas recibidas",
 
     profile: {
+      listTruncated: "Se muestran los {shown} anuncios más recientes de {total}. Los números de arriba cuentan todos tus anuncios.",
       title: "Perfil",
       editProfile: "Editar perfil",
       savedListings: "Mis favoritos",
