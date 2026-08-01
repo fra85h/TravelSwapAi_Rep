@@ -177,10 +177,17 @@ export default function ProfileScreen() {
         if (activeCount >= ACTIVE_LISTING_CAP) {
           Alert.alert(
             t("createListing.activeCapTitle", "Limite annunci attivi raggiunto"),
+            // Messaggio dedicato alla RIPRESA. Prima si riusava quello della
+            // pubblicazione, che finisce con "prima di pubblicarne uno nuovo":
+            // qui però non si sta pubblicando niente, si sta riattivando un
+            // annuncio già esistente, e la frase faceva sembrare il blocco un
+            // errore dell'app. Dice anche QUANTI ne risultano attivi, così se
+            // il numero non torna con quello che si vede a schermo la
+            // discrepanza salta fuori subito invece di restare un mistero.
             t(
-              "createListing.activeCapMsg",
-              "Hai già {cap} annunci attivi: metti in pausa o elimina qualcuno dei tuoi annunci esistenti prima di pubblicarne uno nuovo.",
-              { cap: ACTIVE_LISTING_CAP }
+              "createListing.activeCapResumeMsg",
+              "Risultano già {n} annunci attivi (il massimo è {cap}): metti in pausa o elimina qualcuno degli altri prima di riprendere questo.",
+              { n: activeCount, cap: ACTIVE_LISTING_CAP }
             )
           );
           return;
