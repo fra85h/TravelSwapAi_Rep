@@ -23,10 +23,12 @@ function systemPromptFor(locale, hasPurchaseCap) {
     "città d'arte durante fiere/ponti/festività), giorno della settimana (weekend vs feriale). Un prezzo identico " +
     "può essere congruo in alta stagione e alto in bassa stagione: tienine conto nel verdetto, non solo nel testo.\n" +
     "- Treno: classe di viaggio e tipologia/operatore del servizio (es. Frecciarossa/Frecciargento/Italo Alta " +
-    "Velocità vs Intercity vs Regionale, 1a vs 2a classe) SE indicati nel titolo o nella descrizione dell'annuncio. " +
-    "Questi fattori cambiano enormemente il prezzo tipico di mercato. Se titolo/descrizione non specificano classe " +
-    "o tipologia, NON assumere silenziosamente la fascia più economica (Regionale/2a classe): valuta con più " +
-    "cautela e segnala esplicitamente nella spiegazione che l'assenza di questi dettagli rende la stima meno precisa.\n" +
+    "Velocità vs Intercity vs Regionale, 1a vs 2a classe). Questi fattori cambiano enormemente il prezzo tipico " +
+    "di mercato. Possono arrivarti da tre fonti, tutte attendibili allo stesso modo perché dichiarate dal " +
+    "venditore: i campi strutturati dell'annuncio, le risposte pubbliche che ha dato alle domande dei " +
+    "compratori, oppure titolo/descrizione. Se NESSUNA delle tre li specifica, NON assumere silenziosamente " +
+    "la fascia più economica (Regionale/2a classe): valuta con più cautela e segnala esplicitamente nella " +
+    "spiegazione che l'assenza di questi dettagli rende la stima meno precisa.\n" +
     (hasPurchaseCap
       ? "- Tetto anti-bagarinaggio: ti viene indicato anche il prezzo di acquisto originale dichiarato dal " +
         "venditore. Su questa piattaforma il prezzo di rivendita NON PUÒ MAI superarlo: è un vincolo tecnico " +
@@ -59,10 +61,16 @@ function describeListing(listing) {
       })()
     : `Soggiorno hotel a ${location || "località non specificata"}, check-in ${check_in || "non indicato"}, check-out ${check_out || "non indicato"}.`;
 
-  // Titolo e descrizione originali dell'annuncio: possono contenere dettagli
-  // che le colonne strutturate non hanno (classe/tipologia treno, categoria
-  // hotel, stelle, ecc.) — utili al modello per un giudizio più preciso.
+  // Operatore e classe: sono i due fattori che il prompt indica come quelli
+  // che spostano di più il prezzo, e finora non arrivavano MAI al modello —
+  // né dalle colonne (che pure esistono) né dalle risposte pubbliche del
+  // venditore alle domande dei compratori, che per la classe sono l'unica
+  // fonte esistente. Il chiamante le passa già unite: colonna se c'è,
+  // altrimenti la risposta (vedi extractPriceFactsFromAnswers). Restava solo
+  // la speranza che l'utente le avesse scritte nel titolo a mano.
   const extra = [];
+  if (listing?.operator) extra.push(`Operatore dichiarato dal venditore: ${listing.operator}.`);
+  if (listing?.ticket_class) extra.push(`Classe di viaggio dichiarata dal venditore: ${listing.ticket_class}.`);
   if (title) extra.push(`Titolo annuncio: "${title}".`);
   if (description) {
     const d = String(description).trim().slice(0, MAX_DESCRIPTION_CHARS);
@@ -85,9 +93,10 @@ function suggestSystemPromptFor(locale, hasPurchaseCap) {
     "conoscenza generale dei prezzi tipici in Italia — non hai accesso a dati di mercato in tempo " +
     "reale, quindi resta prudente se l'informazione è insufficiente.\n" +
     "Ragiona sugli stessi fattori di sempre quando la data è nota: stagionalità/giorno della " +
-    "settimana per un hotel, classe/tipologia di servizio per un treno. Se titolo/descrizione non " +
-    "specificano questi dettagli, NON assumere silenziosamente la fascia più economica: suggerisci " +
-    "un valore prudente e segnala nella spiegazione che l'assenza di dettagli rende la stima meno precisa.\n" +
+    "settimana per un hotel, classe/tipologia di servizio per un treno. Se questi dettagli non " +
+    "compaiono né tra i dati dell'annuncio né in titolo/descrizione, NON assumere silenziosamente " +
+    "la fascia più economica: suggerisci un valore prudente e segnala nella spiegazione che " +
+    "l'assenza di dettagli rende la stima meno precisa.\n" +
     (hasPurchaseCap
       ? "- Tetto anti-bagarinaggio: ti viene indicato il prezzo di acquisto originale dichiarato dal " +
         "venditore. Su questa piattaforma il prezzo di rivendita NON PUÒ MAI superarlo: è un vincolo " +

@@ -1689,6 +1689,11 @@ const initialJsonRef = useRef(null);
         title: form.title || null,
         description: form.description || null,
         purchasePrice: form.purchasePrice ? parseLocalizedNumber(form.purchasePrice) : null,
+        // L'operatore sposta parecchio il prezzo di mercato (un Frecciarossa
+        // non vale come un Regionale sulla stessa tratta) e il form lo ha già,
+        // ricavato da "Compila con AI" o dall'import: passarlo evita che la
+        // stima sia più prudente del necessario per un dato che possediamo.
+        operator: form.type !== "hotel" ? (String(form.operator || "").trim() || null) : null,
       };
       const aiRes = await suggestPriceAI(draft, locale);
       const aiPrice = Number(aiRes?.suggestedPrice);
