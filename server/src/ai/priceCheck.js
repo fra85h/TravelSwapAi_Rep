@@ -6,7 +6,20 @@ import { createOpenAIClient } from "../lib/openaiClient.js";
 
 const client = createOpenAIClient();
 
-const MODEL = process.env.OPENAI_PRICE_MODEL || "gpt-4o-mini";
+// A differenza delle altre funzioni AI, qui il modello NON deve estrarre né
+// classificare: deve SAPERE quanto vale un Frecciarossa Roma-Milano un venerdì
+// di agosto. È conoscenza del mondo più giudizio, cioè esattamente ciò che
+// distingue un modello di punta da uno "mini" — che su questo compito tende a
+// stime generiche e prudenti. Ed è anche la funzione dove alzare il modello
+// costa meno: una sola chiamata per richiesta, con un prompt breve, contro i
+// batch da 40 candidati del matching (che resta apposta sul modello economico,
+// vedi MATCH_AI_MODEL: lì il compito è deliberatamente ristretto a
+// tipo/complementarità/tratta).
+//
+// Resta sovrascrivibile da OPENAI_PRICE_MODEL: se il modello qui sotto non è
+// abilitato sull'account, l'errore ora è visibile (niente più risposte vuote
+// mascherate) e basta puntare la variabile a un altro modello.
+const MODEL = process.env.OPENAI_PRICE_MODEL || "gpt-4.1";
 
 const LOCALE_LANG_NAME = { it: "italiano", en: "English", es: "español" };
 

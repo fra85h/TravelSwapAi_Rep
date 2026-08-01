@@ -255,6 +255,8 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `OPENAI_API_KEY` | tutte le funzioni AI |
 | `MATCH_AI_MODEL` (default `gpt-4o-mini`), `MATCH_AI_TEMP`, `MATCH_AI_TOP_P`, `MATCH_AI_BATCH`, `MATCH_AI_TIMEOUT_MS`, `MATCH_AI_CONCURRENCY`, `MATCH_AI_DETERMINISTIC`, `MATCH_AI_SEED_MODE`, `MATCH_INSERT_CHUNK` | tuning matching |
 | `OPENAI_TRUST_MODEL` | modello per il TrustScore |
+| `OPENAI_PRICE_MODEL` (default `gpt-4.1`) | modello per l'analisi prezzo. È l'unica funzione AI che parte da un modello di punta invece che dal "mini": non estrae né classifica, deve *sapere* quanto vale una tratta in un certo periodo — conoscenza del mondo e giudizio, dove il divario tra i due tier è massimo. Costa poco alzarlo perché è una chiamata sola con prompt breve, al contrario del matching (`MATCH_AI_MODEL`), che resta apposta sul modello economico avendo il volume di token più alto e il compito più ristretto |
+| `CHAIN_AI_MODEL` | modello per gli scambi a 3 (`chainMatch`/`chainExplain`); se assente ricade su `MATCH_AI_MODEL` |
 | `FB_VERIFY_TOKEN`, `FB_APP_SECRET`, `FB_PAGE_ACCESS_TOKEN` | webhook + Send API Messenger |
 | `ALLOW_UNVERIFIED_WEBHOOK` | ⚠️ bypass verifica firma FB |
 | `DEFAULT_LISTING_OWNER_ID` | owner degli annunci importati da FB |
