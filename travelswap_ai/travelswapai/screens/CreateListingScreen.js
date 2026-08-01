@@ -1191,10 +1191,20 @@ const initialJsonRef = useRef(null);
       // passa alla schermata di revisione campi, invece di lasciare visibile
       // anche il link "Inserisci manualmente" sopra ai campi appena compilati.
       goToManualStep(1);
-    } catch {
+    } catch (e) {
       logStep(t("createListing.checkAi.logAiFillError", "Errore durante la compilazione AI."), 100);
       clearLogSoon();
-      Alert.alert(t("common.error", "Errore"), t("createListing.aiFillErrorMsg", "Impossibile analizzare la descrizione. Riprova."));
+      // Il motivo vero (servizio AI non configurato, quota esaurita, server
+      // non raggiungibile) arriva dal messaggio dell'errore: mostrarlo evita
+      // di lasciare l'utente davanti a un "riprova" che non risolverebbe
+      // nulla, e a noi di indovinare la causa da lontano.
+      const detail = String(e?.message || "").trim();
+      Alert.alert(
+        t("common.error", "Errore"),
+        detail
+          ? `${t("createListing.aiFillErrorMsg", "Impossibile analizzare la descrizione. Riprova.")}\n\n${detail}`
+          : t("createListing.aiFillErrorMsg", "Impossibile analizzare la descrizione. Riprova.")
+      );
     } finally {
       setAiFilling(false);
     }

@@ -239,7 +239,11 @@ function sanitizeParsed(obj) {
 const MAX_INPUT_CHARS = 8000;
 
 export async function parseDescriptionWithAI(text, locale = "it") {
-  if (!client) throw new Error("OPENAI_API_KEY non configurata sul server");
+  if (!client) {
+    const err = new Error("Servizio AI non configurato sul server (OPENAI_API_KEY mancante).");
+    err.status = 503;
+    throw err;
+  }
 
   const user = String(text ?? "").trim().slice(0, MAX_INPUT_CHARS);
   if (!user) return { ...EMPTY };
@@ -281,8 +285,10 @@ export async function parseDescriptionWithAI(text, locale = "it") {
     const clean = sanitizeParsed(raw);
     return clean;
   } catch {
-    console.warn("[AI] JSON parse fallita, ritorno EMPTY. Raw:", out);
-    return { ...EMPTY };
+    console.warn("[AI] JSON parse fallita. Raw:", out);
+    const err = new Error("Il servizio AI ha risposto in un formato non valido.");
+    err.status = 502;
+    throw err;
   }
 }
 
@@ -298,7 +304,11 @@ export async function parseDescriptionWithAI(text, locale = "it") {
 const MAX_PDF_BASE64_CHARS = 8_000_000;
 
 export async function parseTicketPdfWithAI(pdfBase64, locale = "it") {
-  if (!client) throw new Error("OPENAI_API_KEY non configurata sul server");
+  if (!client) {
+    const err = new Error("Servizio AI non configurato sul server (OPENAI_API_KEY mancante).");
+    err.status = 503;
+    throw err;
+  }
 
   const b64 = String(pdfBase64 ?? "").trim();
   if (!b64) return { ...EMPTY };
@@ -353,38 +363,50 @@ export async function parseTicketPdfWithAI(pdfBase64, locale = "it") {
   try {
     return sanitizeParsed(JSON.parse(out || "{}") || {});
   } catch {
-    console.warn("[AI] JSON parse PDF fallita, ritorno EMPTY. Raw:", out?.slice?.(0, 200));
-    return { ...EMPTY };
+    console.warn("[AI] JSON parse PDF fallita. Raw:", out?.slice?.(0, 200));
+    const err = new Error("Il servizio AI ha risposto in un formato non valido.");
+    err.status = 502;
+    throw err;
   }
 }
 
 // Route HTTP
+//
+// Gli errori NON vengono mascherati con "ok:true + EMPTY" (com'era prima "per
+// resilienza UI"): una risposta vuota è indistinguibile da "l'AI non ha
+// trovato nulla nel testo", quindi il client compilava zero campi senza poter
+// dire perché — bug reale segnalato dall'utente ("Compila con AI" che portava
+// alla schermata dei dettagli tutta vuota, in silenzio, mentre la vera causa
+// era lato server). Un guasto di configurazione o del modello deve arrivare
+// all'utente con un messaggio leggibile, non sparire in un 200.
 export function mountParseDescriptionRoute(app, requireAuth) {
   app.post("/ai/parse-description", requireAuth, async (req, res) => {
-    console.log("[DEV] POST /ai/parse-description");
     try {
       const { text, locale = "it" } = req.body || {};
       const data = await parseDescriptionWithAI(text, locale);
       return res.json({ ok: true, data });
     } catch (err) {
-      console.error("[/ai/parse-description] error:", err);
-      // Per resilienza UI: niente 500; restituisco ok:true + EMPTY
-      return res.json({ ok: true, data: { ...EMPTY } });
+      console.error("[/ai/parse-description] error:", err?.message || err);
+      const status = err?.status || 502;
+      return res.status(status).json({
+        ok: false,
+        error: err?.message || "Analisi della descrizione non riuscita.",
+      });
     }
   });
 
   app.post("/ai/parse-ticket-pdf", requireAuth, async (req, res) => {
-    console.log("[DEV] POST /ai/parse-ticket-pdf");
     try {
       const { pdfBase64, locale = "it" } = req.body || {};
       const data = await parseTicketPdfWithAI(pdfBase64, locale);
       return res.json({ ok: true, data });
     } catch (err) {
       console.error("[/ai/parse-ticket-pdf] error:", err?.message || err);
-      // Il 413 (PDF troppo grande) è un errore d'uso: va mostrato all'utente,
-      // non mascherato con EMPTY come i fallimenti del modello.
-      if (err?.status === 413) return res.status(413).json({ ok: false, error: err.message });
-      return res.json({ ok: true, data: { ...EMPTY } });
+      const status = err?.status || 502;
+      return res.status(status).json({
+        ok: false,
+        error: err?.message || "Lettura del PDF non riuscita.",
+      });
     }
   });
 }
