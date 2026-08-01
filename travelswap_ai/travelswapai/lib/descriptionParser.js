@@ -85,17 +85,13 @@ function pick(obj, ...keys) {
  * }>}
  */
 export async function parseListingFromTextAI(text, locale = "it") {
-  try {
-    const body = { text, locale };
-    const res = await fetchJson("/ai/parse-description", {
-      method: "POST",
-      body: JSON.stringify(body),
-      headers: { "Content-Type": "application/json" },
-    });
-    return normalizeParsedPayload(res);
-  } catch (err) {
-    return emptyParsed();
-  }
+  const body = { text, locale };
+  const res = await fetchJson("/ai/parse-description", {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+  });
+  return normalizeParsedPayload(res);
 }
 
 /**
@@ -116,16 +112,6 @@ export async function parseListingFromPdfAI(pdfBase64, locale = "it") {
     timeoutMs: 90000,
   });
   return normalizeParsedPayload(res);
-}
-
-function emptyParsed() {
-  return {
-    type: null, title: null, location: null,
-    checkIn: null, checkOut: null,
-    departAt: null, arriveAt: null,
-    isNamedTicket: null, gender: null, pnr: null, price: null, imageUrl: null,
-    provider: null, cercoVendo: null,
-  };
 }
 
 function normalizeParsedPayload(res) {
