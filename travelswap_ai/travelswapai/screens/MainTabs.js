@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { theme } from "../lib/theme";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,10 +26,13 @@ const Tab = createBottomTabNavigator();
 // "Attività" non si indovina da una campanella, e su un'app che nessuno ha
 // mai usato togliere le parole costa più di quanto renda. Restano solo più
 // piccole e più strette.
-const TAB_BAR_HEIGHT = 64;
+const TAB_BAR_HEIGHT = theme.tabBar.height;
 // Quanto la pillola sta staccata dal bordo inferiore (oltre alla safe area).
-const TAB_BAR_LIFT = 12;
-const TAB_BAR_SIDE_MARGIN = 14;
+const TAB_BAR_LIFT = theme.tabBar.lift;
+const TAB_BAR_SIDE_MARGIN = theme.tabBar.sideMargin;
+// Altezza della sfumatura che precede la barra: il contenuto ci svanisce
+// dentro invece di essere tranciato di netto dal bordo della lista.
+const TAB_BAR_FADE_HEIGHT = theme.tabBar.fadeHeight;
 
 // Il tab centrale "Vendi" non apre una pagina propria: è una scorciatoia
 // verso la creazione annuncio (l'azione che fa vivere il marketplace, oggi
@@ -54,8 +58,15 @@ function VendiButton() {
       accessibilityRole="button"
       accessibilityLabel={t("tabs.sell", "Vendi")}
     >
-      <View style={styles.vendiDisc}>
-        <Ionicons name="add" size={24} color={theme.colors.accentOn} />
+      {/* Il disco vive dentro una fessura alta quanto le icone degli altri
+          tab e ne trabocca simmetricamente (sopra e sotto). È l'unico modo
+          per tenere l'etichetta "Vendi" sulla stessa riga di "Esplora",
+          "Attività" e "Profilo": misurando il disco intero, il testo veniva
+          spinto più in basso delle altre tre e l'allineamento si rompeva. */}
+      <View style={styles.vendiSlot}>
+        <View style={styles.vendiDisc}>
+          <Ionicons name="add" size={22} color={theme.colors.accentOn} />
+        </View>
       </View>
       <Text style={styles.vendiLabel}>{t("tabs.sell", "Vendi")}</Text>
     </TouchableOpacity>
@@ -103,11 +114,15 @@ function MainTabsInner() {
             // La pillola galleggia: niente linea di separazione in cima (non
             // c'è più niente da separare) e ombra al posto del bordo.
             borderTopWidth: 0,
-            elevation: 12,
+            elevation: 16,
             shadowColor: "#0F172A",
-            shadowOpacity: 0.14,
-            shadowRadius: 20,
-            shadowOffset: { width: 0, height: 8 },
+            // Ombra più profonda della shadow.md del tema: qui è l'unica cosa
+            // che stacca la pillola dal contenuto, non essendoci più né bordo
+            // né fondo pieno. Sul web le ombre RN rendono più tenui che sul
+            // telefono, ed era appena percettibile.
+            shadowOpacity: 0.22,
+            shadowRadius: 24,
+            shadowOffset: { width: 0, height: 10 },
           },
           tabBarItemStyle: { paddingVertical: 0 },
           tabBarLabelStyle: { fontSize: 10, fontWeight: "700", marginTop: -2 },
@@ -166,6 +181,26 @@ function MainTabsInner() {
           }}
         />
       </Tab.Navigator>
+
+      {/* Sfumatura sopra la pillola. Il contenuto delle liste finisce esatto
+          sul bordo superiore della barra (è lì che si ferma la loro area
+          visibile) e veniva tagliato di netto a metà card: qui sfuma nel
+          colore di sfondo, così sembra svanire invece che essere reciso.
+          pointerEvents="none": è decorazione, non deve rubare un solo tocco
+          alla lista che ci scorre sotto. Sta DOPO il Navigator — quindi
+          disegnata sopra le schermate — ma si ferma dove comincia la
+          pillola, che resta pienamente visibile. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={["rgba(249,248,252,0)", theme.colors.background]}
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: insets.bottom + TAB_BAR_LIFT + TAB_BAR_HEIGHT,
+          height: TAB_BAR_FADE_HEIGHT,
+        }}
+      />
     </View>
   );
 }
@@ -185,12 +220,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "flex-start",
-    paddingTop: 2,
+  },
+  // Stessa altezza dell'icona degli altri tab: è questa a dettare dove cade
+  // l'etichetta, non la dimensione del disco.
+  vendiSlot: {
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
   },
   vendiDisc: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: theme.colors.accent,
     alignItems: "center",
     justifyContent: "center",
@@ -200,7 +241,9 @@ const styles = StyleSheet.create({
     }),
   },
   vendiLabel: {
-    marginTop: 2,
+    // Stesso scarto di tabBarLabelStyle, così le quattro etichette sono
+    // esattamente sulla stessa riga.
+    marginTop: -2,
     fontSize: 10,
     fontWeight: "800",
     color: theme.colors.boardingText,

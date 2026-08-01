@@ -42,6 +42,11 @@ export const theme = {
     headingBold: "PlusJakartaSans_700Bold",
     headingExtraBold: "PlusJakartaSans_800ExtraBold",
   },
+  // Geometria della barra dei tab "a pillola". Sta qui e non in MainTabs
+  // perché la usano anche le schermate dei tab (es. il FAB del Profilo, che
+  // deve restare sopra la sfumatura): importarla da MainTabs creerebbe un
+  // ciclo, visto che è MainTabs a importare le schermate.
+  tabBar: { height: 64, lift: 12, sideMargin: 14, fadeHeight: 44 },
   radius: { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 },
   spacing: { xs: 6, sm: 10, md: 14, lg: 18, xl: 24, xxl: 32 },
   shadow: {
