@@ -196,7 +196,17 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_TRUST_MODEL || "gpt-4o-mini",
+      // Modello di punta come per l'analisi prezzo (OPENAI_PRICE_MODEL), e per
+      // ragioni simili: qui non si estrae un campo, si dà un GIUDIZIO su cosa
+      // è plausibile e cosa puzza di truffa, guardando testo e foto insieme.
+      // È anche la funzione con le conseguenze più visibili quando sbaglia —
+      // un punteggio ingiusto danneggia un venditore onesto, uno generoso
+      // lascia passare un annuncio fasullo. Deve supportare la visione: le
+      // immagini viaggiano come image_url con detail "low".
+      // Volume contenuto (una chiamata per Check AI, foto a bassa risoluzione),
+      // quindi il costo in più resta modesto — al contrario del matching, che
+      // per questo resta sul modello economico (MATCH_AI_MODEL).
+      model: process.env.OPENAI_TRUST_MODEL || "gpt-4.1",
       response_format: { type: "json_object" }, // forza JSON
       // temperature 0: massima consistenza tra check ripetuti sullo stesso
       // annuncio (un punteggio di rischio non deve ballare a ogni click).
