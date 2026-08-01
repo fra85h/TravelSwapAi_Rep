@@ -336,9 +336,6 @@ useEffect(() => {
     checkOut: tt("createListing.checkOut", "Check-out"),
     departAt: tt("createListing.departAt", "Partenza (data e ora)"),
     arriveAt: tt("createListing.arriveAt", "Arrivo (data e ora)"),
-    tripLabel: tt("listingDetail.tripLabel", "Viaggio"),
-    roundtrip: tt("listingDetail.roundtrip", "A/R"),
-    oneway: tt("listingDetail.oneway", "Solo andata"),
     operator: tt("listingDetail.operator", "Operatore"),
     namedTicket: tt("listingDetail.namedTicket", "Nominativo"),
     yes: tt("common.yes", "Sì"),
@@ -368,7 +365,6 @@ useEffect(() => {
     );
   }
 
-  const tripType  = listing?.trip_type ?? listing?.tripType ?? null;
   const operator  = listing?.operator  ?? listing?.carrier  ?? null;
 
   return (
@@ -451,14 +447,6 @@ useEffect(() => {
               <>
                 <Chip icon="🕒" label={`${L.departAt.split(" (")[0]}: ${formatWallClock(departAt, locale, true)}`} textColor={textColor} />
                 <Chip icon="🕒" label={`${L.arriveAt.split(" (")[0]}: ${formatWallClock(arriveAt, locale, true)}`} textColor={textColor} />
-                <Chip
-                  icon="🎟"
-                  label={`${L.tripLabel}: ${
-                    tripType ? (/round|ar|a\/r/i.test(String(tripType)) ? L.roundtrip
-                    : /one|solo/i.test(String(tripType)) ? L.oneway : String(tripType)) : "—"
-                  }`}
-                  textColor={textColor}
-                />
                 <Chip icon="🚄" label={`${L.operator}: ${operator || "—"}`} textColor={textColor} />
                 {listing?.is_named_ticket != null ? (
                   <Chip icon="👤" label={`${L.namedTicket}: ${listing.is_named_ticket ? L.yes : L.no}`} textColor={textColor} />
