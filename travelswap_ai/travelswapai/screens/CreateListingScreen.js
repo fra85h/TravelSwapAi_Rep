@@ -960,6 +960,15 @@ const initialJsonRef = useRef(null);
   // resta intenzionalmente escluso (vedi commento sopra su photosDirtySinceCheck):
   // qui invece prima non c'era ALCUN controllo sul testo, solo sulle foto.
   const lastCheckedContentRef = useRef(null);
+  // Contenuto dell'annuncio come è stato caricato in modifica (fotografato a
+  // prefill concluso). Serve a sapere se il salvataggio farà scattare il
+  // trigger DB before_update_listings_invalidate_trust, che azzera
+  // listings.trust_score quando cambia uno dei campi che descrivono il bene
+  // (titolo, descrizione, prezzo, tratta, date, foto). Quell'elenco è più
+  // ampio di photosDirtySinceCheck + criticalFieldsDirtySinceCheck: bastava
+  // correggere il titolo perché il punteggio sparisse senza che l'app
+  // ricalcolasse nulla.
+  const initialContentRef = useRef(null);
   // Stato originale dell'annuncio in modifica: serve solo per sapere se era
   // 'expired' — se lo era e le nuove date sono di nuovo nel futuro, il
   // salvataggio lo rimette 'active' in automatico (vedi onPublishOrSave).
@@ -1287,14 +1296,30 @@ const initialJsonRef = useRef(null);
     };
   }, [form]);
 
+  // Fotografia del contenuto iniziale, scattata una sola volta a prefill
+  // concluso (stesso momento di initialJsonRef, ma qui serve la forma
+  // "contenuto" perché è quella confrontabile con ciò che guarda il trigger
+  // di invalidazione lato DB).
+  useEffect(() => {
+    if (!prefillDone || initialContentRef.current != null) return;
+    try { initialContentRef.current = JSON.stringify(buildContentSnapshot()); } catch {}
+  }, [prefillDone, buildContentSnapshot]);
+
   /* ---------- CHECK AI (solo verifica: non modifica MAI il form) ----------
      Ritorna il risultato del TrustScore (truthy) se la verifica è andata a
      buon fine, null se è stata saltata (rate limit) o è fallita: onPublishOrSave
      la richiama in automatico e usa questo esito per decidere se può
      procedere alla pubblicazione. */
-  const onTrustCheck = useCallback(async () => {
+  // opts.skipThrottle: salta l'antirimbalzo di 10s fra due verifiche. Serve
+  // SOLO alla verifica automatica che parte dopo un salvataggio in modifica:
+  // lì il check non è un secondo tocco impaziente sul bottone, è l'unico modo
+  // di riportare un punteggio sull'annuncio (il salvataggio l'ha appena
+  // azzerato lato DB), e chi aveva premuto "Check AI" a mano un attimo prima
+  // si sarebbe ritrovato l'annuncio senza affidabilità proprio per questo.
+  // Il tetto vero resta comunque quello del server (10 verifiche / 10 minuti).
+  const onTrustCheck = useCallback(async (opts = {}) => {
     const now = Date.now();
-    if (now - lastTrustRunAt < 10_000) {
+    if (!opts?.skipThrottle && now - lastTrustRunAt < 10_000) {
       const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
       Alert.alert(t("createListing.trustCheckWaitTitle", "Attendi un attimo"), t("createListing.trustCheckWaitMsg", `Puoi rilanciare la verifica tra ~${secs}s.`, { secs }));
       return null;
@@ -1794,6 +1819,23 @@ const initialJsonRef = useRef(null);
       ? (!hasRunCheckAI || photosDirtySinceCheck || contentDirtySinceCheck)
       : (photosDirtySinceCheck || criticalFieldsDirtySinceCheck);
 
+    // MODIFICA — quando il salvataggio invalida il punteggio lato DB.
+    //
+    // before_update_listings_invalidate_trust (migration 20260726120000)
+    // azzera listings.trust_score se cambia titolo, descrizione, tipo,
+    // prezzo, località, tratta, date o foto. È l'elenco giusto per la sua
+    // funzione (impedire che una chiamata diretta a PostgREST riscriva il
+    // contenuto tenendosi il punteggio vecchio), ma è PIÙ AMPIO di
+    // needsCheckAI qui sopra: una correzione al solo titolo cancellava il
+    // punteggio senza che l'app rifacesse alcuna verifica, e l'affidabilità
+    // spariva dall'annuncio per sempre — non c'è nessun job che riprende gli
+    // annunci rimasti senza punteggio.
+    const invalidatesTrustOnSave =
+      mode === "edit" &&
+      (photosDirtySinceCheck ||
+        (initialContentRef.current != null &&
+          JSON.stringify(buildContentSnapshot()) !== initialContentRef.current));
+
     // Invece di bloccare con un Alert che rimanda a un bottone "Check AI" a
     // parte (due bottoni, non ovvio quale premere prima prima di pubblicare),
     // lo eseguiamo qui in automatico e in modo trasparente: stesso micro-log
@@ -1814,8 +1856,19 @@ const initialJsonRef = useRef(null);
     // premendo prima "Check AI" a mano il re-render avveniva nel frattempo e
     // il punteggio si salvava, il che spiega perché il difetto non saltava
     // fuori a ogni pubblicazione.
+    //
+    // ORDINE — in CREAZIONE il check va PRIMA: l'annuncio non esiste ancora
+    // come riga, il suo audit finisce in trust_audit con listing_id NULL e il
+    // trigger di propagazione si ferma lì, quindi l'unico modo di salvare il
+    // punteggio è passarlo nell'INSERT. In MODIFICA va DOPO, ed è il fix di
+    // un bug reale: il check scriveva il punteggio via trigger, poi il
+    // salvataggio (transazione separata, contenuto cambiato) faceva scattare
+    // l'invalidazione che lo riazzerava. Risultato: ogni modifica di un campo
+    // descrittivo cancellava l'affidabilità appena calcolata. Verificando
+    // DOPO il salvataggio il punteggio è l'ultima scrittura e descrive per
+    // costruzione il contenuto effettivamente pubblicato.
     let trustResult = trustData;
-    if (needsCheckAI) {
+    if (mode !== "edit" && needsCheckAI) {
       const checkRes = await onTrustCheck();
       if (!checkRes) {
         Alert.alert(
@@ -2015,33 +2068,23 @@ const initialJsonRef = useRef(null);
         // con listing_id NULL, e il trigger che propaga il punteggio si ferma
         // proprio lì.
         //
-        // In modifica la chiave è snake_case (updateListing passa i campi come
-        // colonne), ma il valore viene comunque SCARTATO dal trigger
-        // before_update_listings_lock_columns, che in UPDATE riporta sempre
-        // new.trust_score := old.trust_score. Non è un difetto da correggere
-        // forzando la mano al trigger: in modifica l'annuncio ha un id, quindi
-        // il Check AI salva un trust_audit collegato e il punteggio arriva
-        // dalla pipeline server-side, che è l'unica autorizzata a scriverlo.
-        // Questo ramo resta per compatibilità e non fa danni.
+        // In MODIFICA qui non si scrive nulla di affidabilità, di proposito:
+        // il trigger before_update_listings_lock_columns scarta comunque un
+        // trust_score arrivato dal client, e il Check AI parte DOPO questo
+        // salvataggio (vedi il blocco più sotto), quindi qualunque valore
+        // scritto ora sarebbe quello vecchio — cioè calcolato su un contenuto
+        // che stiamo cambiando proprio in questa UPDATE.
         ...(mode !== "edit"
           ? {
               status: "active",
               trustScore: trustResult?.trustScore ?? null,
               // Verifica non riuscita: nessun punteggio da salvare, ma va
-              // registrato CHE ci abbiamo provato, altrimenti il ritentativo
-              // non sa quali annunci riprendere (trust_score NULL da solo
+              // registrato CHE ci abbiamo provato, altrimenti l'annuncio non è
+              // distinguibile da uno mai verificato (trust_score NULL da solo
               // significa già "mai verificato").
               trustPendingAt: trustResult?.verificationPending ? new Date().toISOString() : null,
             }
-          : {
-              ...(Number.isFinite(Number(trustResult?.trustScore)) ? { trust_score: Number(trustResult.trustScore) } : {}),
-              // Anche in modifica una verifica rimasta in sospeso va tracciata:
-              // senza, un ricontrollo non riuscito (foto o prezzo cambiati) non
-              // lasciava alcun segno e il ritentativo automatico — che cerca
-              // proprio trust_pending_at — non lo riprendeva mai, lasciando in
-              // vetrina un punteggio calcolato su dati ormai diversi.
-              ...(trustResult?.verificationPending ? { trust_pending_at: new Date().toISOString() } : {}),
-            })
+          : {})
       };
 
       const payload = form?.type === "hotel"
@@ -2081,11 +2124,38 @@ const initialJsonRef = useRef(null);
 
       let publishedIds = [];
       if (mode === "edit") {
-        // updateListing/insertListing LANCIANO in caso di errore (vedi lib/db.js):
-        // non ritornano mai { error }, quindi un controllo su res.error non
-        // intercetterebbe nulla. Gli errori arrivano al catch più sotto.
-        await updateListing(idForUpdate, payload);
+        // insertListing LANCIA in caso di errore, updateListing NO: ritorna
+        // { error } (lib/db.js:212-219). Senza questo controllo un salvataggio
+        // rifiutato — RLS, id sbagliato, vincolo violato — mostrava comunque
+        // "Modifiche salvate" e chiudeva la schermata, perdendo le modifiche
+        // in silenzio. Il throw le fa arrivare al catch più sotto, che ha già
+        // i messaggi dedicati per duplicato e tetto prezzo.
+        const upd = await updateListing(idForUpdate, payload);
+        if (upd?.error) throw upd.error;
         publishedIds = [idForUpdate];
+
+        // Check AI DOPO il salvataggio (vedi la nota sull'ORDINE più sopra):
+        // il contenuto è ormai quello definitivo, l'audit lo valuta e il
+        // trigger di propagazione scrive il punteggio per ultimo, così niente
+        // lo azzera. Si rilancia ogni volta che questo salvataggio ha
+        // invalidato il punteggio lato DB, non solo per foto e campi critici.
+        if (invalidatesTrustOnSave) {
+          const checkRes = await onTrustCheck({ skipThrottle: true });
+          if (!checkRes) {
+            // Verifica non riuscita: le modifiche restano salvate (non ha senso
+            // annullarle per un guasto dell'AI), ma l'annuncio è rimasto senza
+            // punteggio perché il trigger l'ha azzerato. Lo si marca "in
+            // sospeso" così mostra "Verifica in corso" invece di niente, e si
+            // dice all'utente come rimediare: nessun job lo riprenderebbe.
+            const pending = await updateListing(idForUpdate, { trust_pending_at: new Date().toISOString() });
+            if (pending?.error) console.log("[trust] impossibile marcare la verifica in sospeso:", pending.error?.message || pending.error);
+            Alert.alert(
+              t("createListing.checkAiAutoFailedTitle", "Verifica non riuscita"),
+              t("editListing.savedButUnverifiedMsg", "Le modifiche sono state salvate, ma non sono riuscito a rifare la verifica AI: l’annuncio resta senza affidabilità finché non rilanci il Check AI.")
+            );
+          }
+        }
+
         Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
       } else {
         // "Sembrano due biglietti" resta un AVVISO, non un'azione: prima qui
@@ -2118,6 +2188,10 @@ const initialJsonRef = useRef(null);
       publishedIds.filter(Boolean).forEach((lid) => { propagateListing(lid).catch(() => {}); });
 
       initialJsonRef.current = JSON.stringify(form);
+      // Anche la fotografia del contenuto va riallineata: da qui in poi il
+      // "già salvato" è questo, e un secondo salvataggio senza altre modifiche
+      // non deve rifare la verifica (né credere di invalidare qualcosa).
+      try { initialContentRef.current = JSON.stringify(buildContentSnapshot()); } catch {}
       onDirtyChange(false);
       navigation.goBack();
     } catch (e) {
