@@ -387,6 +387,23 @@ export default function ChatScreen() {
           </View>
         ) : handshake?.status === "accepted" ? (
           <View style={styles.hsBar}>
+            {/* "Cosa fare adesso": la sequenza completa dei passaggi che
+                restano, con il turno attribuito. Qui in chat c'è solo lo
+                stato del momento — chi non ha mai fatto uno scambio non sa
+                quanti passaggi mancano né di chi sia la mossa, ed è l'attesa
+                senza sapere di chi sia il turno il momento in cui si sospetta
+                di essere stati raggirati. */}
+            <TouchableOpacity
+              style={styles.stepsLink}
+              onPress={() => navigation.navigate("TransactionSteps", { offerId })}
+              accessibilityRole="button"
+            >
+              <Ionicons name="list-outline" size={15} color={theme.colors.accent} />
+              <Text style={styles.stepsLinkText}>
+                {t("transactionSteps.entry", "Cosa fare adesso")}
+              </Text>
+            </TouchableOpacity>
+
             {/* Cambio nominativo: promemoria guidato SOLO per chi riceve un
                 biglietto nominativo (Punto 2b lo segnalava in dettaglio; qui
                 lo si agisce, nel momento in cui davvero serve organizzarlo). */}
@@ -529,6 +546,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.accentSoft,
     borderBottomWidth: 1, borderBottomColor: theme.colors.border,
   },
+  stepsLink: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1, borderColor: theme.colors.primaryMuted,
+    borderRadius: theme.radius.pill, paddingVertical: 9, paddingHorizontal: 14,
+  },
+  stepsLinkText: { color: theme.colors.text, fontWeight: "800", fontSize: 13 },
   hsDone: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#DCFCE7" },
   hsDispute: { backgroundColor: "#FEE2E2" },
   nameChangeBox: { backgroundColor: "#FEF3C7", borderRadius: 10, padding: 10, gap: 4 },
