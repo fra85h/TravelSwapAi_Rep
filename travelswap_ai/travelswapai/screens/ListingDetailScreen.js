@@ -420,7 +420,29 @@ useEffect(() => {
                   : (typeof trustScore === "number" ? <TrustScoreBadge score={trustScore} /> : <View />)}
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text style={[styles.price, { color: textColor }]}>{fmtMoney(listing?.price, listing?.currency)}</Text>
+                {(() => {
+                  // Stesso criterio della card in Esplora: il prezzo di
+                  // partenza barrato compare SOLO a sconto già applicato,
+                  // non appena il prezzo dinamico è attivo.
+                  const listPrice = listing?.list_price != null ? Number(listing.list_price) : NaN;
+                  const current = Number(listing?.price);
+                  const discounted =
+                    listing?.dynamic_pricing_enabled === true &&
+                    Number.isFinite(listPrice) && Number.isFinite(current) &&
+                    listPrice > current;
+                  return (
+                    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
+                      {discounted && (
+                        <Text style={[styles.priceStruck, { color: textColor }]}>
+                          {fmtMoney(listPrice, listing?.currency)}
+                        </Text>
+                      )}
+                      <Text style={[styles.price, { color: textColor }]}>
+                        {fmtMoney(listing?.price, listing?.currency)}
+                      </Text>
+                    </View>
+                  );
+                })()}
                 {!!listing?.dynamic_pricing_enabled && (
                   <Text style={[styles.dynamicPricingBadge, { color: textColor }]}>
                     {isOwner
@@ -710,6 +732,9 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 6 },
   price: { fontSize: 22, fontWeight: "800" },
   dynamicPricingBadge: { fontSize: 11, marginTop: 2, opacity: 0.8, textAlign: "right" },
+  // Prezzo di partenza, quando lo sconto dinamico è già sceso: resta
+  // leggibile ma chiaramente superato dal prezzo corrente accanto.
+  priceStruck: { fontSize: 15, fontWeight: "600", opacity: 0.55, textDecorationLine: "line-through" },
   card: { marginTop: 16, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 16, padding: 14,
     backgroundColor: theme.colors.surface, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 10, elevation: 3 },
   cardTitle: { fontSize: 16, fontWeight: "800" },
