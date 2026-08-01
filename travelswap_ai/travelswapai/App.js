@@ -31,6 +31,7 @@ import NotificationsScreen from './screens/NotificationsScreen';
 import MatchingScreen from './screens/MatchingScreen';
 import LinkMessengerScreen from './screens/LinkMessengerScreen';
 import ChatScreen from './screens/ChatScreen';
+import TransactionStepsScreen from './screens/TransactionStepsScreen';
 import ChainChatScreen from './screens/ChainChatScreen';
 import PreferencesOnboardingScreen from './screens/PreferencesOnboardingScreen';
 import { AuthProvider, useAuth } from './lib/auth';
@@ -172,6 +173,7 @@ function RootNavigator() {
           <Stack.Screen name="LinkMessenger" component={LinkMessengerScreen} options={{ title: "Collega Messenger" }} />
           <Stack.Screen name="Chat" component={ChatScreen} options={{ title: "Chat" }} />
           <Stack.Screen name="ChainChat" component={ChainChatScreen} options={{ title: "Scambio a 3" }} />
+          <Stack.Screen name="TransactionSteps" component={TransactionStepsScreen} options={{ title: "Cosa fare adesso" }} />
         </>
       ) : (
         <>

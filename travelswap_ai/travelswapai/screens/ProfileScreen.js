@@ -17,7 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
-import { listMyListings, updateListing, deleteMyListing, getCurrentUser, countMyActiveListings, ACTIVE_LISTING_CAP } from "../lib/db";
+import { listMyListings, updateListing, deleteMyListing, getCurrentUser, countMyActiveListings, countMyListingsByStatus, MY_LISTINGS_PAGE_SIZE, ACTIVE_LISTING_CAP } from "../lib/db";
 import { retryPendingTrustChecks } from "../lib/trustRetry";
 import { retractListing, propagateListing, recomputeUserSnapshot } from "../lib/backendApi";
 import { useI18n } from "../lib/i18n";
@@ -103,6 +103,11 @@ export default function ProfileScreen() {
   const [statusFilter, setStatusFilter] = useState(null); // "active" | "swapped" | "sold" | "pending" | "expired" | null
   const [actionSheetItem, setActionSheetItem] = useState(null);
 
+  // Censimento reale degli stati (tutti gli annunci, non solo i 100 mostrati).
+  // null finché non è stato letto: in quel caso i contatori ripiegano sulla
+  // lista, come facevano prima.
+  const [census, setCensus] = useState(null);
+
   const loadMine = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -132,6 +137,12 @@ export default function ProfileScreen() {
         ? data.filter((x) => String(x?.status || "").toLowerCase() !== "deleted")
         : [];
       setMyListings(visible);
+      // Quanti annunci esistono DAVVERO, per stato. Best effort: se fallisce, i
+      // contatori restano quelli calcolati sulla lista (comportamento
+      // precedente) invece di sparire.
+      countMyListingsByStatus()
+        .then((c) => setCensus({ ...c, shown: visible.length, truncated: (data?.length || 0) >= MY_LISTINGS_PAGE_SIZE }))
+        .catch(() => setCensus(null));
       const p = await getMyProfile();
       setProfile(p || null);
     } catch (e) {
@@ -177,16 +188,31 @@ export default function ProfileScreen() {
         if (activeCount >= ACTIVE_LISTING_CAP) {
           Alert.alert(
             t("createListing.activeCapTitle", "Limite annunci attivi raggiunto"),
+            // Messaggio dedicato alla RIPRESA. Prima si riusava quello della
+            // pubblicazione, che finisce con "prima di pubblicarne uno nuovo":
+            // qui però non si sta pubblicando niente, si sta riattivando un
+            // annuncio già esistente, e la frase faceva sembrare il blocco un
+            // errore dell'app. Dice anche QUANTI ne risultano attivi, così se
+            // il numero non torna con quello che si vede a schermo la
+            // discrepanza salta fuori subito invece di restare un mistero.
             t(
-              "createListing.activeCapMsg",
-              "Hai già {cap} annunci attivi: metti in pausa o elimina qualcuno dei tuoi annunci esistenti prima di pubblicarne uno nuovo.",
-              { cap: ACTIVE_LISTING_CAP }
+              "createListing.activeCapResumeMsg",
+              "Risultano già {n} annunci attivi (il massimo è {cap}): metti in pausa o elimina qualcuno degli altri prima di riprendere questo.",
+              { n: activeCount, cap: ACTIVE_LISTING_CAP }
             )
           );
           return;
         }
       }
-      await updateListing(item.id, { status: next });
+      // updateListing NON lancia in caso di errore: ritorna { error }
+      // (lib/db.js:212-219). Senza questo controllo una pausa rifiutata — da
+      // una RLS, da un trigger, da un id non trovato — non produceva NESSUN
+      // segnale: nessun errore a schermo e l'annuncio restava attivo, mentre
+      // chi aveva premuto "Metti in pausa" era convinto di averlo fatto. È
+      // esattamente il modo in cui ci si ritrova col messaggio "hai già 10
+      // annunci attivi" pur credendo di averli messi tutti in pausa.
+      const res = await updateListing(item.id, { status: next });
+      if (res?.error) throw res.error;
       // In pausa: ritira l'annuncio dal "Per te" di chi lo aveva suggerito
       // (altrimenti resta un annuncio fantasma finché quella persona non
       // ricalcola per conto proprio). Riattivato: lo ripropone, simmetrico
@@ -244,6 +270,21 @@ export default function ProfileScreen() {
 
   const stats = useMemo(() => {
     const s = { active: 0, swapped: 0, sold: 0, reserved: 0, pending: 0, expired: 0, paused: 0 };
+    // Con il censimento disponibile i contatori dicono quanti annunci esistono
+    // per ogni stato. Senza, ripiegano sulla lista mostrata — che però è
+    // troncata ai 100 più recenti, ed è il motivo per cui prima potevano
+    // indicare "0 attivi" a fronte di centinaia.
+    if (census?.byStatus) {
+      const b = census.byStatus;
+      s.active = b.active || 0;
+      s.swapped = (b.swapped || 0) + (b.traded || 0) + (b.exchanged || 0);
+      s.sold = b.sold || 0;
+      s.reserved = b.reserved || 0;
+      s.pending = (b.pending || 0) + (b.review || 0);
+      s.expired = b.expired || 0;
+      s.paused = b.paused || 0;
+      return s;
+    }
     for (const it of myListings) {
       const st = String(it?.status || "").toLowerCase();
       if (st === "active" || !st) s.active++;
@@ -255,7 +296,7 @@ export default function ProfileScreen() {
       else if (st === "paused") s.paused++;
     }
     return s;
-  }, [myListings]);
+  }, [myListings, census]);
 
   const filtered = useMemo(() => {
     if (!statusFilter) return myListings;
@@ -557,6 +598,23 @@ export default function ProfileScreen() {
           ))}
         </ScrollView>
 
+        {/* La lista mostra solo i più recenti: senza dirlo, chi ha centinaia
+            di annunci crede che quelli siano tutti — ed è esattamente così
+            che si finisce a leggere "0 attivi" mentre il tetto ne conta
+            centinaia. I contatori qui sopra restano invece quelli veri. */}
+        {census?.truncated ? (
+          <View style={styles.truncBar}>
+            <Ionicons name="information-circle-outline" size={15} color={theme.colors.textMuted} />
+            <Text style={styles.truncText}>
+              {t(
+                "profile.listTruncated",
+                "Mostrati i {shown} annunci più recenti su {total}. I numeri qui sopra contano tutti i tuoi annunci.",
+                { shown: census.shown, total: census.total }
+              )}
+            </Text>
+          </View>
+        ) : null}
+
         {statusFilter && (
           <View style={styles.filterBar}>
             <Text style={styles.filterText}>
@@ -752,6 +810,11 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontWeight: "800", color: theme.colors.boardingText },
   statLabel: { fontSize: 12, color: theme.colors.textMuted },
 
+  truncBar: {
+    flexDirection: "row", alignItems: "flex-start", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8,
+  },
+  truncText: { color: theme.colors.textMuted, fontSize: 12, lineHeight: 16, flex: 1 },
   filterBar: {
     marginTop: 10, padding: 8, borderRadius: 10, backgroundColor: theme.colors.surfaceMuted,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

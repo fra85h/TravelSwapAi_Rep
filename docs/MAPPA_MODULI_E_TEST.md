@@ -153,11 +153,12 @@ regressione dedicati — vedi §8.
 | `OfferFlow.js` | Flusso guidato per proporre un acquisto o uno scambio. |
 | `OfferDetailScreen.js` | Dettaglio di una singola proposta. |
 | `ChatScreen.js` | Chat 1:1 di un'offerta accettata: doppia conferma, dispute, valutazione a stelle. |
+| `TransactionStepsScreen.js` | "Cosa fare adesso": i passaggi che restano dopo l'accettazione, uno solo espanso per volta, con il turno attribuito. La sequenza arriva da `lib/transactionSteps.js`, la schermata disegna soltanto. Ospita il blocco di dichiarazione del pagamento. |
 | `ChainProposalsScreen.js` | Vedi/conferma/rifiuta le proposte di scambio a 3. |
 | `ChainChatScreen.js` | Chat tra i 3 partecipanti di uno swap a catena **concluso**. |
 | `AttivitaScreen.js` | Casella unica: da fare, in attesa, chat (1:1 e catena unite), trovati dagli avvisi, storico, scadute. |
 | `MainTabs.js` | Tab bar principale (Esplora / Vendi / Attività / Profilo) + badge/icona dinamica. |
-| `ProfileScreen.js` | Profilo utente, i propri annunci, azioni (pausa/riprendi/elimina/modifica). |
+| `ProfileScreen.js` | Profilo utente, i propri annunci, azioni (pausa/riprendi/elimina/modifica). Il tetto di 10 annunci **attivi** vale anche qui: riprendere un annuncio in pausa conta come una nuova attivazione. |
 | `SellerProfileScreen.js` | Profilo pubblico di un venditore (stelle, annunci attivi). |
 | `EditProfileScreen.js` | Modifica dati profilo. |
 | `SavedScreen.js` | Preferiti. |
@@ -179,6 +180,13 @@ chiaramente — `theme.js`, `number.js`, `polyfills.js`):
 - **Dati/rete**: `supabase.js`, `db.js`, `backendApi.js`.
 - **Offerte e scambi**: `offers.js` (RPC 1:1), `chains.js` (RPC catena),
   `chat.js` / `chainChat.js` (le due chat, fonti separate).
+- **Dopo l'accettazione**: `transactionSteps.js` (modulo **puro**: dallo stato
+  dell'handshake ricava i passaggi che restano — id, stato, turno, parametri —
+  senza testo per l'utente; il passo del denaro porta un `variant`,
+  `external` oggi ed `escrow` domani, ed è lo slot che rende additiva
+  l'introduzione di un pagamento in custodia), `paymentDeclarations.js`
+  (dichiarazioni di pagamento: elenco chiuso dei metodi, doppio cieco
+  applicato dal DB).
 - **Valutazioni**: `ratingsApi.js` (RPC), `ratingDisplay.mjs` (pure, regole
   di visualizzazione — testato dalla CI senza bundler).
 - **Domande pre-offerta**: `listingQuestions.mjs` (catalogo, pure),
@@ -249,6 +257,21 @@ Raggruppati per area:
 (il flag serve a `mock.module()`, usato dai test che sostituiscono il client
 Supabase), nessuna rete reale (OpenAI/Supabase non sono raggiungibili in CI:
 dove serve, si testa il percorso di fallback deterministico).
+
+### App RN (`travelswap_ai/travelswapai/__tests__/`, jest-expo)
+
+- `transactionSteps.test.js` — passaggi post-accettazione: un solo passo
+  attivo per volta in ogni stato, niente passo denaro negli scambi, turno non
+  attribuito quando il ruolo non è noto, passaggi fuori app mai spuntati da
+  soli, tutto bloccato con una contestazione aperta.
+- `paymentDeclarations.test.js` — contratto client delle RPC: parametri
+  inviati, errori propagati all'utente invece che inghiottiti, doppio cieco
+  (si sa *che* l'altro ha dichiarato, non *cosa*), `amountsMatch` che resta
+  `null` con una sola dichiarazione — "non lo sappiamo" non è "non
+  coincidono".
+- Fuori scope, come già per `rateTransaction.test.js`: il doppio cieco e la
+  derivazione del ruolo vivono dentro le RPC Postgres; un mock ne simula le
+  risposte, non ne esercita la logica.
 
 ### Cosa NON è testato automaticamente
 

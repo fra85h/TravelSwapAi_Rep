@@ -107,6 +107,15 @@ TravelSwapAi_Rep/
 - **Domande a risposta chiusa pre-offerta** (`lib/listingQuestions.mjs`): catalogo treno/hotel mostrato prima di proporre un'offerta, per ridurre lo scambio di contatti fuori app in chat.
 - **Race condition corrette** (`supabase/migrations/20260726120000`, `20260729120000`): lock ordinato su `accept_offer_any`/`confirm_exchange_any`/`confirm_chain_participant` e ricontrollo di stato in `release_my_stale_reservations`, per evitare che una pulizia lazy o una conferma concorrente sovrascrivano uno scambio appena concluso.
 
+
+### 3.7 Dopo l'accettazione: passaggi guidati e denaro dichiarato
+- **"Cosa fare adesso"** (`TransactionStepsScreen`, ingresso dalla chat sulla proposta accettata): sequenza verticale dei passaggi che restano, **uno solo espanso per volta**, con quanti ne mancano dichiarato in testa e il **turno attribuito** a ogni tappa (tu / loro / entrambi). Nasce da un buco reale: i passaggi che rendono davvero effettivo uno scambio avvengono FUORI dall'app (reintestazione presso l'operatore, eventuale pagamento) e non erano scritti da nessuna parte — dopo la conferma si tornava in chat con una riga di stato.
+- La sequenza **non è nel JSX**: la costruisce `lib/transactionSteps.js`, modulo puro che deriva i passaggi dallo stato dell'handshake e restituisce identificatori e parametri (nessun testo per l'utente: le stringhe le risolve la schermata via i18n). Il passo del denaro porta un `variant` — oggi `external`, domani `escrow` — così l'introduzione di un pagamento in custodia è una riga di dati, non una schermata da riscrivere.
+- Regole che discendono dal modello: in uno **scambio il passo del denaro non esiste** (biglietto contro biglietto, fra le parti non gira denaro — un importo lì sarebbe un conguaglio che `offers` non prevede); pagamento e cambio nominativo **non si spuntano da soli** perché avvengono fuori dall'app e non sono osservabili (si considerano superati solo quando la conferma li rende irrilevanti); con una **contestazione aperta** tutto il resto è bloccato, coerentemente col DB (`confirm_exchange` si ferma su `disputed_at`).
+- **Dichiarazione del pagamento** (`payment_declarations`, RPC `declare_payment` / `get_payment_declarations`): solo negli acquisti, ciascuna parte registra importo, metodo e data di ciò che dichiara di aver pagato o incassato. **Non è un vincolo**: non blocca né abilita nulla, la transazione resta governata dalla sola conferma reciproca. Serve a sapere cosa succede davvero fuori dall'app — importi, metodi, tempi, quanto spesso le due versioni divergono — cioè i numeri su cui decidere se un pagamento in custodia vale il suo costo.
+- **Doppio cieco**, come per le valutazioni: il contenuto della dichiarazione altrui è visibile solo dopo aver fatto la propria (saperlo prima permetterebbe di allinearsi, e il dato perderebbe il suo unico pregio: essere indipendente sui due lati). Che l'altro *abbia* dichiarato si vede subito. Metodo a **elenco chiuso** (bonifico/PayPal/Satispay/Revolut/contanti/altro), mai testo libero: un campo libero diventerebbe il posto dove si scrivono IBAN e numeri di telefono. Nessun identificativo di pagamento viene registrato.
+- **Posizionamento**: l'app **non gestisce pagamenti e non custodisce denaro**. Il copy dice "oggi TravelSwap non gestisce pagamenti", mai una promessa perpetua: trattenere denaro di terzi in futuro comporta obblighi regolatori, e una frase di oggi non deve diventare una promessa tradita.
+
 ---
 
 ## 4. Funzionalità — Backend
@@ -199,7 +208,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `is_named_ticket` bool, `gender` text, `pnr` text | scritti dall'ingest FB ⚠️ (cfr. §7: il PNR dovrebbe stare solo in `listing_secrets`) |
 | `operator` text | solo treno; mai chiesto a mano, ricavato solo da "Compila con AI"/import PDF/import da conferma (cfr. §4.3); mostrato solo nel dettaglio annuncio, mai nelle card di Esplora |
 | `dynamic_pricing_enabled` bool, `price_floor` numeric, `list_price` numeric | prezzo dinamico (cfr. §4.8), solo VENDO — `list_price` è il prezzo di partenza della curva, `price_floor` il minimo mai superato |
-| `trust_score` numeric | scritto dall'app alla creazione (ridondante con `trust_audit`) |
+| `trust_score` numeric | scritto dall'app **solo alla creazione**; in modifica è scrivibile unicamente dalla pipeline server-side (trigger `update_listing_trust_score` su `trust_audit`, dentro la finestra `app.sync_trust_score`), e `before_update_listings_lock_columns` scarta qualunque valore arrivato dal client. `before_update_listings_invalidate_trust` lo azzera quando cambia il contenuto (titolo, descrizione, tipo, prezzo, località, tratta, date, foto): per questo in modifica il Check AI parte **dopo** il salvataggio, così il punteggio è l'ultima scrittura e descrive il contenuto pubblicato |
 | `source`, `external_id`, `contact_url` | provenienza FB; **UNIQUE(source, external_id)** |
 | `published_at`, `created_at` timestamptz | |
 
@@ -230,6 +239,8 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 **`fb_sessions`** — stato conversazioni Messenger: `sender_id`, dati sessione (json con `_ts` per il TTL applicativo).
 
+**`payment_declarations`** — cosa le due parti dichiarano di aver pagato/incassato fuori dall'app: `offer_id` FK, `user_id` FK, `role` (`buyer`\|`seller`, derivato dal DB, mai dal client), `amount`, `currency`, `method` (elenco chiuso), `paid_at`, UNIQUE`(offer_id, user_id)`. Dato di **osservazione, non vincolo**: non blocca né abilita alcun passaggio. RLS in lettura solo sulle proprie righe, nessuna policy di scrittura (si passa unicamente dalle RPC). Vedi §3.7.
+
 **`report_action_tokens`** — token "un click" (pausa/elimina) inviati nell'email di notifica segnalazione: `token` text PK, `report_id`/`listing_id` FK, `action` (`pause`\|`delete`), `expires_at` (7gg), `used_at`. Service-role only (RLS abilitata, nessuna policy), stesso pattern di `fb_link_codes`. Vedi §4.7.
 
 ### Viste e funzioni RPC
@@ -243,6 +254,9 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `list_my_active_listings()` | i miei annunci attivi (per lo swap) |
 | `list_incoming_offers_any()` / `list_outgoing_offers_any()` | liste offerte con join, evitando mismatch di tipi |
 | `fn_user_top_matches(p_user_id, p_top_per_listing)` | top match per utente calcolati in SQL |
+| `my_offer_role(p_offer_id)` | `buyer`/`seller` dell'utente corrente su un acquisto (null su uno scambio: lì non esistono i due ruoli). `get_offer_handshake` non espone il ruolo, e senza di esso il turno del pagamento resta volutamente non attribuito |
+| `declare_payment(p_offer_id, p_amount, p_method, p_paid_at)` | registra/corregge la propria dichiarazione di pagamento (solo acquisti accettati o conclusi) |
+| `get_payment_declarations(p_offer_id)` | le due dichiarazioni con la regola del doppio cieco |
 
 ---
 
