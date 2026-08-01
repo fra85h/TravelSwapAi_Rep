@@ -65,7 +65,7 @@ function VendiButton() {
           spinto più in basso delle altre tre e l'allineamento si rompeva. */}
       <View style={styles.vendiSlot}>
         <View style={styles.vendiDisc}>
-          <Ionicons name="add" size={22} color={theme.colors.accentOn} />
+          <Ionicons name="add" size={20} color={theme.colors.accentOn} />
         </View>
       </View>
       <Text style={styles.vendiLabel}>{t("tabs.sell", "Vendi")}</Text>
@@ -219,7 +219,11 @@ const styles = StyleSheet.create({
   vendiWrap: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "flex-start",
+    // CENTRATO, non ancorato in alto: è così che React Navigation dispone
+    // icona+etichetta negli altri tab. Ancorandolo in cima, "Vendi" finiva
+    // più in alto delle altre tre etichette e il disco arrivava a toccare il
+    // bordo della pillola, che sul web lo tagliava.
+    justifyContent: "center",
   },
   // Stessa altezza dell'icona degli altri tab: è questa a dettare dove cade
   // l'etichetta, non la dimensione del disco.
@@ -229,9 +233,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   vendiDisc: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: theme.colors.accent,
     alignItems: "center",
     justifyContent: "center",
