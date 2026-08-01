@@ -1,11 +1,10 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { theme } from "../lib/theme";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import HeaderLogo from "../components/HeaderLogo";
 import ChainPulseIcon from "../components/ChainPulseIcon";
 
@@ -39,38 +38,6 @@ const TAB_BAR_FADE_HEIGHT = theme.tabBar.fadeHeight;
 // nascosta nel profilo). Lo schermo è fittizio, il tabPress è annullato.
 function Noop() {
   return null;
-}
-
-function VendiButton() {
-  const navigation = useNavigation();
-  const { t } = useI18n();
-  return (
-    <TouchableOpacity
-      style={styles.vendiWrap}
-      activeOpacity={0.9}
-      // push, non navigate: CreateListingScreen resta montato nello stack
-      // anche dopo aver cambiato tab (è un fratello di MainTabs, non un suo
-      // figlio). navigate() riuserebbe quell'istanza già esistente — fase
-      // ("intro"/"manual") e form ancora quelli della sessione precedente —
-      // quindi il box "Importa il biglietto" spariva dopo la prima visita.
-      // push forza sempre un'istanza nuova, con lo stato resettato.
-      onPress={() => navigation.push("CreateListing")}
-      accessibilityRole="button"
-      accessibilityLabel={t("tabs.sell", "Vendi")}
-    >
-      {/* Il disco vive dentro una fessura alta quanto le icone degli altri
-          tab e ne trabocca simmetricamente (sopra e sotto). È l'unico modo
-          per tenere l'etichetta "Vendi" sulla stessa riga di "Esplora",
-          "Attività" e "Profilo": misurando il disco intero, il testo veniva
-          spinto più in basso delle altre tre e l'allineamento si rompeva. */}
-      <View style={styles.vendiSlot}>
-        <View style={styles.vendiDisc}>
-          <Ionicons name="add" size={20} color={theme.colors.accentOn} />
-        </View>
-      </View>
-      <Text style={styles.vendiLabel}>{t("tabs.sell", "Vendi")}</Text>
-    </TouchableOpacity>
-  );
 }
 
 function MainTabsInner() {
@@ -138,11 +105,48 @@ function MainTabsInner() {
             ),
           }}
         />
+        {/* "Vendi" NON usa più tabBarButton. Sostituendo l'intera cella si
+            sostituiva anche il modo in cui React Navigation dispone icona ed
+            etichetta, e per quanto si aggiustassero i margini l'etichetta non
+            cadeva mai sulla stessa riga delle altre tre: due sistemi di
+            layout diversi messi a confronto a occhio. Ora è un tab come gli
+            altri — icona + etichetta — e il disco oro è semplicemente
+            un'icona che ha la forma di un cerchio. L'allineamento non è più
+            una cosa da azzeccare: è lo stesso codice che dispone tutti e
+            quattro. Il tocco resta dirottato sulla creazione annuncio. */}
         <Tab.Screen
           name="Vendi"
           component={Noop}
-          options={{ tabBarButton: () => <VendiButton /> }}
-          listeners={{ tabPress: (e) => e.preventDefault() }}
+          options={{
+            // Colore fisso, non i tint attivo/inattivo: questo tab non si
+            // "seleziona" mai, è un'azione. Restare grigio come un tab
+            // inattivo lo farebbe sembrare spento.
+            tabBarLabel: () => (
+              <Text style={{ fontSize: 10, fontWeight: "800", marginTop: -2, color: theme.colors.boardingText }}>
+                {t("tabs.sell", "Vendi")}
+              </Text>
+            ),
+            tabBarIcon: () => (
+              // Fessura alta quanto le icone degli altri tab: il disco ne
+              // trabocca simmetricamente senza spostare l'etichetta.
+              <View style={styles.vendiSlot}>
+                <View style={styles.vendiDisc}>
+                  <Ionicons name="add" size={20} color={theme.colors.accentOn} />
+                </View>
+              </View>
+            ),
+          }}
+          listeners={({ navigation }) => ({
+            tabPress: (e) => {
+              e.preventDefault();
+              // push e non navigate: CreateListingScreen resta montato nello
+              // stack anche cambiando tab (è fratello di MainTabs, non figlio).
+              // navigate riuserebbe quell'istanza — fase e form ancora quelli
+              // della sessione precedente — e il box "Importa il biglietto"
+              // spariva dopo la prima visita. push forza un'istanza nuova.
+              navigation.getParent()?.push("CreateListing");
+            },
+          })}
         />
         <Tab.Screen
           name="Attivita"
@@ -216,15 +220,6 @@ export default function MainTabs() {
 }
 
 const styles = StyleSheet.create({
-  vendiWrap: {
-    flex: 1,
-    alignItems: "center",
-    // CENTRATO, non ancorato in alto: è così che React Navigation dispone
-    // icona+etichetta negli altri tab. Ancorandolo in cima, "Vendi" finiva
-    // più in alto delle altre tre etichette e il disco arrivava a toccare il
-    // bordo della pillola, che sul web lo tagliava.
-    justifyContent: "center",
-  },
   // Stessa altezza dell'icona degli altri tab: è questa a dettare dove cade
   // l'etichetta, non la dimensione del disco.
   vendiSlot: {
@@ -243,13 +238,5 @@ const styles = StyleSheet.create({
       ios: { shadowColor: theme.colors.accent, shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
       android: { elevation: 6 },
     }),
-  },
-  vendiLabel: {
-    // Stesso scarto di tabBarLabelStyle, così le quattro etichette sono
-    // esattamente sulla stessa riga.
-    marginTop: -2,
-    fontSize: 10,
-    fontWeight: "800",
-    color: theme.colors.boardingText,
   },
 });
