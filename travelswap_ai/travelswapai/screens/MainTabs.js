@@ -65,6 +65,12 @@ function MainTabsInner() {
           headerTitle: () => <HeaderLogo />,
           headerTitleAlign: "left",
           headerTintColor: theme.colors.boardingText,
+          // Icone SEMPRE a contorno, anche sul tab attivo: a distinguerlo è
+          // il colore, non il riempimento. Prima l'attivo passava alla
+          // variante piena e nella pillola il risultato si leggeva come
+          // "due icone di un tipo e due di un altro" invece che come "una
+          // selezionata e tre no" — l'incoerenza saltava all'occhio più della
+          // selezione, che è l'informazione che il riempimento doveva dare.
           tabBarActiveTintColor: theme.colors.boardingText,
           tabBarInactiveTintColor: theme.colors.textMuted,
           sceneStyle: { paddingBottom: bottomClearance },
@@ -101,7 +107,7 @@ function MainTabsInner() {
           options={{
             tabBarLabel: t("tabs.explore", "Esplora"),
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? "compass" : "compass-outline"} color={color} size={size} />
+              <Ionicons name="compass-outline" color={color} size={size} />
             ),
           }}
         />
@@ -118,21 +124,16 @@ function MainTabsInner() {
           name="Vendi"
           component={Noop}
           options={{
-            // Colore fisso, non i tint attivo/inattivo: questo tab non si
-            // "seleziona" mai, è un'azione. Restare grigio come un tab
-            // inattivo lo farebbe sembrare spento.
-            tabBarLabel: () => (
-              <Text style={{ fontSize: 10, fontWeight: "800", marginTop: -2, color: theme.colors.boardingText }}>
-                {t("tabs.sell", "Vendi")}
-              </Text>
-            ),
+            // Nessuna etichetta, come il pulsante centrale di Instagram o
+            // TikTok: il "+" oro si spiega da sé, e senza testo sotto il
+            // disco ha tutto lo spazio della cella per essere grande davvero.
+            // È anche ciò che mette al riparo dal problema che si è ripetuto
+            // tre volte: non avendo un'etichetta, non può più trascinarla
+            // fuori riga rispetto alle altre tre.
+            tabBarLabel: () => null,
             tabBarIcon: () => (
-              // Fessura alta quanto le icone degli altri tab: il disco ne
-              // trabocca simmetricamente senza spostare l'etichetta.
-              <View style={styles.vendiSlot}>
-                <View style={styles.vendiDisc}>
-                  <Ionicons name="add" size={20} color={theme.colors.accentOn} />
-                </View>
+              <View style={styles.vendiDisc}>
+                <Ionicons name="add" size={26} color={theme.colors.accentOn} />
               </View>
             ),
           }}
@@ -170,7 +171,7 @@ function MainTabsInner() {
               hasChainToDo ? (
                 <ChainPulseIcon color={theme.colors.accent} size={size} focused={focused} />
               ) : (
-                <Ionicons name={focused ? "notifications" : "notifications-outline"} color={color} size={size} />
+                <Ionicons name="notifications-outline" color={color} size={size} />
               ),
           }}
         />
@@ -180,7 +181,7 @@ function MainTabsInner() {
           options={{
             tabBarLabel: t("profile.title", "Profilo"),
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? "person" : "person-outline"} color={color} size={size} />
+              <Ionicons name="person-outline" color={color} size={size} />
             ),
           }}
         />
@@ -220,17 +221,10 @@ export default function MainTabs() {
 }
 
 const styles = StyleSheet.create({
-  // Stessa altezza dell'icona degli altri tab: è questa a dettare dove cade
-  // l'etichetta, non la dimensione del disco.
-  vendiSlot: {
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   vendiDisc: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.accent,
     alignItems: "center",
     justifyContent: "center",
