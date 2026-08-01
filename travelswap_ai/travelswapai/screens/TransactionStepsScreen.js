@@ -22,6 +22,8 @@ import { useI18n } from "../lib/i18n";
 import { getOfferHandshake } from "../lib/chat";
 import { confirmExchange } from "../lib/offers";
 import { myRatingForOffer } from "../lib/ratingsApi";
+import { getPaymentDeclarations } from "../lib/paymentDeclarations";
+import PaymentDeclaration from "../components/PaymentDeclaration";
 import {
   buildTransactionSteps, STEP_ID, STEP_STATE, STEP_OWNER, PAYMENT_VARIANT,
 } from "../lib/transactionSteps";
@@ -45,13 +47,13 @@ function operatorUrl(name) {
 export default function TransactionStepsScreen({ route, navigation }) {
   const { t } = useI18n();
   const offerId = route?.params?.offerId;
-  const role = route?.params?.role || null;
   const otherName = route?.params?.otherName || null;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [handshake, setHandshake] = useState(null);
   const [alreadyRated, setAlreadyRated] = useState(false);
+  const [decl, setDecl] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -66,6 +68,11 @@ export default function TransactionStepsScreen({ route, navigation }) {
       ]);
       setHandshake(hs);
       setAlreadyRated(mine != null);
+      // Dichiarazioni di pagamento: solo negli acquisti (in uno scambio non
+      // gira denaro fra le parti). Porta con sé anche il MIO ruolo, che
+      // get_offer_handshake non espone — è ciò che permette di attribuire il
+      // turno del pagamento invece di lasciarlo indeterminato.
+      setDecl(hs?.type === "buy" ? await getPaymentDeclarations(offerId) : null);
     } catch (e) {
       setError(e?.message || String(e));
     } finally {
@@ -108,7 +115,11 @@ export default function TransactionStepsScreen({ route, navigation }) {
     );
   }
 
-  const { steps, remaining } = buildTransactionSteps(handshake, { role, otherName, alreadyRated });
+  const { steps, remaining } = buildTransactionSteps(handshake, {
+    role: decl?.myRole || null,
+    otherName,
+    alreadyRated,
+  });
   const isBuy = handshake.type === "buy";
 
   return (
@@ -137,6 +148,9 @@ export default function TransactionStepsScreen({ route, navigation }) {
             busy={busy}
             onConfirm={onConfirm}
             openChat={openChat}
+            offerId={offerId}
+            decl={decl}
+            reload={load}
           />
         ))}
       </View>
@@ -151,7 +165,7 @@ export default function TransactionStepsScreen({ route, navigation }) {
 
 /* ---------------------------------------------------------------- */
 
-function StepRow({ step, last, t, busy, onConfirm, openChat }) {
+function StepRow({ step, last, t, busy, onConfirm, openChat, offerId, decl, reload }) {
   const [whyOpen, setWhyOpen] = useState(false);
   const active = step.state === STEP_STATE.ACTIVE;
   const done = step.state === STEP_STATE.DONE;
@@ -196,13 +210,14 @@ function StepRow({ step, last, t, busy, onConfirm, openChat }) {
           step={step} p={p} t={t} busy={busy}
           whyOpen={whyOpen} setWhyOpen={setWhyOpen}
           onConfirm={onConfirm} openChat={openChat}
+          offerId={offerId} decl={decl} reload={reload}
         /> : null}
       </View>
     </View>
   );
 }
 
-function StepBody({ step, p, t, busy, whyOpen, setWhyOpen, onConfirm, openChat }) {
+function StepBody({ step, p, t, busy, whyOpen, setWhyOpen, onConfirm, openChat, offerId, decl, reload }) {
   switch (step.id) {
     case STEP_ID.PAYMENT: {
       const amount = p.amount != null ? `${p.amount} ${p.currency || "EUR"}` : null;
@@ -231,6 +246,16 @@ function StepBody({ step, p, t, busy, whyOpen, setWhyOpen, onConfirm, openChat }
                 </Text>
               ) : null}
               <PrimaryBtn onPress={openChat} label={t("transactionSteps.openChat", "Apri la chat")} />
+              {/* Registrazione di quanto è stato pagato: non è un pagamento e
+                  non blocca nulla — serve a confrontare le due versioni e a
+                  capire cosa succede davvero fuori dall'app. */}
+              <PaymentDeclaration
+                offerId={offerId}
+                decl={decl}
+                suggestedAmount={p.amount}
+                t={t}
+                onSaved={reload}
+              />
             </>
           ) : null}
         </>
