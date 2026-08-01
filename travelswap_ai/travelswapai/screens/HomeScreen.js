@@ -419,11 +419,34 @@ export default function HomeScreen() {
           <Text style={[styles.cardSub, { flex: 1, flexShrink: 1, marginRight: 8 }]} numberOfLines={1}>
             {typeLabel} • {item.location || item.route_from || "-"}
           </Text>
-          {item.price != null ? (
-            <Text style={styles.cardMeta} numberOfLines={1}>
-              {formatMoney(item.price, item.currency)}
-            </Text>
-          ) : null}
+          {item.price != null ? (() => {
+            // Prezzo dinamico: mostra lo sconto SOLO quando è già stato
+            // applicato davvero (prezzo corrente sotto quello di partenza),
+            // non appena il toggle è attivo — altrimenti un annuncio appena
+            // pubblicato mostrerebbe "100€ barrato, 100€" senza alcun senso.
+            // I numeric arrivano da PostgREST come stringa (es. "57.64"),
+            // vedi la stessa nota sul trust score più sotto: sempre Number().
+            const listPrice = item.list_price != null ? Number(item.list_price) : NaN;
+            const current = Number(item.price);
+            const discounted =
+              item.dynamic_pricing_enabled === true &&
+              Number.isFinite(listPrice) && Number.isFinite(current) &&
+              listPrice > current;
+            return discounted ? (
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+                <Text style={styles.cardPriceStruck} numberOfLines={1}>
+                  {formatMoney(listPrice, item.currency)}
+                </Text>
+                <Text style={styles.cardPriceDiscounted} numberOfLines={1}>
+                  {formatMoney(current, item.currency)}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.cardMeta} numberOfLines={1}>
+                {formatMoney(item.price, item.currency)}
+              </Text>
+            );
+          })() : null}
         </View>
 
         {dateLine ? <Text style={styles.cardDates}>{dateLine}</Text> : null}
@@ -695,6 +718,15 @@ const styles = StyleSheet.create({
   },
   cardSub: { color: theme.colors.textMuted, marginTop: 4 },
   cardMeta: { color: theme.colors.text, fontWeight: "600" },
+  // Prezzo dinamico già sceso: il vecchio prezzo resta visibile ma in
+  // secondo piano (barrato, più piccolo), il nuovo prende l'accento oro
+  // usato per i momenti "di valore" della UI.
+  cardPriceStruck: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    textDecorationLine: "line-through",
+  },
+  cardPriceDiscounted: { color: theme.colors.accent, fontWeight: "800" },
   cardDates: { color: theme.colors.textMuted, marginTop: 4, fontSize: 12, fontWeight: "600" },
   namedTag: {
     flexDirection: "row", alignItems: "center", gap: 3, alignSelf: "flex-start", marginTop: 6,
