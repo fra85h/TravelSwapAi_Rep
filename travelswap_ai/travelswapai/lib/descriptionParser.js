@@ -90,6 +90,12 @@ export async function parseListingFromTextAI(text, locale = "it") {
     method: "POST",
     body: JSON.stringify(body),
     headers: { "Content-Type": "application/json" },
+    // Il server aspetta fino a 45s la risposta di OpenAI
+    // (OPENAI_PARSE_TIMEOUT_MS), più il tempo di risveglio di Render se il
+    // servizio era in stand-by (piano free): il default di fetchJson (20s)
+    // scade prima che il server abbia anche solo iniziato a rispondere.
+    // Stesso margine già usato per parseListingFromPdfAI qui sotto.
+    timeoutMs: 90000,
   });
   return normalizeParsedPayload(res);
 }
