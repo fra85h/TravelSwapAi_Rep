@@ -1087,9 +1087,6 @@ export const translations = {
       translatedAuto: "Tradotto automaticamente{lang}{orig}",
       translatedPartial: "Titolo tradotto — descrizione non disponibile in questa lingua",
 
-      tripLabel: "Viaggio",
-      roundtrip: "A/R",
-      oneway: "Solo andata",
       operator: "Operatore",
       namedTicket: "Nominativo",
       namedWarnTitle: "Biglietto nominativo",
@@ -2341,9 +2338,6 @@ export const translations = {
       translatedAuto: "Automatically translated{lang}{orig}",
       translatedPartial: "Title translated — description not available in this language",
 
-      tripLabel: "Trip",
-      roundtrip: "Round trip",
-      oneway: "One-way",
       operator: "Operator",
       namedTicket: "Named ticket",
       namedWarnTitle: "Named ticket",
@@ -3472,9 +3466,6 @@ export const translations = {
       translatedAuto: "Traducido automáticamente{lang}{orig}",
       translatedPartial: "Título traducido — descripción no disponible en este idioma",
 
-      tripLabel: "Viaje",
-      roundtrip: "Ida y vuelta",
-      oneway: "Solo ida",
       operator: "Operador",
       namedTicket: "Nominativo",
       namedWarnTitle: "Billete nominativo",
