@@ -593,6 +593,15 @@ export default function CreateListingScreen({
   const hotelLocLocked = form?.type === "hotel" && !!String(form?.location || "").trim() && !editableFields.location;
 
 const initialJsonRef = useRef(null);
+  // Prefill concluso (annuncio caricato, bozza letta, o niente da caricare):
+  // prima di questo momento non ha senso fotografare lo stato "iniziale" del
+  // form per il confronto delle modifiche non salvate.
+  const [prefillDone, setPrefillDone] = useState(false);
+  // Prezzo dinamico, ancora della curva di sconto: se un annuncio in modifica
+  // ha GIÀ un list_price (prezzo di partenza) e lo sconto è in corso, quello
+  // resta l'ancora. Ri-ancorare al prezzo già scontato farebbe sparire lo
+  // sconto dalla vetrina e renderebbe la discesa più ripida ad ogni salvataggio.
+  const originalListPriceRef = useRef(null);
   const [errors, setErrors] = useState({});
 
   // Validazione "lazy": l'errore di un campo si vede solo dopo che l'utente
@@ -748,6 +757,8 @@ const initialJsonRef = useRef(null);
           const secretPnr = await getListingSecret(route.params.listingId).catch(() => null);
           if (!cancelled && l) {
             originalStatusRef.current = l.status || null;
+            // Ancora dello sconto dinamico già in corso (vedi originalListPriceRef).
+            originalListPriceRef.current = l.list_price != null ? Number(l.list_price) : null;
             const [locFrom, locTo] = splitRoute(l.location);
             setForm((prev) => ({
               ...prev,
@@ -813,14 +824,34 @@ const initialJsonRef = useRef(null);
                 const [a, b] = splitRoute(parsed.location);
                 if (a || b) { parsed.routeFrom = a; parsed.routeTo = b; }
               }
-              setForm((p) => ({ ...p, ...parsed }));
+              // Stessa guardia degli altri tre rami: senza, una bozza letta da
+              // AsyncStorage può atterrare su uno schermo già cambiato.
+              if (!cancelled) setForm((p) => ({ ...p, ...parsed }));
             }
           }
         }
-      } catch {}
+      } catch {
+        // ignorato di proposito: una bozza illeggibile non deve impedire di
+        // creare un annuncio nuovo.
+      } finally {
+        // Sblocca la fotografia dello stato iniziale (vedi initialJsonRef):
+        // va scattata DOPO il prefill, altrimenti "modifiche non salvate"
+        // confronterebbe sempre con un form vuoto.
+        if (!cancelled) setPrefillDone(true);
+      }
     })();
     return () => { cancelled = true; };
   }, [mode, route?.params?.listingId, route?.params?.draftFromId]);
+
+  // Fotografia dello stato iniziale, una sola volta e SOLO a prefill concluso.
+  // Prima veniva scattata unicamente dopo una pubblicazione riuscita: fino ad
+  // allora initialJsonRef restava null e isDirty era costantemente false,
+  // quindi il rilevamento delle modifiche non salvate non è mai entrato in
+  // funzione per l'intera sessione di compilazione.
+  useEffect(() => {
+    if (!prefillDone || initialJsonRef.current != null) return;
+    try { initialJsonRef.current = JSON.stringify(form); } catch {}
+  }, [prefillDone, form]);
 
   const isDirty = useMemo(() => {
     if (initialJsonRef.current == null) return false;
@@ -989,8 +1020,16 @@ const initialJsonRef = useRef(null);
         // annuncio non ancora creato: tieni in sospeso, carica dopo la pubblicazione.
         // Anche qui, come per le foto già salvate sopra, un Check AI già fatto
         // non ha mai visto queste foto: va invalidato (vedi needsCheckAI).
-        setPendingPhotos((prev) => [...prev, ...assets]);
-        setPhotosDirtySinceCheck(true);
+        // photoBusy anche qui: le immagini arrivano con base64 (quality 0.7,
+        // fino a 2 file) e su un telefono lento il tocco successivo restava
+        // senza alcun riscontro a schermo.
+        setPhotoBusy(true);
+        try {
+          setPendingPhotos((prev) => [...prev, ...assets]);
+          setPhotosDirtySinceCheck(true);
+        } finally {
+          setPhotoBusy(false);
+        }
       }
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e?.message || t("createListing.photoPickErrorMsg", "Impossibile selezionare le foto."));
@@ -1025,17 +1064,33 @@ const initialJsonRef = useRef(null);
   };
 
   /** Carica le foto rimaste in sospeso su un annuncio appena creato */
+  // Le foto scelte in creazione si caricano solo DOPO la pubblicazione (prima
+  // non esiste un id su cui appoggiarle). Se un caricamento fallisce l'annuncio
+  // è comunque pubblicato: va detto, altrimenti l'utente vede "Pubblicato con
+  // successo" e scopre le foto mancanti solo riaprendo l'annuncio.
   const flushPendingPhotos = async (newListingId) => {
     if (!newListingId || pendingPhotos.length === 0) return;
     let pos = 0;
+    let failed = 0;
     for (const a of pendingPhotos) {
       try {
         await uploadImage(newListingId, a, pos++);
       } catch (e) {
+        failed++;
         console.log("[flushPendingPhotos] upload error:", e?.message || e);
       }
     }
     setPendingPhotos([]);
+    if (failed > 0) {
+      Alert.alert(
+        t("createListing.photoUploadErrorTitle", "Errore caricamento"),
+        t(
+          "createListing.photoUploadPartialMsg",
+          "L'annuncio è stato pubblicato, ma {n} foto non sono state caricate. Puoi aggiungerle da \"Modifica annuncio\".",
+          { n: failed }
+        )
+      );
+    }
   };
 
   const logStep = useCallback((msg, pct) => {
@@ -1327,16 +1382,25 @@ const initialJsonRef = useRef(null);
         localFlags.forEach((f) => logStep(`⚠︎ ${f.msg}`, 90));
       }
 
+      // Una verifica FALLITA non deve marcare il contenuto come "verificato":
+      // prima i flag qui sotto venivano azzerati a prescindere dall'esito,
+      // quindi al secondo tocco di "Pubblica" needsCheckAI risultava false e
+      // l'annuncio finiva online senza alcuna verifica — e nemmeno con
+      // trust_pending_at, quindi invisibile anche al ritentativo. Con l'AI
+      // non raggiungibile bastavano due tocchi per aggirare del tutto il
+      // gate "mai un annuncio mai verificato".
+      if (!res) {
+        clearLogSoon();
+        if (trustError) Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), trustError);
+        return null;
+      }
+
       logStep(t("createListing.checkAi.logDone", "Fatto."), 100);
       setLastTrustRunAt(Date.now()); // <-- mark that Check AI has been run
       setPhotosDirtySinceCheck(false); // le foto correnti sono state appena valutate
       setCriticalFieldsDirtySinceCheck(false); // idem per prezzo/tratta/date
       lastCheckedContentRef.current = JSON.stringify(buildContentSnapshot());
       clearLogSoon();
-      if (!res && trustError) {
-        Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), trustError);
-        return null;
-      }
       return res;
     } catch (err) {
       logStep(t("createListing.checkAi.logError", "Errore durante il Check AI."), 100);
@@ -1920,18 +1984,25 @@ const initialJsonRef = useRef(null);
           : (parseLocalizedNumber(String(form.purchasePrice || "").trim()) ?? null),
         accepts_swap: acceptsSwap,
         swap_wanted: swapWanted,
-        // Prezzo dinamico: solo VENDO. "list_price" è il prezzo di partenza
-        // della curva di sconto — riancorato al prezzo appena salvato ad ogni
-        // save col toggle attivo (attivazione o modifica), così il cron che
-        // fa scendere "price" parte sempre dal valore che l'utente ha appena
-        // confermato, non da uno vecchio. Disattivando il toggle si azzerano
-        // entrambi, niente dati residui a DB.
+        // Prezzo dinamico: solo VENDO. "list_price" è il prezzo di PARTENZA
+        // della curva di sconto. Se uno sconto è già in corso (l'annuncio ha
+        // un'ancora più alta del prezzo attuale) quella va CONSERVATA: prima
+        // veniva riscritta col prezzo già scontato ad ogni salvataggio, e
+        // bastava aprire e salvare la modifica per far sparire il "100€
+        // barrato" dalla vetrina e rendere più ripida la discesa verso il
+        // minimo. Si ri-ancora solo quando l'ancora non esiste (prima
+        // attivazione) o quando l'utente alza il prezzo sopra di essa.
+        // Disattivando il toggle si azzerano entrambi, niente dati residui.
         dynamic_pricing_enabled: form.cercoVendo !== "CERCO" && !!form.dynamicPricingEnabled,
         price_floor: (form.cercoVendo !== "CERCO" && form.dynamicPricingEnabled)
           ? (parseLocalizedNumber(String(form.priceFloor || "").trim()) ?? null)
           : null,
         list_price: (form.cercoVendo !== "CERCO" && form.dynamicPricingEnabled)
-          ? (Number.isFinite(priceNum) ? priceNum : null)
+          ? (Number.isFinite(priceNum)
+              ? (Number.isFinite(originalListPriceRef.current) && originalListPriceRef.current >= priceNum
+                  ? originalListPriceRef.current
+                  : priceNum)
+              : null)
           : null,
         // In creazione: salva la reliability calcolata (chiave camelCase, la
         // mappa insertListing). È l'UNICA strada che la scrive, perché il
@@ -1957,7 +2028,15 @@ const initialJsonRef = useRef(null);
               // significa già "mai verificato").
               trustPendingAt: trustResult?.verificationPending ? new Date().toISOString() : null,
             }
-          : (Number.isFinite(Number(trustResult?.trustScore)) ? { trust_score: Number(trustResult.trustScore) } : {}))
+          : {
+              ...(Number.isFinite(Number(trustResult?.trustScore)) ? { trust_score: Number(trustResult.trustScore) } : {}),
+              // Anche in modifica una verifica rimasta in sospeso va tracciata:
+              // senza, un ricontrollo non riuscito (foto o prezzo cambiati) non
+              // lasciava alcun segno e il ritentativo automatico — che cerca
+              // proprio trust_pending_at — non lo riprendeva mai, lasciando in
+              // vetrina un punteggio calcolato su dati ormai diversi.
+              ...(trustResult?.verificationPending ? { trust_pending_at: new Date().toISOString() } : {}),
+            })
       };
 
       const payload = form?.type === "hotel"
@@ -1997,8 +2076,10 @@ const initialJsonRef = useRef(null);
 
       let publishedIds = [];
       if (mode === "edit") {
-        const res = await updateListing(idForUpdate, payload);
-        if (res?.error) throw res.error;
+        // updateListing/insertListing LANCIANO in caso di errore (vedi lib/db.js):
+        // non ritornano mai { error }, quindi un controllo su res.error non
+        // intercetterebbe nulla. Gli errori arrivano al catch più sotto.
+        await updateListing(idForUpdate, payload);
         publishedIds = [idForUpdate];
         Alert.alert(t("editListing.savedTitle", "Modifiche salvate"), t("editListing.savedMsg", "L’annuncio è stato aggiornato."));
       } else {
@@ -2015,7 +2096,6 @@ const initialJsonRef = useRef(null);
         // un prezzo troppo alto per un falso positivo. Ora si pubblica sempre
         // e solo ciò che si vede nel form.
         const res = await insertListing(payload);
-        if (res?.error) throw res.error;
         await flushPendingPhotos(res?.id);
         await AsyncStorage.removeItem(DRAFT_KEY);
         publishedIds = [res?.id];
