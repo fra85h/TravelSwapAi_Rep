@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "../lib/theme";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +15,20 @@ import { useI18n } from "../lib/i18n";
 import { ActivityProvider, useActivity } from "../lib/ActivityContext";
 
 const Tab = createBottomTabNavigator();
-const TAB_BAR_HEIGHT = 70;
+
+// Barra "a pillola" staccata dal bordo, sullo stile delle app recenti
+// (Instagram, Spotify): la barra non è più un fondo pieno attaccato allo
+// schermo ma un elemento che galleggia sopra il contenuto.
+//
+// Le etichette restano. È la differenza che conta rispetto a Instagram, che
+// usa solo icone: là le quattro destinazioni le conosce chiunque, qui
+// "Attività" non si indovina da una campanella, e su un'app che nessuno ha
+// mai usato togliere le parole costa più di quanto renda. Restano solo più
+// piccole e più strette.
+const TAB_BAR_HEIGHT = 64;
+// Quanto la pillola sta staccata dal bordo inferiore (oltre alla safe area).
+const TAB_BAR_LIFT = 12;
+const TAB_BAR_SIDE_MARGIN = 14;
 
 // Il tab centrale "Vendi" non apre una pagina propria: è una scorciatoia
 // verso la creazione annuncio (l'azione che fa vivere il marketplace, oggi
@@ -41,7 +55,7 @@ function VendiButton() {
       accessibilityLabel={t("tabs.sell", "Vendi")}
     >
       <View style={styles.vendiDisc}>
-        <Ionicons name="add" size={30} color={theme.colors.accentOn} />
+        <Ionicons name="add" size={24} color={theme.colors.accentOn} />
       </View>
       <Text style={styles.vendiLabel}>{t("tabs.sell", "Vendi")}</Text>
     </TouchableOpacity>
@@ -50,6 +64,12 @@ function VendiButton() {
 
 function MainTabsInner() {
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
+  // Con la barra flottante (position: absolute) il contenuto le passa SOTTO:
+  // senza questo spazio in fondo, l'ultimo annuncio di ogni lista finirebbe
+  // coperto dalla pillola. sceneStyle lo applica a tutte le schermate dei
+  // tab in un colpo solo, invece di doverlo ripetere in ognuna.
+  const bottomClearance = TAB_BAR_HEIGHT + TAB_BAR_LIFT + insets.bottom;
   const { summary, toDoCount, resolvedCount, unreadChatCount } = useActivity();
   // Numeretto rosso = cose da fare + esiti non ancora visti delle proprie
   // proposte (accettata/rifiutata) + messaggi chat non letti: tutto ciò che
@@ -69,8 +89,28 @@ function MainTabsInner() {
           headerTintColor: theme.colors.boardingText,
           tabBarActiveTintColor: theme.colors.boardingText,
           tabBarInactiveTintColor: theme.colors.textMuted,
-          tabBarStyle: { height: TAB_BAR_HEIGHT, paddingTop: 4, borderTopColor: theme.colors.border },
-          tabBarLabelStyle: { paddingBottom: 6, fontWeight: "700" },
+          sceneStyle: { paddingBottom: bottomClearance },
+          tabBarStyle: {
+            position: "absolute",
+            left: TAB_BAR_SIDE_MARGIN,
+            right: TAB_BAR_SIDE_MARGIN,
+            bottom: insets.bottom + TAB_BAR_LIFT,
+            height: TAB_BAR_HEIGHT,
+            paddingTop: 6,
+            paddingBottom: 0,
+            borderRadius: TAB_BAR_HEIGHT / 2,
+            backgroundColor: theme.colors.surface,
+            // La pillola galleggia: niente linea di separazione in cima (non
+            // c'è più niente da separare) e ombra al posto del bordo.
+            borderTopWidth: 0,
+            elevation: 12,
+            shadowColor: "#0F172A",
+            shadowOpacity: 0.14,
+            shadowRadius: 20,
+            shadowOffset: { width: 0, height: 8 },
+          },
+          tabBarItemStyle: { paddingVertical: 0 },
+          tabBarLabelStyle: { fontSize: 10, fontWeight: "700", marginTop: -2 },
         }}
       >
         <Tab.Screen
@@ -99,7 +139,7 @@ function MainTabsInner() {
             // Navigator (boardingText/textMuted).
             tabBarLabel: ({ color, focused }) => (
               <Text style={{
-                fontSize: 11, fontWeight: "700", paddingBottom: 6,
+                fontSize: 10, fontWeight: "700", marginTop: -2,
                 color: hasChainToDo ? theme.colors.accent : color,
               }}>
                 {t("tabs.activity", "Attività")}
@@ -145,12 +185,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "flex-start",
-    paddingTop: 4,
+    paddingTop: 2,
   },
   vendiDisc: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: theme.colors.accent,
     alignItems: "center",
     justifyContent: "center",
@@ -160,8 +200,8 @@ const styles = StyleSheet.create({
     }),
   },
   vendiLabel: {
-    marginTop: 3,
-    fontSize: 11,
+    marginTop: 2,
+    fontSize: 10,
     fontWeight: "800",
     color: theme.colors.boardingText,
   },

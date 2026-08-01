@@ -158,6 +158,11 @@ cosa l'app filtra per l'utente.
       **futura**: la RPC deve rifiutare, e l'errore deve arrivare a schermo
       (non un bottone che sembra non fare nulla).
 
+  > Nota: la logica di queste RPC non è coperta da test automatici — i test
+  > lato client sostituiscono Supabase con un mock e non eseguono SQL. Un
+  > errore sfuggito così (`column reference "offer_id" is ambiguous`, corretto
+  > in `20260801160000`) si vede solo eseguendo davvero questi passi.
+
 ---
 
 ## Parte 5 — Valutazione
