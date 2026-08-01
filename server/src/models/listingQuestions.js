@@ -115,3 +115,68 @@ export async function notifyQuestionAnswered(questionId) {
     console.error('[listingQuestions answered notify]', e?.message || e);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Fatti sull'annuncio ricavati dalle risposte pubbliche del venditore.
+//
+// Le domande a risposta chiusa sono l'UNICO posto in cui certe informazioni
+// esistono: la classe del biglietto non ha mai una colonna valorizzata (il
+// form non la chiede), e l'operatore ce l'ha solo quando l'AI è riuscita a
+// dedurlo. Il catalogo lo dice già a modo suo — `showWhen` mostra la domanda
+// esattamente quando la colonna è vuota — quindi colonna e risposta sono due
+// facce dello stesso dato e non entrano mai in conflitto.
+//
+// Servono all'analisi prezzo: classe e operatore cambiano parecchio il prezzo
+// di mercato di una stessa tratta, e finora quel calcolo li ignorava anche
+// quando il venditore li aveva dichiarati.
+// ---------------------------------------------------------------------------
+
+/** Domande le cui risposte pesano sul prezzo di mercato. */
+export const PRICE_RELEVANT_QUESTION_CODES = ['operator', 'ticket_class'];
+
+// "unknown" e "other" sono risposte oneste ma non informative per un prezzo:
+// non identificano né l'operatore né la fascia, quindi si scartano invece di
+// mandare al modello un'etichetta che non gli dice nulla.
+const FACT_LABELS = {
+  operator: {
+    trenitalia: 'Trenitalia',
+    italo: 'Italo',
+  },
+  ticket_class: {
+    first: 'prima classe',
+    second: 'seconda classe',
+    business: 'business',
+    standard: 'standard',
+  },
+};
+
+/**
+ * Estrae i fatti utili al prezzo dalle righe di listing_questions.
+ * Funzione PURA: riceve le righe già lette, non tocca il database.
+ *
+ * Più compratori possono aver fatto la stessa domanda (il vincolo di unicità
+ * è per (annuncio, chi chiede, codice), non per codice): vince la risposta
+ * più recente, che è quella che il venditore considera valida oggi.
+ *
+ * @param {Array<{code:string, answer:string|null, answered_at:string|null}>} rows
+ * @returns {{operator?: string, ticketClass?: string}}
+ */
+export function extractPriceFactsFromAnswers(rows) {
+  const best = new Map(); // code -> { answer, at }
+  for (const r of rows || []) {
+    const code = String(r?.code || '');
+    if (!PRICE_RELEVANT_QUESTION_CODES.includes(code)) continue;
+    if (!r?.answered_at || !r?.answer) continue;
+    const label = FACT_LABELS[code]?.[String(r.answer).toLowerCase()];
+    if (!label) continue; // 'unknown'/'other': nessuna informazione di prezzo
+    const at = new Date(r.answered_at).getTime();
+    if (!Number.isFinite(at)) continue;
+    const prev = best.get(code);
+    if (!prev || at > prev.at) best.set(code, { answer: label, at });
+  }
+
+  const out = {};
+  if (best.has('operator')) out.operator = best.get('operator').answer;
+  if (best.has('ticket_class')) out.ticketClass = best.get('ticket_class').answer;
+  return out;
+}
