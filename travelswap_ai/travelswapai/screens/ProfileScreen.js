@@ -689,7 +689,7 @@ export default function ProfileScreen() {
           // (sceneStyle in MainTabs, necessario da quando la barra galleggia
           // sopra il contenuto): qui resta solo quello per il FAB, altrimenti
           // si sommavano due volte e la lista finiva con un buco enorme.
-          paddingBottom: 24 + 72,
+          paddingBottom: theme.tabBar.fadeHeight + 24 + 72,
           paddingHorizontal: 16,
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -701,8 +701,9 @@ export default function ProfileScreen() {
         onPress={() => navigation.push("CreateListing")}
         style={[
           styles.fabWrap,
-          // Il fondo della schermata è già sopra la barra: bastano pochi px.
-          { bottom: 16 },
+          // Sopra la sfumatura che precede la barra dei tab: restando più in
+          // basso il FAB ci finirebbe dentro e apparirebbe slavato a metà.
+          { bottom: theme.tabBar.fadeHeight + 8 },
         ]}
         accessibilityRole="button"
         accessibilityLabel={t("profile.publishListing", "Pubblica annuncio")}
