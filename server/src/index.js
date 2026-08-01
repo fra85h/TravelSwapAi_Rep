@@ -29,6 +29,7 @@ import { looksLikeLinkCode, tryLinkFromMessage, getLinkedUserId } from './models
 import { parseLocalizedNumber } from './util/number.js';
 import { fbLinkRouter } from './routes/fbLink.js';
 import { mountParseDescriptionRoute } from './ai/descriptionParse.js';
+import { mountParseSearchRoute } from './ai/searchParse.js';
 import { translateListingsRouter } from "./routes/translateListings.js";
 import { priceCheckRouter } from "./routes/priceCheck.js";
 import { reportsNotifyRouter } from './routes/reportsNotify.js';
@@ -36,7 +37,7 @@ import { reportActionsRouter } from './routes/reportActions.js';
 import { notifyRouter } from './routes/notify.js';
 import { disputesRouter } from './routes/disputes.js';
 import { requireAuth } from './middleware/requireAuth.js';
-import { rateLimitParse } from './middleware/rateLimit.js';
+import { rateLimitParse, rateLimitSearch } from './middleware/rateLimit.js';
 
 const app = express();
 
@@ -133,6 +134,7 @@ app.use('/', translateListingsRouter);
 app.use('/', priceCheckRouter);
 
 mountParseDescriptionRoute(app, [requireAuth, rateLimitParse]);
+mountParseSearchRoute(app, [requireAuth, rateLimitSearch]);
 
 // ========== Helpers Messenger (TTL + riepilogo) ==========
 const SESSION_TTL_HOURS = 24;

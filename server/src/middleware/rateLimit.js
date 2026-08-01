@@ -61,6 +61,13 @@ export const rateLimitTranslate = makeRateLimiter({ windowMs: 10 * 60 * 1000, ma
 // Limite parsing descrizioni: 20 ogni 10 minuti per utente
 export const rateLimitParse = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'analisi del testo' });
 
+// Ricerca in linguaggio naturale: si scatta solo all'invio (non a ogni
+// tasto), ma è il gesto più ripetuto dell'app — chi affina la ricerca ne
+// fa parecchie di fila. Tetto più alto degli altri endpoint AI, e comunque
+// una ricerca fallita non blocca nulla: il client ricade sul filtro
+// testuale locale.
+export const rateLimitSearch = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 40, name: 'ricerche' });
+
 // Limite analisi prezzo: 20 ogni 10 minuti per utente
 export const rateLimitPriceCheck = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'analisi prezzo' });
 

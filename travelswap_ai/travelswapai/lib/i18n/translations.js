@@ -173,6 +173,8 @@ export const translations = {
     esplora: {
       title: "Esplora",
       searchPlaceholder: "Cerca tratta o città…",
+      searchPlaceholderAi: "Es. treno Roma-Milano venerdì sotto 40€",
+      clearFilters: "Azzera",
       forYouTitle: "Per te",
       forYouInfoTitle: "Suggeriti per te",
       forYouInfoMsg: "Annunci scelti dall'AI in base a ciò che cerchi e pubblichi. Il match indica quanto un annuncio è in linea con te: più è alto, meglio è. È una cosa diversa dall'affidabilità, che invece indica quanto un annuncio è verificato.",
@@ -1444,6 +1446,8 @@ export const translations = {
     esplora: {
       title: "Explore",
       searchPlaceholder: "Search route or city…",
+      searchPlaceholderAi: "e.g. train Rome-Milan Friday under 40€",
+      clearFilters: "Clear",
       forYouTitle: "For you",
       forYouInfoTitle: "Suggested for you",
       forYouInfoMsg: "Listings picked by the AI based on what you search for and publish. The match shows how well a listing fits you: the higher, the better. It's different from reliability, which shows how verified a listing is.",
@@ -2563,6 +2567,8 @@ export const translations = {
     esplora: {
       title: "Explorar",
       searchPlaceholder: "Busca ruta o ciudad…",
+      searchPlaceholderAi: "Ej. tren Roma-Milán viernes por debajo de 40€",
+      clearFilters: "Borrar",
       forYouTitle: "Para ti",
       forYouInfoTitle: "Sugeridos para ti",
       forYouInfoMsg: "Anuncios elegidos por la IA según lo que buscas y publicas. El match indica cuánto encaja un anuncio contigo: cuanto más alto, mejor. Es distinto de la fiabilidad, que indica cuánto está verificado un anuncio.",

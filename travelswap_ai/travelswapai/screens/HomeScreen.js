@@ -15,6 +15,7 @@ import SaveButton from "../components/SaveButton";
 import { Ionicons } from "@expo/vector-icons";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { formatMoney } from "../lib/number";
+import { parseSearchQueryAI, hasAnyFilter } from "../lib/searchParser";
 
 function SkeletonCard() {
   return (
@@ -126,6 +127,11 @@ export default function HomeScreen() {
   const [tab, setTab] = useState("all"); // "all" | "hotel" | "train"
   const [me, setMe] = useState(null);
   const [query, setQuery] = useState("");
+  // Ricerca in linguaggio naturale: l'interpretazione dell'AI (tratta, date,
+  // prezzo…) applicata SOPRA al filtro testuale. null = nessuna ricerca AI
+  // in corso, si comporta esattamente come prima.
+  const [aiFilters, setAiFilters] = useState(null);
+  const [aiSearching, setAiSearching] = useState(false);
   const [picks, setPicks] = useState([]);
   // Punteggio AI per listingId, per l'intero catalogo (non solo i 6 top
   // pick): usato per riordinare "Altri annunci" mettendo in cima ciò che
@@ -295,10 +301,82 @@ export default function HomeScreen() {
     });
   }, [navigation, t, locale, unreadCount]);
 
+  // Ricerca in linguaggio naturale: parte SOLO all'invio, non a ogni tasto
+  // (una chiamata AI per carattere sarebbe lenta e inutilmente costosa).
+  // Mentre si scrive resta attivo il filtro testuale istantaneo di sempre.
+  const runAiSearch = useCallback(async () => {
+    const q = String(query || "").trim();
+    if (q.length < 3) { setAiFilters(null); return; }
+    setAiSearching(true);
+    try {
+      const filters = await parseSearchQueryAI(q, locale);
+      // Nessun filtro riconosciuto (es. si è cercato solo "Roma"): non si
+      // sovrappone nulla, il filtro testuale da solo fa già il suo lavoro.
+      setAiFilters(hasAnyFilter(filters) ? filters : null);
+      // Il tipo capito dalla frase muove la tab, così i due controlli non si
+      // contraddicono a vicenda (cercare "treni" con la tab Hotel attiva
+      // darebbe zero risultati senza spiegazione).
+      if (filters?.type === "train" || filters?.type === "hotel") setTab(filters.type);
+    } catch {
+      // Degradazione voluta: se l'AI non risponde la ricerca NON si rompe,
+      // resta quella testuale. Nessun alert: sarebbe rumore su un gesto che
+      // un risultato lo dà comunque.
+      setAiFilters(null);
+    } finally {
+      setAiSearching(false);
+    }
+  }, [query, locale]);
+
+  const clearSearch = useCallback(() => {
+    setQuery("");
+    setAiFilters(null);
+  }, []);
+
   const filtered = useMemo(() => {
     const q = normSearch(query);
+    const f = aiFilters;
+
+    // I filtri capiti dall'AI si applicano SOPRA a quello testuale. Ogni
+    // campo è opzionale: quelli non riconosciuti non restringono nulla.
+    const matchesAi = (x) => {
+      if (!f) return true;
+      if (f.type && String(x.type || "").toLowerCase() !== f.type) return false;
+
+      const inField = (needle, ...fields) => {
+        const n = normSearch(needle);
+        if (!n) return true;
+        return fields.map(normSearch).some((v) => v && (v.includes(n) || n.includes(v)));
+      };
+      // La tratta si accetta anche invertita: chi cerca "Roma-Milano" di
+      // solito considera utile anche il Milano-Roma dello stesso giorno.
+      if (f.origin && !inField(f.origin, x.route_from, x.route_to, x.location)) return false;
+      if (f.destination && !inField(f.destination, x.route_to, x.route_from, x.location)) return false;
+      if (f.location && !inField(f.location, x.location, x.route_from, x.route_to)) return false;
+
+      const price = Number(x.price);
+      if (f.maxPrice != null && Number.isFinite(price) && price > f.maxPrice) return false;
+      if (f.minPrice != null && Number.isFinite(price) && price < f.minPrice) return false;
+
+      // Data dell'annuncio: partenza per i treni, check-in per gli hotel.
+      // Confronto sui soli 10 caratteri YYYY-MM-DD, così l'orario e il fuso
+      // non spostano un annuncio fuori dall'intervallo per pochi minuti.
+      if (f.dateFrom || f.dateTo) {
+        const raw = x.depart_at || x.check_in;
+        const day = raw ? String(raw).slice(0, 10) : null;
+        if (!day) return false;
+        if (f.dateFrom && day < f.dateFrom) return false;
+        if (f.dateTo && day > f.dateTo) return false;
+      }
+      return true;
+    };
+
     const base = items.filter((x) => {
       if (tab !== "all" && String(x.type || "").toLowerCase() !== tab.toLowerCase()) return false;
+      if (!matchesAi(x)) return false;
+      // Con un'interpretazione AI attiva il testo grezzo non filtra più:
+      // "treno Roma-Milano venerdì sotto 40€" non compare come tale in
+      // nessun campo, e cercarlo alla lettera azzererebbe i risultati.
+      if (f) return true;
       if (!q) return true;
       const hay = [x.title, x.location, x.route_from, x.route_to]
         .map(normSearch)
@@ -328,7 +406,7 @@ export default function HomeScreen() {
       if (sa !== sb) return sb - sa;
       return Number(matchesPrefLoc(b)) - Number(matchesPrefLoc(a));
     });
-  }, [items, tab, query, prefs, scoreMap]);
+  }, [items, tab, query, aiFilters, prefs, scoreMap]);
 
   const renderTabs = () => (
     <View style={styles.tabs}>
@@ -648,15 +726,24 @@ export default function HomeScreen() {
         <TextInput
           style={styles.searchInput}
           value={query}
-          onChangeText={setQuery}
-          placeholder={tt("esplora.searchPlaceholder", "Cerca tratta o città…")}
+          onChangeText={(v) => {
+            setQuery(v);
+            // Cambiando il testo l'interpretazione precedente non vale più:
+            // resterebbero applicati i filtri di una ricerca che non è più
+            // quella scritta a schermo.
+            if (aiFilters) setAiFilters(null);
+          }}
+          onSubmitEditing={runAiSearch}
+          placeholder={tt("esplora.searchPlaceholderAi", "Es. treno Roma-Milano venerdì sotto 40€")}
           placeholderTextColor={theme.colors.textMuted}
           returnKeyType="search"
           autoCorrect={false}
         />
-        {query ? (
+        {aiSearching ? (
+          <ActivityIndicator size="small" color={theme.colors.accent} />
+        ) : query ? (
           <TouchableOpacity
-            onPress={() => setQuery("")}
+            onPress={clearSearch}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel={tt("esplora.clearSearchA11y", "Cancella ricerca")}
@@ -665,6 +752,40 @@ export default function HomeScreen() {
           </TouchableOpacity>
         ) : null}
       </View>
+
+      {/* Cosa ha capito l'AI: senza questo la ricerca è una scatola nera e,
+          quando sbaglia, l'utente non sa perché mancano risultati. */}
+      {aiFilters ? (
+        <View style={styles.aiChipsRow}>
+          {[
+            aiFilters.origin || aiFilters.destination
+              ? [aiFilters.origin, aiFilters.destination].filter(Boolean).join(" → ")
+              : null,
+            aiFilters.location,
+            aiFilters.dateFrom
+              ? (aiFilters.dateTo && aiFilters.dateTo !== aiFilters.dateFrom
+                  ? `${aiFilters.dateFrom} → ${aiFilters.dateTo}`
+                  : aiFilters.dateFrom)
+              : null,
+            aiFilters.maxPrice != null ? `≤ ${aiFilters.maxPrice}€` : null,
+            aiFilters.minPrice != null ? `≥ ${aiFilters.minPrice}€` : null,
+          ]
+            .filter(Boolean)
+            .map((label) => (
+              <View key={label} style={styles.aiChip}>
+                <Text style={styles.aiChipText}>{label}</Text>
+              </View>
+            ))}
+          <TouchableOpacity
+            onPress={clearSearch}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={tt("esplora.clearSearchA11y", "Cancella ricerca")}
+          >
+            <Text style={styles.aiChipClear}>{tt("esplora.clearFilters", "Azzera")}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {renderTabs()}
 
@@ -756,6 +877,25 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   searchInput: { flex: 1, color: theme.colors.text, fontSize: 15, paddingVertical: 0 },
+
+  // Chip "cosa ho capito" della ricerca AI: compaiono solo a ricerca attiva,
+  // quindi a schermo fermo non aggiungono niente.
+  aiChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  aiChip: {
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  aiChipText: { color: theme.colors.accentOn, fontSize: 12, fontWeight: "700" },
+  aiChipClear: { color: theme.colors.textMuted, fontSize: 12, fontWeight: "700" },
 
   perTeWrap: { marginBottom: 16 },
   perTeHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
