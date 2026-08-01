@@ -1077,8 +1077,7 @@ const initialJsonRef = useRef(null);
       setProgress(0);
       logStep(t("createListing.checkAi.logAnalyzingDesc", "Analisi descrizione con AI…"), 25);
 
-      let parsed = null;
-      try { parsed = await parseListingFromTextAI(text, "it"); } catch {}
+      const parsed = await parseListingFromTextAI(text, "it");
 
       // cerco/vendo: AI > euristica locale sul testo
       const cercoFromText = guessCercoVendoFromText(text);
