@@ -1,6 +1,18 @@
 -- ============================================================
 -- TravelSwapAI — Segnalazioni (report annunci/utenti)
--- Da eseguire UNA volta nel SQL Editor del progetto Supabase.
+--
+-- NB: questo file viveva in supabase/reports_setup.sql, FUORI dalla cartella
+-- delle migration. Era stato applicato a mano in produzione e da allora la
+-- tabella esisteva solo lì: il repository non era più in grado di ricostruire
+-- il database, e 20260731100000_report_action_tokens.sql — che referenzia
+-- public.reports — falliva su qualunque installazione nuova. Scoperto al
+-- primo replay completo delle migration su un Postgres vuoto.
+--
+-- Spostato qui con un timestamp precedente a report_action_tokens, così
+-- l'ordine di applicazione è corretto. Il contenuto è invariato ed è stato
+-- confrontato riga per riga con la produzione (colonne, CHECK, chiavi
+-- esterne, indici, policy): riapplicarlo su un database che ha già la tabella
+-- non cambia nulla, perché è tutto IF NOT EXISTS / DROP POLICY IF EXISTS.
 --
 -- Permette a un utente di segnalare un annuncio o un venditore sospetto.
 -- Ogni riga appartiene a UN reporter: policy RLS dirette. Le segnalazioni

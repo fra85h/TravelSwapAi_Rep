@@ -30,14 +30,20 @@ CREATE TABLE IF NOT EXISTS auth.users (
   email_confirmed_at timestamptz
 );
 
+-- nullif PRIMA del cast a json: senza claim impostate current_setting
+-- restituisce la stringa vuota, e ''::json fallisce con "input string ended
+-- unexpectedly" invece di dare semplicemente NULL. Fuori da una richiesta
+-- autenticata auth.uid() deve valere NULL, non esplodere.
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
 LANGUAGE sql STABLE AS $$
-  SELECT nullif(current_setting('request.jwt.claims', true)::json->>'sub', '')::uuid
+  SELECT (nullif(current_setting('request.jwt.claims', true), '')::json->>'sub')::uuid
 $$;
 
 CREATE OR REPLACE FUNCTION auth.role() RETURNS text
 LANGUAGE sql STABLE AS $$
-  SELECT coalesce(nullif(current_setting('request.jwt.claims', true)::json->>'role', ''), 'anon')
+  SELECT coalesce(
+    nullif(current_setting('request.jwt.claims', true), '')::json->>'role',
+    'anon')
 $$;
 
 DO $$
