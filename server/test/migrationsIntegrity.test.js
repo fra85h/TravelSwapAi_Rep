@@ -473,3 +473,80 @@ test('release_all_stale_reservations ed expire_old_offers sono chiamabili solo d
       `manca il GRANT a service_role su ${fn}`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Scadenza delle proposte insieme all'annuncio, e notifica al proponente
+// (20260802180000). Difetto segnalato dall'uso reale: una proposta costruita
+// su un annuncio scaduto restava 'pending' e in "In attesa", e quando moriva
+// nessuno lo diceva a chi l'aveva mandata.
+// ---------------------------------------------------------------------------
+
+test('expire_my_stale_listings scade anche le proposte pendenti, non solo gli annunci', () => {
+  const { file, body } = latestDefinitionOf('expire_my_stale_listings');
+  assert.match(body, /UPDATE\s+public\.offers/i,
+    `${file}: torna a scadere solo gli annunci, lasciando vive le proposte che li usano`);
+  assert.match(body, /status\s*=\s*'pending'/i,
+    `${file}: non filtra più sulle sole proposte pendenti`);
+  // Il fix del fuso orario di 20260722140000 non deve andare perso: è la
+  // regressione tipica di chi riparte da una base vecchia.
+  assert.match(body, /now\(\)\s*AT\s*TIME\s*ZONE\s*'Europe\/Rome'/i,
+    `${file}: perso il fix del fuso orario (CURRENT_DATE al posto di Europe/Rome)`);
+  // 'paused' è reversibile: uccidere le proposte perché si è messo in pausa
+  // un annuncio per un pomeriggio sarebbe un danno, non una pulizia.
+  const inClause = body.match(/status::text\s+IN\s*\(([^)]*)\)/i);
+  assert.ok(inClause, `${file}: manca l'elenco degli stati che fanno morire una proposta`);
+  assert.ok(!/'paused'/i.test(inClause[1]),
+    `${file}: 'paused' è finito fra gli stati terminali — la pausa è reversibile`);
+  assert.ok(!/'reserved'/i.test(inClause[1]),
+    `${file}: 'reserved' è finito fra gli stati terminali — è una trattativa in corso`);
+});
+
+test('notify_on_offer avvisa il proponente anche quando la proposta scade', () => {
+  const { file, body } = latestDefinitionOf('notify_on_offer');
+  assert.match(body, /'offer_expired'/,
+    `${file}: nessuna notifica per le proposte scadute — il proponente resta senza segnale`);
+  assert.match(body, /new\.status::text\s*=\s*'expired'/i,
+    `${file}: il ramo 'expired' non riconosce più il passaggio di stato`);
+  // I rami già esistenti devono sopravvivere alla riscrittura.
+  for (const atteso of ["'accepted'", "'declined'", "'cancelled'", "'offer_received'"]) {
+    assert.ok(body.includes(atteso),
+      `${file}: perso il ramo ${atteso} riscrivendo la funzione da una base vecchia`);
+  }
+});
+
+test('ogni tipo di notifica inserito da notify_on_offer è ammesso dal CHECK di notifications', () => {
+  // Il controllo che vale di più: notify_on_offer è un trigger AFTER, quindi
+  // un tipo non previsto dal vincolo NON produce una notifica mancante — fa
+  // fallire l'intera transazione che l'ha scatenato (accettazione,
+  // rifiuto, scadenza). Un errore da nulla nel diff, un blocco totale in
+  // produzione.
+  const { file, body } = latestDefinitionOf('notify_on_offer');
+
+  // Letterali snake_case presenti nella funzione, meno quelli che non sono
+  // tipi di notifica: 'listing_unavailable' è un valore di cancel_reason,
+  // confrontato per decidere il testo del messaggio.
+  const NON_TIPI = new Set(['listing_unavailable']);
+  const tipi = new Set(
+    [...body.matchAll(/'((?:offer|listing|chain|new)_[a-z_]+)'/g)]
+      .map((m) => m[1])
+      .filter((s) => !NON_TIPI.has(s)),
+  );
+  assert.ok(tipi.size > 0, `${file}: nessun tipo di notifica trovato, il test non sta controllando niente`);
+
+  // Ultimo CHECK definito sui tipi, per ordine di file.
+  let vincolo = null;
+  let vincoloFile = null;
+  for (const f of [...FILES].reverse()) {
+    const sql = fs.readFileSync(path.join(MIGRATIONS, f), 'utf8');
+    const m = sql.match(/ADD\s+CONSTRAINT\s+notifications_type_check\s+CHECK\s*\(\s*type\s+IN\s*\(([\s\S]*?)\)\s*\)/i);
+    if (m) { vincolo = m[1]; vincoloFile = f; break; }
+  }
+  assert.ok(vincolo, 'nessun vincolo notifications_type_check trovato nelle migration');
+  const ammessi = new Set([...vincolo.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
+
+  for (const tipo of tipi) {
+    assert.ok(ammessi.has(tipo),
+      `${file} inserisce notifiche di tipo '${tipo}', ma ${vincoloFile} non lo ammette: `
+      + `il CHECK farebbe fallire la transazione che scatena il trigger`);
+  }
+});
