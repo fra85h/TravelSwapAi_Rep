@@ -1,16 +1,16 @@
 
 import React, { useState } from "react";
 import { View, Text, Alert } from "react-native";
-import * as Linking from "expo-linking";
 import { theme } from "../lib/theme";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase";
+import { makeAuthRedirectUrl } from "../lib/authLinks";
 import { useI18n } from "../lib/i18n";
 
-const makeRedirectUrl = () => {
-  return Linking.createURL("/auth/reset", { scheme: "travelswap" });
-};
+// Sul web NON si può usare Linking.createURL: produce "https:///auth/reset",
+// senza host, che Supabase scarta ripiegando sul Site URL. Vedi authLinks.js.
+const makeRedirectUrl = () => makeAuthRedirectUrl("/auth/reset");
 
 export default function ForgotPasswordScreen({ navigation }) {
   const { t } = useI18n();
