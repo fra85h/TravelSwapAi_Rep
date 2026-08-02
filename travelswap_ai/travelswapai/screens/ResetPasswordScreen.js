@@ -9,6 +9,7 @@ import { theme } from "../lib/theme";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase";
+import { parseAuthParams } from "../lib/authLinks";
 import { useI18n } from "../lib/i18n";
 
 export default function ResetPasswordScreen({ navigation }) {
@@ -32,12 +33,15 @@ export default function ResetPasswordScreen({ navigation }) {
     // ?code=: il ramo PKCE qui sotto resta comunque come fallback
     // difensivo, stesso doppio binario già usato in
     // LoginScreen.handleOAuthCallback.
+    //
+    // I parametri si leggono con parseAuthParams e NON con Linking.parse,
+    // che non espone affatto il frammento: vedi la nota in lib/authLinks.js.
     const applySessionFromUrl = async (url) => {
       if (!url || doneRef.current) return false;
       if (__DEV__) console.log("[ResetPassword] raw url:", url);
-      const parsed = Linking.parse(url);
+      const params = parseAuthParams(url);
 
-      const code = parsed?.queryParams?.code;
+      const code = params.code;
       if (code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
@@ -47,23 +51,28 @@ export default function ResetPasswordScreen({ navigation }) {
         return !!data?.session;
       }
 
-      if (typeof parsed?.fragment === "string" && parsed.fragment) {
-        const params = new URLSearchParams(parsed.fragment);
-        const accessToken = params.get("access_token");
-        const refreshToken = params.get("refresh_token");
-        if (accessToken) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (error) {
-            console.error("[ResetPassword] setSession error:", error.message || String(error));
-            return false;
-          }
-          return !!data?.session;
+      const accessToken = params.access_token;
+      if (accessToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: params.refresh_token || null,
+        });
+        if (error) {
+          console.error("[ResetPassword] setSession error:", error.message || String(error));
+          return false;
         }
+        return !!data?.session;
       }
 
+      // Link scaduto o già usato: Supabase rimanda qui con l'errore nel
+      // frammento invece che con i token. Non è un caso da ritentare —
+      // l'attesa di 3 secondi qui sotto non lo farebbe comparire.
+      if (params.error || params.error_code) {
+        console.warn(
+          "[ResetPassword] link rifiutato da Supabase:",
+          params.error_code || params.error,
+        );
+      }
       return false;
     };
 
@@ -95,10 +104,9 @@ export default function ResetPasswordScreen({ navigation }) {
       typeof window !== "undefined" && window.location ? window.location.href : null;
 
     if (typeof window !== "undefined" && window.history?.replaceState) {
-      // Non si torna alla radice: quella non serve l'applicazione (il bundle
-      // vive sotto /app) e un ricaricamento finirebbe su una pagina che non
-      // esiste. Si toglie solo la parte /auth/reset, che è ciò che causava il
-      // rimbalzo qui dopo un logout.
+      // Si toglie solo la parte /auth/reset, che è ciò che causava il
+      // rimbalzo qui dopo un logout. Sulla radice ci si può atterrare senza
+      // problemi: il server la reindirizza a /app (server/src/index.js).
       const base = window.location.pathname.replace(/\/auth\/reset.*$/, "") || "/";
       window.history.replaceState(null, "", base);
     }

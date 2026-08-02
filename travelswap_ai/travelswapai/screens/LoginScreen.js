@@ -9,6 +9,7 @@ import { theme } from "../lib/theme";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase.js"; // <-- usa il client unico
+import { parseAuthParams } from "../lib/authLinks";
 import { useI18n } from "../lib/i18n";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -22,7 +23,9 @@ const REDIRECT_TO = "https://auth.expo.io/@fra85h/travelswap";
 async function handleOAuthCallback(returnUrl) {
   // returnUrl contiene il code PKCE: lo logghiamo solo in dev
   if (__DEV__) console.log("[OAuth] callback url =", returnUrl);
-  const parsed = Linking.parse(returnUrl);
+  // parseAuthParams e non Linking.parse: quest'ultimo ignora il frammento,
+  // dove finiscono i token del flusso implicito (vedi lib/authLinks.js).
+  const params = parseAuthParams(returnUrl);
 
   // A) PKCE: ?code=...
   // exchangeCodeForSession(authCode: string) vuole il codice come stringa
@@ -30,7 +33,7 @@ async function handleOAuthCallback(returnUrl) {
   // corrompe il body della richiesta al server (auth_code diventa l'intero
   // oggetto serializzato, non il codice), facendo fallire lo scambio ogni
   // volta — login Google/Facebook di fatto mai completabile.
-  const code = parsed?.queryParams?.code;
+  const code = params.code;
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
@@ -41,19 +44,17 @@ async function handleOAuthCallback(returnUrl) {
   }
 
   // B) Implicit fallback: #access_token=...
-  if (typeof parsed?.fragment === "string") {
-    const token = new URLSearchParams(parsed.fragment).get("access_token");
-    if (token) {
-      const { error } = await supabase.auth.setSession({
-        access_token: token,
-        refresh_token: null,
-      });
-      if (error) {
-        console.error("[OAuth] setSession error", error);
-        throw error;
-      }
-      return;
+  const token = params.access_token;
+  if (token) {
+    const { error } = await supabase.auth.setSession({
+      access_token: token,
+      refresh_token: params.refresh_token || null,
+    });
+    if (error) {
+      console.error("[OAuth] setSession error", error);
+      throw error;
     }
+    return;
   }
 
   throw new Error("Né code né access_token nel redirect.");
