@@ -35,6 +35,7 @@ import { stripPriceFromTitle } from "../lib/listingTitle";
 import { formatMoney } from "../lib/number";
 import { STATUS_COLORS, normStatusKey, isConcludedStatus } from "../lib/listingStatus";
 import { LEGAL_URLS } from "../lib/legal";
+import { deleteMyAccount, getDeletionBlockers } from "../lib/account";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
@@ -157,6 +158,73 @@ export default function ProfileScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try { await loadMine(); } finally { setRefreshing(false); }
+  };
+
+  // Cancellazione account. Doppia conferma di proposito: è irreversibile, e
+  // il secondo passaggio elenca cosa sparisce e cosa resta invece di
+  // limitarsi a "sei sicuro?" — che non aiuta nessuno a decidere.
+  const [deleting, setDeleting] = useState(false);
+
+  const doDeleteAccount = async () => {
+    try {
+      setDeleting(true);
+      await deleteMyAccount();
+      // La sessione non è più valida: si esce comunque, anche se il logout
+      // fallisse, perché restare dentro con un account chiuso non ha senso.
+      try { await supabase.auth.signOut(); } catch {}
+      Alert.alert(
+        t("profile.deleteDoneTitle", "Account eliminato"),
+        t("profile.deleteDoneMsg", "I tuoi dati personali sono stati rimossi. Grazie per aver provato TravelSwapAI.")
+      );
+    } catch (e) {
+      if (e?.code === "in_progress") {
+        Alert.alert(
+          t("profile.deleteBlockedTitle", "Hai uno scambio in corso"),
+          t("profile.deleteBlockedMsg", "Concludi o annulla le transazioni ancora aperte prima di eliminare l'account: sparire adesso lascerebbe l'altra persona senza nessuno con cui chiudere.")
+        );
+      } else if (e?.code === "auth_close_failed") {
+        Alert.alert(
+          t("common.error", "Errore"),
+          t("profile.deletePartialMsg", "I tuoi dati sono stati rimossi, ma non sono riuscito a chiudere l'accesso. Scrivici e completiamo noi: l'account non è più utilizzabile.")
+        );
+      } else {
+        Alert.alert(t("common.error", "Errore"), t("profile.deleteError", "Non sono riuscito a eliminare l'account. Riprova."));
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    // Si guarda PRIMA se c'è un ostacolo, così l'utente non arriva in fondo a
+    // due conferme per prendersi un rifiuto.
+    const blk = await getDeletionBlockers();
+    if (blk && (blk.openOffers > 0 || blk.openChains > 0)) {
+      Alert.alert(
+        t("profile.deleteBlockedTitle", "Hai uno scambio in corso"),
+        t("profile.deleteBlockedMsg", "Concludi o annulla le transazioni ancora aperte prima di eliminare l'account: sparire adesso lascerebbe l'altra persona senza nessuno con cui chiudere.")
+      );
+      return;
+    }
+    Alert.alert(
+      t("profile.deleteTitle", "Eliminare l'account?"),
+      t("profile.deleteMsg", "Spariscono i tuoi dati personali, gli annunci non ancora trattati, i preferiti e le ricerche salvate. Restano, senza il tuo nome, le transazioni già concluse e le valutazioni che hai dato e ricevuto: riguardano anche le persone con cui hai scambiato. L'operazione non è reversibile."),
+      [
+        { text: t("common.cancel", "Annulla"), style: "cancel" },
+        {
+          text: t("profile.deleteConfirm", "Elimina definitivamente"),
+          style: "destructive",
+          onPress: () => Alert.alert(
+            t("profile.deleteSureTitle", "Confermi?"),
+            t("profile.deleteSureMsg", "Ultimo passaggio: dopo non si torna indietro."),
+            [
+              { text: t("common.cancel", "Annulla"), style: "cancel" },
+              { text: t("profile.deleteConfirmShort", "Elimina"), style: "destructive", onPress: doDeleteAccount },
+            ]
+          ),
+        },
+      ]
+    );
   };
 
   const onEdit = (item) => navigation.push("CreateListing",{ mode: "edit", listingId: item.id });
@@ -565,6 +633,19 @@ export default function ProfileScreen() {
             {t("profile.logout", "Esci")}
           </Text>
         </TouchableOpacity>
+        <View style={styles.menuSep} />
+        <TouchableOpacity
+          style={[styles.menuRow, deleting && { opacity: 0.5 }]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+          accessibilityRole="button"
+          accessibilityLabel={t("profile.deleteAccount", "Elimina account")}
+        >
+          <Ionicons name="trash-outline" size={20} color={theme.colors.danger} style={styles.menuIcon} />
+          <Text style={[styles.menuLabel, { color: theme.colors.danger }]}>
+            {deleting ? "…" : t("profile.deleteAccount", "Elimina account")}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Sezione annunci */}
@@ -880,6 +961,7 @@ const styles = StyleSheet.create({
 
   skel: { backgroundColor: theme.colors.border },
 
+  menuSep: { height: 1, backgroundColor: theme.colors.border, marginHorizontal: 14 },
   legalRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 8 },
   legalLink: { color: theme.colors.textMuted, fontSize: 12, textDecorationLine: "underline" },
   legalSep: { color: theme.colors.textMuted, fontSize: 12 },

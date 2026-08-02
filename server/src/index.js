@@ -35,6 +35,7 @@ import { priceCheckRouter } from "./routes/priceCheck.js";
 import { reportsNotifyRouter } from './routes/reportsNotify.js';
 import { reportActionsRouter } from './routes/reportActions.js';
 import { notifyRouter } from './routes/notify.js';
+import { accountRouter } from './routes/account.js';
 import { disputesRouter } from './routes/disputes.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { rateLimitParse, rateLimitSearch } from './middleware/rateLimit.js';
@@ -110,6 +111,7 @@ app.use('/api/reports', reportsNotifyRouter);
 app.use('/api/report-actions', reportActionsRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/disputes', disputesRouter);
+app.use('/api/account', accountRouter);
 
 // --- Versione web dell'app (build Expo committata in server/public/app) ---
 // Permette di provare l'app da qualsiasi browser senza installare nulla
