@@ -124,6 +124,13 @@ export const rateLimitPings = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 2
 // qualcuno le sparpagli su decine di annunci diversi in pochi minuti.
 export const rateLimitQuestions = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'domande' });
 
+// Segnalazioni di errore dal client: nessun login (un crash capita anche a
+// chi non è autenticato), quindi il bucket è per IP. Il tetto è la difesa
+// da un'app rotta in ciclo o da chi provasse a usare l'endpoint per
+// riempire la quota di Sentry; il client si autolimita già a 10 per
+// sessione, questo è il freno che non dipende dal client.
+export const rateLimitClientErrors = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 20, name: 'segnalazioni di errore' });
+
 // Risoluzione dispute: protetto da requireAdminSecret (nessun concetto di
 // ruolo admin nel DB), azione manuale rara — il tetto è solo un backstop,
 // non ci si aspetta mai di avvicinarcisi in uso normale.

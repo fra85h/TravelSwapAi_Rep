@@ -137,8 +137,21 @@ export default function OfferDetailScreen() {
   const onAccept = async (id) => {
     try {
       setBusyId(id);
-      await acceptOffer(id);
+      const res = await acceptOffer(id);
       await load();
+      // accept_offer_any può NON accettare pur senza errore: proposta già
+      // scaduta, viaggio ormai passato, o uno dei due annunci non più
+      // attivo — in quei casi ritorna l'offerta con lo stato reale. Il
+      // controllo c'era solo in Attività: qui si annunciava "Proposta
+      // accettata" anche quando non era stato accettato niente, e le due
+      // schermate raccontavano cose diverse della stessa azione.
+      if (String(res?.status || "").toLowerCase() !== "accepted") {
+        Alert.alert(
+          t("offers.acceptFailedTitle", "Non è stato possibile accettare"),
+          t("offers.acceptFailedMsg", "La proposta non è più valida: potrebbe essere scaduta o il viaggio è già passato.")
+        );
+        return;
+      }
       Alert.alert(t("common.ok", "OK"), t("offers.accepted", "Proposta accettata"));
     } catch (e) {
       Alert.alert(t("common.error", "Errore"), e.message || String(e));
