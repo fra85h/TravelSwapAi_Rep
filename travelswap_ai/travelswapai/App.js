@@ -1,5 +1,6 @@
 import './lib/polyfills';
 import './lib/webAlert';
+import { initMonitoring, captureError } from './lib/monitoring';
 import * as Linking from 'expo-linking';
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -55,6 +56,10 @@ class ErrorBoundary extends React.Component {
   state = { error: null };
   componentDidCatch(error, info) {
     console.error("[ErrorBoundary]", error, info);
+    // Il console.error resta per lo sviluppo, ma da solo non serve a
+    // niente: finisce nella console del telefono di chi ha subito il
+    // crash, e quella persona non ce lo racconta — se ne va.
+    captureError(error, { componentStack: info?.componentStack });
     this.setState({ error });
   }
   render() {
@@ -246,6 +251,12 @@ function RootNavigator() {
 
 export default function App() {
   if (__DEV__) console.log("[WHOAMI] owner =", Constants.expoConfig?.owner, "slug =", Constants.expoConfig?.slug, "name =", Constants.expoConfig?.name);
+
+  // Tracciamento errori: prima di tutto il resto, così copre anche un
+  // crash durante il caricamento dei font. Non si attende il risultato —
+  // l'app non deve mai restare ferma per colpa dello strumento che serve
+  // solo a raccontarci come è andata.
+  useEffect(() => { initMonitoring(); }, []);
 
   // Font dei titoli (Plus Jakarta Sans): caricato una volta all'avvio,
   // il testo di sistema resta invariato per tutto il resto dell'app.

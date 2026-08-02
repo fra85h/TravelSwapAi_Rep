@@ -1,4 +1,7 @@
 // server/src/index.js
+// PRIMO import, e deve restare tale: inizializza il tracciamento errori
+// prima che qualunque altro modulo venga valutato (vedi src/instrument.js).
+import './instrument.js';
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
@@ -37,8 +40,11 @@ import { reportActionsRouter } from './routes/reportActions.js';
 import { notifyRouter } from './routes/notify.js';
 import { accountRouter } from './routes/account.js';
 import { disputesRouter } from './routes/disputes.js';
+import { clientErrorsRouter } from './routes/clientErrors.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { rateLimitParse, rateLimitSearch } from './middleware/rateLimit.js';
+import { Sentry } from './instrument.js';
+import { captureError } from './lib/monitoring.js';
 
 const app = express();
 
@@ -112,6 +118,7 @@ app.use('/api/report-actions', reportActionsRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/disputes', disputesRouter);
 app.use('/api/account', accountRouter);
+app.use('/api', clientErrorsRouter);
 
 // --- Versione web dell'app (build Expo committata in server/public/app) ---
 // Permette di provare l'app da qualsiasi browser senza installare nulla
@@ -782,6 +789,27 @@ app.get('*', (req, res, next) => {
   }
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(webAppDir, 'index.html'));
+});
+
+// --- Errori non gestiti ---
+// Dopo tutte le rotte, come vuole express: raccoglie ciò che è arrivato
+// fin qui senza essere gestito. Prima di questo, un errore in un handler
+// diventava una 500 muta — l'utente vedeva un guasto e noi non lo sapevamo.
+Sentry.setupExpressErrorHandler(app);
+
+// La rete di sicurezza finale: un rifiuto di promessa senza catch non passa
+// da express e sfuggirebbe comunque. Non si rilancia e non si esce: il
+// processo serve altri utenti, e farlo morire per un errore isolato
+// trasformerebbe un bug in un disservizio.
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+  captureError(reason instanceof Error ? reason : new Error(String(reason)), {
+    origine: 'unhandledRejection',
+  });
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+  captureError(err, { origine: 'uncaughtException' });
 });
 
 // --- Start ---
