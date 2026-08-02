@@ -10,6 +10,7 @@ import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase";
 import { parseAuthParams } from "../lib/authLinks";
+import { beginPasswordRecovery, endPasswordRecovery } from "../lib/passwordRecovery";
 import { useI18n } from "../lib/i18n";
 
 export default function ResetPasswordScreen({ navigation }) {
@@ -41,11 +42,17 @@ export default function ResetPasswordScreen({ navigation }) {
       if (__DEV__) console.log("[ResetPassword] raw url:", url);
       const params = parseAuthParams(url);
 
+      // PRIMA di stabilire la sessione, non dopo: fra l'arrivo della
+      // sessione e il ri-render di RootNavigator non deve esserci una
+      // finestra in cui l'app ci porta dentro comunque.
       const code = params.code;
+      if (code || params.access_token) beginPasswordRecovery();
+
       if (code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
           console.error("[ResetPassword] exchange error:", error.message || String(error));
+          endPasswordRecovery();
           return false;
         }
         return !!data?.session;
@@ -59,6 +66,7 @@ export default function ResetPasswordScreen({ navigation }) {
         });
         if (error) {
           console.error("[ResetPassword] setSession error:", error.message || String(error));
+          endPasswordRecovery();
           return false;
         }
         return !!data?.session;
@@ -127,10 +135,13 @@ export default function ResetPasswordScreen({ navigation }) {
 
       // Fallback: la sessione di recupero potrebbe già essere presente
       // (es. link aperto una seconda volta) senza un nuovo evento url.
+      // Anche qui va alzato il flag: essere arrivati fin qui con una
+      // sessione in corso significa che la si sta usando per cambiare la
+      // password, non per entrare.
       for (let i = 0; i < 10; i++) {
         if (doneRef.current) { sub.remove(); return; }
         const { data } = await supabase.auth.getSession();
-        if (data.session) { sub.remove(); markReady(); return; }
+        if (data.session) { sub.remove(); beginPasswordRecovery(); markReady(); return; }
         await new Promise((r) => setTimeout(r, 300));
       }
 
@@ -142,6 +153,13 @@ export default function ResetPasswordScreen({ navigation }) {
       alive = false;
     };
   }, [isFocused]);
+
+  // Rete di sicurezza: se si esce da qui in un modo non previsto (indietro
+  // del browser, deep link verso un'altra schermata) il flag va comunque
+  // abbassato, altrimenti l'app resterebbe convinta che nessuno è
+  // autenticato. Effetto separato, con dipendenze vuote: quello sopra si
+  // rilancia al cambio di `isFocused` e lo azzererebbe a metà flusso.
+  useEffect(() => endPasswordRecovery, []);
 
   const save = async () => {
     if (password.length < 6) {
@@ -156,7 +174,12 @@ export default function ResetPasswordScreen({ navigation }) {
       setSaving(true);
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+      // signOut PRIMA di abbassare il flag: invertendo i due passaggi si
+      // resta per un istante con una sessione valida e il reset concluso,
+      // e in quell'istante RootNavigator porta dentro l'app — che è il
+      // comportamento che stiamo correggendo.
       await supabase.auth.signOut();
+      endPasswordRecovery();
       Alert.alert(t("auth.resetDoneTitle", "Password aggiornata"), t("auth.resetDoneMsg", "La tua password è stata aggiornata. Accedi con la nuova password."));
       navigation.reset({ index: 0, routes: [{ name: "Login" }] });
     } catch (err) {
@@ -177,7 +200,10 @@ export default function ResetPasswordScreen({ navigation }) {
         </Text>
         <Button
           title={t("auth.backToLogin", "Torna al login")}
-          onPress={() => navigation.reset({ index: 0, routes: [{ name: "Login" }] })}
+          onPress={() => {
+            endPasswordRecovery();
+            navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+          }}
         />
       </View>
     );

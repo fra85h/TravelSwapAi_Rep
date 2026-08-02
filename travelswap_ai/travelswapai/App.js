@@ -37,6 +37,7 @@ import PreferencesOnboardingScreen from './screens/PreferencesOnboardingScreen';
 import LegalConsentScreen from './screens/LegalConsentScreen';
 import { getTermsAcceptance } from './lib/legal';
 import { AuthProvider, useAuth } from './lib/auth';
+import { usePasswordRecovery } from './lib/passwordRecovery';
 import { NotificationsProvider } from './lib/NotificationsContext';
 import { useNeedsPreferencesOnboarding } from './lib/preferences';
 import { I18nProvider } from './lib/i18n';
@@ -104,7 +105,18 @@ const linking = {
 };
 
 function RootNavigator() {
-  const { session, loading } = useAuth();
+  const { session: authSession, loading } = useAuth();
+
+  // Il link di reset password stabilisce una vera sessione (di recupero):
+  // per Supabase è indistinguibile da un accesso, e senza questa riga
+  // l'utente veniva portato dentro l'app senza aver mai scelto la nuova
+  // password — con la vecchia ancora valida. Finché il reset è in corso la
+  // sessione va ignorata: così il ramo di route resta quello di chi non è
+  // autenticato, la schermata di reset non viene smontata, e i passaggi
+  // intermedi qui sotto (consenso legale, preferenze) non si intromettono.
+  const recoveringPassword = usePasswordRecovery();
+  const session = recoveringPassword ? null : authSession;
+
   const { loading: prefsLoading, needsOnboarding, markDone } = useNeedsPreferencesOnboarding(session);
 
   // Accettazione di termini e privacy: si legge una volta per sessione.
