@@ -59,7 +59,12 @@ AS $$
        FROM public.chain_participants cp
        JOIN public.chain_proposals c ON c.id = cp.chain_id
       WHERE cp.user_id = p_user_id
-        AND lower(c.status::text) NOT IN ('completed', 'failed', 'expired', 'cancelled'));
+        -- I valori ammessi da chain_proposals_status_check sono
+        -- proposed/completed/canceled/expired: 'canceled' con UNA L. Scritto
+        -- con due non avrebbe mai corrisposto, e una catena annullata avrebbe
+        -- bloccato la cancellazione per sempre. Le varianti in più non fanno
+        -- danno e proteggono da un'eventuale rinomina.
+        AND lower(c.status::text) NOT IN ('completed', 'canceled', 'cancelled', 'expired', 'failed'));
 $$;
 
 -- ------------------------------------------------------------
