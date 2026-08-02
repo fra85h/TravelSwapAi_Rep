@@ -19,7 +19,7 @@ export const reportsNotifyRouter = express.Router();
 // link "un click" pausa/elimina nell'email. Non derivato da req.protocol/
 // req.get('host') perché dietro il proxy di Render non è affidabile senza
 // `trust proxy` configurato.
-const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || 'https://travelswapai.onrender.com').replace(/\/+$/, '');
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || 'https://travelswap.app').replace(/\/+$/, '');
 
 const REASON_LABELS = {
   fake: 'Annuncio falso',
