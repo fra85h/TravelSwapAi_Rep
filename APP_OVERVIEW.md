@@ -1,6 +1,6 @@
-# TravelSwapAI — come funziona l'app
+# TravelSwap — come funziona l'app
 
-Guida funzionale per chi **usa** TravelSwapAI: cosa puoi fare, cosa succede a
+Guida funzionale per chi **usa** TravelSwap: cosa puoi fare, cosa succede a
 ogni passaggio, e cosa aspettarti quando qualcosa va storto.
 
 Non è un manuale tecnico. È ricavata dal comportamento reale del codice, non
@@ -11,7 +11,7 @@ sembra promettere, qui è scritto.
 
 ## 1. A cosa serve, e a chi
 
-TravelSwapAI è un mercato tra privati per **biglietti del treno e
+TravelSwap è un mercato tra privati per **biglietti del treno e
 prenotazioni alberghiere che non userai**. Invece di perdere i soldi di un
 viaggio saltato, puoi rivenderlo o scambiarlo con quello di qualcun altro.
 
@@ -429,7 +429,7 @@ frattempo l'annuncio resta fuori dagli elenchi filtrati per affidabilità.
 
 Puoi collegare il tuo account a **Facebook Messenger** dalla schermata
 "Collega Messenger": l'app genera un codice usa-e-getta, tu lo mandi alla
-Pagina TravelSwapAI e il collegamento è fatto.
+Pagina TravelSwap e il collegamento è fatto.
 
 Da lì puoi pubblicare un annuncio conversando col bot, senza aprire l'app.
 

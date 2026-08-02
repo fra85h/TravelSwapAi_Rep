@@ -56,7 +56,7 @@ export default function LegalConsentScreen({ onAccepted }) {
       <ScrollView contentContainerStyle={s.content}>
         <Text style={s.title}>{t("legal.title", "Prima di iniziare")}</Text>
         <Text style={s.intro}>
-          {t("legal.intro", "Tre cose che conviene sapere subito su come funziona TravelSwapAI.")}
+          {t("legal.intro", "Tre cose che conviene sapere subito su come funziona TravelSwap.")}
         </Text>
 
         <Point

@@ -1,5 +1,5 @@
 -- ============================================================
--- TravelSwapAI — Storage per le foto degli annunci
+-- TravelSwap — Storage per le foto degli annunci
 -- Da eseguire UNA volta nel SQL Editor del progetto Supabase.
 -- Crea il bucket pubblico "listing-images" e le policy di accesso.
 -- ============================================================

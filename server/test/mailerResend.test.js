@@ -20,7 +20,7 @@ test('mailer: mailerConfigured riflette solo la presenza di RESEND_API_KEY', asy
 
 test('mailer: sendMail chiama l\'API Resend coi parametri giusti e ritorna true su 200', async () => {
   process.env.RESEND_API_KEY = 'test-key';
-  process.env.RESEND_FROM = 'TravelSwapAI <onboarding@resend.dev>';
+  process.env.RESEND_FROM = 'TravelSwap <onboarding@resend.dev>';
 
   const calls = [];
   const originalFetch = global.fetch;
@@ -42,7 +42,7 @@ test('mailer: sendMail chiama l\'API Resend coi parametri giusti e ritorna true 
     assert.equal(calls[0].opts.headers.Authorization, 'Bearer test-key');
     const body = JSON.parse(calls[0].opts.body);
     assert.deepEqual(body.to, ['dest@example.com']);
-    assert.equal(body.from, 'TravelSwapAI <onboarding@resend.dev>');
+    assert.equal(body.from, 'TravelSwap <onboarding@resend.dev>');
     assert.equal(body.subject, 'Ciao');
     assert.equal(body.text, 'corpo');
   } finally {

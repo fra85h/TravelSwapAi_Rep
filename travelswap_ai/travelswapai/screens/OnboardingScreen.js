@@ -149,7 +149,7 @@ export default function OnboardingScreen() {
         {/* Footer discreto: segnale di proprietà/legittimità al primo contatto.
             Solo brand (il credito completo con versione e autore è in Profilo). */}
         <Text style={styles.copyright}>
-          {t("onboarding.copyright", "© {year} TravelSwapAI", { year: new Date().getFullYear() })}
+          {t("onboarding.copyright", "© {year} TravelSwap", { year: new Date().getFullYear() })}
         </Text>
       </SafeAreaView>
     </View>

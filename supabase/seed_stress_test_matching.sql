@@ -1,5 +1,5 @@
 -- ============================================================
--- TravelSwapAI — Dataset di test per matching a 2 e a 3 (catena) + rumore
+-- TravelSwap — Dataset di test per matching a 2 e a 3 (catena) + rumore
 -- Da eseguire nel SQL Editor del progetto Supabase. NON è una migration
 -- (nessuna modifica di schema): è dato di test, va nella cartella
 -- supabase/ come reports_setup.sql/storage_setup.sql, non in migrations/.

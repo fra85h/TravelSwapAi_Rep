@@ -1,5 +1,5 @@
 -- ============================================================
--- TravelSwapAI — Hardening privacy tabella `profiles`
+-- TravelSwap — Hardening privacy tabella `profiles`
 -- Da eseguire UNA volta nel SQL Editor del progetto Supabase.
 --
 -- PROBLEMA: le policy RLS attuali su `profiles` sono permissive con

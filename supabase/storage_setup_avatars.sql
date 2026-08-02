@@ -1,5 +1,5 @@
 -- ============================================================
--- TravelSwapAI — Storage per la foto profilo utente
+-- TravelSwap — Storage per la foto profilo utente
 -- Da eseguire UNA volta nel SQL Editor del progetto Supabase.
 -- Crea il bucket pubblico "avatars" e le policy di accesso.
 -- Stesso pattern di storage_setup.sql (foto annunci), un bucket dedicato.

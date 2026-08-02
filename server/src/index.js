@@ -639,7 +639,7 @@ if (quickPayload) {
               const outcome = await tryLinkFromMessage(senderId, text);
               if (outcome.linked) {
                 await send(senderId,
-                  "✅ Account collegato! Da ora in poi gli annunci che pubblichi qui finiscono nel tuo profilo TravelSwapAI."
+                  "✅ Account collegato! Da ora in poi gli annunci che pubblichi qui finiscono nel tuo profilo TravelSwap."
                 );
               } else if (outcome.reason === "expired" || outcome.reason === "already_used" || outcome.reason === "not_found") {
                 await send(senderId,

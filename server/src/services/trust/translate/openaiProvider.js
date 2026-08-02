@@ -24,8 +24,15 @@ export function restore(text="", m) {
   return out;
 }
 
+// Rimette in forma i due nomi propri che i traduttori automatici tendono a
+// storpiare (minuscole, spazi, a volte una traduzione letterale).
+// L'"ai" finale è opzionale perché il prodotto si chiamava TravelSwapAI: le
+// traduzioni già in cache e i modelli che hanno visto il nome vecchio lo
+// scrivono ancora così, e vanno riportate al nome attuale.
 export function normalize(s="") {
-  return s.replace(/travelswapai/gi,"TravelSwapAI").replace(/trust\s*score/gi,"TrustScore");
+  return s
+    .replace(/travel\s*swap(\s*ai)?/gi, "TravelSwap")
+    .replace(/trust\s*score/gi, "TrustScore");
 }
 
 export async function openaiTranslate({ text, targetLang, sourceLang="auto" }) {

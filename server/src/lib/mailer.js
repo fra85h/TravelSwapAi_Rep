@@ -14,14 +14,14 @@
 //
 // Variabili d'ambiente richieste (da configurare su Render):
 //   RESEND_API_KEY  chiave API dal pannello Resend (Dashboard → API Keys)
-//   RESEND_FROM     mittente, es. "TravelSwapAI <onboarding@resend.dev>".
+//   RESEND_FROM     mittente, es. "TravelSwap <onboarding@resend.dev>".
 //                   Il dominio di test resend.dev funziona SOLO per
 //                   mandare al proprio indirizzo verificato su Resend —
 //                   per mandare a utenti reali serve un dominio proprio
 //                   verificato su Resend (Dashboard → Domains, richiede
 //                   aggiungere record SPF/DKIM al DNS del dominio).
 const API_KEY = (process.env.RESEND_API_KEY || "").trim();
-const FROM = (process.env.RESEND_FROM || "").trim() || "TravelSwapAI <onboarding@resend.dev>";
+const FROM = (process.env.RESEND_FROM || "").trim() || "TravelSwap <onboarding@resend.dev>";
 
 export function mailerConfigured() {
   return !!API_KEY;

@@ -1,4 +1,4 @@
-# TravelSwapAI — Analisi funzionale (reverse engineering)
+# TravelSwap — Analisi funzionale (reverse engineering)
 
 > Documento ricavato dall'analisi del codice sorgente (app mobile + server).
 > Data analisi: luglio 2026.
@@ -7,7 +7,7 @@
 
 ## 1. Scope e visione del prodotto
 
-**TravelSwapAI è un marketplace peer-to-peer per rivendere o scambiare prenotazioni di viaggio non utilizzate.** Gli asset attualmente supportati sono due:
+**TravelSwap è un marketplace peer-to-peer per rivendere o scambiare prenotazioni di viaggio non utilizzate.** Gli asset attualmente supportati sono due:
 
 - **Biglietti del treno** (tratta, data/ora partenza e arrivo, biglietto nominativo, PNR)
 - **Prenotazioni hotel** (località, check-in, check-out)

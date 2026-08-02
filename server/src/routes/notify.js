@@ -78,11 +78,11 @@ notifyRouter.post('/offer-received', requireAuth, rateLimitNotify, async (req, r
     const kind = offer.type === 'swap' ? 'scambio' : 'acquisto';
     const sent = await sendMail({
       to,
-      subject: `[TravelSwapAI] Nuova proposta di ${kind}`,
+      subject: `[TravelSwap] Nuova proposta di ${kind}`,
       text: [
         `Hai ricevuto una proposta di ${kind} per il tuo annuncio "${target.title || ''}".`,
         '',
-        'Apri TravelSwapAI (sezione Attività) per vederla e rispondere prima che scada.',
+        'Apri TravelSwap (sezione Attività) per vederla e rispondere prima che scada.',
       ].join('\n'),
     });
     return res.json({ ok: true, sent });
@@ -121,11 +121,11 @@ notifyRouter.post('/offer-accepted', requireAuth, rateLimitNotify, async (req, r
 
     const sent = await sendMail({
       to,
-      subject: `[TravelSwapAI] La tua proposta è stata accettata`,
+      subject: `[TravelSwap] La tua proposta è stata accettata`,
       text: [
         `La tua proposta per "${target.title || ''}" è stata accettata!`,
         '',
-        'Apri TravelSwapAI e la chat per organizzare lo scambio con l\'altra persona.',
+        'Apri TravelSwap e la chat per organizzare lo scambio con l\'altra persona.',
       ].join('\n'),
     });
     return res.json({ ok: true, sent });

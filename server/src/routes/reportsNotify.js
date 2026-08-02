@@ -75,7 +75,7 @@ reportsNotifyRouter.post(
     }
 
     const lines = [
-      'Nuova segnalazione su TravelSwapAI',
+      'Nuova segnalazione su TravelSwap',
       '',
       `Motivo: ${reasonLabel} (${reason})`,
       listingTitle ? `Annuncio: ${listingTitle}` : null,
@@ -95,7 +95,7 @@ reportsNotifyRouter.post(
 
     const sent = await sendMail({
       to,
-      subject: `[TravelSwapAI] Segnalazione: ${reasonLabel}${listingTitle ? ` — ${listingTitle}` : ''}`,
+      subject: `[TravelSwap] Segnalazione: ${reasonLabel}${listingTitle ? ` — ${listingTitle}` : ''}`,
       text: lines.join('\n'),
     });
 
