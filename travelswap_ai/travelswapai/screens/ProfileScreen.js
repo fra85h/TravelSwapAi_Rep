@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Platform,
   Image,
+  Linking,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
@@ -33,6 +34,7 @@ import Constants from "expo-constants";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { formatMoney } from "../lib/number";
 import { STATUS_COLORS, normStatusKey, isConcludedStatus } from "../lib/listingStatus";
+import { LEGAL_URLS } from "../lib/legal";
 
 const APP_VERSION = Constants.expoConfig?.version || "1.0.0";
 
@@ -676,12 +678,26 @@ export default function ProfileScreen() {
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={ListEmpty}
         ListFooterComponent={
-          <Text style={styles.footerCredits}>
+          <View>
+            {/* I documenti restano raggiungibili anche dopo l'accettazione:
+                averli letti una volta all'ingresso non basta, devono poter
+                essere riconsultati quando servono davvero. */}
+            <View style={styles.legalRow}>
+              <TouchableOpacity onPress={() => Linking.openURL(LEGAL_URLS.terms).catch(() => {})} accessibilityRole="link">
+                <Text style={styles.legalLink}>{t("legal.termsShort", "Termini di servizio")}</Text>
+              </TouchableOpacity>
+              <Text style={styles.legalSep}>·</Text>
+              <TouchableOpacity onPress={() => Linking.openURL(LEGAL_URLS.privacy).catch(() => {})} accessibilityRole="link">
+                <Text style={styles.legalLink}>{t("legal.privacyShort", "Privacy")}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.footerCredits}>
             {t("profile.credits", "TravelSwapAI v{version} · © {year} Francesco Giacalone", {
               version: APP_VERSION,
               year: new Date().getFullYear(),
             })}
-          </Text>
+            </Text>
+          </View>
         }
         contentContainerStyle={{
           paddingTop: 0,
@@ -864,6 +880,9 @@ const styles = StyleSheet.create({
 
   skel: { backgroundColor: theme.colors.border },
 
+  legalRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginTop: 8 },
+  legalLink: { color: theme.colors.textMuted, fontSize: 12, textDecorationLine: "underline" },
+  legalSep: { color: theme.colors.textMuted, fontSize: 12 },
   footerCredits: {
     textAlign: "center",
     color: theme.colors.textMuted,

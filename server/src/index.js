@@ -124,6 +124,16 @@ app.use('/api/disputes', disputesRouter);
 // capitato in produzione). Gli asset con hash nel nome invece possono
 // avere cache lunghissima: il nome stesso cambia se il contenuto cambia.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// --- Documenti legali ---
+// Pagine statiche pubbliche, servite fuori da /app e senza autenticazione:
+// gli store richiedono URL raggiungibili da chiunque, senza installare né
+// accedere, e l'app vi rimanda con un link esterno. Sono in HTML e non
+// schermate dell'applicazione proprio per questo motivo.
+const legalDir = path.join(__dirname, '..', 'public', 'legal');
+app.use('/legal', express.static(legalDir, { maxAge: '1h', extensions: ['html'], index: false }));
+app.get('/legal', (_req, res) => res.redirect('/legal/privacy'));
+
 const webAppDir = path.join(__dirname, '..', 'public', 'app');
 app.use('/app', express.static(webAppDir, { maxAge: '1y', index: false }));
 app.get(['/app', '/app/*'], (_req, res) => {

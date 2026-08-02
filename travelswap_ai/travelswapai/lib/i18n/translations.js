@@ -840,6 +840,24 @@ export const translations = {
     },
 
     // --- Offerte ---
+    legal: {
+      title: "Prima di iniziare",
+      intro: "Tre cose che conviene sapere subito su come funziona TravelSwapAI.",
+      p1Title: "Mettiamo in contatto, non vendiamo",
+      p1Body: "L'accordo è fra te e l'altra persona: non siamo parte del contratto e non possiamo garantire la validità di un biglietto.",
+      p2Title: "Oggi non gestiamo pagamenti",
+      p2Body: "Il denaro passa direttamente fra voi, fuori dall'app: non lo tratteniamo e non possiamo rimborsarlo. Concordate il metodo in chat e conservate la ricevuta.",
+      p3Title: "I tuoi annunci vengono analizzati",
+      p3Body: "Un sistema automatico stima l'attendibilità di ogni annuncio dal suo contenuto e mostra il risultato in pubblico. Riguarda l'annuncio, non te, e puoi chiederne la revisione.",
+      readTerms: "Leggi i Termini di servizio",
+      readPrivacy: "Leggi l'Informativa privacy",
+      accept: "Ho letto e accetto",
+      decline: "Non accetto — esci",
+      acceptError: "Non sono riuscito a registrare l'accettazione. Riprova.",
+      openError: "Non riesco ad aprire il documento.",
+      termsShort: "Termini di servizio",
+      privacyShort: "Privacy",
+    },
     transactionSteps: {
       entry: "Cosa fare adesso",
       declare: {
@@ -2176,6 +2194,24 @@ export const translations = {
       concludedMsg: "This listing has already been sold or swapped: the deal is closed and it can no longer be edited.",
     },
 
+    legal: {
+      title: "Before you start",
+      intro: "Three things worth knowing right away about how TravelSwapAI works.",
+      p1Title: "We connect people, we don't sell",
+      p1Body: "The agreement is between you and the other person: we are not a party to it and cannot guarantee that a ticket is valid.",
+      p2Title: "We don't handle payments today",
+      p2Body: "Money goes directly between you, outside the app: we don't hold it and cannot refund it. Agree on the method in chat and keep the receipt.",
+      p3Title: "Your listings are analysed",
+      p3Body: "An automated system estimates how trustworthy each listing looks from its content and shows the result publicly. It is about the listing, not about you, and you can ask for a review.",
+      readTerms: "Read the Terms of Service",
+      readPrivacy: "Read the Privacy Policy",
+      accept: "I have read and accept",
+      decline: "I don't accept — sign out",
+      acceptError: "I couldn't record your acceptance. Please try again.",
+      openError: "I can't open the document.",
+      termsShort: "Terms of Service",
+      privacyShort: "Privacy",
+    },
     transactionSteps: {
       entry: "What to do now",
       declare: {
@@ -3387,6 +3423,24 @@ export const translations = {
       concludedMsg: "Este anuncio ya se ha vendido o intercambiado: la transacción está cerrada y ya no se puede modificar.",
     },
 
+    legal: {
+      title: "Antes de empezar",
+      intro: "Tres cosas que conviene saber enseguida sobre cómo funciona TravelSwapAI.",
+      p1Title: "Ponemos en contacto, no vendemos",
+      p1Body: "El acuerdo es entre tú y la otra persona: no somos parte del contrato y no podemos garantizar la validez de un billete.",
+      p2Title: "Hoy no gestionamos pagos",
+      p2Body: "El dinero pasa directamente entre vosotros, fuera de la app: no lo retenemos y no podemos reembolsarlo. Acordad el método en el chat y guardad el recibo.",
+      p3Title: "Tus anuncios se analizan",
+      p3Body: "Un sistema automático estima la fiabilidad de cada anuncio a partir de su contenido y muestra el resultado en público. Se refiere al anuncio, no a ti, y puedes pedir su revisión.",
+      readTerms: "Lee los Términos del servicio",
+      readPrivacy: "Lee la Política de privacidad",
+      accept: "He leído y acepto",
+      decline: "No acepto — salir",
+      acceptError: "No he podido registrar la aceptación. Inténtalo de nuevo.",
+      openError: "No consigo abrir el documento.",
+      termsShort: "Términos del servicio",
+      privacyShort: "Privacidad",
+    },
     transactionSteps: {
       entry: "Qué hacer ahora",
       declare: {

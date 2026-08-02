@@ -34,6 +34,8 @@ import ChatScreen from './screens/ChatScreen';
 import TransactionStepsScreen from './screens/TransactionStepsScreen';
 import ChainChatScreen from './screens/ChainChatScreen';
 import PreferencesOnboardingScreen from './screens/PreferencesOnboardingScreen';
+import LegalConsentScreen from './screens/LegalConsentScreen';
+import { getTermsAcceptance } from './lib/legal';
 import { AuthProvider, useAuth } from './lib/auth';
 import { NotificationsProvider } from './lib/NotificationsContext';
 import { useNeedsPreferencesOnboarding } from './lib/preferences';
@@ -105,6 +107,21 @@ function RootNavigator() {
   const { session, loading } = useAuth();
   const { loading: prefsLoading, needsOnboarding, markDone } = useNeedsPreferencesOnboarding(session);
 
+  // Accettazione di termini e privacy: si legge una volta per sessione.
+  // null = ancora da verificare, true/false = esito. Sta qui e non nella
+  // registrazione perché deve intercettare anche chi entra con Google e chi
+  // era già registrato quando i documenti non esistevano — e perché alzando
+  // TERMS_VERSION va richiesta di nuovo a tutti.
+  const [legalOk, setLegalOk] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!session) { setLegalOk(null); return; }
+    getTermsAcceptance()
+      .then((r) => { if (!cancelled) setLegalOk(!!r.accepted); })
+      .catch(() => { if (!cancelled) setLegalOk(true); });
+    return () => { cancelled = true; };
+  }, [session]);
+
   // Il carosello di presentazione si mostra solo la prima volta: chi lo ha
   // già visto (o fa logout) atterra direttamente sul Login.
   const [seenOnboarding, setSeenOnboarding] = useState(null);
@@ -114,7 +131,7 @@ function RootNavigator() {
       .catch(() => setSeenOnboarding(false));
   }, []);
 
-  if (loading || (session && prefsLoading) || (!session && seenOnboarding === null)) {
+  if (loading || (session && prefsLoading) || (session && legalOk === null) || (!session && seenOnboarding === null)) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator />
@@ -126,6 +143,14 @@ function RootNavigator() {
   // account (profiles.prefs.onboarded), non ad ogni avvio. Renderizzata
   // fuori dal Navigator: niente route da gestire, solo un passaggio
   // intermedio prima di entrare nell'app vera e propria.
+  // Accettazione PRIMA delle preferenze: è la condizione per usare il
+  // servizio, non un passaggio di personalizzazione. Chiedere le preferenze a
+  // qualcuno che potrebbe non accettare i termini sarebbe raccogliere dati
+  // prima di averne titolo.
+  if (session && legalOk === false) {
+    return <LegalConsentScreen onAccepted={() => setLegalOk(true)} />;
+  }
+
   if (session && needsOnboarding) {
     return <PreferencesOnboardingScreen onDone={markDone} />;
   }
