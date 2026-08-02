@@ -83,14 +83,30 @@ export default function ResetPasswordScreen({ navigation }) {
     // se si arriva qui per il riaggancio dell'URL vecchio (non per un
     // vero evento di deep link), Linking.getInitialURL() qui sotto
     // torna null, quindi il ramo "url valido" non scatterebbe mai.
+    //
+    // ORDINE: il frammento con i token va CATTURATO PRIMA di ripulire la
+    // barra. Invertendo i due passaggi — com'era — si cancella il token un
+    // istante prima di leggerlo: Linking.getInitialURL() sul web restituisce
+    // window.location.href, che a quel punto è già ripulito, e il client ha
+    // detectSessionInUrl:false (lib/supabase.js), quindi nessun altro lo
+    // legge al posto suo. Risultato: sul web il reset password mostrava
+    // SEMPRE "Link non valido", qualunque link si aprisse.
+    const webHref =
+      typeof window !== "undefined" && window.location ? window.location.href : null;
+
     if (typeof window !== "undefined" && window.history?.replaceState) {
-      window.history.replaceState(null, "", "/");
+      // Non si torna alla radice: quella non serve l'applicazione (il bundle
+      // vive sotto /app) e un ricaricamento finirebbe su una pagina che non
+      // esiste. Si toglie solo la parte /auth/reset, che è ciò che causava il
+      // rimbalzo qui dopo un logout.
+      const base = window.location.pathname.replace(/\/auth\/reset.*$/, "") || "/";
+      window.history.replaceState(null, "", base);
     }
 
     (async () => {
       if (!isFocused) return;
 
-      const initialUrl = await Linking.getInitialURL();
+      const initialUrl = webHref || (await Linking.getInitialURL());
       if (await applySessionFromUrl(initialUrl)) {
         markReady();
         return;
