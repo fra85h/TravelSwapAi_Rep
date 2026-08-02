@@ -514,24 +514,24 @@ test('notify_on_offer avvisa il proponente anche quando la proposta scade', () =
   }
 });
 
-test('ogni tipo di notifica inserito da notify_on_offer è ammesso dal CHECK di notifications', () => {
-  // Il controllo che vale di più: notify_on_offer è un trigger AFTER, quindi
-  // un tipo non previsto dal vincolo NON produce una notifica mancante — fa
-  // fallire l'intera transazione che l'ha scatenato (accettazione,
-  // rifiuto, scadenza). Un errore da nulla nel diff, un blocco totale in
-  // produzione.
-  const { file, body } = latestDefinitionOf('notify_on_offer');
-
-  // Letterali snake_case presenti nella funzione, meno quelli che non sono
-  // tipi di notifica: 'listing_unavailable' è un valore di cancel_reason,
-  // confrontato per decidere il testo del messaggio.
-  const NON_TIPI = new Set(['listing_unavailable']);
-  const tipi = new Set(
-    [...body.matchAll(/'((?:offer|listing|chain|new)_[a-z_]+)'/g)]
-      .map((m) => m[1])
-      .filter((s) => !NON_TIPI.has(s)),
-  );
-  assert.ok(tipi.size > 0, `${file}: nessun tipo di notifica trovato, il test non sta controllando niente`);
+test('il CHECK di notifications ammette OGNI tipo inserito da QUALUNQUE migration', () => {
+  // Il controllo che vale di più, e va fatto su TUTTE le migration, non
+  // solo su quella che si sta scrivendo. Due modi di rompersi, entrambi
+  // già capitati:
+  //
+  //   a) un trigger AFTER inserisce un tipo non ammesso → non è una
+  //      notifica mancante, è l'INTERA transazione che fallisce
+  //      (accettazione, rifiuto, scadenza di una proposta);
+  //
+  //   b) si riscrive il vincolo ripartendo da una versione vecchia e si
+  //      perdono dei tipi → l'ALTER TABLE valida anche le righe GIÀ
+  //      presenti e fallisce con 23514 su notifiche reali, bloccando la
+  //      migration a metà. Successo per davvero: la prima stesura di
+  //      20260802180000 era ripartita dai 9 tipi di 20260730130000 invece
+  //      che dai 13 di 20260731130000.
+  //
+  // Una versione precedente di questo test guardava solo notify_on_offer e
+  // non poteva vedere (b): il vincolo risultava coerente con sé stesso.
 
   // Ultimo CHECK definito sui tipi, per ordine di file.
   let vincolo = null;
@@ -544,9 +544,49 @@ test('ogni tipo di notifica inserito da notify_on_offer è ammesso dal CHECK di 
   assert.ok(vincolo, 'nessun vincolo notifications_type_check trovato nelle migration');
   const ammessi = new Set([...vincolo.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
 
-  for (const tipo of tipi) {
+  // Letterali snake_case dentro ogni blocco `insert into public.notifications`,
+  // meno quelli che non sono tipi: 'listing_unavailable' è un valore di
+  // cancel_reason, confrontato lì dentro per scegliere il testo del messaggio.
+  const NON_TIPI = new Set(['listing_unavailable']);
+  const trovati = new Map(); // tipo -> file che lo inserisce
+
+  for (const f of FILES) {
+    const sql = stripComments(fs.readFileSync(path.join(MIGRATIONS, f), 'utf8'));
+    for (const m of sql.matchAll(/insert\s+into\s+public\.notifications\b/gi)) {
+      const blocco = sql.slice(m.index, m.index + 1200);
+      for (const lit of blocco.matchAll(/'((?:offer|listing|chain|new|dispute)_[a-z_]+)'/g)) {
+        if (!NON_TIPI.has(lit[1]) && !trovati.has(lit[1])) trovati.set(lit[1], f);
+      }
+    }
+  }
+
+  assert.ok(trovati.size > 0, 'nessun tipo di notifica trovato: il test non sta controllando niente');
+
+  for (const [tipo, f] of trovati) {
     assert.ok(ammessi.has(tipo),
-      `${file} inserisce notifiche di tipo '${tipo}', ma ${vincoloFile} non lo ammette: `
-      + `il CHECK farebbe fallire la transazione che scatena il trigger`);
+      `${f} inserisce notifiche di tipo '${tipo}', ma il vincolo in ${vincoloFile} non lo ammette`);
+  }
+});
+
+test('il vincolo notifications_type_check non perde mai tipi già ammessi in passato', () => {
+  // Il vincolo si riscrive per intero ogni volta (DROP + ADD): togliere un
+  // tipo per distrazione non dà un errore alla scrittura, lo dà in
+  // produzione — sulle righe esistenti, a migration già iniziata.
+  const liste = [];
+  for (const f of FILES) {
+    const sql = fs.readFileSync(path.join(MIGRATIONS, f), 'utf8');
+    for (const m of sql.matchAll(/ADD\s+CONSTRAINT\s+notifications_type_check\s+CHECK\s*\(\s*type\s+IN\s*\(([\s\S]*?)\)\s*\)/gi)) {
+      liste.push({ file: f, tipi: new Set([...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1])) });
+    }
+  }
+  assert.ok(liste.length >= 2, 'servono almeno due versioni del vincolo per confrontarle');
+
+  const ultima = liste[liste.length - 1];
+  for (const precedente of liste.slice(0, -1)) {
+    for (const tipo of precedente.tipi) {
+      assert.ok(ultima.tipi.has(tipo),
+        `${ultima.file} non ammette più '${tipo}', che ${precedente.file} ammetteva: `
+        + `l'ALTER TABLE fallirà con 23514 sulle notifiche già in tabella`);
+    }
   }
 });

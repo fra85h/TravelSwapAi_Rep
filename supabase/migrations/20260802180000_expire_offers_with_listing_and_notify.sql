@@ -36,12 +36,23 @@
 -- lo ha scatenato. Aggiungere 'offer_expired' al trigger senza aggiungerlo
 -- qui non darebbe una notifica mancante: romperebbe l'accettazione delle
 -- proposte in produzione.
+--
+-- Base: 20260731130000_dynamic_pricing.sql, la versione cronologicamente
+-- più recente del vincolo (13 tipi). La prima stesura di questa migration
+-- era ripartita da quella dentro 20260730130000 (9 tipi), perdendo
+-- 'dispute_resolved', 'offer_confirm_reminder', 'offer_rating_reminder' e
+-- 'listing_price_dropped': l'ALTER TABLE valida anche le righe GIÀ
+-- presenti, quindi in produzione falliva con 23514 su notifiche che
+-- esistevano davvero. È esattamente la trappola descritta in CLAUDE.md,
+-- questa volta su un vincolo invece che su una funzione.
 -- ------------------------------------------------------------
 ALTER TABLE public.notifications DROP CONSTRAINT IF EXISTS notifications_type_check;
 ALTER TABLE public.notifications ADD CONSTRAINT notifications_type_check
   CHECK (type IN ('offer_received','offer_accepted','offer_declined','new_matches',
                   'listing_ping','listing_question','listing_question_answered',
-                  'chain_canceled','offer_cancelled','offer_expired'));
+                  'chain_canceled','offer_cancelled','dispute_resolved',
+                  'offer_confirm_reminder','offer_rating_reminder',
+                  'listing_price_dropped','offer_expired'));
 
 -- ------------------------------------------------------------
 -- 1) expire_my_stale_listings: scade anche le proposte pendenti.
