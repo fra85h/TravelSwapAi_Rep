@@ -11,6 +11,7 @@ import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase";
 import { parseAuthParams } from "../lib/authLinks";
 import { beginPasswordRecovery, endPasswordRecovery } from "../lib/passwordRecovery";
+import { withTimeout, TIMEOUT_PREFIX } from "../lib/withTimeout";
 import { useI18n } from "../lib/i18n";
 
 export default function ResetPasswordScreen({ navigation }) {
@@ -170,23 +171,43 @@ export default function ResetPasswordScreen({ navigation }) {
       Alert.alert(t("auth.resetMismatchTitle", "Le password non coincidono"), t("auth.resetMismatchMsg", "Assicurati che le due password siano identiche."));
       return;
     }
+    setSaving(true);
+
+    // Il cambio password è l'unico passaggio che conta.
     try {
-      setSaving(true);
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await withTimeout(supabase.auth.updateUser({ password }), 20000, "updateUser");
       if (error) throw error;
+    } catch (err) {
+      setSaving(false);
+      const timedOut = String(err?.message || "").startsWith(TIMEOUT_PREFIX);
+      console.error("[ResetPassword] updateUser:", err?.message || String(err));
+      Alert.alert(
+        t("auth.resetError", "Errore"),
+        timedOut
+          ? `${t("auth.resetTimeoutMsg", "Il server non ha risposto in tempo. La password potrebbe non essere stata cambiata: riprova, e se il problema resta richiedi un link nuovo.")} (${err.message})`
+          : err?.message ?? String(err),
+      );
+      return;
+    }
+
+    // Da qui la password È GIÀ cambiata. Tutto quello che segue è di
+    // contorno e non deve poter far credere il contrario: un signOut che
+    // fallisce non è un reset fallito, e mostrare "Errore" a chi ha appena
+    // cambiato la password lo porterebbe a riprovare con un link ormai
+    // consumato.
+    try {
       // signOut PRIMA di abbassare il flag: invertendo i due passaggi si
       // resta per un istante con una sessione valida e il reset concluso,
       // e in quell'istante RootNavigator porta dentro l'app — che è il
-      // comportamento che stiamo correggendo.
-      await supabase.auth.signOut();
-      endPasswordRecovery();
-      Alert.alert(t("auth.resetDoneTitle", "Password aggiornata"), t("auth.resetDoneMsg", "La tua password è stata aggiornata. Accedi con la nuova password."));
-      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+      // comportamento corretto in #255.
+      await withTimeout(supabase.auth.signOut(), 8000, "signOut");
     } catch (err) {
-      Alert.alert(t("auth.resetError", "Errore"), err?.message ?? String(err));
-    } finally {
-      setSaving(false);
+      console.warn("[ResetPassword] signOut dopo il cambio password:", err?.message || String(err));
     }
+    endPasswordRecovery();
+    setSaving(false);
+    Alert.alert(t("auth.resetDoneTitle", "Password aggiornata"), t("auth.resetDoneMsg", "La tua password è stata aggiornata. Accedi con la nuova password."));
+    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
   };
 
   if (invalid) {
