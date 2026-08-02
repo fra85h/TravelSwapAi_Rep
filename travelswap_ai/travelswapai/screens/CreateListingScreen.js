@@ -3259,7 +3259,7 @@ const initialJsonRef = useRef(null);
                       {/* Qui c'era un riquadro "[debug web] <errore del provider>",
                           mostrato quando Platform.OS === "web" perché la web era
                           considerata la versione di test. Non lo è più: la web su
-                          travelswapai.onrender.com è la versione che usano gli
+                          travelswap.app è la versione che usano gli
                           utenti, quindi quella riga esponeva a tutti il testo
                           grezzo dell'errore OpenAI — id dell'organizzazione e
                           limiti di quota dell'account compresi.
