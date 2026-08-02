@@ -53,6 +53,11 @@ export function makeRateLimiter({ windowMs = 10 * 60 * 1000, max = 10, name = 'r
 }
 
 // Limite: 10 valutazioni ogni 10 minuti per utente (o IP fallback)
+// Cancellazione account: pochissimi tentativi. È un'operazione irreversibile
+// e costosa (tocca molte tabelle); un limite basso protegge sia il database
+// sia l'utente da un doppio invio accidentale.
+export const rateLimitAccount = makeRateLimiter({ windowMs: 60 * 60 * 1000, max: 5, name: 'cancellazioni account' });
+
 export const rateLimitTrustScore = makeRateLimiter({ windowMs: 10 * 60 * 1000, max: 10, name: 'verifiche' });
 
 // Limite traduzioni: 30 ogni 10 minuti per utente (le chiamate OpenAI hanno un costo)
