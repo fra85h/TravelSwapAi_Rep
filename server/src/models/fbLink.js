@@ -1,5 +1,5 @@
 // server/src/models/fbLink.js — collegamento identità Messenger<->account
-// TravelSwapAI (vedi migrazione 20260713040000_fb_messenger_link.sql).
+// TravelSwap (vedi migrazione 20260713040000_fb_messenger_link.sql).
 import crypto from "crypto";
 import { supabase } from "../db.js";
 

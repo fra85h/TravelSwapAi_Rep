@@ -62,7 +62,7 @@ export default function LinkMessengerScreen() {
             {t("linkMessenger.validUntil", "Valido fino alle {time}", { time: formatExpiry(expiresAt, locale) })}
           </Text>
           <Text style={styles.instructions}>
-            {t("linkMessenger.instructions", "Apri Messenger, scrivi alla Pagina TravelSwapAI e manda questo codice come messaggio. Riceverai una conferma quando il collegamento è fatto.")}
+            {t("linkMessenger.instructions", "Apri Messenger, scrivi alla Pagina TravelSwap e manda questo codice come messaggio. Riceverai una conferma quando il collegamento è fatto.")}
           </Text>
           <Button
             title={t("linkMessenger.regenerate", "Genera un nuovo codice")}

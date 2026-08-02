@@ -39,7 +39,11 @@ test('oltre dieci segnaposto non si sovrascrivono tra loro', () => {
 });
 
 test('normalize corregge il nome del prodotto e di TrustScore', () => {
-  assert.equal(normalize('benvenuto su travelswapai'), 'benvenuto su TravelSwapAI');
+  assert.equal(normalize('benvenuto su travelswapai'), 'benvenuto su TravelSwap');
+  // Nome vecchio e varianti con spazio: vanno tutte al nome attuale.
+  assert.equal(normalize('benvenuto su travel swap ai'), 'benvenuto su TravelSwap');
+  assert.equal(normalize('benvenuto su travelswap'), 'benvenuto su TravelSwap');
+  assert.equal(normalize('benvenuto su TravelSwap'), 'benvenuto su TravelSwap');
   assert.equal(normalize('il tuo trust score è alto'), 'il tuo TrustScore è alto');
   assert.equal(normalize('il tuo trustscore'), 'il tuo TrustScore');
 });

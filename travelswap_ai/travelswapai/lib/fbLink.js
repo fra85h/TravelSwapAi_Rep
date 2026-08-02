@@ -1,4 +1,4 @@
-// lib/fbLink.js — collegamento account TravelSwapAI <-> bot Messenger
+// lib/fbLink.js — collegamento account TravelSwap <-> bot Messenger
 // della Pagina Facebook (import annunci). Vedi server/src/routes/fbLink.js.
 import { fetchJson } from "./backendApi";
 

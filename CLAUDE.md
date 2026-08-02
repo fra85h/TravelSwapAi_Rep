@@ -6,7 +6,7 @@ funzionale completa) e `docs/matching.md` (algoritmo di matching in dettaglio).
 
 ## Cos'è questo progetto
 
-**TravelSwapAI**: marketplace peer-to-peer per rivendere o scambiare biglietti
+**TravelSwap**: marketplace peer-to-peer per rivendere o scambiare biglietti
 treno e prenotazioni hotel non utilizzati. Monorepo con due progetti:
 
 - **App** (`travelswap_ai/travelswapai/`): React Native + Expo, React

@@ -1,4 +1,4 @@
-# TravelSwapAI — mappa dei moduli, endpoint e test
+# TravelSwap — mappa dei moduli, endpoint e test
 
 Inventario tecnico di cosa esiste nel repo oggi, a cosa serve ogni pezzo, e
 cosa è (o non è) coperto da test automatici. Scritto per orientarsi, non per
@@ -69,7 +69,7 @@ non esiste nel repo.
 | `listingQuestions.js` | Inserimento domanda pre-offerta (solo da qui, service-role, dopo validazione dominio) + notifica push al proprietario. |
 | `pings.js` | Feature "Ping" — notifica diretta, nessuna transazione creata. |
 | `fbIngest.js` | Riceve il testo/foto da Messenger, lo fa passare dal TrustScore, pubblica l'annuncio (o lo scarta se il punteggio è troppo basso). |
-| `fbLink.js` | Genera/verifica il codice a 6 caratteri per collegare account TravelSwapAI ↔ utente Messenger. |
+| `fbLink.js` | Genera/verifica il codice a 6 caratteri per collegare account TravelSwap ↔ utente Messenger. |
 | `fbSessionStore.js` | Stato conversazionale per utente Messenger (`fb_sessions`), usato dal webhook per ricordare a che punto è l'ingest. |
 | `reportActionTokens.js` | Crea/legge/consuma i token "un click" pausa/elimina inviati nell'email di segnalazione (stesso pattern di `fbLink.js`). |
 | `priceDecay.js` | Prezzo dinamico: `computeTargetPrice` (curva lineare pura) + `recomputeDynamicPrices`, che aggiorna solo `price` verso `price_floor` e notifica il venditore ad ogni scatto. |

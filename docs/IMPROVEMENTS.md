@@ -1,4 +1,4 @@
-# TravelSwapAI — Roadmap migliorie proposte
+# TravelSwap — Roadmap migliorie proposte
 
 Documento di lavoro con le migliorie individuate analizzando il codice.
 Ordinato per rapporto **valore / sforzo**. Le voci ✅ sono già state applicate.

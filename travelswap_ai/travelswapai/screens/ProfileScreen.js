@@ -174,7 +174,7 @@ export default function ProfileScreen() {
       try { await supabase.auth.signOut(); } catch {}
       Alert.alert(
         t("profile.deleteDoneTitle", "Account eliminato"),
-        t("profile.deleteDoneMsg", "I tuoi dati personali sono stati rimossi. Grazie per aver provato TravelSwapAI.")
+        t("profile.deleteDoneMsg", "I tuoi dati personali sono stati rimossi. Grazie per aver provato TravelSwap.")
       );
     } catch (e) {
       if (e?.code === "in_progress") {
@@ -773,7 +773,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.footerCredits}>
-            {t("profile.credits", "TravelSwapAI v{version} · © {year} Francesco Giacalone", {
+            {t("profile.credits", "TravelSwap v{version} · © {year} Francesco Giacalone", {
               version: APP_VERSION,
               year: new Date().getFullYear(),
             })}
