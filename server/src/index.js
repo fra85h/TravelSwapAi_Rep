@@ -137,6 +137,14 @@ app.use('/legal', express.static(legalDir, { maxAge: '1h', extensions: ['html'],
 app.get('/legal', (_req, res) => res.redirect('/legal/privacy'));
 
 const webAppDir = path.join(__dirname, '..', 'public', 'app');
+// La radice del dominio non serviva nulla: chi digitava travelswap.app senza
+// il percorso finiva su un errore. È l'indirizzo che la gente scrive
+// d'istinto e quello che si mette nei messaggi, quindi deve almeno portare
+// da qualche parte. Reindirizzamento temporaneo (302) e non permanente: il
+// giorno in cui la radice ospiterà una pagina di presentazione, un 301 già
+// memorizzato nei browser continuerebbe a scavalcarla.
+app.get('/', (_req, res) => res.redirect(302, '/app'));
+
 app.use('/app', express.static(webAppDir, { maxAge: '1y', index: false }));
 app.get(['/app', '/app/*'], (_req, res) => {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
