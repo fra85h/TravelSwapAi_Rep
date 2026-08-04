@@ -1992,7 +1992,7 @@ const initialJsonRef = useRef(null);
     // che lui possa dimostrare niente. Qui si chiede solo una conferma
     // consapevole, così nessuno pubblica senza sapere che chi compra
     // potrebbe non poter usare il biglietto.
-    if (form?.type === "train" && !isCerco) {
+    if (form?.type === "train" && !isCerco && form.isNamedTicket) {
       const nc = resolveNameChange({
         declared: form.nameChangeDeclared === "yes" ? true : (form.nameChangeDeclared === "no" ? false : null),
         fareType: form.fareType,
@@ -2151,11 +2151,17 @@ const initialJsonRef = useRef(null);
       // deduzione dalla tariffa, e l'origine viene salvata insieme al valore
       // perché "lo dichiara il venditore" e "risulta dalla tariffa" pesano
       // diversamente per chi legge l'annuncio (vedi lib/fareRules.js).
-      const nameChange = resolveNameChange({
-        declared: form.nameChangeDeclared === "yes" ? true : (form.nameChangeDeclared === "no" ? false : null),
-        fareType: form.fareType,
-        operator: form.operator,
-      });
+      // Solo per un biglietto nominativo: dove non c'è un nome sopra non c'è
+      // niente da reintestare, e salvare "non reintestabile" su un
+      // regionale senza nome produrrebbe un allarme rosso per un vincolo
+      // che non esiste.
+      const nameChange = form.isNamedTicket
+        ? resolveNameChange({
+            declared: form.nameChangeDeclared === "yes" ? true : (form.nameChangeDeclared === "no" ? false : null),
+            fareType: form.fareType,
+            operator: form.operator,
+          })
+        : { allowed: null, source: null };
 
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
@@ -3119,43 +3125,66 @@ const initialJsonRef = useRef(null);
                         placeholderTextColor={theme.colors.textMuted}
                       />
 
-                      {/* Cambio nominativo. Il valore dedotto dalla tariffa è
-                          solo un suggerimento visibile: chi pubblica può
-                          sempre dichiarare il contrario, perché il biglietto
-                          ce l'ha davanti lui. Non blocca mai la
-                          pubblicazione — vedi la nota in lib/fareRules.js. */}
-                      <Text style={[styles.label, { marginTop: 14 }]}>{t("createListing.train.nameChangeLabel", "Consente il cambio nominativo?")}</Text>
-                      <View style={styles.segment}>
-                        {[
-                          { key: "", label: t("createListing.train.nameChangeUnknown", "Non lo so") },
-                          { key: "yes", label: t("common.yes", "Sì") },
-                          { key: "no", label: t("common.no", "No") },
-                        ].map((opt) => {
-                          const active = form.nameChangeDeclared === opt.key;
-                          return (
-                            <TouchableOpacity
-                              key={opt.key || "unknown"}
-                              onPress={() => update({ nameChangeDeclared: opt.key })}
-                              style={[styles.segBtn, active && styles.segBtnActive]}
-                              accessibilityRole="button"
-                            >
-                              <Text style={[styles.segText, active && styles.segTextActive]}>{opt.label}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
+                      {/* Cambio nominativo. SOLO se il biglietto è nominativo:
+                          su un biglietto senza nome sopra (molti regionali)
+                          la domanda non ha senso, non c'è nessun nome da
+                          cambiare. I due campi sono concetti distinti —
+                          is_named_ticket dice SE c'è un nome,
+                          name_change_allowed se quel nome si può cambiare —
+                          ma il secondo esiste solo dove esiste il primo.
+                          Il valore dedotto dalla tariffa è un suggerimento
+                          visibile: chi pubblica può sempre dichiarare il
+                          contrario, perché il biglietto ce l'ha davanti lui.
+                          Non blocca mai la pubblicazione (lib/fareRules.js). */}
+                      {form.isNamedTicket ? (
+                        <>
+                          <Text style={[styles.label, { marginTop: 14 }]}>{t("createListing.train.nameChangeLabel", "Consente il cambio nominativo?")}</Text>
+                          <View style={styles.segment}>
+                            {[
+                              { key: "", label: t("createListing.train.nameChangeUnknown", "Non lo so") },
+                              { key: "yes", label: t("common.yes", "Sì") },
+                              { key: "no", label: t("common.no", "No") },
+                            ].map((opt) => {
+                              const active = form.nameChangeDeclared === opt.key;
+                              return (
+                                <TouchableOpacity
+                                  key={opt.key || "unknown"}
+                                  onPress={() => update({ nameChangeDeclared: opt.key })}
+                                  style={[styles.segBtn, active && styles.segBtnActive]}
+                                  accessibilityRole="button"
+                                >
+                                  <Text style={[styles.segText, active && styles.segTextActive]}>{opt.label}</Text>
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </View>
 
-                      {form.nameChangeDeclared === "" && fareGuess !== NAME_CHANGE.UNKNOWN ? (
-                        <Text style={styles.note}>
-                          {fareGuess === NAME_CHANGE.NOT_ALLOWED
-                            ? t("createListing.train.nameChangeGuessNo", "In base alla tariffa indicata, di norma questo biglietto NON consente il cambio nominativo. Se sai che non è così, dichiaralo qui sopra.")
-                            : t("createListing.train.nameChangeGuessYes", "In base alla tariffa indicata, di norma questo biglietto consente il cambio nominativo. Se sai che non è così, dichiaralo qui sopra.")}
+                          {form.nameChangeDeclared === "" && fareGuess !== NAME_CHANGE.UNKNOWN ? (
+                            <Text style={styles.note}>
+                              {fareGuess === NAME_CHANGE.NOT_ALLOWED
+                                ? t("createListing.train.nameChangeGuessNo", "In base alla tariffa indicata, di norma questo biglietto NON consente il cambio nominativo. Se sai che non è così, dichiaralo qui sopra.")
+                                : t("createListing.train.nameChangeGuessYes", "In base alla tariffa indicata, di norma questo biglietto consente il cambio nominativo. Se sai che non è così, dichiaralo qui sopra.")}
+                            </Text>
+                          ) : (
+                            <Text style={styles.note}>
+                              {t("createListing.train.nameChangeHint", "Chi compra deve poter usare il biglietto: se non è reintestabile, dirlo subito evita una trattativa inutile. Nel dubbio lascia «Non lo so».")}
+                            </Text>
+                          )}
+                        </>
+                      ) : fareGuess === NAME_CHANGE.NOT_ALLOWED ? (
+                        // Contraddizione da far vedere a chi può risolverla.
+                        // Nascondere la domanda quando "nominativo" è spento
+                        // crea un rischio: le tariffe restrittive stanno di
+                        // norma su biglietti intestati, quindi se la tariffa
+                        // dice "Super Economy" ma il flag è spento, molto
+                        // probabilmente è il flag a essere sbagliato — e
+                        // tacendo si perderebbe proprio l'avviso che conta.
+                        // Non si corregge d'ufficio: lo segnaliamo a chi ha
+                        // il biglietto davanti.
+                        <Text style={[styles.note, { marginTop: 10, fontWeight: "700" }]}>
+                          ⚠️ {t("createListing.train.nameChangeCheckNamed", "La tariffa che hai indicato si trova di norma su biglietti nominativi. Controlla l'interruttore «Biglietto nominativo» qui sopra: se il biglietto è intestato a te, attivalo — così chi compra sa che serve il cambio nominativo.")}
                         </Text>
-                      ) : (
-                        <Text style={styles.note}>
-                          {t("createListing.train.nameChangeHint", "Chi compra deve poter usare il biglietto: se non è reintestabile, dirlo subito evita una trattativa inutile. Nel dubbio lascia «Non lo so».")}
-                        </Text>
-                      )}
+                      ) : null}
                     </View>
                   )}
 
