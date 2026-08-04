@@ -32,3 +32,35 @@ export function createOpenAIClient({ timeoutMs, maxRetries } = {}) {
     maxRetries: Number.isFinite(maxRetries) ? maxRetries : DEFAULT_MAX_RETRIES,
   });
 }
+
+/**
+ * Il credito dell'account OpenAI è finito?
+ *
+ * Arriva come 429, cioè lo stesso codice del limite di frequenza, ma le due
+ * cose non si somigliano per niente: un limite di frequenza passa da solo
+ * aspettando, il credito esaurito no — ritentare significa solo aspettare
+ * il doppio per ricevere lo stesso rifiuto. Osservato in produzione il 4
+ * agosto: "429 You have no credits remaining".
+ */
+export function isQuotaExhausted(err) {
+  if (Number(err?.status) !== 429) return false;
+  const code = String(err?.code || err?.error?.code || "");
+  if (code === "insufficient_quota") return true;
+  return /no credits remaining|exceeded your current quota|billing/i.test(String(err?.message || ""));
+}
+
+/**
+ * Messaggio da mostrare all'utente per un guasto del servizio AI.
+ *
+ * Il dettaglio tecnico è prezioso per noi e va nei log, ma NON deve
+ * arrivare a chi usa l'app: davanti a "add credits at
+ * platform.openai.com/settings/organization/billing" una persona non capisce
+ * niente, e intanto le stiamo dicendo con quale fornitore lavoriamo e che
+ * abbiamo il conto scoperto.
+ */
+export function userFacingAIError(err) {
+  if (isQuotaExhausted(err)) {
+    return "Il servizio AI non è disponibile in questo momento. Riprova più tardi o compila i campi a mano.";
+  }
+  return err?.message || "Servizio AI non disponibile.";
+}

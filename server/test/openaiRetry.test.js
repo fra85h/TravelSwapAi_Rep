@@ -74,3 +74,20 @@ test('se fallisce due volte, l\'errore del secondo tentativo arriva al chiamante
   );
   assert.equal(calls, 2);
 });
+
+test('NON ritenta quando il credito è esaurito, anche se è un 429', async () => {
+  // Caso reale del 4 agosto. Il 429 di norma si ritenta (limite di
+  // frequenza, passa aspettando), ma il credito finito no: si aspetterebbe
+  // il doppio per ricevere identico rifiuto, e si raddoppierebbe il rumore
+  // nei log su un guasto che si risolve solo ricaricando.
+  let calls = 0;
+  const quota = Object.assign(
+    new Error('429 You have no credits remaining. Add credits to continue using the API.'),
+    { status: 429 },
+  );
+  await assert.rejects(
+    () => withOpenAIRetry(async () => { calls++; throw quota; }),
+    /no credits remaining/,
+  );
+  assert.equal(calls, 1);
+});

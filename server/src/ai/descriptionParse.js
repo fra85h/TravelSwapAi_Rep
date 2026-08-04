@@ -1,6 +1,6 @@
 // server/src/ai/descriptionParse.js
 import { toFile } from "openai";
-import { createOpenAIClient } from "../lib/openaiClient.js";
+import { createOpenAIClient, isQuotaExhausted, userFacingAIError } from "../lib/openaiClient.js";
 
 const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0);
@@ -339,6 +339,10 @@ const MAX_PDF_BASE64_CHARS = 8_000_000;
  */
 export async function withOpenAIRetry(fn, { what = "richiesta" } = {}) {
   const transient = (e) => {
+    // Credito esaurito: è un 429 come il limite di frequenza, ma non passa
+    // aspettando. Ritentarlo raddoppia solo l'attesa prima di dire la
+    // stessa cosa.
+    if (isQuotaExhausted(e)) return false;
     const s = Number(e?.status);
     return !Number.isFinite(s) || s >= 500 || s === 429;
   };
@@ -474,11 +478,16 @@ export function mountParseDescriptionRoute(app, requireAuth) {
       const data = await parseTicketPdfWithAI(pdfBase64, locale);
       return res.json({ ok: true, data });
     } catch (err) {
+      // Nei log il messaggio ORIGINALE, senza filtri: è quello che serve a
+      // noi per capire. All'utente va invece una frase comprensibile —
+      // "aggiungi credito su platform.openai.com" non gli dice niente, e
+      // intanto gli racconta con che fornitore lavoriamo e che abbiamo il
+      // conto scoperto.
       console.error("[/ai/parse-ticket-pdf] error:", err?.message || err);
-      const status = err?.status || 502;
+      const status = isQuotaExhausted(err) ? 503 : (err?.status || 502);
       return res.status(status).json({
         ok: false,
-        error: err?.message || "Lettura del PDF non riuscita.",
+        error: userFacingAIError(err) || "Lettura del PDF non riuscita.",
       });
     }
   });
