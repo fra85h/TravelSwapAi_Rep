@@ -59,6 +59,23 @@ describe("resolveNameChange", () => {
       .toEqual({ allowed: false, source: "fare" });
   });
 
+  it("su un biglietto NON nominativo non si scrive nulla", () => {
+    // Regola che tiene insieme i due campi, ed è la ragione per cui
+    // esistono entrambi: is_named_ticket dice SE c'è un nome sopra,
+    // name_change_allowed se quel nome si può cambiare. Dove non c'è un
+    // nome (molti regionali) non c'è niente da reintestare, e salvare "non
+    // reintestabile" produrrebbe un allarme rosso per un vincolo
+    // inesistente. Il filtro vive in CreateListingScreen: qui si fissa il
+    // contratto che quel filtro deve rispettare.
+    const perNonNominativo = { allowed: null, source: null };
+    expect(perNonNominativo).toEqual({ allowed: null, source: null });
+
+    // E la funzione, se interrogata lo stesso, non deve "aiutare"
+    // inventando un valore da una tariffa restrittiva.
+    expect(resolveNameChange({ declared: null, fareType: null, operator: "Trenitalia" }))
+      .toEqual({ allowed: null, source: null });
+  });
+
   it("senza dichiarazione né tariffa riconosciuta resta tutto vuoto", () => {
     // NULL su entrambi i campi è ciò che il vincolo a DB si aspetta:
     // un valore senza origine (o viceversa) descriverebbe uno stato

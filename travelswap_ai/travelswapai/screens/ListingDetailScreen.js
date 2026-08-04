@@ -492,7 +492,14 @@ useEffect(() => {
             una riga "Nominativo: Sì" tra i dettagli — facile da non notare,
             mentre è un vincolo che può rendere il biglietto inutilizzabile
             senza cambio nominativo. */}
-        {listing?.type === "train" && listing?.is_named_ticket === true ? (
+        {/* Un solo avviso per volta, e il più grave vince. "Nominativo" dice
+            che POTREBBE servire il cambio nominativo; "non reintestabile"
+            dice che quel cambio non si può fare. Mostrarli insieme sarebbe
+            contraddittorio ("verifica la fattibilità" sopra un riquadro che
+            dice già che non è fattibile), quindi il secondo sostituisce il
+            primo invece di affiancarlo. */}
+        {listing?.type === "train" && listing?.is_named_ticket === true
+          && listing?.name_change_allowed !== false ? (
           <View style={styles.namedWarnBox}>
             <Text style={styles.namedWarnTitle}>👤 {tt("listingDetail.namedWarnTitle", "Biglietto nominativo")}</Text>
             <Text style={styles.namedWarnText}>
@@ -509,7 +516,8 @@ useEffect(() => {
             La fonte viene dichiarata apertamente: "lo dice il venditore" e
             "risulta dalla tariffa" non hanno lo stesso peso, e chi legge ha
             diritto di sapere quale delle due sta guardando. */}
-        {listing?.type === "train" && listing?.name_change_allowed === false ? (
+        {listing?.type === "train" && listing?.is_named_ticket === true
+          && listing?.name_change_allowed === false ? (
           <View style={styles.nameChangeWarnBox}>
             <Text style={styles.nameChangeWarnTitle}>⚠️ {tt("listingDetail.noNameChangeTitle", "Non reintestabile")}</Text>
             <Text style={styles.nameChangeWarnText}>

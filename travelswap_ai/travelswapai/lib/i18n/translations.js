@@ -738,6 +738,7 @@ export const translations = {
         nameChangeHint: "Chi compra deve poter usare il biglietto: se non è reintestabile, dirlo subito evita una trattativa inutile. Nel dubbio lascia «Non lo so».",
         nameChangeGuessNo: "In base alla tariffa indicata, di norma questo biglietto NON consente il cambio nominativo. Se sai che non è così, dichiaralo qui sopra.",
         nameChangeGuessYes: "In base alla tariffa indicata, di norma questo biglietto consente il cambio nominativo. Se sai che non è così, dichiaralo qui sopra.",
+        nameChangeCheckNamed: "La tariffa che hai indicato si trova di norma su biglietti nominativi. Controlla l'interruttore «Biglietto nominativo» qui sopra: se il biglietto è intestato a te, attivalo — così chi compra sa che serve il cambio nominativo.",
       },
 
       orEnterPnr: "Oppure inserisci PNR",
@@ -2129,6 +2130,7 @@ export const translations = {
         nameChangeHint: "Whoever buys it must be able to use it: if the name cannot be changed, saying so now avoids a pointless negotiation. When unsure, leave \"I don't know\".",
         nameChangeGuessNo: "Based on the fare given, this ticket usually does NOT allow a name change. If you know otherwise, state it above.",
         nameChangeGuessYes: "Based on the fare given, this ticket usually allows a name change. If you know otherwise, state it above.",
+        nameChangeCheckNamed: "The fare you entered is usually found on tickets issued to a named person. Check the \"Named ticket\" switch above: if the ticket is in your name, turn it on — that way buyers know a name change is needed.",
       },
 
       orEnterPnr: "Or enter PNR",
@@ -3384,6 +3386,7 @@ export const translations = {
         nameChangeHint: "Quien lo compre debe poder usarlo: si no admite cambio de titular, decirlo ya evita una negociación inútil. En caso de duda, deja «No lo sé».",
         nameChangeGuessNo: "Según la tarifa indicada, normalmente este billete NO permite el cambio de titular. Si sabes que no es así, decláralo arriba.",
         nameChangeGuessYes: "Según la tarifa indicada, normalmente este billete permite el cambio de titular. Si sabes que no es así, decláralo arriba.",
+        nameChangeCheckNamed: "La tarifa que has indicado suele encontrarse en billetes nominativos. Revisa el interruptor «Billete nominativo» de arriba: si el billete está a tu nombre, actívalo — así quien compre sabe que hace falta el cambio de titular.",
       },
 
       orEnterPnr: "O introduce PNR",
