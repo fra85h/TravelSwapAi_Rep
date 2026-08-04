@@ -60,7 +60,11 @@ priceCheckRouter.post("/api/listings/price-suggest", requireAuth, rateLimitPrice
       operator: b.operator || null,
       ticket_class: b.ticketClass || null,
     };
-    const result = await suggestPriceWithAI(draft, locale);
+    // quick: la verifica automatica che parte da sola all'uscita dal campo
+    // prezzo. Quel numero non lo legge nessuno — serve solo al confronto con
+    // la soglia — quindi usa il modello economico. I due bottoni, dove la
+    // stima la legge una persona, restano sul modello di punta.
+    const result = await suggestPriceWithAI(draft, locale, { quick: b.quick === true });
     return res.json(result);
   } catch (e) {
     console.error("[price-suggest][server] error", e);

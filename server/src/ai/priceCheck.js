@@ -3,6 +3,7 @@
 // usando la sola conoscenza generale del modello, senza dati di mercato in
 // tempo reale — un parere orientativo, non una quotazione garantita.
 import { createOpenAIClient } from "../lib/openaiClient.js";
+import { cacheKey, getCached, setCached } from "../lib/aiCache.js";
 
 const client = createOpenAIClient();
 
@@ -20,6 +21,13 @@ const client = createOpenAIClient();
 // abilitato sull'account, l'errore ora è visibile (niente più risposte vuote
 // mascherate) e basta puntare la variabile a un altro modello.
 const MODEL = process.env.OPENAI_PRICE_MODEL || "gpt-4.1";
+
+// Modello per il controllo automatico all'uscita dal campo prezzo: quel
+// numero non viene mostrato a nessuno, serve solo a essere confrontato con
+// una soglia del 25% (vedi lib/priceVerdict.js nell'app). Pagare il modello
+// di punta per una stima che finisce dentro un ">" era spreco puro — tanto
+// più da quando quella verifica parte da sola invece che su richiesta.
+const QUICK_MODEL = process.env.OPENAI_PRICE_QUICK_MODEL || "gpt-4o-mini";
 
 const LOCALE_LANG_NAME = { it: "italiano", en: "English", es: "español" };
 
@@ -132,7 +140,7 @@ function suggestSystemPromptFor(locale, hasPurchaseCap) {
  * @param {string} locale - "it" | "en" | "es"
  * @returns {Promise<{available:true, suggestedPrice:number, explanation:string} | {available:false, reason:string}>}
  */
-export async function suggestPriceWithAI(draft, locale = "it") {
+export async function suggestPriceWithAI(draft, locale = "it", { quick = false } = {}) {
   if (!client) {
     return { available: false, reason: "OPENAI_API_KEY non configurata sul server" };
   }
@@ -141,14 +149,27 @@ export async function suggestPriceWithAI(draft, locale = "it") {
   const purchaseCap = Number(draft?.purchase_price);
   const hasPurchaseCap = Number.isFinite(purchaseCap) && purchaseCap > 0;
   const user = `${context}\nIl venditore non ha ancora indicato un prezzo: suggerisci tu un valore plausibile per la rivendita.`;
+  const system = suggestSystemPromptFor(locale, hasPurchaseCap);
+
+  // Modello economico per il controllo automatico all'uscita dal campo
+  // prezzo: lì il numero serve solo a essere confrontato con una soglia del
+  // 25%, non a essere mostrato. I due bottoni (suggerimento e analisi)
+  // restano sul modello di punta, dove la stima la legge una persona.
+  const model = quick ? QUICK_MODEL : MODEL;
+
+  // La stima NON dipende dal prezzo digitato: chi lo aggiusta tre volte
+  // riceve tre volte la stessa risposta, e prima la pagava tre volte.
+  const key = cacheKey("price-suggest", model, locale, system, user);
+  const cached = getCached(key);
+  if (cached) return cached;
 
   try {
     const completion = await client.chat.completions.create({
-      model: MODEL,
+      model,
       response_format: { type: "json_object" },
       temperature: 0.3,
       messages: [
-        { role: "system", content: suggestSystemPromptFor(locale, hasPurchaseCap) },
+        { role: "system", content: system },
         { role: "user", content: user },
       ],
     });
@@ -165,7 +186,9 @@ export async function suggestPriceWithAI(draft, locale = "it") {
       ? parsed.explanation.trim()
       : (FALLBACK_EXPLANATION[locale] || FALLBACK_EXPLANATION.it);
 
-    return { available: true, suggestedPrice: Math.round(suggestedPrice), explanation };
+    // Si mette in cache SOLO un esito riuscito: un guasto temporaneo non
+    // deve restare appiccicato alla tratta per 24 ore.
+    return setCached(key, { available: true, suggestedPrice: Math.round(suggestedPrice), explanation });
   } catch (e) {
     console.error("[suggestPriceWithAI] error:", e?.message || e);
     return { available: false, reason: "Analisi non riuscita al momento" };
@@ -192,6 +215,16 @@ export async function checkPriceWithAI(listing, locale = "it") {
   const purchaseCap = Number(listing?.purchase_price);
   const hasPurchaseCap = Number.isFinite(purchaseCap) && purchaseCap > 0;
   const user = `${context}\nPrezzo richiesto: ${price} ${currency}.\nÈ un prezzo basso, congruo o alto per questo tipo di viaggio/soggiorno?`;
+  const system = systemPromptFor(locale, hasPurchaseCap);
+
+  // Qui il prezzo FA parte della domanda, quindi entra nella chiave: due
+  // compratori che guardano lo stesso annuncio allo stesso prezzo ricevono
+  // lo stesso verdetto, e lo pagano una volta sola. Se il prezzo cambia —
+  // anche da solo, per lo sconto automatico — la chiave cambia con lui e il
+  // verdetto viene ricalcolato.
+  const key = cacheKey("price-check", MODEL, locale, system, user);
+  const cached = getCached(key);
+  if (cached) return cached;
 
   try {
     const completion = await client.chat.completions.create({
@@ -199,7 +232,7 @@ export async function checkPriceWithAI(listing, locale = "it") {
       response_format: { type: "json_object" },
       temperature: 0.3,
       messages: [
-        { role: "system", content: systemPromptFor(locale, hasPurchaseCap) },
+        { role: "system", content: system },
         { role: "user", content: user },
       ],
     });
@@ -213,7 +246,7 @@ export async function checkPriceWithAI(listing, locale = "it") {
       ? parsed.explanation.trim()
       : (FALLBACK_EXPLANATION[locale] || FALLBACK_EXPLANATION.it);
 
-    return { available: true, verdict, explanation };
+    return setCached(key, { available: true, verdict, explanation });
   } catch (e) {
     console.error("[checkPriceWithAI] error:", e?.message || e);
     return { available: false, reason: "Analisi non riuscita al momento" };
