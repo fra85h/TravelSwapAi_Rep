@@ -799,6 +799,8 @@ export const translations = {
       applyFixesErrorMsg: "Impossibile applicare i fix.",
 
       priceSuggestionTitle: "Suggerimento prezzo",
+      priceHighHint: "Questo prezzo è sopra la nostra stima per un annuncio simile: potrebbe ricevere poche offerte.",
+      priceHighHintPct: "Questo prezzo è circa il {pct}% sopra la nostra stima per un annuncio simile: potrebbe ricevere poche offerte.",
       priceSuggestionMsg: "In base ai dati inseriti, potresti proporre circa {price}€.\nÈ solo un consiglio: sentiti libero di adattarlo.",
       priceSuggestionMsgAI: "Potresti proporre circa {price}€. {explanation}\nÈ solo un consiglio: sentiti libero di adattarlo.",
       priceEstimateErrorMsg: "Impossibile stimare il prezzo al momento.",
@@ -2191,6 +2193,8 @@ export const translations = {
       applyFixesErrorMsg: "Couldn't apply the fixes.",
 
       priceSuggestionTitle: "Price suggestion",
+      priceHighHint: "This price is above our estimate for a similar listing: it may get few offers.",
+      priceHighHintPct: "This price is about {pct}% above our estimate for a similar listing: it may get few offers.",
       priceSuggestionMsg: "Based on the entered data, you could ask around {price}€.\nIt's just a suggestion: feel free to adjust it.",
       priceSuggestionMsgAI: "You could ask around {price}€. {explanation}\nIt's just a suggestion: feel free to adjust it.",
       priceEstimateErrorMsg: "Couldn't estimate the price right now.",
@@ -3449,6 +3453,8 @@ export const translations = {
       applyFixesErrorMsg: "No se pudieron aplicar las sugerencias.",
 
       priceSuggestionTitle: "Sugerencia de precio",
+      priceHighHint: "Este precio está por encima de nuestra estimación para un anuncio similar: podría recibir pocas ofertas.",
+      priceHighHintPct: "Este precio está aproximadamente un {pct}% por encima de nuestra estimación para un anuncio similar: podría recibir pocas ofertas.",
       priceSuggestionMsg: "Según los datos introducidos, podrías pedir unos {price}€.\nEs solo un consejo: siéntete libre de ajustarlo.",
       priceSuggestionMsgAI: "Podrías pedir unos {price}€. {explanation}\nEs solo un consejo: siéntete libre de ajustarlo.",
       priceEstimateErrorMsg: "No se pudo estimar el precio en este momento.",

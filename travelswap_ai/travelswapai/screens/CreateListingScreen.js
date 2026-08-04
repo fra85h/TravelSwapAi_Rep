@@ -8,6 +8,8 @@ import { insertListing, updateListing, getListingById, getListingSecret, findMyD
 import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import { resolveNameChange, nameChangeFromFare, NAME_CHANGE } from "../lib/fareRules";
+import { priceVerdict, percentAbove, PRICE_VERDICT } from "../lib/priceVerdict";
+import { describeBackendError } from "../lib/backendError";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
 import { usePriceSuggestAI } from '../lib/usePriceSuggestAI';
@@ -1722,6 +1724,31 @@ const initialJsonRef = useRef(null);
   /* ---------- Analisi prezzo con AI (locale) ---------- */
   const [priceInfoOpen, setPriceInfoOpen] = useState(false);
   const [priceLoading, setPriceLoading] = useState(false);
+
+  // La bozza è identica per il bottone "Suggerimento prezzo" e per il
+  // controllo automatico all'uscita dal campo: costruirla in un posto solo
+  // evita che le due stime partano da dati diversi e diano numeri diversi
+  // sullo stesso annuncio.
+  const buildPriceDraft = () => ({
+    type: form.type,
+    currency: "EUR",
+    location: form.type === "hotel" ? (form.location || null) : null,
+    routeFrom: form.type !== "hotel" ? (form.routeFrom || null) : null,
+    routeTo: form.type !== "hotel" ? (form.routeTo || null) : null,
+    departAt: form.type !== "hotel" ? (form.departAt || null) : null,
+    arriveAt: form.type !== "hotel" ? (form.arriveAt || null) : null,
+    checkIn: form.type === "hotel" ? (form.checkIn || null) : null,
+    checkOut: form.type === "hotel" ? (form.checkOut || null) : null,
+    title: form.title || null,
+    description: form.description || null,
+    purchasePrice: form.purchasePrice ? parseLocalizedNumber(form.purchasePrice) : null,
+    operator: form.type !== "hotel" ? (String(form.operator || "").trim() || null) : null,
+    // La classe sposta il prezzo quanto l'operatore (una Business non vale
+    // come una Seconda sulla stessa tratta) e ora il form ce l'ha: il
+    // server la accetta già come ticketClass.
+    ticketClass: form.type !== "hotel" ? (String(form.ticketClass || "").trim() || null) : null,
+  });
+
   const analyzePriceAI = async () => {
     try {
       setPriceLoading(true);
@@ -1729,25 +1756,12 @@ const initialJsonRef = useRef(null);
       // Prova prima l'AI vera (POST /api/listings/price-suggest): a
       // differenza del Check AI, qui l'annuncio non esiste ancora come riga
       // (nessun id), quindi i dati della bozza viaggiano nel body.
-      const draft = {
-        type: form.type,
-        currency: "EUR",
-        location: form.type === "hotel" ? (form.location || null) : null,
-        routeFrom: form.type !== "hotel" ? (form.routeFrom || null) : null,
-        routeTo: form.type !== "hotel" ? (form.routeTo || null) : null,
-        departAt: form.type !== "hotel" ? (form.departAt || null) : null,
-        arriveAt: form.type !== "hotel" ? (form.arriveAt || null) : null,
-        checkIn: form.type === "hotel" ? (form.checkIn || null) : null,
-        checkOut: form.type === "hotel" ? (form.checkOut || null) : null,
-        title: form.title || null,
-        description: form.description || null,
-        purchasePrice: form.purchasePrice ? parseLocalizedNumber(form.purchasePrice) : null,
-        // L'operatore sposta parecchio il prezzo di mercato (un Frecciarossa
-        // non vale come un Regionale sulla stessa tratta) e il form lo ha già,
-        // ricavato da "Compila con AI" o dall'import: passarlo evita che la
-        // stima sia più prudente del necessario per un dato che possediamo.
-        operator: form.type !== "hotel" ? (String(form.operator || "").trim() || null) : null,
-      };
+      // L'operatore sposta parecchio il prezzo di mercato (un Frecciarossa
+      // non vale come un Regionale sulla stessa tratta) e il form lo ha già,
+      // ricavato da "Compila con AI" o dall'import: passarlo evita che la
+      // stima sia più prudente del necessario per un dato che possediamo.
+      // Tutto questo sta ora in buildPriceDraft().
+      const draft = buildPriceDraft();
       const aiRes = await suggestPriceAI(draft, locale);
       const aiPrice = Number(aiRes?.suggestedPrice);
 
@@ -1789,6 +1803,58 @@ const initialJsonRef = useRef(null);
       Alert.alert(t("common.error", "Errore"), t("createListing.priceEstimateErrorMsg", "Impossibile stimare il prezzo al momento."));
     } finally {
       setPriceLoading(false);
+    }
+  };
+
+  /* ---------- Controllo automatico del prezzo (uscita dal campo) ----------
+   *
+   * Nasce da una domanda semplice: perché il venditore deve ricordarsi di
+   * premere un bottone per sapere se sta chiedendo troppo? Qui la verifica
+   * parte da sola quando lascia il campo prezzo.
+   *
+   * Tre vincoli che ne definiscono la forma:
+   *
+   * 1) NON blocca e NON corregge. È una riga sotto il campo, ignorabile.
+   *    Un prezzo alto è una scelta legittima di chi vende, e su un
+   *    marketplace col tetto del prezzo pagato non è nostro compito
+   *    trattare.
+   * 2) UNA chiamata per prezzo, non una per tasto premuto. Scatta
+   *    sull'uscita dal campo e solo se il numero è cambiato davvero
+   *    rispetto all'ultima verifica: senza questo, chi aggiusta il prezzo
+   *    cinque volte brucerebbe cinque chiamate e il limite di frequenza
+   *    (20 ogni 10 minuti) in pochi secondi.
+   * 3) Se l'AI non risponde, silenzio totale. Nessun alert: la persona sta
+   *    compilando un modulo, non ha chiesto niente, e un errore su
+   *    un'azione che non ha avviato è solo rumore.
+   */
+  const [pricePeerHint, setPricePeerHint] = useState(null); // { pct, explanation } | null
+  const lastCheckedPriceRef = useRef(null);
+
+  const runAutoPriceCheck = async () => {
+    if (isCerco) return;                  // un CERCO è un budget, non un prezzo di vendita
+    const entered = parseLocalizedNumber(String(form.price || "").trim());
+    if (!Number.isFinite(entered) || entered <= 0) { setPricePeerHint(null); return; }
+    if (lastCheckedPriceRef.current === entered) return;
+
+    // Senza tratta/località e data la stima non ha su cosa appoggiarsi:
+    // meglio non chiedere niente che mostrare un avviso basato sul nulla.
+    const hasContext = form.type === "hotel"
+      ? !!(String(form.location || "").trim() && form.checkIn)
+      : !!(String(form.routeFrom || "").trim() && String(form.routeTo || "").trim() && form.departAt);
+    if (!hasContext) return;
+
+    lastCheckedPriceRef.current = entered;
+    try {
+      const aiRes = await suggestPriceAI(buildPriceDraft(), locale);
+      if (!aiRes?.available) { setPricePeerHint(null); return; }
+      const verdict = priceVerdict(entered, aiRes.suggestedPrice);
+      setPricePeerHint(
+        verdict === PRICE_VERDICT.HIGH
+          ? { pct: percentAbove(entered, aiRes.suggestedPrice), explanation: aiRes.explanation || null }
+          : null,
+      );
+    } catch {
+      setPricePeerHint(null);
     }
   };
 
@@ -2579,11 +2645,20 @@ const initialJsonRef = useRef(null);
       }
       goToManualStep(1);
     } catch (e) {
+      // Il motivo vero c'è: il server lo mette in {ok:false, error}, e
+      // fetchJson lo porta fin qui dentro e.message. Buttarlo via e
+      // mostrare solo "Impossibile leggere il PDF" rendeva ogni guasto
+      // identico a ogni altro — chiave OpenAI scaduta, timeout, PDF
+      // illeggibile, modello che non accetta allegati: stesso messaggio,
+      // nessun modo per l'utente di dirci cosa è successo.
+      console.error("[importPdf]", e?.message || e);
+      const detail = describeBackendError(e);
       Alert.alert(
         t("common.error", "Errore"),
-        e?.message?.includes?.("413") || /troppo grande/i.test(String(e?.message || ""))
+        (e?.message?.includes?.("413") || /troppo grande/i.test(String(e?.message || ""))
           ? t("createListing.pdfTooLarge", "PDF troppo grande (max ~6MB).")
-          : t("createListing.pdfImportError", "Impossibile leggere il PDF. Riprova o compila i campi a mano.")
+          : t("createListing.pdfImportError", "Impossibile leggere il PDF. Riprova o compila i campi a mano."))
+        + (detail ? `\n\n(${detail})` : "")
       );
     } finally {
       setImportBusy(false);
@@ -3218,8 +3293,14 @@ const initialJsonRef = useRef(null);
                   </Text>
                   <TextInput
                     value={String(form.price)}
-                    onChangeText={(v) => markCriticalDirty({ price: v.replace(",", ".") })}
-                    onBlur={() => markTouched("price")}
+                    onChangeText={(v) => {
+                      // L'avviso precedente si riferiva al numero di prima:
+                      // lasciarlo mentre si digita sarebbe informazione
+                      // scaduta accanto a un campo che sta cambiando.
+                      setPricePeerHint(null);
+                      markCriticalDirty({ price: v.replace(",", ".") });
+                    }}
+                    onBlur={() => { markTouched("price"); runAutoPriceCheck(); }}
                     placeholder={isCerco
                       ? t("createListing.budgetMaxPlaceholder", "Es. 60 — quanto vuoi pagare al massimo")
                       : t("createListing.pricePlaceholder", "Es. 120")}
@@ -3233,6 +3314,22 @@ const initialJsonRef = useRef(null);
                     </Text>
                   )}
                   {!!fieldError("price") && <Text style={styles.errorText}>{fieldError("price")}</Text>}
+
+                  {/* Avviso "sopra mercato": informativo, mai bloccante, e
+                      volutamente senza un bottone per correggere il prezzo —
+                      il numero lo decide chi vende. */}
+                  {pricePeerHint ? (
+                    <View style={styles.priceHintBox}>
+                      <Text style={styles.priceHintText}>
+                        {pricePeerHint.pct != null
+                          ? t("createListing.priceHighHintPct", `Questo prezzo è circa il ${pricePeerHint.pct}% sopra la nostra stima per un annuncio simile: potrebbe ricevere poche offerte.`, { pct: pricePeerHint.pct })
+                          : t("createListing.priceHighHint", "Questo prezzo è sopra la nostra stima per un annuncio simile: potrebbe ricevere poche offerte.")}
+                      </Text>
+                      {pricePeerHint.explanation ? (
+                        <Text style={styles.priceHintWhy}>{pricePeerHint.explanation}</Text>
+                      ) : null}
+                    </View>
+                  ) : null}
 
                   {/* Prezzo dinamico (solo Vendo): sconto automatico verso
                       priceFloor negli ultimi giorni prima della partenza/
@@ -3770,6 +3867,14 @@ const styles = StyleSheet.create({
   inputError: { borderColor: theme.colors.danger, borderWidth: 1.5 },
   errorText: { color: theme.colors.danger, marginTop: 4, fontWeight: "600" },
   note: { fontSize: 12, lineHeight: 16, color: theme.colors.textMuted, marginTop: 6 },
+  // Ambra e non rosso: non è un errore da correggere, è un'informazione su
+  // una scelta che resta di chi vende.
+  priceHintBox: {
+    marginTop: 8, padding: 10, borderRadius: 12,
+    backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FCD34D",
+  },
+  priceHintText: { color: "#92400E", fontSize: 13, lineHeight: 18, fontWeight: "700" },
+  priceHintWhy: { color: "#92400E", fontSize: 12, lineHeight: 17, marginTop: 4 },
   chainNote: {
     fontSize: 12, lineHeight: 16, color: theme.colors.boardingText,
     backgroundColor: theme.colors.primary, borderRadius: 8,
