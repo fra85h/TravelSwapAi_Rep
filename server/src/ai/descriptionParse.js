@@ -1,4 +1,5 @@
 // server/src/ai/descriptionParse.js
+import { toFile } from "openai";
 import { createOpenAIClient } from "../lib/openaiClient.js";
 
 const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
@@ -324,6 +325,33 @@ export async function parseDescriptionWithAI(text, locale = "it") {
 // e costoso. 6MB binari ≈ 8M caratteri base64.
 const MAX_PDF_BASE64_CHARS = 8_000_000;
 
+/**
+ * Un secondo tentativo sui guasti temporanei di OpenAI.
+ *
+ * Il 520 osservato in produzione non ha corpo e non ha un codice
+ * applicativo: è il bordo di rete che molla, e la volta dopo può andare
+ * benissimo. Si ritenta UNA sola volta, e solo sui 5xx/429 — su un 400
+ * (richiesta sbagliata) ritentare sarebbe solo tempo perso e un secondo
+ * addebito.
+ *
+ * Il motivo vero finisce nei log con la dimensione del documento: davanti
+ * a un errore senza corpo, sapere quanto pesava è metà della diagnosi.
+ */
+export async function withOpenAIRetry(fn, { what = "richiesta" } = {}) {
+  const transient = (e) => {
+    const s = Number(e?.status);
+    return !Number.isFinite(s) || s >= 500 || s === 429;
+  };
+  try {
+    return await fn();
+  } catch (e) {
+    console.warn(`[AI] ${what}: primo tentativo fallito (${e?.status || "?"}) ${e?.message || e}`);
+    if (!transient(e)) throw e;
+    await new Promise((r) => setTimeout(r, 1500));
+    return fn();
+  }
+}
+
 export async function parseTicketPdfWithAI(pdfBase64, locale = "it") {
   if (!client) {
     const err = new Error("Servizio AI non configurato sul server (OPENAI_API_KEY mancante).");
@@ -340,40 +368,64 @@ export async function parseTicketPdfWithAI(pdfBase64, locale = "it") {
   }
 
   const today = nowIsoMinutes();
+  const bytes = Math.round((b64.length * 3) / 4);
 
-  const resp = await client.responses.create({
-    model: MODEL,
-    temperature: TEMPERATURE,
-    input: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text:
-              `Oggi è: ${today}\n` +
-              `Lingua: ${locale}\n` +
-              `Il documento allegato è un biglietto o una conferma di prenotazione. ` +
-              `Estrai i campi dal documento. Il "price" è il prezzo effettivamente pagato indicato nel documento. ` +
-              `Rispondi SOLO con JSON conforme allo schema.`,
-          },
-          {
-            type: "input_file",
-            filename: "ticket.pdf",
-            file_data: `data:application/pdf;base64,${b64}`,
-          },
-        ],
+  // Il PDF si CARICA, non si incolla dentro la richiesta.
+  //
+  // Prima viaggiava come data URI base64 dentro il JSON: un biglietto da
+  // 3MB diventava una richiesta da oltre 4MB, e OpenAI rispondeva "520
+  // status code (no body)" — un guasto del loro bordo di rete, senza
+  // spiegazione, quindi senza niente da mostrare all'utente e niente da
+  // cui capire cosa fosse successo (osservato in produzione, 4 agosto).
+  // Con la Files API la richiesta resta di poche centinaia di byte e il
+  // documento viaggia sul canale fatto apposta per i file.
+  let uploaded = null;
+  const resp = await withOpenAIRetry(async () => {
+    if (!uploaded) {
+      uploaded = await client.files.create({
+        file: await toFile(Buffer.from(b64, "base64"), "ticket.pdf", { type: "application/pdf" }),
+        purpose: "user_data",
+      });
+    }
+    return client.responses.create({
+      model: MODEL,
+      temperature: TEMPERATURE,
+      input: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text:
+                `Oggi è: ${today}\n` +
+                `Lingua: ${locale}\n` +
+                `Il documento allegato è un biglietto o una conferma di prenotazione. ` +
+                `Estrai i campi dal documento. Il "price" è il prezzo effettivamente pagato indicato nel documento. ` +
+                `Rispondi SOLO con JSON conforme allo schema.`,
+            },
+            { type: "input_file", file_id: uploaded.id },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "ParsedListing",
+          strict: true,
+          schema: JSON_SCHEMA
+        },
       },
-    ],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "ParsedListing",
-        strict: true,
-        schema: JSON_SCHEMA
-      },
-    },
+    });
+  }, { what: `PDF ${Math.round(bytes / 1024)}KB` }).finally(() => {
+    // Il documento non deve restare depositato da un fornitore terzo più
+    // del necessario: serve solo per questa lettura. La cancellazione è
+    // best-effort e non deve poter far fallire un import riuscito.
+    if (uploaded?.id) {
+      client.files.del(uploaded.id).catch((e) =>
+        console.warn("[AI] PDF non cancellato da OpenAI:", uploaded.id, e?.message || e),
+      );
+    }
   });
 
   const out =
