@@ -7,6 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse, isPlausiblePnr, countMyActiveListings, ACTIVE_LISTING_CAP } from "../lib/db";
 import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
+import { resolveNameChange, nameChangeFromFare, NAME_CHANGE } from "../lib/fareRules";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
 import { usePriceSuggestAI } from '../lib/usePriceSuggestAI';
@@ -477,6 +478,16 @@ export default function CreateListingScreen({
     // AI sul testo, import PDF/conferma), mai chiesto a mano — vedi consider()
     // in onAiFill e applyImportedData. Mostrato solo nel dettaglio annuncio.
     operator: "",
+    // Classe (dove si è seduti) e tariffa (a quali condizioni si è
+    // comprato): due dati distinti. Dalla TARIFFA discende se il biglietto
+    // è reintestabile — vedi lib/fareRules.js.
+    ticketClass: "",
+    fareType: "",
+    // Cambio nominativo: "" = non dichiarato (e resta un valore legittimo,
+    // non un campo da riempire a forza), "yes"/"no" = dichiarazione
+    // esplicita del venditore, che ha SEMPRE la precedenza sulla deduzione
+    // dalla tariffa: lui il biglietto ce l'ha davanti, noi no.
+    nameChangeDeclared: "",
     description: "",
     price: "",
     // Prezzo di acquisto (anti-bagarinaggio): quanto il venditore ha pagato il
@@ -784,6 +795,16 @@ const initialJsonRef = useRef(null);
               arriveAt: tsToWallInput(l.arrive_at),
               pnr: secretPnr ?? prev.pnr ?? "",
               operator: l.operator || prev.operator || "",
+              ticketClass: l.ticket_class || prev.ticketClass || "",
+              fareType: l.fare_type || prev.fareType || "",
+              // Si ricarica come dichiarazione SOLO ciò che era stato
+              // dichiarato: un valore dedotto dalla tariffa non va
+              // trasformato in una dichiarazione del venditore, o alla
+              // prossima modifica risulterebbe che l'ha affermato lui.
+              nameChangeDeclared:
+                l.name_change_source === "declared" && l.name_change_allowed != null
+                  ? (l.name_change_allowed ? "yes" : "no")
+                  : (prev.nameChangeDeclared || ""),
               // scambio (B)
               acceptsSwap: !!l.accepts_swap,
               swapWantedFrom: l?.swap_wanted?.from || "",
@@ -1192,6 +1213,13 @@ const initialJsonRef = useRef(null);
         if (typeof parsed?.isNamedTicket === "boolean" && !form.isNamedTicket) fillPatch.isNamedTicket = parsed.isNamedTicket;
         if (parsed?.gender) consider("gender", parsed.gender, t("createListing.train.genderLabel", "Genere"));
         if (parsed?.provider) consider("operator", parsed.provider, t("createListing.train.operator", "Operatore"));
+        // Classe e tariffa: la colonna ticket_class esisteva dal 26 luglio e
+        // il suo commento diceva "riempita dall'AI", ma nessuno la scriveva
+        // mai — la domanda "che classe è?" finiva sempre al compratore anche
+        // quando il biglietto lo diceva. fare_type è nuova e serve a dedurre
+        // la reintestabilità (lib/fareRules.js).
+        if (parsed?.ticketClass) consider("ticketClass", parsed.ticketClass, t("createListing.train.ticketClass", "Classe"));
+        if (parsed?.fareType) consider("fareType", parsed.fareType, t("createListing.train.fareType", "Tariffa"));
       } else {
         const parsedLoc = String(parsed?.location || "").trim();
         if (parsedLoc && !/-->|→/.test(parsedLoc)) consider("location", parsedLoc, t("createListing.locationLabelHotel", "Località"));
@@ -1956,6 +1984,38 @@ const initialJsonRef = useRef(null);
       }
     }
 
+    // Cambio nominativo non consentito: AVVISO, mai blocco. Vendere un
+    // biglietto non reintestabile non è vietato — è un rischio che due
+    // persone possono decidere di correre, magari a prezzo ridotto — e
+    // impedirlo su una deduzione automatica significherebbe negare la
+    // pubblicazione a un venditore onesto per una lettura sbagliata, senza
+    // che lui possa dimostrare niente. Qui si chiede solo una conferma
+    // consapevole, così nessuno pubblica senza sapere che chi compra
+    // potrebbe non poter usare il biglietto.
+    if (form?.type === "train" && !isCerco) {
+      const nc = resolveNameChange({
+        declared: form.nameChangeDeclared === "yes" ? true : (form.nameChangeDeclared === "no" ? false : null),
+        fareType: form.fareType,
+        operator: form.operator,
+      });
+      if (nc.allowed === false) {
+        const proceed = await new Promise((resolve) => {
+          Alert.alert(
+            t("createListing.nameChangeWarnTitle", "Biglietto non reintestabile"),
+            nc.source === "declared"
+              ? t("createListing.nameChangeWarnDeclared", "Hai dichiarato che questo biglietto non consente il cambio nominativo: chi lo compra potrebbe non poterlo usare. Puoi pubblicarlo lo stesso — l'avviso sarà ben visibile nell'annuncio.")
+              : t("createListing.nameChangeWarnFare", "In base alla tariffa indicata, di norma questo biglietto non consente il cambio nominativo: chi lo compra potrebbe non poterlo usare. Puoi pubblicarlo lo stesso — l'avviso sarà ben visibile nell'annuncio."),
+            [
+              { text: t("common.cancel", "Annulla"), style: "cancel", onPress: () => resolve(false) },
+              { text: t("createListing.nameChangeWarnPublish", "Pubblica comunque"), onPress: () => resolve(true) },
+            ],
+            { cancelable: true, onDismiss: () => resolve(false) },
+          );
+        });
+        if (!proceed) return;
+      }
+    }
+
     // Anti-duplicati (solo in creazione): un duplicato ESATTO di un proprio
     // annuncio già attivo si blocca (stesso vincolo lato DB, vedi trigger
     // before_insert_listings_block_duplicate); uno SIMILE (stessa tratta/
@@ -2087,9 +2147,31 @@ const initialJsonRef = useRef(null);
           : {})
       };
 
+      // Cambio nominativo: la dichiarazione del venditore vince sulla
+      // deduzione dalla tariffa, e l'origine viene salvata insieme al valore
+      // perché "lo dichiara il venditore" e "risulta dalla tariffa" pesano
+      // diversamente per chi legge l'annuncio (vedi lib/fareRules.js).
+      const nameChange = resolveNameChange({
+        declared: form.nameChangeDeclared === "yes" ? true : (form.nameChangeDeclared === "no" ? false : null),
+        fareType: form.fareType,
+        operator: form.operator,
+      });
+
       const payload = form?.type === "hotel"
         ? { ...basePayload, check_in: form.checkIn, check_out: form.checkOut }
-        : { ...basePayload, depart_at: form.departAt, arrive_at: form.arriveAt, pnr: form.pnr || null, route_from: routeFrom, route_to: routeTo, operator: String(form.operator || "").trim() || null };
+        : {
+            ...basePayload,
+            depart_at: form.departAt,
+            arrive_at: form.arriveAt,
+            pnr: form.pnr || null,
+            route_from: routeFrom,
+            route_to: routeTo,
+            operator: String(form.operator || "").trim() || null,
+            ticket_class: String(form.ticketClass || "").trim() || null,
+            fare_type: String(form.fareType || "").trim() || null,
+            name_change_allowed: nameChange.allowed,
+            name_change_source: nameChange.source,
+          };
 
       // Riattivazione automatica: un annuncio 'expired' con le date ora
       // corrette (di nuovo nel futuro) torna 'active' da solo al salvataggio
@@ -2351,6 +2433,8 @@ const initialJsonRef = useRef(null);
         gender: data.gender ?? "",
         pnr: data.pnr ?? "",
         operator: data.provider ?? "",
+        ticketClass: data.ticketClass ?? "",
+        fareType: data.fareType ?? "",
         checkIn: "",
         checkOut: "",
         price: data.price ?? "",
@@ -2515,6 +2599,9 @@ const initialJsonRef = useRef(null);
   // "Opzioni avanzate" si apre da sola se contiene un errore, così un campo
   // obbligatorio (es. genere per un nominativo) non resta nascosto.
   const advancedForceOpen = !!(errors?.gender || errors?.purchasePrice);
+  // Cosa si deduce dalla tariffa: mostrato come suggerimento sotto la scelta,
+  // e riusato nell'avviso prima di pubblicare. Non blocca nulla.
+  const fareGuess = nameChangeFromFare(form.fareType, form.operator);
   return (
     <SafeAreaView style={{ flex: 1 }} edges={['left','right','bottom']}>
       {phase === "intro" ? (
@@ -3008,6 +3095,67 @@ const initialJsonRef = useRef(null);
                         placeholderTextColor={theme.colors.textMuted}
                       />
                       <Text style={styles.note}>{t("createListing.train.operatorHint", "Ricavato da Compila AI o dall'import del biglietto/conferma. Puoi correggerlo se non è esatto.")}</Text>
+
+                      {/* Classe e tariffa: due dati diversi che il biglietto
+                          riporta quasi sempre entrambi. La classe dice dove
+                          si è seduti, la tariffa a quali condizioni si è
+                          comprato — ed è da quest'ultima che dipende se il
+                          biglietto è reintestabile. */}
+                      <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.ticketClassLabel", "Classe (rilevata automaticamente)")}</Text>
+                      <TextInput
+                        value={form.ticketClass}
+                        onChangeText={(v) => update({ ticketClass: v })}
+                        placeholder={t("createListing.train.ticketClassPlaceholder", "Es. Seconda, Business")}
+                        style={styles.input}
+                        placeholderTextColor={theme.colors.textMuted}
+                      />
+
+                      <Text style={[styles.label, { marginTop: 10 }]}>{t("createListing.train.fareTypeLabel", "Tariffa (rilevata automaticamente)")}</Text>
+                      <TextInput
+                        value={form.fareType}
+                        onChangeText={(v) => update({ fareType: v })}
+                        placeholder={t("createListing.train.fareTypePlaceholder", "Es. Base, Economy, Super Economy")}
+                        style={styles.input}
+                        placeholderTextColor={theme.colors.textMuted}
+                      />
+
+                      {/* Cambio nominativo. Il valore dedotto dalla tariffa è
+                          solo un suggerimento visibile: chi pubblica può
+                          sempre dichiarare il contrario, perché il biglietto
+                          ce l'ha davanti lui. Non blocca mai la
+                          pubblicazione — vedi la nota in lib/fareRules.js. */}
+                      <Text style={[styles.label, { marginTop: 14 }]}>{t("createListing.train.nameChangeLabel", "Consente il cambio nominativo?")}</Text>
+                      <View style={styles.segment}>
+                        {[
+                          { key: "", label: t("createListing.train.nameChangeUnknown", "Non lo so") },
+                          { key: "yes", label: t("common.yes", "Sì") },
+                          { key: "no", label: t("common.no", "No") },
+                        ].map((opt) => {
+                          const active = form.nameChangeDeclared === opt.key;
+                          return (
+                            <TouchableOpacity
+                              key={opt.key || "unknown"}
+                              onPress={() => update({ nameChangeDeclared: opt.key })}
+                              style={[styles.segBtn, active && styles.segBtnActive]}
+                              accessibilityRole="button"
+                            >
+                              <Text style={[styles.segText, active && styles.segTextActive]}>{opt.label}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+
+                      {form.nameChangeDeclared === "" && fareGuess !== NAME_CHANGE.UNKNOWN ? (
+                        <Text style={styles.note}>
+                          {fareGuess === NAME_CHANGE.NOT_ALLOWED
+                            ? t("createListing.train.nameChangeGuessNo", "In base alla tariffa indicata, di norma questo biglietto NON consente il cambio nominativo. Se sai che non è così, dichiaralo qui sopra.")
+                            : t("createListing.train.nameChangeGuessYes", "In base alla tariffa indicata, di norma questo biglietto consente il cambio nominativo. Se sai che non è così, dichiaralo qui sopra.")}
+                        </Text>
+                      ) : (
+                        <Text style={styles.note}>
+                          {t("createListing.train.nameChangeHint", "Chi compra deve poter usare il biglietto: se non è reintestabile, dirlo subito evita una trattativa inutile. Nel dubbio lascia «Non lo so».")}
+                        </Text>
+                      )}
                     </View>
                   )}
 

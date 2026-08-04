@@ -337,6 +337,8 @@ useEffect(() => {
     departAt: tt("createListing.departAt", "Partenza (data e ora)"),
     arriveAt: tt("createListing.arriveAt", "Arrivo (data e ora)"),
     operator: tt("listingDetail.operator", "Operatore"),
+    ticketClass: tt("listingDetail.ticketClass", "Classe"),
+    fareType: tt("listingDetail.fareType", "Tariffa"),
     namedTicket: tt("listingDetail.namedTicket", "Nominativo"),
     yes: tt("common.yes", "Sì"),
     no: tt("common.no", "No"),
@@ -470,6 +472,14 @@ useEffect(() => {
                 <Chip icon="🕒" label={`${L.departAt.split(" (")[0]}: ${formatWallClock(departAt, locale, true)}`} textColor={textColor} />
                 <Chip icon="🕒" label={`${L.arriveAt.split(" (")[0]}: ${formatWallClock(arriveAt, locale, true)}`} textColor={textColor} />
                 <Chip icon="🚄" label={`${L.operator}: ${operator || "—"}`} textColor={textColor} />
+                {/* Classe e tariffa si mostrano solo se note: un "Classe: —"
+                    non aggiunge niente e allunga la fila di chip. */}
+                {listing?.ticket_class ? (
+                  <Chip icon="💺" label={`${L.ticketClass}: ${listing.ticket_class}`} textColor={textColor} />
+                ) : null}
+                {listing?.fare_type ? (
+                  <Chip icon="🎫" label={`${L.fareType}: ${listing.fare_type}`} textColor={textColor} />
+                ) : null}
                 {listing?.is_named_ticket != null ? (
                   <Chip icon="👤" label={`${L.namedTicket}: ${listing.is_named_ticket ? L.yes : L.no}`} textColor={textColor} />
                 ) : null}
@@ -487,6 +497,25 @@ useEffect(() => {
             <Text style={styles.namedWarnTitle}>👤 {tt("listingDetail.namedWarnTitle", "Biglietto nominativo")}</Text>
             <Text style={styles.namedWarnText}>
               {tt("listingDetail.namedWarnText", "È intestato a una persona. Per usarlo potrebbe servire il cambio nominativo presso l'operatore (a volte a pagamento o non consentito): verifica la fattibilità con il venditore prima di procedere.")}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Cambio nominativo NON consentito: è il vincolo che può rendere il
+            biglietto inutilizzabile per chi lo compra, quindi va detto QUI —
+            prima di fare un'offerta — e non nel post-accettazione come il
+            promemoria del cambio nominativo (get_offer_handshake), che arriva
+            quando ormai ci si è impegnati.
+            La fonte viene dichiarata apertamente: "lo dice il venditore" e
+            "risulta dalla tariffa" non hanno lo stesso peso, e chi legge ha
+            diritto di sapere quale delle due sta guardando. */}
+        {listing?.type === "train" && listing?.name_change_allowed === false ? (
+          <View style={styles.nameChangeWarnBox}>
+            <Text style={styles.nameChangeWarnTitle}>⚠️ {tt("listingDetail.noNameChangeTitle", "Non reintestabile")}</Text>
+            <Text style={styles.nameChangeWarnText}>
+              {listing?.name_change_source === "declared"
+                ? tt("listingDetail.noNameChangeDeclared", "Il venditore dichiara che questo biglietto non consente il cambio nominativo: resterebbe intestato a lui. Verifica con lui come intendete procedere prima di fare un'offerta.")
+                : tt("listingDetail.noNameChangeFare", "In base alla tariffa indicata, di norma questo biglietto non consente il cambio nominativo: resterebbe intestato al venditore. Verifica con lui prima di fare un'offerta.")}
             </Text>
           </View>
         ) : null}
@@ -721,6 +750,16 @@ const styles = StyleSheet.create({
   },
   namedWarnTitle: { fontWeight: "800", color: "#92400E", marginBottom: 4 },
   namedWarnText: { color: "#92400E", fontSize: 13, lineHeight: 18 },
+  // Rosso e non ambra: "nominativo" è una condizione da verificare, "non
+  // reintestabile" è un vincolo che può rendere il biglietto inservibile per
+  // chi lo compra. Due gravità diverse meritano due colori diversi, o il
+  // secondo si perde accanto al primo.
+  nameChangeWarnBox: {
+    backgroundColor: "#FEE2E2", borderWidth: 1, borderColor: "#FCA5A5",
+    borderRadius: 14, padding: 12, marginBottom: 12,
+  },
+  nameChangeWarnTitle: { fontWeight: "800", color: "#991B1B", marginBottom: 4 },
+  nameChangeWarnText: { color: "#991B1B", fontSize: 13, lineHeight: 18 },
   headerCard: { borderRadius: 20, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border,
     shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, overflow: "hidden", position: "relative" },
   headerGradient: { padding: 16 },
