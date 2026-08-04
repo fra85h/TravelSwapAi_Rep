@@ -9,6 +9,7 @@ import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import { resolveNameChange, nameChangeFromFare, NAME_CHANGE } from "../lib/fareRules";
 import { priceVerdict, percentAbove, PRICE_VERDICT } from "../lib/priceVerdict";
+import { describeBackendError } from "../lib/backendError";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
 import { usePriceSuggestAI } from '../lib/usePriceSuggestAI';
@@ -2644,11 +2645,20 @@ const initialJsonRef = useRef(null);
       }
       goToManualStep(1);
     } catch (e) {
+      // Il motivo vero c'è: il server lo mette in {ok:false, error}, e
+      // fetchJson lo porta fin qui dentro e.message. Buttarlo via e
+      // mostrare solo "Impossibile leggere il PDF" rendeva ogni guasto
+      // identico a ogni altro — chiave OpenAI scaduta, timeout, PDF
+      // illeggibile, modello che non accetta allegati: stesso messaggio,
+      // nessun modo per l'utente di dirci cosa è successo.
+      console.error("[importPdf]", e?.message || e);
+      const detail = describeBackendError(e);
       Alert.alert(
         t("common.error", "Errore"),
-        e?.message?.includes?.("413") || /troppo grande/i.test(String(e?.message || ""))
+        (e?.message?.includes?.("413") || /troppo grande/i.test(String(e?.message || ""))
           ? t("createListing.pdfTooLarge", "PDF troppo grande (max ~6MB).")
-          : t("createListing.pdfImportError", "Impossibile leggere il PDF. Riprova o compila i campi a mano.")
+          : t("createListing.pdfImportError", "Impossibile leggere il PDF. Riprova o compila i campi a mano."))
+        + (detail ? `\n\n(${detail})` : "")
       );
     } finally {
       setImportBusy(false);
