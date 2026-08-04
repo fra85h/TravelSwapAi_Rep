@@ -7,6 +7,10 @@ const LISTING_PUBLIC_COLUMNS =
   "id, user_id, title, description, type, location, price, currency, status, created_at, " +
   "cerco_vendo, route_from, route_to, depart_at, arrive_at, check_in, check_out, operator, " +
   "image_url, published_at, trust_score, trust_pending_at, is_named_ticket, contact_url, accepts_swap, swap_wanted, ticket_class, " +
+  // Tariffa e reintestabilità: pubbliche di proposito. Il vincolo "non
+  // reintestabile" deve arrivare a chi guarda l'annuncio PRIMA di fare
+  // un'offerta, non dopo l'accettazione.
+  "fare_type, name_change_allowed, name_change_source, " +
   "dynamic_pricing_enabled, price_floor, list_price";
 
 /** Utente corrente (o null) */
@@ -204,7 +208,19 @@ export async function insertListing(payload) {
     operator: payload.type !== "hotel" ? (payload.operator ?? null) : null,
     // Classe del biglietto: campo, non domanda. La riempie l'AI quando la
     // trova nel testo; se resta vuota il compratore può chiederla.
-    ticket_class: payload.type !== "hotel" ? (payload.ticketClass ?? null) : null,
+    //
+    // Si accettano ENTRAMBE le grafie perché qui c'era un bug silenzioso: la
+    // colonna esiste dal 26 luglio e il suo commento dice "riempita
+    // dall'AI", ma questa riga leggeva `ticketClass` in camelCase mentre
+    // CreateListingScreen manda snake_case come per tutti gli altri campi —
+    // quindi non è mai stata scritta da nessuno, e la domanda "che classe è?"
+    // finiva sempre al compratore anche quando il biglietto lo diceva.
+    ticket_class: payload.type !== "hotel" ? (payload.ticket_class ?? payload.ticketClass ?? null) : null,
+    // Tariffa e reintestabilità: solo treno. name_change_* vanno insieme
+    // (il vincolo a DB rifiuta un valore senza origine e viceversa).
+    fare_type: payload.type !== "hotel" ? (payload.fare_type ?? null) : null,
+    name_change_allowed: payload.type !== "hotel" ? (payload.name_change_allowed ?? null) : null,
+    name_change_source: payload.type !== "hotel" ? (payload.name_change_source ?? null) : null,
 
     price: payload.price ?? null,
     // Prezzo di acquisto (anti-bagarinaggio): solo per un VENDO (un bene reale

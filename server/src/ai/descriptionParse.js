@@ -53,6 +53,10 @@ Regole vincolanti:
 - "gender": "M" o "F" se indicato; altrimenti null.
 - "pnr": 5–8 alfanumerici se presente e realistico; altrimenti null.
 - "imageUrl": URL se presente; altrimenti null.
+- "ticketClass": la CLASSE di viaggio, cioè dove si è seduti: "1a"/"Prima", "2a"/"Seconda", "Business", "Executive", "Standard", "Prima Business", "Smart", "Comfort", "Prestige"… Riportala come è scritta sul documento.
+- "fareType": la TARIFFA commerciale, cioè le condizioni di acquisto: "Base", "Economy", "Super Economy", "Flex", "Low Cost", "Young", "Senior"… Riportala come è scritta sul documento.
+- ATTENZIONE, "ticketClass" e "fareType" sono cose DIVERSE e non vanno confuse: un biglietto può essere "Business" (classe) con tariffa "Economy". Se il documento riporta solo una delle due, l'altra resta null: non dedurre mai l'una dall'altra.
+- Non inventare né l'una né l'altra: se non compaiono nel testo, null.
 
 7) Formati e pulizia
 - Mantieni accenti, maiuscole/minuscole naturali e trattini dei nomi luogo/stazione.
@@ -95,7 +99,13 @@ const JSON_SCHEMA = {
     price: { type: ["string", "null", "number"] },
 
     imageUrl: { type: ["string", "null"] },
-    provider: { type: ["string", "null"], description: "Es. Booking.com, Trenitalia, Italo, Ryanair" }
+    provider: { type: ["string", "null"], description: "Es. Booking.com, Trenitalia, Italo, Ryanair" },
+
+    // Classe = dove si è seduti; tariffa = a quali condizioni si è comprato.
+    // Due dati distinti, tenuti separati apposta (vedi la regola 6 del
+    // prompt): dalla tariffa dipende se il biglietto è reintestabile.
+    ticketClass: { type: ["string", "null"], description: "Es. Prima, Seconda, Business, Executive, Standard" },
+    fareType: { type: ["string", "null"], description: "Es. Base, Economy, Super Economy, Flex, Low Cost" }
   },
   required: [
     "cercoVendo","type","title",
@@ -103,7 +113,8 @@ const JSON_SCHEMA = {
     "checkIn","checkOut",
     "departAt","arriveAt","returnAt",
     "isNamedTicket","gender","pnr","price",
-    "imageUrl","provider"
+    "imageUrl","provider",
+    "ticketClass","fareType"
   ]
 };
 
@@ -130,7 +141,10 @@ const EMPTY = {
   price: null,
 
   imageUrl: null,
-  provider: null
+  provider: null,
+
+  ticketClass: null,
+  fareType: null
 };
 
 // ---- Helpers di normalizzazione lato server (senza regex di parsing sul testo utente)
@@ -187,6 +201,13 @@ function sanitizeParsed(obj) {
   if (typeof p.price === "number") p.price = String(p.price);
 
   p.provider = normStr(p.provider);
+
+  // Classe e tariffa restano testo libero (le denominazioni commerciali
+  // cambiano da operatore a operatore): qui si taglia solo la lunghezza,
+  // perché sono etichette brevi e un valore chilometrico sarebbe comunque
+  // un'estrazione andata storta.
+  p.ticketClass = normStr(p.ticketClass)?.slice(0, 60) ?? null;
+  p.fareType = normStr(p.fareType)?.slice(0, 60) ?? null;
 
   // NIENTE rollover forzato dell'anno qui: un biglietto con anno esplicito
   // già nel passato è scaduto/non valido, non va "corretto" spostandolo nel
