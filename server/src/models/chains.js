@@ -16,6 +16,7 @@ import { listActiveListings } from "./listings.js";
 import { scoreChainCandidates, CHAIN_SCORE_PASS_THRESHOLD } from "../ai/chainMatch.js";
 import { explainChain } from "../ai/chainExplain.js";
 import { mapWithConcurrency } from "../lib/concurrency.js";
+import { chainFingerprint, canSkipRecompute } from "../lib/chainFingerprint.js";
 
 // Valutazioni AI dei candidati in volo contemporaneamente. Basso: ognuna può
 // a sua volta spezzarsi in più batch (vedi CHAIN_AI_CONCURRENCY in
@@ -175,6 +176,39 @@ async function ownersWithPendingChain() {
  * chain_proposal per ognuno (via RPC service-role). Ritorna un riepilogo,
  * non lancia eccezioni per un singolo ciclo fallito (continua con gli altri).
  */
+// Impronta dell'ultimo ricalcolo COMPLETATO. In memoria di proposito: se il
+// server riparte si perde e si fa un ricalcolo in più, che costa una volta;
+// una colonna nuova costerebbe una migration da eseguire a mano per sempre.
+let lastFingerprint = null;
+
+/**
+ * Conteggio e data più recente di una tabella, senza rileggerne le righe:
+ * due numeri presi con una query di aggregazione.
+ *
+ * La colonna della data è un parametro perché le due tabelle non sono
+ * uguali: `listings` ha `updated_at` (mantenuta da un trigger), mentre
+ * `chain_proposals` ha solo `created_at` — verificato, non assunto. Su
+ * quest'ultima il segnale del cambiamento è il CONTEGGIO delle catene
+ * ancora 'proposed': quando una si chiude, decade o scade, quel numero
+ * cala e i suoi partecipanti tornano disponibili per cicli nuovi. Due
+ * variazioni opposte nello stesso quarto d'ora (una si chiude, una nasce)
+ * lascerebbero il conteggio uguale, ma la data più recente cambia — le
+ * righe nuove nascono sempre con `now()`.
+ */
+async function tableStamp(table, dateColumn, filter) {
+  let q = supabase.from(table).select(dateColumn, { count: "exact" })
+    .order(dateColumn, { ascending: false }).limit(1);
+  if (filter) q = filter(q);
+  const { data, count, error } = await q;
+  if (error) throw error;
+  return { count: count ?? 0, lastChangeAt: data?.[0]?.[dateColumn] ?? null };
+}
+
+/** Solo per i test: dimentica l'ultimo giro. */
+export function __resetChainFingerprintForTests() {
+  lastFingerprint = null;
+}
+
 export async function findAndProposeChains() {
   if (!supabase) throw new Error("Supabase client not configured");
 
@@ -201,6 +235,32 @@ export async function findAndProposeChains() {
     console.error("[chains] remind_stale_chain_confirmers failed:", remindErr.message);
   } else {
     remindedCount = remindResult ?? 0;
+  }
+
+  // Si può saltare tutto il resto? Il grafo dei desideri dipende da due
+  // cose sole — gli annunci attivi e le catene in sospeso — e se nessuna
+  // delle due si è mossa il risultato sarebbe identico a quello di 15
+  // minuti fa. Le due chiamate di manutenzione qui sopra sono già state
+  // fatte: quelle dipendono dal passare del tempo, non dagli annunci, e
+  // saltarle romperebbe scadenze e promemoria.
+  try {
+    const [listingsStamp, chainsStamp] = await Promise.all([
+      tableStamp("listings", "updated_at", (q) => q.eq("status", "active")),
+      // Stesso filtro di ownersWithPendingChain: sono le catene 'proposed'
+      // a bloccare i loro partecipanti, e quindi le sole che cambiano il
+      // risultato del ricalcolo.
+      tableStamp("chain_proposals", "created_at", (q) => q.eq("status", "proposed")),
+    ]);
+    const fingerprint = chainFingerprint(listingsStamp, chainsStamp);
+    if (canSkipRecompute(lastFingerprint, fingerprint, expiredCount)) {
+      console.log("[chains] nessun cambiamento dall'ultimo giro, ricalcolo saltato:", fingerprint);
+      return { proposed: [], skipped: [], errors: [], expiredCount, remindedCount, unchanged: true };
+    }
+    lastFingerprint = fingerprint;
+  } catch (e) {
+    // Se l'impronta non si riesce a leggere si ricalcola, come prima: il
+    // risparmio è un di più, non deve poter impedire il lavoro vero.
+    console.warn("[chains] impronta non leggibile, si ricalcola:", e?.message || e);
   }
 
   const allActive = await listActiveListings({ limit: 1000 });
