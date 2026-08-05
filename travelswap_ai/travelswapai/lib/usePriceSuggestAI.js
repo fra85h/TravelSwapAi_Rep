@@ -16,12 +16,16 @@ import { fetchJson } from "./backendApi";
 export function usePriceSuggestAI() {
   const [loading, setLoading] = useState(false);
 
-  const suggestPriceAI = useCallback(async (draft, locale = "it") => {
+  // `quick` per la verifica che parte da sola all'uscita dal campo prezzo:
+  // il server usa un modello economico, perché quel numero non lo legge
+  // nessuno — serve solo al confronto con la soglia. Per i due bottoni,
+  // dove la stima la legge una persona, resta il modello di punta.
+  const suggestPriceAI = useCallback(async (draft, locale = "it", { quick = false } = {}) => {
     setLoading(true);
     try {
       const res = await fetchJson("/api/listings/price-suggest", {
         method: "POST",
-        body: { ...draft, locale },
+        body: { ...draft, locale, quick },
       });
       return res || { available: false, reason: "empty_response" };
     } catch (e) {

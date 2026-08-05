@@ -1845,7 +1845,7 @@ const initialJsonRef = useRef(null);
 
     lastCheckedPriceRef.current = entered;
     try {
-      const aiRes = await suggestPriceAI(buildPriceDraft(), locale);
+      const aiRes = await suggestPriceAI(buildPriceDraft(), locale, { quick: true });
       if (!aiRes?.available) { setPricePeerHint(null); return; }
       const verdict = priceVerdict(entered, aiRes.suggestedPrice);
       setPricePeerHint(
