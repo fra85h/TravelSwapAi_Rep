@@ -309,13 +309,31 @@ export async function scoreChainCandidates(wantListing, candidates) {
     return validateChainScores(raw, batch.map((c) => c.id));
   });
 
+  // Il ripiego è PER LOTTO, non per l'intero insieme.
+  //
+  // Prima un solo lotto fallito buttava via il lavoro di tutti gli altri:
+  // con 8 lotti e il terzo andato in timeout, i punteggi AI degli altri 7
+  // — già calcolati e già PAGATI — venivano scartati per ricalcolare tutto
+  // con l'euristica. Si perdevano insieme i soldi spesi e la qualità dei
+  // lotti che erano andati benissimo.
+  //
+  // Ora l'euristica copre solo i candidati dei lotti falliti. I due
+  // punteggi convivono nello stesso risultato: è la stessa scala 0-100 e
+  // la stessa soglia di passaggio, ed è esattamente ciò che il ripiego
+  // deterministico è pensato per fare — sostituire l'AI dove non ha
+  // risposto, non ovunque.
   const results = [];
-  for (const validated of perBatch) {
-    if (!validated || !validated.length) {
-      // un batch fallito -> ricadi sull'euristica per l'intero lotto di candidati
-      return heuristicChainScore(wantListing, candidates);
+  let fallbackCount = 0;
+  perBatch.forEach((validated, i) => {
+    if (validated && validated.length) {
+      results.push(...validated);
+      return;
     }
-    results.push(...validated);
+    fallbackCount += 1;
+    results.push(...heuristicChainScore(wantListing, batches[i]));
+  });
+  if (fallbackCount) {
+    console.warn(`[chainMatch] ${fallbackCount}/${batches.length} lotti su euristica (AI non disponibile per quei candidati)`);
   }
 
   const byId = new Map(results.map((r) => [r.id, r]));
