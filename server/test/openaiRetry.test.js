@@ -91,3 +91,50 @@ test('NON ritenta quando il credito è esaurito, anche se è un 429', async () =
   );
   assert.equal(calls, 1);
 });
+
+test('col budget quasi esaurito NON parte un secondo tentativo', async () => {
+  // Il caso della rotellina infinita: il primo tentativo muore per timeout,
+  // cioè era già lento. Ritentare raddoppia l'attesa proprio lì, e chi
+  // aspetta dall'altra parte molla a 90 secondi — quindi il secondo giro
+  // non produce una risposta migliore, produce una rotellina e nessun
+  // messaggio.
+  let calls = 0;
+  await assert.rejects(
+    () => withOpenAIRetry(
+      async () => {
+        calls++;
+        await new Promise((r) => setTimeout(r, 60)); // "lento"
+        throw err(520);
+      },
+      { budgetMs: 100 }, // 60ms x 2 + 1500 > 100 → niente secondo giro
+    ),
+    /errore 520/,
+  );
+  assert.equal(calls, 1);
+});
+
+test('un guasto VELOCE viene ritentato anche con un budget stretto', async () => {
+  // È il 520 senza corpo: torna subito, quindi c'è tutto il tempo per
+  // riprovare. Distinguere i due casi è l'intero scopo del budget.
+  let calls = 0;
+  const out = await withOpenAIRetry(
+    async () => {
+      calls++;
+      if (calls === 1) throw err(520);
+      return 'ok';
+    },
+    { budgetMs: 70_000 },
+  );
+  assert.equal(out, 'ok');
+  assert.equal(calls, 2);
+});
+
+test('senza budget dichiarato il comportamento resta quello di prima', async () => {
+  let calls = 0;
+  await withOpenAIRetry(async () => {
+    calls++;
+    if (calls === 1) throw err(503);
+    return 'ok';
+  });
+  assert.equal(calls, 2);
+});
