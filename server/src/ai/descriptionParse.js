@@ -10,6 +10,24 @@ const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0);
 // intero da leggere, non solo poche righe di testo.
 const client = createOpenAIClient({ timeoutMs: Number(process.env.OPENAI_PARSE_TIMEOUT_MS || 45_000) });
 
+// BUDGET DEL RAMO PDF, e perché è più stretto del resto.
+//
+// L'app aspetta 90 secondi (lib/descriptionParser.js) e poi molla. Se il
+// server ci mette di più, l'utente non riceve un messaggio: riceve una
+// rotellina che gira e basta — è successo, ed è il difetto peggiore fra
+// quelli possibili, perché non lascia nemmeno un indizio.
+//
+// Il conto va fatto per intero, e dopo il passaggio alla Files API le
+// chiamate a OpenAI sono DUE (carica il file, poi leggilo), non una:
+//   45s di timeout x 2 tentativi del SDK x 2 chiamate x 2 giri miei = ~6 min.
+// Sei minuti contro 90 secondi di pazienza. Qui il SDK non ritenta
+// (maxRetries: 0, il ritentativo lo gestisce withOpenAIRetry, uno solo e
+// consapevole del tempo rimasto) e ogni chiamata ha 30 secondi: caso
+// peggiore 30+30 = 60s, che sta dentro il budget con margine.
+const PDF_CALL_TIMEOUT_MS = Number(process.env.OPENAI_PDF_TIMEOUT_MS || 30_000);
+const PDF_BUDGET_MS = Number(process.env.OPENAI_PDF_BUDGET_MS || 70_000);
+const pdfClient = createOpenAIClient({ timeoutMs: PDF_CALL_TIMEOUT_MS, maxRetries: 0 });
+
 // Oggi (per la regola: primo anno utile nel futuro)
 function nowIsoMinutes() {
   const d = new Date();
@@ -338,7 +356,8 @@ const MAX_PDF_BASE64_CHARS = 8_000_000;
  * Il motivo vero finisce nei log con la dimensione del documento: davanti
  * a un errore senza corpo, sapere quanto pesava è metà della diagnosi.
  */
-export async function withOpenAIRetry(fn, { what = "richiesta" } = {}) {
+export async function withOpenAIRetry(fn, { what = "richiesta", budgetMs = 0 } = {}) {
+  const started = Date.now();
   const transient = (e) => {
     // Credito esaurito: è un 429 come il limite di frequenza, ma non passa
     // aspettando. Ritentarlo raddoppia solo l'attesa prima di dire la
@@ -350,8 +369,21 @@ export async function withOpenAIRetry(fn, { what = "richiesta" } = {}) {
   try {
     return await fn();
   } catch (e) {
-    console.warn(`[AI] ${what}: primo tentativo fallito (${e?.status || "?"}) ${e?.message || e}`);
+    const elapsed = Date.now() - started;
+    console.warn(`[AI] ${what}: primo tentativo fallito dopo ${elapsed}ms (${e?.status || "?"}) ${e?.message || e}`);
     if (!transient(e)) throw e;
+    // Si ritenta SOLO se resta tempo per farlo davvero.
+    //
+    // Senza questo controllo il ritentativo raddoppia l'attesa proprio nel
+    // caso peggiore: quello in cui il primo tentativo è morto per timeout,
+    // cioè quando era già lento. E chi aspetta dall'altra parte molla a
+    // 90 secondi — quindi il secondo giro non produrrebbe una risposta
+    // migliore, produrrebbe una rotellina che gira e nessun messaggio.
+    // Un guasto veloce (il 520 che ci interessa) ha invece tutto il tempo.
+    if (budgetMs > 0 && elapsed * 2 + 1500 > budgetMs) {
+      console.warn(`[AI] ${what}: niente secondo tentativo, budget ${budgetMs}ms quasi esaurito`);
+      throw e;
+    }
     await new Promise((r) => setTimeout(r, 1500));
     return fn();
   }
@@ -387,12 +419,12 @@ export async function parseTicketPdfWithAI(pdfBase64, locale = "it") {
   let uploaded = null;
   const resp = await withOpenAIRetry(async () => {
     if (!uploaded) {
-      uploaded = await client.files.create({
+      uploaded = await pdfClient.files.create({
         file: await toFile(Buffer.from(b64, "base64"), "ticket.pdf", { type: "application/pdf" }),
         purpose: "user_data",
       });
     }
-    return client.responses.create({
+    return pdfClient.responses.create({
       model: MODEL,
       temperature: TEMPERATURE,
       input: [
@@ -422,12 +454,12 @@ export async function parseTicketPdfWithAI(pdfBase64, locale = "it") {
         },
       },
     });
-  }, { what: `PDF ${Math.round(bytes / 1024)}KB` }).finally(() => {
+  }, { what: `PDF ${Math.round(bytes / 1024)}KB`, budgetMs: PDF_BUDGET_MS }).finally(() => {
     // Il documento non deve restare depositato da un fornitore terzo più
     // del necessario: serve solo per questa lettura. La cancellazione è
     // best-effort e non deve poter far fallire un import riuscito.
     if (uploaded?.id) {
-      client.files.del(uploaded.id).catch((e) =>
+      pdfClient.files.del(uploaded.id).catch((e) =>
         console.warn("[AI] PDF non cancellato da OpenAI:", uploaded.id, e?.message || e),
       );
     }
