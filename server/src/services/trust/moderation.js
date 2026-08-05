@@ -4,6 +4,7 @@
 // inappropriati/illeciti che il TrustScore generale non è progettato per
 // cogliere. Fail-safe: se la chiave manca o l'API fallisce, non blocca nulla.
 import { createOpenAIClient } from "../../lib/openaiClient.js";
+import { reportFault } from "../../lib/monitoring.js";
 
 const client = createOpenAIClient();
 
@@ -65,7 +66,7 @@ export async function moderateListing(listing) {
     }
     return { flagged, flags };
   } catch (e) {
-    console.error("[moderateListing] error:", e?.message || e);
+    reportFault("moderateListing", e);
     return { flagged: false, flags: [] };
   }
 }

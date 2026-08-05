@@ -1,5 +1,6 @@
 // server/src/services/trust/aiTrust.js
 import { createOpenAIClient } from "../../lib/openaiClient.js";
+import { reportFault } from "../../lib/monitoring.js";
 import { reasonWithoutFalseClaims, fixesWithoutFalseClaims } from "./falseClaims.js";
 
 // Bug preesistente corretto: il costruttore di OpenAI lancia un'eccezione
@@ -258,7 +259,7 @@ export async function aiTrustReview(listing, heur = {}, locale = 'it') {
     // quindi quei dati arrivavano agli utenti finali. Il ragionamento di prima
     // ("l'SDK non mette mai la chiave nel messaggio") era giusto sulla chiave
     // ma non copriva il resto.
-    console.error("[aiTrustReview] error:", e?.status || "", e?.message || e);
+    reportFault("aiTrustReview", e, { status: e?.status });
 
     // Allo status HTTP si può restare: non identifica nulla e serve a chi
     // legge i log a capire subito di che famiglia di problema si tratta

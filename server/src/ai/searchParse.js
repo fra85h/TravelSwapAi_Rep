@@ -10,6 +10,7 @@
 // deterministico, quindi se l'AI non risponde la ricerca non si rompe —
 // il client ricade sulla ricerca testuale semplice che aveva già.
 import { createOpenAIClient } from "../lib/openaiClient.js";
+import { reportFault } from "../lib/monitoring.js";
 
 const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0);
@@ -193,7 +194,7 @@ export function mountParseSearchRoute(app, requireAuth) {
       const filters = await parseSearchQueryWithAI(query, locale);
       return res.json({ ok: true, filters });
     } catch (err) {
-      console.error("[/ai/parse-search] error:", err?.message || err);
+      reportFault("/ai/parse-search", err);
       const status = err?.status || 502;
       return res.status(status).json({
         ok: false,
