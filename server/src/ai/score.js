@@ -1,5 +1,6 @@
 // server/src/ai/score.js
 import OpenAI from "openai";
+import { reportFault } from "../lib/monitoring.js";
 import { mapWithConcurrency } from "../lib/concurrency.js";
 import { envInt } from "../lib/envNumber.js";
 
@@ -260,7 +261,7 @@ async function callOpenAIJSON({
       const status = e?.status;
       const msg = String(e?.message || e || "");
       const aborted = /abort|timeout/i.test(msg);
-      console.error("[AI] OpenAI error:", status, msg, aborted ? "(aborted)" : "");
+      reportFault("matchScore", e, { status, aborted });
 
       if (attempt + 1 < maxAttempts && shouldRetry(e, status)) {
         // backoff molto leggero per evitare picchi (non cambia l'API)

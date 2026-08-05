@@ -1,4 +1,5 @@
 import { createOpenAIClient } from "../../../lib/openaiClient.js";
+import { reportFault } from "../../../lib/monitoring.js";
 
 // Se la chiave manca, il costruttore di OpenAI lancia un'eccezione a livello
 // di modulo — a import time, non dentro una funzione — che far cadere
@@ -58,7 +59,7 @@ export async function openaiTranslate({ text, targetLang, sourceLang="auto" }) {
     // normalize non ha alcun effetto, quindi quest'ordine è sempre sicuro.
     return restore(normalize(out), m);
   } catch (e) {
-    console.error("[openaiTranslate] error", e);
+    reportFault("openaiTranslate", e);
     return null; // fallimento distinto da "" (niente da tradurre): il chiamante non deve spacciarlo per un successo
   }
 }

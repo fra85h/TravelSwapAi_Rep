@@ -20,6 +20,8 @@
 //                   per mandare a utenti reali serve un dominio proprio
 //                   verificato su Resend (Dashboard → Domains, richiede
 //                   aggiungere record SPF/DKIM al DNS del dominio).
+import { reportFault } from "./monitoring.js";
+
 const API_KEY = (process.env.RESEND_API_KEY || "").trim();
 const FROM = (process.env.RESEND_FROM || "").trim() || "TravelSwap <onboarding@resend.dev>";
 
@@ -44,12 +46,12 @@ export async function sendMail({ to, subject, text }) {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      console.error("[mailer] invio fallito:", res.status, body);
+      reportFault("mailer", new Error(`invio fallito: HTTP ${res.status}`), { body: String(body).slice(0, 300) });
       return false;
     }
     return true;
   } catch (e) {
-    console.error("[mailer] invio fallito:", e?.message || e);
+    reportFault("mailer", e);
     return false;
   }
 }

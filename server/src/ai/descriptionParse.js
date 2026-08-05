@@ -1,6 +1,7 @@
 // server/src/ai/descriptionParse.js
 import { toFile } from "openai";
 import { createOpenAIClient, isQuotaExhausted, userFacingAIError } from "../lib/openaiClient.js";
+import { reportFault } from "../lib/monitoring.js";
 
 const MODEL = process.env.MATCH_AI_MODEL || "gpt-4o-mini";
 const TEMPERATURE = Number(process.env.MATCH_AI_TEMP ?? 0);
@@ -463,7 +464,7 @@ export function mountParseDescriptionRoute(app, requireAuth) {
       const data = await parseDescriptionWithAI(text, locale);
       return res.json({ ok: true, data });
     } catch (err) {
-      console.error("[/ai/parse-description] error:", err?.message || err);
+      reportFault("/ai/parse-description", err, { status: err?.status });
       const status = err?.status || 502;
       return res.status(status).json({
         ok: false,
@@ -483,7 +484,7 @@ export function mountParseDescriptionRoute(app, requireAuth) {
       // "aggiungi credito su platform.openai.com" non gli dice niente, e
       // intanto gli racconta con che fornitore lavoriamo e che abbiamo il
       // conto scoperto.
-      console.error("[/ai/parse-ticket-pdf] error:", err?.message || err);
+      reportFault("/ai/parse-ticket-pdf", err, { status: err?.status });
       const status = isQuotaExhausted(err) ? 503 : (err?.status || 502);
       return res.status(status).json({
         ok: false,

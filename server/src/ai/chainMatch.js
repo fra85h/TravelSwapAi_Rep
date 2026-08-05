@@ -12,6 +12,7 @@
 // fallisce, così la ricerca cicli non si blocca mai per un problema
 // di rete/quota OpenAI.
 import OpenAI from "openai";
+import { reportFault } from "../lib/monitoring.js";
 import { mapWithConcurrency } from "../lib/concurrency.js";
 
 const client = process.env.OPENAI_API_KEY
@@ -260,7 +261,7 @@ async function callOpenAIChainScore(prompt, timeoutMs) {
     return Array.isArray(parsed?.scores) ? parsed.scores : null;
   } catch (e) {
     clearTimeout(timer);
-    console.error("[chainMatch] OpenAI error:", e?.status, e?.message || e);
+    reportFault("chainMatch", e, { status: e?.status });
     return null;
   }
 }

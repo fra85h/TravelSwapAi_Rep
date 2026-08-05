@@ -3,6 +3,7 @@
 // usando la sola conoscenza generale del modello, senza dati di mercato in
 // tempo reale — un parere orientativo, non una quotazione garantita.
 import { createOpenAIClient } from "../lib/openaiClient.js";
+import { reportFault } from "../lib/monitoring.js";
 import { cacheKey, getCached, setCached } from "../lib/aiCache.js";
 
 const client = createOpenAIClient();
@@ -190,7 +191,7 @@ export async function suggestPriceWithAI(draft, locale = "it", { quick = false }
     // deve restare appiccicato alla tratta per 24 ore.
     return setCached(key, { available: true, suggestedPrice: Math.round(suggestedPrice), explanation });
   } catch (e) {
-    console.error("[suggestPriceWithAI] error:", e?.message || e);
+    reportFault("suggestPriceWithAI", e);
     return { available: false, reason: "Analisi non riuscita al momento" };
   }
 }
@@ -248,7 +249,7 @@ export async function checkPriceWithAI(listing, locale = "it") {
 
     return setCached(key, { available: true, verdict, explanation });
   } catch (e) {
-    console.error("[checkPriceWithAI] error:", e?.message || e);
+    reportFault("checkPriceWithAI", e);
     return { available: false, reason: "Analisi non riuscita al momento" };
   }
 }
