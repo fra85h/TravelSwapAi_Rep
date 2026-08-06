@@ -76,6 +76,7 @@ Regole vincolanti:
 - "ticketClass": la CLASSE di viaggio, cioè dove si è seduti: "1a"/"Prima", "2a"/"Seconda", "Business", "Executive", "Standard", "Prima Business", "Smart", "Comfort", "Prestige"… Riportala come è scritta sul documento.
 - "fareType": la TARIFFA commerciale, cioè le condizioni di acquisto: "Base", "Economy", "Super Economy", "Flex", "Low Cost", "Young", "Senior"… Riportala come è scritta sul documento.
 - ATTENZIONE, "ticketClass" e "fareType" sono cose DIVERSE e non vanno confuse: un biglietto può essere "Business" (classe) con tariffa "Economy". Se il documento riporta solo una delle due, l'altra resta null: non dedurre mai l'una dall'altra.
+- DOVE TROVARLE sui biglietti Trenitalia (verificato su un documento reale): la riga "Servizio:" indica la CLASSE (es. "2° Standard", "1° Business"), mentre "Offerta" o "livello di prezzo" indicano la TARIFFA (es. "BASE", "ECONOMY", "SUPER ECONOMY"). Una dicitura composita come "BASE-STANDARD" le contiene entrambe: tariffa "Base", classe "Standard".
 - Non inventare né l'una né l'altra: se non compaiono nel testo, null.
 
 7) Formati e pulizia
@@ -88,6 +89,7 @@ Regole vincolanti:
   a) il testo è chiaramente una conferma di prenotazione o nomina il fornitore esplicitamente;
   b) PER I TRENI, il testo nomina un servizio/marchio commerciale esclusivo di un operatore, anche senza dire il nome dell'azienda: "Frecciarossa", "Frecciargento", "Freccia Bianca"/"Frecciabianca", "Intercity", "Intercity Notte", "EuroCity", "Euronight" → "Trenitalia"; "Italo" (il treno stesso si chiama così) → "Italo".
 - "Regionale"/"Regionale Veloce" da soli NON bastano a dedurre l'operatore: sono gestiti da più aziende diverse a seconda della regione (Trenitalia, Trenord, TPER…) — lascia "provider" null a meno che il testo non nomini esplicitamente anche l'azienda.
+- IL TRENO INDICATO VINCE SULLE CLAUSOLE GENERICHE. Se il documento nomina il treno specifico (es. "Treno: Frecciarossa 9516"), quello è la fonte più attendibile e basta da solo. I biglietti Trenitalia contengono spesso una formula standard del tipo "in base all'orario di partenza, il trasporto potrà essere effettuato da Trenitalia, Trenord, anche in combinazione": è una clausola legale sui biglietti integrati, NON un'incertezza su chi fa il treno indicato. Non usarla per mettere "provider" a null quando il treno è nominato — errore osservato su un biglietto reale, dove un Frecciarossa era finito senza operatore proprio per questo.
 - Se resta ambiguo o non chiaro, metti null: non inventare mai un fornitore.
 `;
 
