@@ -36,7 +36,7 @@ dei fix P0-P2), `docs/matching.md` (algoritmo di matching 1:1 in dettaglio),
 | POST | `/api/matches/retract` | `match.js` | requireAuth + rate limit | Ritira un annuncio dai suggerimenti altrui. |
 | POST | `/api/chains/recompute` | `chains.js` | **cron-only** (secret) | Ricalcola gli swap a catena su tutta la piattaforma — pensato per girare ogni 15 min. |
 | POST | `/api/saved-searches/recompute` | `savedSearches.js` | **cron-only** | Ricalcola i match per gli avvisi di ricerca. |
-| POST | `/api/offers/recompute` | `offers.js` | **cron-only** | Scade le proposte pending oltre 48h (facoltativo: la scadenza pigra lato client basta già). |
+| POST | `/api/offers/recompute` | `offers.js` | **cron-only** | Scade le proposte pending oltre 48h, libera le prenotazioni scadute e manda i promemoria di conferma/valutazione. |
 | POST | `/api/price-decay/recompute` | `priceDecay.js` | **cron-only** | Prezzo dinamico: fa scendere `price` verso `price_floor` per gli annunci VENDO che l'hanno attivato. |
 | POST | `/api/pings` | `pings.js` | requireAuth + rate limit | Feature "Ping": segnala un proprio VENDO al proprietario di un CERCO (solo notifica, niente offerta). |
 | POST | `/api/listing-questions` | `listingQuestions.js` | requireAuth + rate limit | Registra una domanda a risposta chiusa su un annuncio altrui. |
@@ -49,6 +49,7 @@ dei fix P0-P2), `docs/matching.md` (algoritmo di matching 1:1 in dettaglio),
 | POST | `/api/disputes/resolve-chain` | `disputes.js` | requireAdminSecret + rate limit | Risolve una contestazione aperta su uno scambio a 3. |
 | POST | `/api/notify/offer-received` | `notify.js` | requireAuth + rate limit | Email transazionale: hai ricevuto una proposta. |
 | POST | `/api/notify/offer-accepted` | `notify.js` | requireAuth + rate limit | Email transazionale: la tua proposta è stata accettata. |
+| POST | `/api/client-errors` | `clientErrors.js` | requireAuth + rate limit | Riceve dall'app i guasti che l'utente ha visto e li inoltra al tracciamento (Sentry) — senza questo, sul server arrivavano solo i crash del server. |
 | GET | `/debug/*`, `/dev/*` | `index.js` | **solo fuori produzione** | Diagnostica (env, connessione Supabase, token). |
 
 Tutti gli endpoint `cron-only` sono protetti da `requireCronSecret` (header
@@ -88,10 +89,10 @@ non esiste nel repo.
 | `services/trust/store.js` | Scrive la riga di audit (`trust_audit`) che alimenta lo storico del punteggio. |
 | `services/trust/translate/openaiProvider.js` | Traduzione di un annuncio in una lingua target via AI. |
 | `ai/score.js` | Matching 1:1: punteggio strutturale AI (`scoreWithAI`) + fallback euristico (`heuristicScore`). Vedi `docs/matching.md`. |
-| `ai/chainMatch.js` | Normalizzazione fuzzy per gli swap a catena: quanto un annuncio VENDO soddisfa un CERCO, tollerando città vicine e date non identiche. |
+| `ai/chainMatch.js` | Normalizzazione fuzzy per gli swap a catena: quanto un annuncio VENDO soddisfa un CERCO, tollerando città vicine e date non identiche. Il modello risponde per **indice** (`{i, score}`), non per uuid e senza motivazione: erano ~800 token per chiamata di sola targhetta, in uscita, dove costano 4× l'ingresso. `worthScoringByDate` scarta prima i candidati oltre 30 giorni di distanza. Un lotto fallito ricade sull'euristica **da solo**, senza buttare i punteggi già pagati degli altri. |
 | `ai/chainExplain.js` | Spiegazione in linguaggio naturale di una catena trovata (fallback a un template se l'AI non risponde). |
-| `ai/descriptionParse.js` | Parsing AI di una descrizione libera o di un PDF biglietto nei campi strutturati dell'annuncio. |
-| `ai/priceCheck.js` | Stima del prezzo consigliato in base a tratta/date/tipo. |
+| `ai/descriptionParse.js` | Parsing AI di una descrizione libera o di un PDF biglietto nei campi strutturati dell'annuncio (compresi classe, operatore e tipologia di tariffa). Il PDF passa dalla Files API con un client dedicato (timeout corto, nessun retry dell'SDK) e un budget complessivo: prima poteva metterci 6 minuti contro i 90 secondi che l'app aspetta. |
+| `ai/priceCheck.js` | Stima del prezzo consigliato in base a tratta/date/tipo. Due modalità: quella completa su modello di punta e una `quick` su modello economico per l'avviso automatico all'inserimento del prezzo. Risultati in cache (`lib/aiCache.js`). |
 
 ---
 
@@ -104,7 +105,11 @@ non esiste nel repo.
 | `middleware/rateLimit.js` | Rate limiter **in-memory** (non sopravvive al riavvio, non scala su più istanze — nota aperta, vedi §10). |
 | `lib/concurrency.js` | `mapWithConcurrency`: esegue una lista di chiamate (tipicamente OpenAI) con un tetto di parallelismo, non tutte in fila né tutte insieme. |
 | `lib/envNumber.js` | Legge un intero da env senza il trabocchetto `Number(x || default)` su stringa vuota. |
-| `lib/openaiClient.js` | Factory del client OpenAI: costruito solo se la chiave è presente (altrimenti il costruttore stesso farebbe cadere il server all'avvio). |
+| `lib/openaiClient.js` | Factory del client OpenAI: costruito solo se la chiave è presente (altrimenti il costruttore stesso farebbe cadere il server all'avvio). `isQuotaExhausted` riconosce il credito finito — un 429 che **non** va ritentato — e `userFacingAIError` lo traduce in un messaggio che dice all'utente cosa fare invece di "errore generico". |
+| `lib/monitoring.js` | Invio degli errori a Sentry. `reportFault(scope, err)` è il punto per i guasti **gestiti** (catch che ricadono su un fallback): erano invisibili al tracciamento, ed erano esattamente i guasti che gli utenti vedevano. Throttle di 5 minuti per scope+messaggio, così un cron rotto non brucia la quota mensile. |
+| `instrument.js` | Init di Sentry, **primo import** di `index.js` (regione UE). Ripulisce header di autorizzazione, cookie, firma webhook, corpo e query string prima di spedire. No-op senza `SENTRY_DSN`. |
+| `lib/aiCache.js` | Cache TTL+LRU in memoria per le risposte AI ripetute (stime prezzo). La chiave è il **prompt esatto**, con separatore: `("ab","c")` non deve collidere con `("a","bc")`. |
+| `lib/chainFingerprint.js` | "È cambiato qualcosa dall'ultimo giro?" per il ricalcolo delle catene. `listingsStamp` digerisce solo i campi che il grafo dei desideri usa davvero: il prezzo resta fuori di proposito, altrimenti il decadimento automatico invaliderebbe l'impronta ogni 15 minuti e il ricalcolo non salterebbe mai. |
 | `lib/push.js` | Invio push Expo — no-op silenzioso finché nessun client nativo registra un token. |
 | `lib/mailer.js` | Invio email via API HTTPS di Resend (Render blocca l'SMTP in uscita) — no-op con warning se `RESEND_API_KEY` non configurata. |
 | `lib/fbSend.js` | Send API di Messenger/Instagram (Page Access Token). |
@@ -208,7 +213,7 @@ pura, nessuna dipendenza React Native, importabile da Node senza bundler —
 
 ---
 
-## 8. Copertura test — cosa è testato davvero (`server/test/`, 38 file)
+## 8. Copertura test — cosa è testato davvero (`server/test/`, 50 file)
 
 Raggruppati per area:
 
@@ -248,15 +253,44 @@ Raggruppati per area:
 - **Utility pure**: `textPatterns.test.js`, `translatePlaceholders.test.js`,
   `envNumber.test.js`, `concurrency.test.js`.
 - **Regressione sulle migration SQL**: `migrationsIntegrity.test.js` — non
-  esegue query (niente DB in CI): controlla che l'**ultima** versione di ogni
+  esegue query: controlla che l'**ultima** versione di ogni
   funzione riscritta più volte contenga ancora le correzioni introdotte in
   precedenza (lock, cast, ordine). Vedi `CLAUDE.md` per la regressione reale
   che l'ha motivato.
+- **Allineamento repo ↔ database**: `verifySchema.test.js` — che
+  `supabase/verify_schema.sql` combaci ancora con le migration (un file
+  generato che nessuno rigenera mente proprio sull'oggetto appena aggiunto),
+  e che ogni RPC chiamata dal codice sia creata da qualche migration.
+- **Costi e guasti OpenAI**: `aiCache.test.js` (chiave = prompt esatto,
+  scadenza, tetto LRU), `openaiQuota.test.js` (credito finito riconosciuto e
+  non ritentato), `openaiRetry.test.js` (il retry rinuncia se il budget di
+  tempo non basta per un secondo giro), `reportFault.test.js` +
+  `monitoring.test.js` (throttle, nessun invio senza DSN),
+  `clientErrors.test.js` (i guasti dell'app arrivano al server ripuliti).
+- **Catene, difese prima di pagare il modello**: `chainDateWindow.test.js`
+  (finestra 30 giorni, si scarta solo ciò di cui si è certi: se una data
+  manca il candidato passa; la geografia non si tocca),
+  `chainFingerprint.test.js` (il **prezzo** non deve spostare l'impronta —
+  è la regressione vera), `chainScoreIndices.test.js` (un indice fuori
+  intervallo o ripetuto non deve attribuire il punteggio all'annuncio
+  sbagliato), `chainBatchFallback.test.js`.
+- **Regole del database, eseguite davvero** (`server/test/db/`, richiedono
+  `DATABASE_URL`): `offersEnforce.test.js` — offerta verso un CERCO,
+  scambio che offre un CERCO, annuncio in pausa, accettazione di un'offerta
+  (il guasto storico del cast su `offers.status`), notifiche generate dai
+  trigger; `expireListings.test.js` — annuncio scaduto che si porta dietro
+  le proposte pendenti, avviso a chi le aveva fatte, e il filtro su
+  `auth.uid()` che impedisce di far scadere la roba degli altri. Ognuno in
+  una transazione annullata alla fine; l'utente si impersona come in
+  produzione (`set local role authenticated` + claim `sub`), non con
+  l'utente proprietario del database.
 
-**332 test**, tutti eseguiti con `cd server && node --experimental-test-module-mocks --test`
+**447 test**, tutti eseguiti con `cd server && node --experimental-test-module-mocks --test`
 (il flag serve a `mock.module()`, usato dai test che sostituiscono il client
-Supabase), nessuna rete reale (OpenAI/Supabase non sono raggiungibili in CI:
-dove serve, si testa il percorso di fallback deterministico).
+Supabase). Nessuna rete reale (OpenAI/Supabase non sono raggiungibili in CI:
+dove serve, si testa il percorso di fallback deterministico). Senza
+`DATABASE_URL` i 15 test su Postgres si saltano da soli — in locale restano
+432 + 15 saltati, in CI il job `test-db` li esegue tutti.
 
 ### App RN (`travelswap_ai/travelswapai/__tests__/`, jest-expo)
 
@@ -279,10 +313,16 @@ dove serve, si testa il percorso di fallback deterministico).
   la logica **pura** estratta in `.mjs` (sopra) è testata — tutto il resto
   dell'app (stato, navigazione, rendering) ha solo un parse-check sintattico
   (`@babel/parser`), non una verifica di comportamento.
-- **Nessuna query SQL eseguita davvero**: `migrationsIntegrity.test.js`
-  legge il *testo* delle migration con regex, non apre mai una connessione
-  Postgres. Un bug di logica in una RPC che rispetta comunque i pattern
-  cercati (lock presente, cast presente) non verrebbe scoperto qui.
+- **Le RPC coperte da SQL vero sono solo quelle in `server/test/db/`**: le
+  altre (catene, valutazioni, dispute, prezzo dinamico) hanno solo il
+  controllo testuale di `migrationsIntegrity.test.js`, che legge le migration
+  con regex senza aprire una connessione. Un bug di logica in una RPC che
+  rispetta comunque i pattern cercati non verrebbe scoperto lì.
+- **Il database di produzione resta fuori portata**: la CI dice che le
+  migration sono *corrette*, non che sono state *applicate*. Quella risposta
+  la dà solo `supabase/verify_schema.sql` lanciato sul database vero — e la
+  differenza non è teorica: sei migration del 30 luglio erano rimaste
+  indietro per una settimana senza alcun sintomo visibile.
 - **Nessun test di integrazione HTTP** (tipo supertest): le route non sono
   mai chiamate come endpoint, solo le funzioni pure sottostanti.
 - **Nessun E2E** (Playwright/Detox) su app mobile o bundle web.
@@ -313,9 +353,20 @@ dove serve, si testa il percorso di fallback deterministico).
 ## 10. Come testare in pratica
 
 ```bash
-# Suite completa backend (332 test; il flag serve a mock.module(), usato dai
-# test che sostituiscono il client Supabase)
+# Suite completa backend (447 test; il flag serve a mock.module(), usato dai
+# test che sostituiscono il client Supabase). Senza DATABASE_URL i 15 test
+# su Postgres si saltano da soli.
 cd server && node --experimental-test-module-mocks --test
+
+# Le regole che vivono nel database (trigger, vincoli, RLS): servono un
+# Postgres vero e lo schema ricostruito da zero. In CI lo fa il job test-db.
+createdb travelswap_test
+export DATABASE_URL=postgres://localhost:5432/travelswap_test
+node server/tools/apply_migrations.mjs   # bootstrap + 72 migration in ordine
+cd server && npm test
+
+# Dopo aver aggiunto una migration: rigenera la verifica di allineamento
+node supabase/tools/gen_verify_schema.mjs
 
 # Sintassi di un singolo file server dopo una modifica
 node --check server/src/percorso/del/file.js

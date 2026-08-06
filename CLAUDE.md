@@ -20,8 +20,11 @@ treno e prenotazioni hotel non utilizzati. Monorepo con due progetti:
 
 | Cosa | Comando |
 |---|---|
-| Test backend | `cd server && node --experimental-test-module-mocks --test` (283 test, devono passare tutti; il flag serve a `mock.module()`, usato per i test che sostituiscono il client Supabase) |
-| Test app RN/Expo | `cd travelswap_ai/travelswapai && npx jest` (Jest + jest-expo + Testing Library; per ora solo lo smoke test `__tests__/App.smoke.test.js`) |
+| Test backend | `cd server && node --experimental-test-module-mocks --test` (447 test, devono passare tutti; il flag serve a `mock.module()`, usato per i test che sostituiscono il client Supabase) |
+| Test app RN/Expo | `cd travelswap_ai/travelswapai && npx jest` (119 test, Jest + jest-expo + Testing Library) |
+| Test contro Postgres vero | vedi sotto: senza `DATABASE_URL` i 15 test in `server/test/db/` si saltano da soli |
+| Schema ricostruibile da zero | `DATABASE_URL=... node server/tools/apply_migrations.mjs` (bootstrap + tutte le migration in ordine) |
+| Il DB ha tutto ciò che il repo dichiara? | incolla `supabase/verify_schema.sql` nel SQL Editor: zero righe = allineato |
 | Syntax check file server | `node --check <file>` |
 | Parse-check file RN (JSX) | `node -e "require('@babel/parser').parse(require('fs').readFileSync('<file>','utf8'),{sourceType:'module',plugins:['jsx']})"` |
 | Parità traduzioni it/en/es | vedi script sotto |
@@ -42,6 +45,21 @@ langs.forEach((l,i)=>console.log(l,sets[i].size));
 Prima di aprire una PR: test verdi, parse OK su ogni file RN toccato, parità
 i18n invariata, bundle web ricompilato e senza residui di mock/debug (grep sul
 bundle finale per `debug-user` / `DEBUG_MOCK` deve dare 0).
+
+Le regole che vivono nel database (trigger, vincoli, RLS) non le esegue
+nessun mock: per provarle serve un Postgres vero. In CI lo fa il job
+`test-db`; in locale:
+
+```bash
+createdb travelswap_test
+export DATABASE_URL=postgres://localhost:5432/travelswap_test
+node server/tools/apply_migrations.mjs   # bootstrap + 72 migration in ordine
+cd server && npm test
+```
+
+Se aggiungi una migration, rigenera anche la verifica di allineamento
+(`node supabase/tools/gen_verify_schema.mjs`): un test in CI fallisce se il
+file committato non combacia più con le migration.
 
 ## Regole di modello (dominio)
 
@@ -94,7 +112,14 @@ bundle finale per `debug-user` / `DEBUG_MOCK` deve dare 0).
   (`POST /api/chains/recompute`, `server/src/models/chains.js`). Un utente
   con più annunci VENDO attivi partecipa comunque: ogni arco del grafo di
   desiderio sceglie l'annuncio specifico con punteggio migliore, non esclude
-  l'utente. Si chiude solo quando TUTTI E 3 confermano
+  l'utente. **Il costo cresce come CERCO × VENDO**, quindi due difese
+  deterministiche prima di pagare il modello: si salta l'intero ricalcolo se
+  nulla di rilevante è cambiato dall'ultimo giro (impronta sui campi che il
+  grafo usa davvero — mai sul prezzo, che il decadimento automatico riscrive
+  di continuo senza cambiare i cicli), e si scartano i candidati con data
+  oltre `CHAIN_DATE_WINDOW_DAYS` (30) di distanza. Si filtra solo sulla
+  **data**, mai sulla geografia: la vicinanza fra due città è il giudizio per
+  cui l'AI esiste lì. Si chiude solo quando TUTTI E 3 confermano
   (`confirm_chain_participant`); da quel momento hanno una chat dedicata
   (`chain_messages`, RLS aperta solo a catena `completed` — mai prima, il
   giro può ancora decadere).
@@ -102,8 +127,9 @@ bundle finale per `debug-user` / `DEBUG_MOCK` deve dare 0).
   (`transaction_ratings`, RPC `rate_transaction`/`get_user_rating`): il
   proprio voto resta nascosto finché anche l'altra parte vota o passano 14
   giorni; sotto 3 voti rivelati si mostra "Nuovo", mai una media; voto
-  immutabile. **Non copre ancora gli scambi a 3**: quelle transazioni non
-  hanno una riga in `offers`, quindi `rate_transaction` non si applica.
+  immutabile. Gli scambi a 3 hanno la loro strada (`rate_chain_transaction`,
+  `transaction_ratings.chain_id`): non passano da `offers`, quindi
+  `rate_transaction` lì non si applica.
 - **Domande a risposta chiusa pre-offerta**: catalogo treno/hotel
   (`lib/listingQuestions.mjs`) mostrato prima di proporre un'offerta, per
   ridurre lo scambio di contatti fuori app in chat.
@@ -142,6 +168,24 @@ nome file (`YYYYMMDDHHMMSS_descrizione.sql`).
 - Le regole di business critiche (coerenza CERCO/VENDO, limite foto, ecc.)
   vanno sempre applicate anche via trigger DB, non solo lato client: è la
   difesa da qualunque client, non solo dall'app ufficiale.
+- **Il database può divergere dal repo senza che nessuno se ne accorga**, ed
+  è successo: sei migration consecutive del 30 luglio non erano mai state
+  eseguite, quindi `release_all_stale_reservations`, i promemoria di conferma
+  e valutazione, `resolve_exchange_dispute` e le valutazioni degli scambi a 3
+  non esistevano in produzione — due cron fallivano a ogni giro senza che
+  nulla lo segnalasse. `supabase/verify_schema.sql` (generato dalle
+  migration) elenca ciò che manca: **zero righe = allineato**. Verifica la
+  presenza degli oggetti, non il loro contenuto.
+- **Recuperare una migration arretrata non è "incollarla e basta"**: se il
+  database ha già dentro migration più recenti che riscrivono le stesse
+  funzioni o gli stessi vincoli, riapplicare quella vecchia le riporta
+  indietro. Successo davvero recuperando il 30 luglio: quelle migration
+  rimettevano `notifications_type_check` a 12 valori (perdendo
+  `listing_price_dropped` e `offer_expired`) e `notify_on_offer` alla
+  versione senza il ramo `expired` — e siccome quella notifica nasce da un
+  trigger `AFTER`, a fallire non sarebbe stato l'avviso ma l'operazione
+  intera. Regola: dopo il recupero, riapplica in coda la versione **più
+  recente** di ogni funzione/vincolo toccato.
 
 ## Workflow di sviluppo
 
