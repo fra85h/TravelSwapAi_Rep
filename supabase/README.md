@@ -52,6 +52,48 @@ Lo schema del database vive in `migrations/`, in ordine di applicazione:
 
 Tutte le migrazioni sono state validate applicandole in sequenza (nell'ordine reale dei nomi file) a un PostgreSQL 16 pulito, incluso un test end-to-end con due utenti simulati per buy e swap.
 
+## Verificare che il database sia allineato al repo
+
+Le migrazioni si applicano a mano: se una salta il giro non se ne accorge
+nessuno finché un utente non tocca quella funzionalità. È già successo con
+`20260730160000_chain_disputes.sql` — `report_chain_problem` non esisteva in
+produzione e il pulsante "Segnala un problema" negli scambi a 3 falliva.
+
+Incolla `verify_schema.sql` nel SQL Editor: **nessuna riga = allineato**, ogni
+riga è un oggetto che manca. Il file è generato dalle migrazioni, non scritto
+a mano — quando ne aggiungi una:
+
+```bash
+node supabase/tools/gen_verify_schema.mjs   # rigenera verify_schema.sql
+```
+
+Un test in CI fallisce se qualcuno se ne dimentica. La verifica guarda la
+**presenza** degli oggetti, non il loro contenuto: una funzione rimasta a una
+versione vecchia risulta a posto.
+
+## Provare le regole del database in locale
+
+I test del server sostituiscono il client Supabase con un finto, quindi
+trigger, vincoli e RLS non vengono mai eseguiti. I test in `server/test/db/`
+girano invece contro un Postgres vero, ognuno in una transazione annullata
+alla fine.
+
+```bash
+createdb travelswap_test
+export DATABASE_URL=postgres://localhost:5432/travelswap_test
+node server/tools/apply_migrations.mjs   # bootstrap + tutte le migrazioni in ordine
+cd server && npm test                    # senza DATABASE_URL quei test si saltano da soli
+```
+
+`apply_migrations.mjs` è utile anche da solo: dice se lo schema è ancora
+ricostruibile **da zero**. Applicare le migrazioni una alla volta su un
+database che ha già dentro tutte le precedenti non lo dimostra.
+
+`supabase/test/bootstrap.sql` ricostruisce il minimo indispensabile di
+Supabase su un Postgres nudo (schema `auth`, `auth.uid()` che legge le claim
+JWT, i ruoli `anon`/`authenticated`/`service_role` con i loro privilegi). Non
+riproduce Supabase: serve a far girare le regole che vivono in `public`.
+
 ## Ripristino su un nuovo progetto (il vecchio è in pausa non riattivabile)
 
 1. **Crea il progetto**: [dashboard Supabase](https://supabase.com/dashboard) → *New project* (stessa organizzazione va bene). Salva la password del database.
