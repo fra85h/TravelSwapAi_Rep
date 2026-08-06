@@ -129,10 +129,55 @@ const RAIL_CITY_ALIASES = [
   'aquila',     // L'Aquila (normPlace trasforma l'apostrofo in spazio)
 ];
 export function isKnownRailCity(loc) {
+  return railCityOf(loc) !== null;
+}
+
+/**
+ * La CITTÀ dietro il nome di una stazione, o null se non la riconosciamo.
+ * "Roma Termini" e "Roma Tiburtina" danno entrambe 'roma'.
+ *
+ * Si prova PRIMA l'elenco completo e dal nome più lungo, poi gli alias: è
+ * ciò che tiene distinte Reggio Calabria e Reggio Emilia. Partendo dagli
+ * alias, entrambe darebbero 'reggio' e una tratta di 1.100 km sembrerebbe un
+ * giro dentro la stessa città — un falso positivo che tappa al 70% un
+ * annuncio perfettamente valido.
+ */
+export function railCityOf(loc) {
   const n = normPlace(loc);
-  if (!n) return false;
-  return [...RAIL_CITIES, ...RAIL_CITY_ALIASES]
-    .some((p) => new RegExp(`\\b${p.replace(/ /g, '\\s+')}\\b`).test(n));
+  if (!n) return null;
+  const candidati = [...RAIL_CITIES].sort((a, b) => b.length - a.length);
+  for (const c of candidati) {
+    if (new RegExp(`\\b${c.replace(/ /g, '\\s+')}\\b`).test(n)) return c;
+  }
+  for (const a of RAIL_CITY_ALIASES) {
+    if (new RegExp(`\\b${a.replace(/ /g, '\\s+')}\\b`).test(n)) return a;
+  }
+  return null;
+}
+
+/**
+ * Vero se partenza e arrivo sono lo stesso posto: la stessa città scritta in
+ * due modi, oppure due stazioni della stessa città.
+ *
+ * Perché serve: il resto dei controlli guarda un capo alla volta e si chiede
+ * solo "è raggiungibile in treno?". Nessuno confrontava i due estremi, quindi
+ * "Roma Termini → Roma Tiburtina" prendeva 100 — e in più, riconoscendo
+ * entrambi i capi come città su rotaia, faceva scattare la soppressione che
+ * scarta l'IMPLAUSIBLE_ROUTE dell'AI come falso positivo. Il controllo
+ * automatico non guardava, e a quello AI veniva tolta la parola.
+ *
+ * Quando NON sappiamo la città (posto fuori elenco) si confronta il testo
+ * normalizzato: "Milano " e "milano" sono lo stesso posto, "Ostia" e "Roma"
+ * restano diversi perché non abbiamo modo di dire il contrario.
+ */
+export function isSameCityRoute(origin, destination) {
+  const a = normPlace(origin);
+  const b = normPlace(destination);
+  if (!a || !b) return false;
+  const ca = railCityOf(a);
+  const cb = railCityOf(b);
+  if (ca && cb) return ca === cb;
+  return a === b;
 }
 
 // Notti tra check-in e check-out, o null se le date mancano/non sono valide
@@ -175,6 +220,11 @@ const FIX_TEXT = {
     it: 'Controlla il tipo di annuncio o allinea la descrizione',
     en: 'Check the listing type or align the description',
     es: 'Revisa el tipo de anuncio o ajusta la descripción',
+  },
+  checkRoute: {
+    it: 'Controlla partenza e arrivo: sembrano la stessa città',
+    en: 'Check departure and arrival: they look like the same city',
+    es: 'Revisa salida y llegada: parecen la misma ciudad',
   },
 };
 function fixText(key, locale, arg) {
@@ -302,6 +352,20 @@ export function computeHeuristicChecks(listing, locale = 'it') {
       const where = [badOrigin ? origin : null, badDest ? destination : null].filter(Boolean).join(', ');
       flags.push({ code: 'IMPLAUSIBLE_ROUTE', msg: `Tratta treno non plausibile: ${where} non è raggiungibile in treno` });
     }
+    // Partenza e arrivo nella stessa città: due stazioni della stessa città
+    // (o lo stesso nome scritto due volte) non sono un viaggio da rivendere.
+    // Penalità LEGGERA e nessun tetto: quasi sempre è un errore di
+    // compilazione, non una truffa, e chi guarda l'annuncio se ne accorge da
+    // solo. Serve a farlo notare, non a bruciare l'annuncio.
+    if (isSameCityRoute(origin, destination)) {
+      plausibility -= 0.15;
+      flags.push({
+        code: 'SAME_CITY_ROUTE',
+        msg: `Partenza e arrivo sono nella stessa città (${origin} → ${destination}): controlla la tratta`,
+      });
+      fixes.push({ field: 'route', suggestion: fixText('checkRoute', lang) });
+    }
+
     // Sardegna↔continente: nessun collegamento ferroviario attraverso il mare
     const sardOrigin = isSardiniaPlace(origin);
     const sardDest = isSardiniaPlace(destination);
