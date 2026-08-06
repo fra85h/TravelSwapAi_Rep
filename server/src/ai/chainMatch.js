@@ -23,7 +23,21 @@ const MODEL = process.env.CHAIN_AI_MODEL || process.env.MATCH_AI_MODEL || "gpt-4
 const TEMPERATURE = Number(process.env.CHAIN_AI_TEMP ?? 0);
 const MAX_CANDIDATES_PER_CALL = Number(process.env.CHAIN_AI_BATCH ?? 40);
 const CHAIN_AI_CONCURRENCY = Number(process.env.CHAIN_AI_CONCURRENCY ?? 3);
-const CHAIN_AI_TIMEOUT_MS = Number(process.env.CHAIN_AI_TIMEOUT_MS ?? 15000);
+// Timeout per lotto. Alzato da 15 a 45 secondi con un dato in mano, non a
+// naso: con il credito ricaricato e l'API perfettamente funzionante il
+// vecchio limite scattava lo stesso (segnalato da Sentry il 6 agosto),
+// quindi non era l'API a essere lenta — era il limite a essere corto.
+//
+// Perché 15 secondi non bastavano: a ogni chiamata il modello riceve fino
+// a 40 candidati e deve restituirne 40, ognuno con punteggio e
+// motivazione. È molto testo da generare, e il SDK ritenta anche da solo
+// dentro la stessa finestra, mangiandosela.
+//
+// Perché allargare non costa niente: questo gira in un cron, non c'è
+// nessuno che aspetta. Un timeout invece costa DUE volte — la chiamata
+// interrotta viene comunque conteggiata da OpenAI, e in cambio si ottiene
+// un punteggio euristico al posto di quello AI. Si paga e non si prende.
+const CHAIN_AI_TIMEOUT_MS = Number(process.env.CHAIN_AI_TIMEOUT_MS ?? 45000);
 const CHAIN_SCORE_THRESHOLD = Number(process.env.CHAIN_SCORE_THRESHOLD ?? 65);
 
 // ----------------------------------------------------------------------
@@ -202,7 +216,7 @@ Un elemento per OGNI candidato, nessuna omissione.
 Candidati: ${JSON.stringify(candidates)}`;
 }
 
-async function callOpenAIChainScore(prompt, timeoutMs) {
+async function callOpenAIChainScore(prompt, timeoutMs, candidateCount = null) {
   if (!client) return null;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort("timeout"), timeoutMs);
@@ -261,7 +275,9 @@ async function callOpenAIChainScore(prompt, timeoutMs) {
     return Array.isArray(parsed?.scores) ? parsed.scores : null;
   } catch (e) {
     clearTimeout(timer);
-    reportFault("chainMatch", e, { status: e?.status });
+    // Quanti candidati aveva il lotto: senza quel numero, davanti a un
+    // timeout non si sa se allargare il tempo o rimpicciolire i lotti.
+    reportFault("chainMatch", e, { status: e?.status, candidati: candidateCount, timeoutMs });
     return null;
   }
 }
@@ -305,7 +321,7 @@ export async function scoreChainCandidates(wantListing, candidates) {
   // identico a quello sequenziale.
   const perBatch = await mapWithConcurrency(batches, CHAIN_AI_CONCURRENCY, async (batch) => {
     const prompt = buildChainPrompt(wantListing, batch);
-    const raw = await callOpenAIChainScore(prompt, CHAIN_AI_TIMEOUT_MS);
+    const raw = await callOpenAIChainScore(prompt, CHAIN_AI_TIMEOUT_MS, batch.length);
     return validateChainScores(raw, batch.map((c) => c.id));
   });
 
