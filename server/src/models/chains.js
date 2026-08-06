@@ -13,7 +13,7 @@
 // sia active, quindi qui basta essere coerenti sull'id scelto.
 import { supabase } from "../db.js";
 import { listActiveListings } from "./listings.js";
-import { scoreChainCandidates, CHAIN_SCORE_PASS_THRESHOLD } from "../ai/chainMatch.js";
+import { scoreChainCandidates, CHAIN_SCORE_PASS_THRESHOLD, worthScoringByDate, CHAIN_DATE_WINDOW_DAYS } from "../ai/chainMatch.js";
 import { explainChain } from "../ai/chainExplain.js";
 import { mapWithConcurrency } from "../lib/concurrency.js";
 import { chainFingerprint, canSkipRecompute } from "../lib/chainFingerprint.js";
@@ -113,13 +113,32 @@ export async function buildDesireGraph(allActive) {
   // Una coppia (annuncio CERCO, lotto di candidati) per ogni valutazione:
   // scoreChainCandidates è una chiamata OpenAI e prima venivano fatte tutte
   // in fila, una per annuncio CERCO dell'intera piattaforma.
+  // Pre-filtro deterministico PRIMA di chiamare l'AI.
+  //
+  // Il numero di chiamate cresce come CERCO x VENDO: con 333 annunci un
+  // giro costava 7 centesimi, e la crescita è quadratica — a 1000 annunci
+  // non sarebbe il triplo, sarebbe circa dieci volte tanto. Mandare al
+  // modello un candidato con data a tre mesi di distanza costa esattamente
+  // quanto mandargliene uno buono, per farsi dire una cosa che sapevamo
+  // già.
+  //
+  // Si filtra solo sulla DATA, che è un fatto misurabile. La vicinanza fra
+  // due città è un giudizio, ed è il motivo per cui qui c'è un modello:
+  // filtrarla con la mappa statica delle regioni annullerebbe il senso
+  // dell'AI. Vedi worthScoringByDate in ai/chainMatch.js.
+  let scartatiPerData = 0;
   const jobs = [];
   for (const [owner, cercoListings] of cercoByOwner) {
     if (!vendoByOwner.has(owner)) continue; // niente da dare -> fuori dalle catene
     for (const want of cercoListings) {
-      const candidates = (vendoByType.get(want.type) || []).filter((v) => v.user_id !== owner);
+      const sameType = (vendoByType.get(want.type) || []).filter((v) => v.user_id !== owner);
+      const candidates = sameType.filter((v) => worthScoringByDate(want, v));
+      scartatiPerData += sameType.length - candidates.length;
       if (candidates.length) jobs.push({ owner, want, candidates });
     }
+  }
+  if (scartatiPerData) {
+    console.log(`[chains] ${scartatiPerData} candidati fuori dalla finestra di ${CHAIN_DATE_WINDOW_DAYS} giorni: non inviati all'AI`);
   }
 
   const scoredJobs = await mapWithConcurrency(

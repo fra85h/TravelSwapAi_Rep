@@ -40,6 +40,23 @@ const CHAIN_AI_CONCURRENCY = Number(process.env.CHAIN_AI_CONCURRENCY ?? 3);
 const CHAIN_AI_TIMEOUT_MS = Number(process.env.CHAIN_AI_TIMEOUT_MS ?? 45000);
 const CHAIN_SCORE_THRESHOLD = Number(process.env.CHAIN_SCORE_THRESHOLD ?? 65);
 
+// Finestra temporale entro cui un candidato vale la pena di essere
+// valutato dall'AI. Serve a NON pagare il modello per farsi dire ciò che
+// si sa già: un biglietto a tre mesi di distanza da quello cercato non
+// diventerà mai una catena, e mandarglielo costa esattamente quanto
+// mandargliene uno buono.
+//
+// Perché il filtro è sulla DATA e non sulla geografia: la distanza fra due
+// date è un fatto, la vicinanza fra due città è un giudizio — ed è
+// esattamente il giudizio per cui l'AI esiste qui (tollerare "Roma" vicino
+// a "Firenze"). Filtrare la geografia con la mappa statica delle regioni
+// annullerebbe il motivo per cui c'è un modello.
+//
+// 30 giorni è largo di proposito: l'euristica interna considera "vicine"
+// solo le date entro ±3, quindi questa soglia non esclude niente che oggi
+// supererebbe la soglia di passaggio.
+export const CHAIN_DATE_WINDOW_DAYS = Number(process.env.CHAIN_DATE_WINDOW_DAYS ?? 30);
+
 // ----------------------------------------------------------------------
 // Fallback deterministico: cluster geografico + tolleranza data.
 // ----------------------------------------------------------------------
@@ -100,6 +117,21 @@ function dateOf(listing) {
   if (!raw) return null;
   const d = new Date(raw);
   return Number.isFinite(d.getTime()) ? d : null;
+}
+
+/**
+ * Vale la pena chiedere all'AI di valutare questo candidato?
+ *
+ * Un pre-filtro deve togliere solo le CERTEZZE: se una delle due date
+ * manca non sappiamo niente, e nel dubbio il candidato passa — meglio una
+ * chiamata in più che una catena che non viene mai proposta.
+ */
+export function worthScoringByDate(want, candidate, days = CHAIN_DATE_WINDOW_DAYS) {
+  const dw = dateOf(want);
+  const dc = dateOf(candidate);
+  if (!dw || !dc) return true;
+  const diffDays = Math.abs(dw.getTime() - dc.getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays <= days;
 }
 
 function withinDateTolerance(a, b, days) {
