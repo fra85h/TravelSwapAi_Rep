@@ -16,7 +16,7 @@ import { listActiveListings } from "./listings.js";
 import { scoreChainCandidates, CHAIN_SCORE_PASS_THRESHOLD, worthScoringByDate, CHAIN_DATE_WINDOW_DAYS } from "../ai/chainMatch.js";
 import { explainChain } from "../ai/chainExplain.js";
 import { mapWithConcurrency } from "../lib/concurrency.js";
-import { chainFingerprint, canSkipRecompute } from "../lib/chainFingerprint.js";
+import { chainFingerprint, canSkipRecompute, listingsStamp } from "../lib/chainFingerprint.js";
 
 // Valutazioni AI dei candidati in volo contemporaneamente. Basso: ognuna può
 // a sua volta spezzarsi in più batch (vedi CHAIN_AI_CONCURRENCY in
@@ -262,27 +262,34 @@ export async function findAndProposeChains() {
   // minuti fa. Le due chiamate di manutenzione qui sopra sono già state
   // fatte: quelle dipendono dal passare del tempo, non dagli annunci, e
   // saltarle romperebbe scadenze e promemoria.
+  const allActive = await listActiveListings({ limit: 1000 });
+
   try {
-    const [listingsStamp, chainsStamp] = await Promise.all([
-      tableStamp("listings", "updated_at", (q) => q.eq("status", "active")),
-      // Stesso filtro di ownersWithPendingChain: sono le catene 'proposed'
-      // a bloccare i loro partecipanti, e quindi le sole che cambiano il
-      // risultato del ricalcolo.
-      tableStamp("chain_proposals", "created_at", (q) => q.eq("status", "proposed")),
-    ]);
-    const fingerprint = chainFingerprint(listingsStamp, chainsStamp);
+    // Stesso filtro di ownersWithPendingChain: sono le catene 'proposed'
+    // a bloccare i loro partecipanti, e quindi le sole che cambiano il
+    // risultato del ricalcolo.
+    const chainsStamp = await tableStamp("chain_proposals", "created_at", (q) => q.eq("status", "proposed"));
+    const fingerprint = chainFingerprint(listingsStamp(allActive), chainsStamp);
     if (canSkipRecompute(lastFingerprint, fingerprint, expiredCount)) {
       console.log("[chains] nessun cambiamento dall'ultimo giro, ricalcolo saltato:", fingerprint);
       return { proposed: [], skipped: [], errors: [], expiredCount, remindedCount, unchanged: true };
     }
+    // Perché ricalcoliamo, in chiaro nei log: senza il confronto fra le due
+    // impronte, un ricalcolo che non salta mai è indistinguibile da uno che
+    // salta correttamente ma non viene mai interpellato. Con questa riga si
+    // legge subito QUALE dei due ingressi si è mosso — o se il precedente
+    // non c'era perché il processo era appena ripartito.
+    console.log(
+      `[chains] ricalcolo: impronta ${lastFingerprint ? `${lastFingerprint} -> ${fingerprint}` : `${fingerprint} (primo giro dopo un riavvio)`}`
+      + (expiredCount ? `, ${expiredCount} catene appena scadute` : "")
+    );
     lastFingerprint = fingerprint;
   } catch (e) {
-    // Se l'impronta non si riesce a leggere si ricalcola, come prima: il
+    // Se l'impronta non si riesce a calcolare si ricalcola, come prima: il
     // risparmio è un di più, non deve poter impedire il lavoro vero.
     console.warn("[chains] impronta non leggibile, si ricalcola:", e?.message || e);
   }
 
-  const allActive = await listActiveListings({ limit: 1000 });
   const { edges, bestEdgeListing, listingById } = await buildDesireGraph(allActive);
   const cycles = findThreeCycles(edges);
 
