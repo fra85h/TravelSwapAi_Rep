@@ -17,7 +17,7 @@
 -- Le colonne di una tabella mancante non vengono elencate: si vedrebbe
 -- l'intera tabella riga per riga, e la riga 'tabella' dice già tutto.
 --
--- Oggetti attesi: 31 tabelle, 266 colonne, 78 funzioni, 20 trigger.
+-- Oggetti attesi: 31 tabelle, 264 colonne, 78 funzioni, 20 trigger.
 -- ============================================================
 
 WITH attesi(tipo, oggetto) AS (VALUES
@@ -128,8 +128,6 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('colonna',  'listing_questions.created_at'),
 ('colonna',  'listing_questions.id'),
 ('colonna',  'listing_questions.listing_id'),
-('colonna',  'listing_questions.lo'),
-('colonna',  'listing_questions.stessa'),
 ('colonna',  'listing_secrets.listing_id'),
 ('colonna',  'listing_secrets.pnr'),
 ('colonna',  'listing_translations.description_translated'),
@@ -202,6 +200,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('colonna',  'notifications.created_at'),
 ('colonna',  'notifications.data'),
 ('colonna',  'notifications.id'),
+('colonna',  'notifications.read_at'),
 ('colonna',  'notifications.title'),
 ('colonna',  'notifications.type'),
 ('colonna',  'notifications.user_id'),
@@ -235,11 +234,10 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('colonna',  'payment_declarations.created_at'),
 ('colonna',  'payment_declarations.currency'),
 ('colonna',  'payment_declarations.id'),
-('colonna',  'payment_declarations.il'),
 ('colonna',  'payment_declarations.method'),
-('colonna',  'payment_declarations.non'),
 ('colonna',  'payment_declarations.offer_id'),
 ('colonna',  'payment_declarations.paid_at'),
+('colonna',  'payment_declarations.role'),
 ('colonna',  'payment_declarations.updated_at'),
 ('colonna',  'payment_declarations.user_id'),
 ('colonna',  'profiles.avatar_url'),

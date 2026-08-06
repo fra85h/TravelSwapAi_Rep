@@ -50,7 +50,13 @@ const trigger = new Set();
 // si scartano i vincoli (CONSTRAINT/PRIMARY KEY/...), che colonne non sono.
 const PAROLE_NON_COLONNA = /^(constraint|primary|foreign|unique|check|exclude|like|inherits|partition)\b/i;
 
-function colonneDelCorpo(corpo) {
+function colonneDelCorpo(corpoGrezzo) {
+  // I commenti vanno via PRIMA di spezzare sulle virgole: una virgola
+  // dentro un commento ("-- id, non l'uuid") taglia la definizione in due e
+  // la seconda metà sembra una colonna nuova col nome della parola che
+  // segue. È esattamente come sono nate le quattro colonne inesistenti
+  // "listing_questions.lo", "payment_declarations.il" e compagnia.
+  const corpo = corpoGrezzo.replace(/--[^\n]*/g, "");
   const out = [];
   let livello = 0;
   let riga = "";

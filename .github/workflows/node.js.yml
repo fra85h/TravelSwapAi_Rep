@@ -29,3 +29,52 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm ci
       - run: npm test
+
+  # Le regole che vivono nel database — trigger, vincoli, RLS — non le
+  # esegue nessun mock. Due guasti sono arrivati in produzione con questa CI
+  # verde (il cast mancante su offers.status, il vincolo sui tipi di
+  # notifica): entrambi erano interamente dentro Postgres.
+  #
+  # Job separato di proposito: monta un Postgres vero e ci ricostruisce lo
+  # schema da zero applicando tutte le migration in ordine. Fallisce sia se
+  # una migration non riparte da zero, sia se una regola non fa più quello
+  # che deve.
+  test-db:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: server
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: travelswap
+          POSTGRES_PASSWORD: travelswap
+          POSTGRES_DB: travelswap_test
+        ports:
+          - 5432:5432
+        # Senza attendere il "pronto" i primi comandi arrivano a un
+        # database che sta ancora partendo, e il job fallisce a caso.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://travelswap:travelswap@localhost:5432/travelswap_test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - name: Ricostruisci lo schema dalle migration
+        run: node tools/apply_migrations.mjs
+      - name: Test contro il database vero
+        run: npm test

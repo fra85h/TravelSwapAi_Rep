@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "NODE_ENV=development nodemon --watch src --ext js --exec node src/index.js",
     "start": "node src/index.js",
-    "test": "node --experimental-test-module-mocks --test"
+    "test": "node --experimental-test-module-mocks --test",
+    "db:apply": "node tools/apply_migrations.mjs"
   },
   "dependencies": {
     "@sentry/node": "^10.69.0",
@@ -21,6 +22,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "pg": "^8.22.0"
   }
 }

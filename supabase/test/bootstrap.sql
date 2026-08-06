@@ -75,3 +75,21 @@ BEGIN
 END $$;
 
 GRANT USAGE ON SCHEMA public, auth, extensions TO anon, authenticated, service_role;
+
+-- Su Supabase i ruoli anon/authenticated hanno i privilegi su TUTTE le
+-- tabelle di public: a decidere chi vede cosa non sono i GRANT, è la RLS.
+-- Senza questa riga una funzione SECURITY INVOKER come
+-- expire_my_stale_listings fallirebbe qui con "permission denied for table
+-- listings" — un errore che in produzione non esiste, cioè un test che
+-- fallisce per colpa dell'impalcatura invece che del codice.
+--
+-- ALTER DEFAULT PRIVILEGES e non GRANT: le tabelle non esistono ancora,
+-- le creano le migration subito dopo. Così il privilegio nasce insieme a
+-- ogni tabella nuova, oggi e in futuro, senza dover ricordarsi di
+-- aggiungerla a un elenco.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
