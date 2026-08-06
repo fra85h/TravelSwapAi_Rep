@@ -1,101 +1,137 @@
 -- ============================================================
--- Pulizia degli annunci di test — DA ESEGUIRE UN PASSO ALLA VOLTA.
+-- Pulizia dei dati di test — ripartenza da zero.
 --
--- NON è una migration: è uno script una tantum, e non va in
+-- NON è una migration: è uno script una tantum, e non sta in
 -- supabase/migrations/ proprio perché non deve rigirare mai più.
 --
--- Perché è diviso in passi: nessuno qui sa quali righe siano di test.
--- Quel criterio ce l'hai solo tu, e una DELETE lanciata sul criterio
--- sbagliato non si annulla. I passi 1 e 2 servono a farti VEDERE cosa
--- stai per cancellare prima di cancellarlo.
+-- Contesto: l'app non è ancora in produzione, i 333 annunci (e tutto
+-- quello che ci gira attorno: proposte, match, chat, catene, punteggi
+-- di affidabilità) sono dati di prova. Quindi non serve un criterio per
+-- distinguere il vero dal finto: si svuota il contenuto e si tengono
+-- SOLO gli account.
 --
--- Cosa succede alle tabelle collegate: tutto ciò che punta a listings ha
--- ON DELETE CASCADE (verificato: offers, matches, listing_images,
--- listing_secrets, listing_translations, saved_listings, transactions,
--- chain_participants, saved_search_matches, listing_questions, reports,
--- report_action_tokens). Cancellando un annuncio spariscono con lui le
--- sue proposte, i suoi match e le sue foto — che per dati di test è
--- esattamente quello che vuoi. L'unica eccezione è ai_import_logs, dove
--- il riferimento viene messo a NULL invece che cancellato.
+-- Cosa NON tocca:
+--   • auth.users e profiles  -> gli account restano, puoi rientrare
+--   • push_tokens, fb_account_links -> restano i collegamenti push/Messenger
+--   • i file già caricati nel bucket Storage delle foto. Le RIGHE di
+--     listing_images spariscono, i file no: SQL non arriva allo Storage.
+--     Vanno svuotati dal pannello Supabase > Storage, se ti interessa
+--     (sono pochi MB, puoi anche lasciarli lì).
+--
+-- Esegui un passo alla volta, selezionando il blocco e premendo Run.
 -- ============================================================
 
 
 -- ------------------------------------------------------------
--- PASSO 1 — Chi ha creato cosa.
+-- PASSO 1 — Cosa c'è adesso.
 --
--- Se gli annunci di test li hai fatti tutti con un account solo, qui lo
--- riconosci subito: sarà la riga con centinaia di annunci.
+-- Serve come "prima" da confrontare col "dopo" del passo 3.
 -- ------------------------------------------------------------
-SELECT
-  l.user_id,
-  p.email,
-  count(*)                                        AS annunci,
-  count(*) FILTER (WHERE l.status = 'active')     AS attivi,
-  min(l.created_at)::date                         AS primo,
-  max(l.created_at)::date                         AS ultimo
-FROM public.listings l
-LEFT JOIN auth.users p ON p.id = l.user_id
-GROUP BY l.user_id, p.email
-ORDER BY annunci DESC;
+SELECT 'listings'          AS tabella, count(*) FROM public.listings
+UNION ALL SELECT 'offers',            count(*) FROM public.offers
+UNION ALL SELECT 'matches',           count(*) FROM public.matches
+UNION ALL SELECT 'chat_messages',     count(*) FROM public.chat_messages
+UNION ALL SELECT 'notifications',     count(*) FROM public.notifications
+UNION ALL SELECT 'chain_proposals',   count(*) FROM public.chain_proposals
+UNION ALL SELECT 'trust_audit',       count(*) FROM public.trust_audit
+UNION ALL SELECT 'profiles (RESTA)',  count(*) FROM public.profiles
+ORDER BY 2 DESC;
 
 
 -- ------------------------------------------------------------
--- PASSO 2 — Guarda cosa stai per cancellare, PRIMA di cancellarlo.
+-- PASSO 2 — La cancellazione.
 --
--- Sostituisci il criterio qui sotto con quello vero (l'utente trovato al
--- passo 1, o un intervallo di date, o quello che distingue i tuoi test).
--- Se il numero e i titoli non ti convincono, NON passare al passo 3.
--- ------------------------------------------------------------
-SELECT id, title, status, type, created_at
-FROM public.listings
-WHERE user_id = 'INCOLLA-QUI-LO-USER-ID'   -- <<< dal passo 1
-ORDER BY created_at DESC;
-
--- E il conteggio esatto, che è il numero da confrontare col risultato
--- della DELETE:
-SELECT count(*) AS da_cancellare
-FROM public.listings
-WHERE user_id = 'INCOLLA-QUI-LO-USER-ID';
-
-
--- ------------------------------------------------------------
--- PASSO 3 — La cancellazione vera.
+-- Dentro una transazione esplicita: finché non scrivi COMMIT non è
+-- successo niente davvero, e ROLLBACK riporta tutto com'era.
 --
--- Dentro una transazione ESPLICITA: la DELETE mostra quante righe ha
--- toccato, e finché non scrivi COMMIT non è successo niente davvero. Se
--- il numero non combacia con quello del passo 2, scrivi ROLLBACK e
--- ricontrolla il criterio.
---
--- ⚠️ Il criterio deve essere IDENTICO a quello del passo 2. Cambiarlo fra
--- i due passi vanifica la verifica appena fatta.
+-- TRUNCATE invece di DELETE perché è molto più veloce su queste
+-- dimensioni e non fa scattare i trigger riga-per-riga (niente
+-- notifiche generate mentre stai cancellando). CASCADE copre eventuali
+-- tabelle collegate che dovessero sfuggire all'elenco.
 -- ------------------------------------------------------------
 BEGIN;
 
-DELETE FROM public.listings
-WHERE user_id = 'INCOLLA-QUI-LO-USER-ID';   -- <<< lo stesso del passo 2
+TRUNCATE
+  public.listings,
+  public.listing_images,
+  public.listing_secrets,
+  public.listing_translations,
+  public.listing_ai_scores,
+  public.listing_pings,
+  public.listing_questions,
+  public.offers,
+  public.chat_messages,
+  public.matches,
+  public.match_snapshots,
+  public.transactions,
+  public.transaction_ratings,
+  public.chain_proposals,
+  public.chain_participants,
+  public.chain_messages,
+  public.chain_disputes,
+  public.saved_listings,
+  public.saved_searches,
+  public.saved_search_matches,
+  public.notifications,
+  public.trust_audit,
+  public.ai_import_logs,
+  public.reports,
+  public.report_action_tokens,
+  public.payment_declarations
+CASCADE;
 
--- Guarda quante righe dice di aver cancellato.
---   combacia   -> COMMIT;
---   non combacia -> ROLLBACK;
+-- Se il messaggio di ritorno è "Success", scrivi COMMIT.
+-- Se qualcosa ti torna storto, ROLLBACK e non è successo niente.
 
 -- COMMIT;
 -- ROLLBACK;
 
 
 -- ------------------------------------------------------------
--- PASSO 4 — Verifica, e ripartenza pulita del cron catene.
+-- PASSO 3 — Verifica.
+--
+-- Tutti zero tranne profiles, che deve essere rimasto uguale al passo 1.
 -- ------------------------------------------------------------
-SELECT
-  count(*)                                    AS annunci_rimasti,
-  count(*) FILTER (WHERE status = 'active')   AS attivi_rimasti
-FROM public.listings;
+SELECT 'listings'          AS tabella, count(*) FROM public.listings
+UNION ALL SELECT 'offers',            count(*) FROM public.offers
+UNION ALL SELECT 'matches',           count(*) FROM public.matches
+UNION ALL SELECT 'chat_messages',     count(*) FROM public.chat_messages
+UNION ALL SELECT 'notifications',     count(*) FROM public.notifications
+UNION ALL SELECT 'chain_proposals',   count(*) FROM public.chain_proposals
+UNION ALL SELECT 'trust_audit',       count(*) FROM public.trust_audit
+UNION ALL SELECT 'profiles (RESTA)',  count(*) FROM public.profiles
+ORDER BY 2 DESC;
 
--- Le proposte di catena costruite sugli annunci cancellati sono già
--- sparite in cascata, ma quelle che coinvolgevano SOLO utenti di test
--- possono essere rimaste senza partecipanti: si chiudono così.
-UPDATE public.chain_proposals
-   SET status = 'canceled'
- WHERE status = 'proposed'
-   AND NOT EXISTS (
-     SELECT 1 FROM public.chain_participants cp WHERE cp.chain_id = chain_proposals.id
-   );
+-- Dopo il COMMIT il cron delle catene, al giro successivo, non trova più
+-- niente da valutare e chiude in pochi millisecondi a costo zero: è il
+-- modo più rapido per confermare che il database è davvero pulito.
+
+
+-- ============================================================
+-- ALTERNATIVA — se un giorno servisse cancellare solo una parte.
+--
+-- Il TRUNCATE qui sopra vale perché OGGI non c'è niente di vero. Quando
+-- ci saranno dati reali non si usa più: si cancella per criterio, e si
+-- guarda prima cosa si sta per cancellare.
+--
+--   -- chi ha creato cosa
+--   SELECT l.user_id, u.email, count(*) AS annunci
+--   FROM public.listings l
+--   LEFT JOIN auth.users u ON u.id = l.user_id
+--   GROUP BY l.user_id, u.email
+--   ORDER BY annunci DESC;
+--
+--   -- guarda le righe, POI cancellale con lo STESSO criterio
+--   SELECT id, title, status, created_at FROM public.listings
+--   WHERE user_id = '...';
+--
+--   BEGIN;
+--   DELETE FROM public.listings WHERE user_id = '...';
+--   -- il numero di righe combacia? COMMIT; altrimenti ROLLBACK;
+--
+-- La DELETE su listings porta con sé in cascata offerte, match, foto,
+-- chat e partecipazioni alle catene (tutte le FK sono ON DELETE CASCADE;
+-- l'unica eccezione è ai_import_logs, dove il riferimento va a NULL).
+-- Restano invece le notifiche, che l'annuncio lo citano solo dentro un
+-- campo jsonb senza vincolo: quelle vanno tolte a mano.
+-- ============================================================
