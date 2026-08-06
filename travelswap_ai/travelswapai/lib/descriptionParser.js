@@ -152,6 +152,14 @@ const isNamedTicketRaw = pick(payload, "isNamedTicket", "is_named_ticket");
     const price = normPrice(pick(payload, "price", "amount", "total"));
     const imageUrl = normStr(pick(payload, "imageUrl", "image_url", "image"));
     const provider = normStr(pick(payload, "provider"));
+    // Classe e tariffa. Il server le estrae dal documento, ma questa
+    // funzione ricostruisce l'oggetto da un ELENCO ESPLICITO di campi:
+    // quello che non è nominato qui viene buttato via silenziosamente,
+    // e infatti arrivavano al client e morivano qui. Si accettano anche le
+    // grafie snake_case come per tutti gli altri campi, così il giorno che
+    // il server cambia convenzione non si perde di nuovo tutto in silenzio.
+    const ticketClass = normStr(pick(payload, "ticketClass", "ticket_class"));
+    const fareType = normStr(pick(payload, "fareType", "fare_type"));
     const cercoVendo = (() => {
       const v = String(pick(payload, "cercoVendo", "cerco_vendo") ?? "").toUpperCase();
       return v === "CERCO" || v === "VENDO" ? v : null;
@@ -171,6 +179,8 @@ const isNamedTicketRaw = pick(payload, "isNamedTicket", "is_named_ticket");
       price: price ?? null,
       imageUrl: imageUrl ?? null,
       provider: provider ?? null,
+      ticketClass: ticketClass ?? null,
+      fareType: fareType ?? null,
       cercoVendo,
     };
 }
