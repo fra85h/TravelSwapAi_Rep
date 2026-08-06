@@ -23,6 +23,30 @@
 
 
 -- ------------------------------------------------------------
+-- PASSO 0 — Quali tabelle esistono davvero.
+--
+-- Non tutte le migration sono state applicate a mano, quindi qualche
+-- tabella prevista dal repo può mancare dal database. Questa query te lo
+-- dice invece di fartelo scoprire con un errore a metà cancellazione.
+--
+-- Le righe che tornano qui sono migration da eseguire, non un problema
+-- della pulizia: il passo 2 salta da solo quello che non c'è.
+-- ------------------------------------------------------------
+SELECT t AS tabella_mancante
+FROM unnest(ARRAY[
+  'listings','listing_images','listing_secrets','listing_translations',
+  'listing_ai_scores','listing_pings','listing_questions',
+  'offers','chat_messages','matches','match_snapshots',
+  'transactions','transaction_ratings',
+  'chain_proposals','chain_participants','chain_messages','chain_disputes',
+  'saved_listings','saved_searches','saved_search_matches',
+  'notifications','trust_audit','ai_import_logs',
+  'reports','report_action_tokens','payment_declarations'
+]) AS t
+WHERE to_regclass('public.' || t) IS NULL;
+
+
+-- ------------------------------------------------------------
 -- PASSO 1 — Cosa c'è adesso.
 --
 -- Serve come "prima" da confrontare col "dopo" del passo 3.
@@ -48,37 +72,37 @@ ORDER BY 2 DESC;
 -- dimensioni e non fa scattare i trigger riga-per-riga (niente
 -- notifiche generate mentre stai cancellando). CASCADE copre eventuali
 -- tabelle collegate che dovessero sfuggire all'elenco.
+--
+-- L'elenco è costruito a runtime saltando le tabelle che non esistono:
+-- un TRUNCATE scritto a mano fallisce tutto per una tabella sola che
+-- manca, e con le migration applicate a mano succede davvero.
 -- ------------------------------------------------------------
 BEGIN;
 
-TRUNCATE
-  public.listings,
-  public.listing_images,
-  public.listing_secrets,
-  public.listing_translations,
-  public.listing_ai_scores,
-  public.listing_pings,
-  public.listing_questions,
-  public.offers,
-  public.chat_messages,
-  public.matches,
-  public.match_snapshots,
-  public.transactions,
-  public.transaction_ratings,
-  public.chain_proposals,
-  public.chain_participants,
-  public.chain_messages,
-  public.chain_disputes,
-  public.saved_listings,
-  public.saved_searches,
-  public.saved_search_matches,
-  public.notifications,
-  public.trust_audit,
-  public.ai_import_logs,
-  public.reports,
-  public.report_action_tokens,
-  public.payment_declarations
-CASCADE;
+DO $$
+DECLARE
+  t         text;
+  presenti  text[] := '{}';
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'listings','listing_images','listing_secrets','listing_translations',
+    'listing_ai_scores','listing_pings','listing_questions',
+    'offers','chat_messages','matches','match_snapshots',
+    'transactions','transaction_ratings',
+    'chain_proposals','chain_participants','chain_messages','chain_disputes',
+    'saved_listings','saved_searches','saved_search_matches',
+    'notifications','trust_audit','ai_import_logs',
+    'reports','report_action_tokens','payment_declarations'
+  ] LOOP
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      presenti := presenti || ('public.' || t);
+    END IF;
+  END LOOP;
+
+  RAISE NOTICE 'Svuoto % tabelle: %', array_length(presenti, 1),
+                                      array_to_string(presenti, ', ');
+  EXECUTE 'TRUNCATE ' || array_to_string(presenti, ', ') || ' CASCADE';
+END $$;
 
 -- Se il messaggio di ritorno è "Success", scrivi COMMIT.
 -- Se qualcosa ti torna storto, ROLLBACK e non è successo niente.
