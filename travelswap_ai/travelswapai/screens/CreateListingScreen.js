@@ -428,7 +428,7 @@ export default function CreateListingScreen({
   const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
 
   // TrustScore hook + UI state
-  const { loading: trustLoading, data: trustData, error: trustError, evaluate, reset: resetTrust } = useTrustScore();
+  const { loading: trustLoading, data: trustData, error: trustError, evaluate, reset: resetTrust, getLastError: getTrustError } = useTrustScore();
   const { suggestPriceAI } = usePriceSuggestAI();
   const [splitDetected, setSplitDetected] = useState(false);
   const [splitReason, setSplitReason] = useState("");
@@ -530,6 +530,12 @@ export default function CreateListingScreen({
     return () => clearTimeout(timer);
   }, [lastTrustRunAt, form?.description, form?.type, detectTwoListings]);
 
+  // "Manca la descrizione" secondo lo stesso criterio del server, che
+  // rifiuta la verifica sotto i 10 caratteri (routes/trustscore.js). Una
+  // soglia diversa qui produrrebbe il caso peggiore: un bottone che sembra
+  // pronto e una chiamata che viene respinta.
+  const descriptionMissing = String(form?.description || "").trim().length < 10;
+
   const [showFixesModal, setShowFixesModal] = useState(false);
 
   // Micro log + progress per Check AI
@@ -559,6 +565,10 @@ export default function CreateListingScreen({
   const [sliderW, setSliderW] = useState(Dimensions.get("window").width);
   const [advancedOpen, setAdvancedOpen] = useState(false); // "Opzioni avanzate" a scomparsa
   const scrollRef = useRef(null); // ref for horizontal ScrollView
+  // Il campo descrizione dello Step 2: serve per portarci il cursore quando
+  // il Check AI non può partire senza. Dire "manca la descrizione" e
+  // lasciare che sia l'utente a cercarla è metà del problema.
+  const descriptionRef = useRef(null);
 
   const [insightsOpen, setInsightsOpen] = useState(false);
   const hasInsights = (trustData?.flags?.length || trustData?.suggestedFixes?.length);
@@ -1446,7 +1456,15 @@ const initialJsonRef = useRef(null);
       // gate "mai un annuncio mai verificato".
       if (!res) {
         clearLogSoon();
-        if (trustError) Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), trustError);
+        // getTrustError() e non `trustError`: quest'ultimo è lo stato del
+        // render precedente, quindi al primo tentativo era ancora null e
+        // l'alert non compariva mai — la verifica falliva in perfetto
+        // silenzio. Un fallback c'è comunque: meglio un messaggio generico
+        // che nessun messaggio.
+        Alert.alert(
+          t("createListing.trustScoreTitle", "AI TrustScore"),
+          getTrustError() || trustError || t("createListing.trustScoreGenericError", "Qualcosa è andato storto durante la verifica."),
+        );
         return null;
       }
 
@@ -1466,7 +1484,7 @@ const initialJsonRef = useRef(null);
       setLoadingAI(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, lastTrustRunAt, trustError, evaluate, logStep, clearLogSoon, passedListing?.id, listingId, pendingPhotos, existingPhotos, t, locale, buildContentSnapshot]);
+  }, [form, lastTrustRunAt, trustError, getTrustError, evaluate, logStep, clearLogSoon, passedListing?.id, listingId, pendingPhotos, existingPhotos, t, locale, buildContentSnapshot]);
 
   const applyAllTrustFixes = () => {
     try {
@@ -1963,11 +1981,24 @@ const initialJsonRef = useRef(null);
     // costruzione il contenuto effettivamente pubblicato.
     let trustResult = trustData;
     if (mode !== "edit" && needsCheckAI) {
+      // Il caso "manca la descrizione" si intercetta PRIMA di provarci: la
+      // verifica fallirebbe comunque, e il messaggio generico ("riprova fra
+      // qualche secondo") manderebbe l'utente a ritentare all'infinito una
+      // cosa che non dipende dal tempo. Qui si dice cosa manca e si porta il
+      // cursore dove scriverlo.
+      if (descriptionMissing) {
+        descriptionRef.current?.focus?.();
+        Alert.alert(
+          t("createListing.trustScoreTitle", "AI TrustScore"),
+          t("createListing.checkAiNeedsDescAlert", "Per verificare l'annuncio serve una descrizione di almeno 10 caratteri. È l'unica parte che il documento non può scrivere al posto tuo: bastano due righe su cosa stai vendendo."),
+        );
+        return;
+      }
       const checkRes = await onTrustCheck();
       if (!checkRes) {
         Alert.alert(
           t("createListing.checkAiAutoFailedTitle", "Verifica non riuscita"),
-          t("createListing.checkAiAutoFailedMsg", "Non sono riuscito a completare automaticamente la verifica AI. Riprova tra qualche secondo.")
+          getTrustError() || t("createListing.checkAiAutoFailedMsg", "Non sono riuscito a completare automaticamente la verifica AI. Riprova tra qualche secondo.")
         );
         return;
       }
@@ -2510,7 +2541,12 @@ const initialJsonRef = useRef(null);
         checkIn: "",
         checkOut: "",
         price: data.price ?? "",
-        description: data.description ?? "",
+        // NIENTE description qui. Il documento non ne contiene una — lo
+        // schema del parser non ha nemmeno quel campo — quindi
+        // `data.description ?? ""` non "lasciava vuoto": scriveva stringa
+        // vuota sopra ciò che l'utente aveva già scritto a mano, e lo
+        // cancellava senza dirlo. Omettere la chiave lascia il valore
+        // esistente al suo posto.
       });
       return warnIfImportedDateIsPast("train", data);
     } else {
@@ -2527,7 +2563,12 @@ const initialJsonRef = useRef(null);
         gender: "",
         pnr: "",
         price: data.price ?? "",
-        description: data.description ?? "",
+        // NIENTE description qui. Il documento non ne contiene una — lo
+        // schema del parser non ha nemmeno quel campo — quindi
+        // `data.description ?? ""` non "lasciava vuoto": scriveva stringa
+        // vuota sopra ciò che l'utente aveva già scritto a mano, e lo
+        // cancellava senza dirlo. Omettere la chiave lascia il valore
+        // esistente al suo posto.
       });
       return warnIfImportedDateIsPast("hotel", data);
     }
@@ -3448,22 +3489,87 @@ const initialJsonRef = useRef(null);
                     </View>
                   )}
 
+                  {/* Descrizione ANCHE qui, non solo nello Step 1.
+                      Il documento importato riempie tutto tranne questo — è
+                      l'unica cosa che un biglietto non può dire — e dopo
+                      l'import si atterra dritti in questo step: chiederla
+                      solo di là significava mandare l'utente a cercarla
+                      indietro, senza che niente gli dicesse dov'è. Stesso
+                      campo, stesso `form.description`: qui è il posto dove
+                      serve davvero, un attimo prima della verifica che la
+                      legge. */}
+                  <Text style={styles.label}>{t("createListing.description", "Descrizione")}</Text>
+                  <TextInput
+                    ref={descriptionRef}
+                    value={form.description}
+                    onChangeText={(v) => update({ description: v })}
+                    placeholder={t("createListing.descriptionPlaceholderStep2", "Perché lo vendi, com'è il posto a sedere, cosa deve sapere chi lo compra…")}
+                    style={[styles.input, styles.multiline, descriptionMissing && styles.inputWarn]}
+                    placeholderTextColor={theme.colors.textMuted}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                  {descriptionMissing ? (
+                    <Text style={styles.descMissingNote}>
+                      {t("createListing.descriptionMissingHint", "Il documento ha riempito tutto il resto: questa è l'unica parte che può scrivere solo tu, ed è quella che gli acquirenti leggono per primi. Bastano due righe.")}
+                    </Text>
+                  ) : (
+                    <Text style={styles.note}>{t("createListing.descriptionStep2Hint", "È il pezzo che il Check AI legge per valutare l'affidabilità dell'annuncio.")}</Text>
+                  )}
+
                   {/* Check AI: qui, non nello Step 1, perché valuta anche
                       prezzo/tratta/date — campi che vivono solo qui.
                       Parte comunque in automatico alla pubblicazione se non
-                      ancora lanciata: questo bottone serve solo per vederne
-                      subito l'esito, prima di "Pubblica". */}
-                  <View style={styles.checkAiRow}>
-                    <AIPill
-                      title={t("createListing.checkAiCta", "Check AI")}
-                      onPress={onTrustCheck}
-                      disabled={trustLoading || loadingAI || aiFilling}
-                      loading={loadingAI}
-                      subtle
-                      iconLib="mci"
-                      iconName="shield-check"
-                    />
-                    <Text style={styles.note}>{t("createListing.checkAiHint", "Verifica affidabilità, prezzo e foto prima di pubblicare. Se non la lanci, parte comunque da sola alla pubblicazione.")}</Text>
+                      ancora lanciata: questo bottone serve a vederne subito
+                      l'esito, prima di "Pubblica".
+
+                      Era una pillola grigia ("subtle") persa fra i campi, e
+                      chi non la notava scopriva solo alla pubblicazione che
+                      esisteva una verifica. Ora è una scheda con un titolo
+                      che dice a cosa serve per CHI legge l'annuncio, non per
+                      il sistema: il punteggio è la cosa che convince un
+                      estraneo a fidarsi. */}
+                  <View style={[styles.checkAiCard, descriptionMissing && styles.checkAiCardMuted]}>
+                    <View style={styles.checkAiCardHead}>
+                      <MaterialCommunityIcons name="shield-check" size={20} color={theme.colors.boardingText} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.checkAiCardTitle}>{t("createListing.checkAiCardTitle", "Fatti dare un voto di affidabilità")}</Text>
+                        <Text style={styles.checkAiCardText}>
+                          {t("createListing.checkAiCardText", "Gli annunci verificati mostrano un badge e vengono scelti più spesso. Controlliamo prezzo, date, tratta e foto: ci vogliono pochi secondi.")}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {descriptionMissing ? (
+                      // Perché non si lancia e basta: la verifica ha bisogno
+                      // della descrizione (min 10 caratteri lato server), e
+                      // prima falliva in silenzio — nessun punteggio, nessun
+                      // messaggio, nessun modo di capire perché.
+                      <TouchableOpacity
+                        onPress={() => descriptionRef.current?.focus?.()}
+                        style={styles.checkAiBlocked}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("createListing.checkAiNeedsDescCta", "Scrivi la descrizione")}
+                      >
+                        <MaterialCommunityIcons name="pencil-outline" size={16} color="#7C4A03" />
+                        <Text style={styles.checkAiBlockedText}>
+                          {t("createListing.checkAiNeedsDesc", "Serve la descrizione qui sopra per poter valutare l'annuncio — tocca qui per scriverla.")}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <AIPill
+                        title={t("createListing.checkAiCta", "Check AI")}
+                        onPress={onTrustCheck}
+                        disabled={trustLoading || loadingAI || aiFilling}
+                        loading={loadingAI}
+                        dark
+                        iconLib="mci"
+                        iconName="shield-check"
+                      />
+                    )}
+
+                    <Text style={styles.checkAiCardNote}>{t("createListing.checkAiHint", "Se non la lanci, parte comunque da sola alla pubblicazione.")}</Text>
                   </View>
 
                   {showMicroLog && (
@@ -3756,6 +3862,30 @@ const styles = StyleSheet.create({
     manualEntryLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10, marginTop: 8 },
     manualEntryLinkText: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13, textDecorationLine: "underline" },
     checkAiRow: { marginTop: 4, marginBottom: 4, gap: 6, alignItems: "flex-start" },
+    // Scheda del Check AI: prima era una pillola grigia in mezzo ai campi e
+    // passava inosservata. Il bordo e il fondo la staccano dal form senza
+    // urlare — è un invito, non un errore da correggere.
+    checkAiCard: {
+      marginTop: 14, marginBottom: 6, padding: 14, gap: 10,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderRadius: theme.radius.lg || 14,
+      borderWidth: 1, borderColor: theme.colors.border,
+    },
+    checkAiCardMuted: { opacity: 0.95 },
+    checkAiCardHead: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+    checkAiCardTitle: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 15 },
+    checkAiCardText: { color: theme.colors.textMuted, fontSize: 12.5, marginTop: 3, lineHeight: 17 },
+    checkAiCardNote: { color: theme.colors.textMuted, fontSize: 11.5 },
+    // Il caso "non posso partire": ambra, non rosso — non è un errore
+    // dell'utente, è un pezzo che manca e si scrive in due righe.
+    checkAiBlocked: {
+      flexDirection: "row", alignItems: "center", gap: 8,
+      backgroundColor: "#FEF3C7", borderRadius: theme.radius.md || 10,
+      borderWidth: 1, borderColor: "#FCD34D", paddingHorizontal: 12, paddingVertical: 10,
+    },
+    checkAiBlockedText: { flex: 1, color: "#7C4A03", fontSize: 12.5, fontWeight: "600", lineHeight: 17 },
+    inputWarn: { borderColor: theme.colors.warning },
+    descMissingNote: { color: "#7C4A03", fontSize: 12, marginTop: 6, lineHeight: 17 },
     cvHelper: { color: theme.colors.textMuted, fontSize: 12, marginTop: 6, marginBottom: 2 },
     advancedHeader: {
       flexDirection: "row", alignItems: "center", justifyContent: "space-between",
