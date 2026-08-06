@@ -29,9 +29,12 @@ const CHAIN_AI_CONCURRENCY = Number(process.env.CHAIN_AI_CONCURRENCY ?? 3);
 // quindi non era l'API a essere lenta — era il limite a essere corto.
 //
 // Perché 15 secondi non bastavano: a ogni chiamata il modello riceve fino
-// a 40 candidati e deve restituirne 40, ognuno con punteggio e
-// motivazione. È molto testo da generare, e il SDK ritenta anche da solo
-// dentro la stessa finestra, mangiandosela.
+// a 40 candidati e deve restituirne 40, e il SDK ritenta anche da solo
+// dentro la stessa finestra, mangiandosela. (All'epoca doveva anche
+// scrivere uuid e motivazione per ognuno: da quando risponde a indici
+// nudi genera molto meno testo, ma il limite resta largo — in un cron
+// non c'è nessuno che aspetta, e un timeout si paga senza prendere
+// niente in cambio.)
 //
 // Perché allargare non costa niente: questo gira in un cron, non c'è
 // nessuno che aspetta. Un timeout invece costa DUE volte — la chiamata
@@ -214,21 +217,33 @@ function truncate(s, n) {
   return str.length > n ? str.slice(0, n) + "…" : str;
 }
 
-function slimListing(l) {
+// Cosa vede il modello di un annuncio.
+//
+// NON l'uuid: un uuid sono ~20 token, e il modello deve riscriverlo per
+// ogni candidato per dire a chi si riferisce il punteggio. Con 40
+// candidati per chiamata sono ~800 token di sola targhetta, in USCITA,
+// dove costano quattro volte l'ingresso. Al modello basta un numero
+// progressivo: la corrispondenza indice -> uuid la teniamo qui, dove è
+// gratis e non può sbagliarsi.
+//
+// NON il prezzo: i criteri di punteggio qui sotto parlano solo di città e
+// date, il prezzo non entra in nessuno di essi — era testo pagato a ogni
+// giro senza cambiare una virgola del risultato. È anche ciò che rendeva
+// il ricalcolo sensibile al decadimento automatico dei prezzi.
+function slimListing(l, i) {
   const r = routeOf(l);
-  return {
-    id: l.id,
+  const out = {
     type: l.type,
     from: truncate(r.from, 60),
     to: truncate(r.to, 60),
     date: dateOf(l)?.toISOString() ?? null,
-    price: l.price ?? null,
   };
+  return i == null ? out : { i, ...out };
 }
 
 function buildChainPrompt(wantListing, candidatesBatch) {
   const want = slimListing(wantListing);
-  const candidates = candidatesBatch.map(slimListing);
+  const candidates = candidatesBatch.map((c, i) => slimListing(c, i));
   return `Sei un motore di normalizzazione fuzzy per uno scambio di biglietti/prenotazioni di viaggio.
 Un utente CERCA questo: ${JSON.stringify(want)}
 
@@ -242,8 +257,8 @@ IMPORTANTE: una vicinanza geografica solo generica (es. "entrambe nel sud Italia
 Linee guida punteggio: 20=nessuna corrispondenza, 35-45=solo uno dei due criteri (area larga sola, o data vicina sola) — sotto soglia, 65+=area larga E data vicina insieme, 75+=stessa città esatta anche con data più lontana, 90+=stessa città e data entrambe vicine.
 
 Rispondi SOLO con:
-{"scores": [{"id": "<uuid>", "score": <int 0-100>, "reason": "<max 100 char, in italiano>"}]}
-Un elemento per OGNI candidato, nessuna omissione.
+{"scores": [{"i": <indice del candidato>, "score": <int 0-100>}]}
+Un elemento per OGNI candidato, nessuna omissione. Nient'altro: niente motivazioni, niente testo fuori dal JSON.
 
 Candidati: ${JSON.stringify(candidates)}`;
 }
@@ -273,11 +288,10 @@ async function callOpenAIChainScore(prompt, timeoutMs, candidateCount = null) {
                   items: {
                     type: "object",
                     additionalProperties: false,
-                    required: ["id", "score", "reason"],
+                    required: ["i", "score"],
                     properties: {
-                      id: { type: "string" },
+                      i: { type: "integer", minimum: 0 },
                       score: { type: "integer", minimum: 0, maximum: 100 },
-                      reason: { type: "string", maxLength: 120 },
                     },
                   },
                 },
@@ -314,20 +328,36 @@ async function callOpenAIChainScore(prompt, timeoutMs, candidateCount = null) {
   }
 }
 
-function validateChainScores(raw, knownIds) {
+/**
+ * Dalla risposta a indici agli id veri.
+ *
+ * L'indice è comodo per il modello ma è anche un modo nuovo di sbagliare:
+ * un indice fuori dal lotto, o lo stesso indice due volte, prima non era
+ * rappresentabile (un uuid inventato non stava nell'elenco e cadeva da
+ * solo). Qui si scartano entrambi i casi invece di fidarsi della
+ * posizione.
+ *
+ * @param {Array} raw risposta del modello
+ * @param {Array} batch i candidati inviati, NELLO STESSO ORDINE del prompt
+ */
+export function validateChainScores(raw, batch) {
   if (!Array.isArray(raw)) return null;
-  const ids = new Set(knownIds);
   const out = [];
+  const visti = new Set();
   for (const x of raw) {
-    if (!x || !ids.has(x.id)) continue;
+    // null/undefined/"" fuori PRIMA della conversione: Number(null) è 0, e
+    // uno 0 nato da un campo vuoto attribuirebbe quel punteggio al primo
+    // candidato del lotto — un annuncio a caso, senza che si veda. Una
+    // cifra scritta come stringa ("1") invece si accetta: è una variazione
+    // innocua, e scartarla butterebbe via una risposta già pagata.
+    if (x?.i === null || x?.i === undefined || x?.i === "") continue;
+    const i = Number(x.i);
+    if (!Number.isInteger(i) || i < 0 || i >= batch.length) continue;
+    if (visti.has(i)) continue;
+    visti.add(i);
     let s = Number.isFinite(Number(x.score)) ? Math.round(Number(x.score)) : 0;
     s = Math.max(0, Math.min(100, s));
-    out.push({
-      id: x.id,
-      score: s,
-      reason: typeof x.reason === "string" ? x.reason.slice(0, 200) : "",
-      model: MODEL,
-    });
+    out.push({ id: batch[i].id, score: s, reason: "", model: MODEL });
   }
   return out;
 }
@@ -354,7 +384,7 @@ export async function scoreChainCandidates(wantListing, candidates) {
   const perBatch = await mapWithConcurrency(batches, CHAIN_AI_CONCURRENCY, async (batch) => {
     const prompt = buildChainPrompt(wantListing, batch);
     const raw = await callOpenAIChainScore(prompt, CHAIN_AI_TIMEOUT_MS, batch.length);
-    return validateChainScores(raw, batch.map((c) => c.id));
+    return validateChainScores(raw, batch);
   });
 
   // Il ripiego è PER LOTTO, non per l'intero insieme.

@@ -10,9 +10,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chainFingerprint, canSkipRecompute } from '../src/lib/chainFingerprint.js';
+import { chainFingerprint, canSkipRecompute, listingsStamp } from '../src/lib/chainFingerprint.js';
 
 const L = (count, at) => ({ count, lastChangeAt: at });
+
+// Un annuncio come lo legge listActiveListings, ridotto ai campi che
+// contano qui.
+const ann = (over = {}) => ({
+  id: 'aaaaaaaa-0000-0000-0000-000000000001',
+  user_id: 'u1',
+  status: 'active',
+  type: 'train',
+  cerco_vendo: 'VENDO',
+  route_from: 'Roma',
+  route_to: 'Milano',
+  location: null,
+  depart_at: '2026-09-10T09:00:00Z',
+  check_in: null,
+  accepts_swap: true,
+  swap_wanted: 'Firenze',
+  price: 80,
+  ...over,
+});
 
 test('stessi ingressi, stessa impronta', () => {
   const a = chainFingerprint(L(333, '2026-08-05T20:00:00Z'), L(2, '2026-08-05T19:00:00Z'));
@@ -71,6 +90,70 @@ test('al primo giro dopo un riavvio non si salta mai', () => {
   assert.equal(canSkipRecompute(null, 'X', 0), false);
   assert.equal(canSkipRecompute(undefined, 'X', 0), false);
   assert.equal(canSkipRecompute('', 'X', 0), false);
+});
+
+// ----------------------------------------------------------------------
+// L'impronta degli annunci: sui CAMPI, non su updated_at.
+// ----------------------------------------------------------------------
+
+test('il PREZZO non cambia l\'impronta, ed è il motivo per cui questa funzione esiste', () => {
+  // La regressione vera: l'impronta guardava listings.updated_at, e il
+  // decadimento automatico dei prezzi scrive un UPDATE per ogni annuncio
+  // in scadenza a ogni giro. Bastava quello per invalidare l'impronta ogni
+  // 15 minuti e ricalcolare tutte le catene, a pagamento, senza che nulla
+  // di rilevante per i cicli fosse cambiato. Il prezzo al punteggio delle
+  // catene non partecipa: qui deve essere invisibile.
+  const prima = listingsStamp([ann({ price: 80 })]);
+  const dopo = listingsStamp([ann({ price: 41.5 })]);
+  assert.equal(prima.digest, dopo.digest);
+});
+
+test('l\'ordine delle righe non conta', () => {
+  // Postgres non garantisce un ordine se non glielo si chiede, e
+  // un'impronta che cambia per il solo ordine farebbe ricalcolare a caso.
+  const a = ann({ id: 'a' });
+  const b = ann({ id: 'b' });
+  assert.equal(listingsStamp([a, b]).digest, listingsStamp([b, a]).digest);
+});
+
+test('cambiare tratta, data, tipo o direzione cambia l\'impronta', () => {
+  const base = listingsStamp([ann()]).digest;
+  for (const modifica of [
+    { route_to: 'Torino' },
+    { route_from: 'Napoli' },
+    { depart_at: '2026-09-11T09:00:00Z' },
+    { type: 'hotel' },
+    { cerco_vendo: 'CERCO' },
+    { user_id: 'u2' },
+    { swap_wanted: 'Bologna' },
+    { accepts_swap: false },
+    { location: 'Roma-->Milano' },
+    { status: 'paused' },
+  ]) {
+    assert.notEqual(listingsStamp([ann(modifica)]).digest, base, `invisibile: ${JSON.stringify(modifica)}`);
+  }
+});
+
+test('un annuncio in più cambia conteggio e impronta', () => {
+  const uno = listingsStamp([ann({ id: 'a' })]);
+  const due = listingsStamp([ann({ id: 'a' }), ann({ id: 'b' })]);
+  assert.equal(uno.count, 1);
+  assert.equal(due.count, 2);
+  assert.notEqual(uno.digest, due.digest);
+});
+
+test('nessun annuncio è uno stato valido, non un errore', () => {
+  const vuoto = listingsStamp([]);
+  assert.equal(vuoto.count, 0);
+  assert.equal(listingsStamp(null).digest, vuoto.digest);
+  assert.notEqual(listingsStamp([ann()]).digest, vuoto.digest);
+});
+
+test('l\'impronta completa distingue i due ingressi', () => {
+  const annunci = listingsStamp([ann()]);
+  const catene = { count: 2, lastChangeAt: '2026-08-05T19:00:00Z' };
+  const f = chainFingerprint(annunci, catene);
+  assert.match(f, /^1\|[0-9a-f]{12}~2\|2026-08-05T19:00:00Z$/);
 });
 
 test('se sono appena scadute delle catene NON si salta, anche con impronta uguale', () => {
