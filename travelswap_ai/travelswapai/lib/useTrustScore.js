@@ -1,5 +1,5 @@
 // travelswapai/lib/useTrustScore.js
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { fetchJson } from './backendApi';
 import { parseLocalizedNumber } from './number';
 
@@ -174,6 +174,15 @@ export function useTrustScore() {
   const [loading, setLoading] = useState(false);
   const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
+  // Lo stesso messaggio dello stato, ma leggibile SUBITO.
+  //
+  // `error` è stato di React: chi chiama `evaluate` e poi guarda `error`
+  // nella stessa funzione legge il valore del render precedente, non quello
+  // appena impostato. È così che una verifica rifiutata per descrizione
+  // troppo corta non mostrava niente al primo tocco — né punteggio né
+  // avviso — e l'avviso compariva solo al secondo. Il ref non ha quel
+  // ritardo.
+  const lastErrorRef = useRef(null);
 
   /**
    * Accetta:
@@ -204,9 +213,12 @@ export function useTrustScore() {
       });
 
       setData(res);
+      lastErrorRef.current = null;
       return res;
     } catch (e) {
-      setError(e?.message || 'Errore calcolo TrustScore');
+      const msg = e?.message || 'Errore calcolo TrustScore';
+      lastErrorRef.current = msg;
+      setError(msg);
       return null;
     } finally {
       setLoading(false);
@@ -219,7 +231,11 @@ export function useTrustScore() {
   const reset = useCallback(() => {
     setData(null);
     setError(null);
+    lastErrorRef.current = null;
   }, []);
 
-  return { loading, data, error, evaluate, reset };
+  /** Il motivo dell'ultimo fallimento, disponibile subito dopo `evaluate`. */
+  const getLastError = useCallback(() => lastErrorRef.current, []);
+
+  return { loading, data, error, evaluate, reset, getLastError };
 }
