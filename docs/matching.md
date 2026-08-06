@@ -127,6 +127,15 @@ Il **"Check AI" / TrustScore** (`POST /ai/trustscore`,
 testo/tipo, foto), non la compatibilità tra due annunci. Non condivide
 codice con questa pipeline.
 
+Anche gli **scambi a 3** (`ai/chainMatch.js`, `models/chains.js`) sono una
+pipeline a sé: stesso modello, prompt e vincoli diversi. Lì il numero di
+chiamate cresce come CERCO × VENDO invece che linearmente, quindi il costo è
+un vincolo di progetto e non un dettaglio: si salta l'intero ricalcolo se
+nulla di rilevante è cambiato, si scartano i candidati con date oltre 30
+giorni prima di chiamare il modello, e la risposta viaggia per indice
+(`{i, score}`) invece che per uuid. Dettagli in `docs/FUNCTIONAL_OVERVIEW.md`
+§3.6.
+
 ## Esempio end-to-end
 
 CERCO: budget 60€, partenza 1 ago. Candidato VENDO a 50€, stesso giorno:

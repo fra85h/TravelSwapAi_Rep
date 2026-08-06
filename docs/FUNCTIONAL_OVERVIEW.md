@@ -103,7 +103,9 @@ TravelSwapAi_Rep/
 
 ### 3.6 Swap a catena, valutazioni, domande pre-offerta
 - **Swap a 3** (`server/src/models/chains.js`, `ai/chainMatch.js`, `ai/chainExplain.js`): trova cicli chiusi di 3 utenti tra gli annunci attivi (`findAndProposeChains`, cron-only `POST /api/chains/recompute`, ogni 15 min). Un utente con più annunci VENDO attivi partecipa comunque: ogni arco del grafo di desiderio sceglie l'annuncio specifico con punteggio migliore (non esclude l'utente, comportamento della v1). Si chiude con `confirm_chain_participant` (lock ordinato sui 3 annunci prima di riservarli) solo quando tutti e 3 confermano; da quel momento chat dedicata (`chain_messages`, RLS aperta solo a catena `completed`).
-- **Valutazioni 1-5 stelle** (`transaction_ratings`, RPC `rate_transaction`/`get_user_rating`): solo per scambi 1:1 (i chain-swap non hanno una riga in `offers`, quindi non sono ancora votabili). Doppio cieco — voto nascosto finché anche l'altra parte vota o passano 14 giorni — e immutabile.
+  - **Il costo è il vincolo di progetto**: le chiamate crescono come CERCO × VENDO, quindi con 333 annunci un giro costava 7 centesimi e a 1000 non sarebbe il triplo. Tre difese, tutte deterministiche e tutte *prima* di pagare il modello: (1) si salta l'intero ricalcolo se nulla di rilevante è cambiato dall'ultimo giro — l'impronta guarda i campi che il grafo usa davvero, **non** il prezzo, che il decadimento automatico riscrive di continuo senza spostare un solo ciclo; (2) `worthScoringByDate` scarta i candidati oltre 30 giorni di distanza; (3) il modello risponde `{i, score}` per indice, senza uuid né motivazione (che nessuno leggeva) — uscita −78%, ingresso −32%.
+  - Un lotto di candidati andato in timeout ricade sull'euristica **da solo**: prima ne bastava uno per buttare via i punteggi AI già pagati di tutti gli altri.
+- **Valutazioni 1-5 stelle** (`transaction_ratings`): doppio cieco — voto nascosto finché anche l'altra parte vota o passano 14 giorni — e immutabile. Due strade separate perché le transazioni lo sono: `rate_transaction` per gli scambi 1:1 (via `offers`), `rate_chain_transaction` per gli scambi a 3 (via `chain_id`, nessuna riga in `offers`). `get_user_rating` le fonde in un'unica reputazione.
 - **Domande a risposta chiusa pre-offerta** (`lib/listingQuestions.mjs`): catalogo treno/hotel mostrato prima di proporre un'offerta, per ridurre lo scambio di contatti fuori app in chat.
 - **Race condition corrette** (`supabase/migrations/20260726120000`, `20260729120000`): lock ordinato su `accept_offer_any`/`confirm_exchange_any`/`confirm_chain_participant` e ricontrollo di stato in `release_my_stale_reservations`, per evitare che una pulizia lazy o una conferma concorrente sovrascrivano uno scambio appena concluso.
 
@@ -148,6 +150,10 @@ Estrazione di campi strutturati (usata da "Compila con AI", import PDF biglietto
 
 `provider` (mappato su `listings.operator` lato app) viene dedotto in due casi: testo chiaramente una conferma di prenotazione con fornitore esplicito, oppure — solo per i treni — un marchio commerciale esclusivo di un operatore (Frecciarossa/Frecciargento/Freccia Bianca/Intercity/Intercity Notte/EuroCity/Euronight → Trenitalia; Italo → Italo) anche senza nominare l'azienda. `Regionale`/`Regionale Veloce` restano volutamente esclusi (gestiti da più aziende diverse per regione).
 
+Dal biglietto si estraggono anche **classe di servizio** (`ticketClass`) e **tipologia di tariffa** (`fareType`), che sono cose diverse e non vanno dedotte l'una dall'altra: un biglietto può essere Business con tariffa Economy. Sui documenti Trenitalia la classe sta sotto `Servizio:` e la tariffa sotto `Offerta`, mentre `BASE-STANDARD` le contiene entrambe. Da lì `lib/fareRules.js` ricava la **reintestabilità**: mappa tariffa → operatore, mai un giudizio del modello, e `NAME_CHANGE.UNKNOWN` quando non si sa. Un valore dichiarato dal venditore vince sempre su quello dedotto, e il risultato è un **avviso, mai un blocco**: le politiche degli operatori cambiano e sbagliare impedendo una vendita legittima è peggio che sbagliare avvisando.
+
+Il PDF non viaggia più inline: passa dalla **Files API** con un client dedicato (timeout corto, retry dell'SDK disattivati) e un budget complessivo, perché i retry annidati potevano arrivare a 6 minuti contro i 90 secondi che l'app aspetta — l'utente vedeva solo una rotellina infinita. Il credito OpenAI esaurito (`429 insufficient_quota`) viene riconosciuto, **non** ritentato, e tradotto in un messaggio che dice cosa fare: compilare a mano.
+
 ### 4.4 Traduzione annunci (`GET /api/listings/:id/translate?lang=xx`)
 Traduzione titolo+descrizione via OpenAI (source auto-detect) con **cache su tabella `listing_translations`** (best-effort: se la tabella non esiste, traduce comunque).
 
@@ -178,7 +184,13 @@ L'utente segnala un annuncio/venditore (`reports`, insert diretto via RLS dal cl
 ### 4.8 Prezzo dinamico (`POST /api/price-decay/recompute`, `models/priceDecay.js`)
 Un annuncio VENDO vale il prezzo pieno fino a un attimo prima della partenza/check-in, poi vale zero — a differenza di un marketplace generico qui il "deperimento" è certo e calcolabile. Il venditore può attivare, per singolo annuncio (mai per un CERCO: lì `price` è un budget, non un prezzo di vendita), uno sconto automatico: `price` decade linearmente da `list_price` (il prezzo di partenza, riancorato ad ogni salvataggio col toggle attivo) fino a `price_floor` (il minimo, mai superato), negli ultimi `PRICE_DECAY_WINDOW_DAYS` giorni (default 7) prima di `depart_at`/`check_in`. Un cron periodico (stesso schema di catene/avvisi/scadenza offerte, protetto da `X-Cron-Secret`) aggiorna **solo** `price` — tutto il resto (matching, offerte, card) continua a leggerlo come oggi — e notifica il venditore in-app (`listing_price_dropped`) ad ogni scatto. Il decadimento è monotono per costruzione: il nuovo prezzo è sempre `min(prezzo corrente, target calcolato)`, non un aumento, anche se `list_price` fosse disallineata.
 
-### 4.9 Endpoint di servizio
+### 4.9 Avviso prezzo automatico (`POST /api/listings/price-suggest`, `ai/priceCheck.js`)
+Appena il venditore scrive il prezzo, una stima parte da sola e avvisa **solo se il prezzo è fuori mercato verso l'alto** (soglia 1.25×, `lib/priceVerdict.js`): sotto quella soglia nessun messaggio, e mai un avviso perché il prezzo è basso — chi vende a poco lo sta facendo apposta. Gira sul modello economico (`OPENAI_PRICE_QUICK_MODEL`) perché è un semaforo, non un'analisi che qualcuno legge parola per parola; l'analisi completa resta a richiesta, sul modello di punta. Le risposte identiche non si ripagano: `lib/aiCache.js` tiene in memoria l'esito per prompt esatto (TTL 24h, tetto LRU).
+
+### 4.10 Tracciamento errori (`instrument.js`, `lib/monitoring.js`, `POST /api/client-errors`)
+Sentry in regione UE, inizializzato come **primo import** del server, con header di autorizzazione/cookie/firma webhook, corpo e query string ripuliti prima dell'invio. La parte che conta non sono i crash: sono i guasti **gestiti**, quelli catturati da un `try/catch` che ricade su un fallback — l'AI che non risponde, l'email che non parte, il cron che salta un giro. Erano invisibili, ed erano esattamente ciò che gli utenti vedevano. `reportFault(scope, err)` li manda con un throttle di 5 minuti per scope+messaggio, così un guasto ripetuto non brucia la quota mensile. L'app fa lo stesso da `lib/monitoring.js` verso `/api/client-errors`, togliendo frammento e query string dagli URL e fermandosi a 10 segnalazioni per sessione.
+
+### 4.11 Endpoint di servizio
 `/health`, `/dev/ping`, `/debug/env`, `/debug/supabase`, `/dev/token-check` (solo dev), mini-logger richieste in dev.
 
 ---
@@ -271,6 +283,11 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 | `OPENAI_TRUST_MODEL` (default `gpt-4.1`) | modello per il TrustScore. Come l'analisi prezzo parte da un modello di punta: qui non si estrae un campo, si dà un giudizio su cosa è plausibile e cosa somiglia a una truffa, testo e foto insieme — ed è la funzione con le conseguenze più visibili quando sbaglia. **Deve supportare la visione** (le immagini viaggiano come `image_url`, `detail: "low"`) |
 | `OPENAI_PRICE_MODEL` (default `gpt-4.1`) | modello per l'analisi prezzo. È l'unica funzione AI che parte da un modello di punta invece che dal "mini": non estrae né classifica, deve *sapere* quanto vale una tratta in un certo periodo — conoscenza del mondo e giudizio, dove il divario tra i due tier è massimo. Costa poco alzarlo perché è una chiamata sola con prompt breve, al contrario del matching (`MATCH_AI_MODEL`), che resta apposta sul modello economico avendo il volume di token più alto e il compito più ristretto |
 | `CHAIN_AI_MODEL` | modello per gli scambi a 3 (`chainMatch`/`chainExplain`); se assente ricade su `MATCH_AI_MODEL` |
+| `CHAIN_AI_TIMEOUT_MS` (default `45000`) | timeout per lotto di candidati delle catene. Largo di proposito: gira in un cron, nessuno aspetta — e un timeout costa **due volte**, perché la chiamata interrotta viene comunque conteggiata da OpenAI e in cambio si ottiene un punteggio euristico |
+| `CHAIN_DATE_WINDOW_DAYS` (default `30`) | oltre questa distanza fra le due date un candidato non arriva nemmeno al modello. Si filtra solo sulla **data**, mai sulla geografia: la vicinanza fra due città è il giudizio per cui l'AI sta lì |
+| `OPENAI_PRICE_QUICK_MODEL` (default `gpt-4o-mini`) | modello dell'avviso prezzo automatico all'inserimento, quello che nessuno legge parola per parola; l'analisi completa resta su `OPENAI_PRICE_MODEL` |
+| `OPENAI_PDF_TIMEOUT_MS` (default `30000`), `OPENAI_PDF_BUDGET_MS` (default `70000`) | import PDF: timeout della singola chiamata e budget complessivo. Servono a stare **dentro** i 90 secondi che l'app aspetta — senza, i retry dell'SDK moltiplicati per i nostri arrivavano a 6 minuti e l'utente vedeva solo la rotellina |
+| `SENTRY_DSN` (regione UE) | tracciamento errori server. Senza, tutto resta nei log e `monitoring.js` è un no-op. Copre anche i guasti **gestiti** via `reportFault` (throttle 5 minuti per scope+messaggio) e quelli dell'app, che arrivano da `/api/client-errors` |
 | `FB_VERIFY_TOKEN`, `FB_APP_SECRET`, `FB_PAGE_ACCESS_TOKEN` | webhook + Send API Messenger |
 | `ALLOW_UNVERIFIED_WEBHOOK` | ⚠️ bypass verifica firma FB |
 | `DEFAULT_LISTING_OWNER_ID` | owner degli annunci importati da FB |
@@ -315,7 +332,7 @@ Ricostruito dalle query nel codice; i tipi sono dedotti.
 
 ### P2 — Qualità e prodotto
 
-16. ✅ **Test e CI presenti** — `server/test/` (332 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x).
+16. ✅ **Test e CI presenti** — `server/test/` (447 test, `node --test`), pipeline `.github/workflows/node.js.yml` (push/PR su `main`, Node 20.x/22.x) più il job `test-db`, che monta un Postgres 16 vero, ci ricostruisce lo schema applicando tutte le migration in ordine ed esegue lì le regole del database (trigger, vincoli, RLS) che nessun mock può eseguire.
 17. ✅ **Codice morto/duplicato rimosso** — vedi P1.15; route `parseTwo` consolidata in `ai/descriptionParse.js` (vedi §4.3).
 18. ✅ **Migrazioni DB versionate** — vedi P0.7.
 19. **TypeScript** — il tsconfig c'è ma il codice è ancora tutto JS; una migrazione graduale (prima `lib/`, poi screens) resta da fare.
