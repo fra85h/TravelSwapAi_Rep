@@ -613,6 +613,7 @@ export const translations = {
         // Etichette problemi per codice (fallback: messaggio del server)
         flags: {
           IMPLAUSIBLE_ROUTE: "Tratta non plausibile",
+          SAME_CITY_ROUTE: "Partenza e arrivo nella stessa città",
           IMPLAUSIBLE_DURATION: "Durata del viaggio non plausibile",
           IRRELEVANT_IMAGES: "Foto non pertinenti all'annuncio",
           INCOHERENT_LISTING: "Testo incoerente con i dati dell'annuncio",
@@ -2029,6 +2030,7 @@ export const translations = {
         logAiFillError: "Error while filling with AI.",
         flags: {
           IMPLAUSIBLE_ROUTE: "Implausible route",
+          SAME_CITY_ROUTE: "Departure and arrival in the same city",
           IMPLAUSIBLE_DURATION: "Implausible trip duration",
           IRRELEVANT_IMAGES: "Photos unrelated to the listing",
           INCOHERENT_LISTING: "Text inconsistent with the listing data",
@@ -3308,6 +3310,7 @@ export const translations = {
         logAiFillError: "Error al rellenar con IA.",
         flags: {
           IMPLAUSIBLE_ROUTE: "Trayecto no plausible",
+          SAME_CITY_ROUTE: "Salida y llegada en la misma ciudad",
           IMPLAUSIBLE_DURATION: "Duración del viaje no plausible",
           IRRELEVANT_IMAGES: "Fotos ajenas al anuncio",
           INCOHERENT_LISTING: "Texto incoherente con los datos del anuncio",

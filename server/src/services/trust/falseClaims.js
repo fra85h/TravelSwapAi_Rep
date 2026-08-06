@@ -20,7 +20,7 @@
 // Non si riscrive la frase perché non si può sapere quale motivo VERO l'AI
 // avrebbe dovuto dare al suo posto: inventarlo sarebbe lo stesso errore.
 
-import { isKnownRailCity } from './heuristics.js';
+import { isKnownRailCity, isSameCityRoute } from './heuristics.js';
 
 /** Testo su cui l'AI ha giudicato: titolo + descrizione. */
 function listingText(listing) {
@@ -71,6 +71,11 @@ function questionsAValidRoute(sentence, listing) {
   const tipo = String(listing?.type || '').toLowerCase();
   if (tipo !== 'train' && tipo !== 'treno') return false;
   if (!isKnownRailCity(listing?.origin) || !isKnownRailCity(listing?.destination)) return false;
+  // Stessa città su entrambi i capi: il dubbio dell'AI NON è infondato, è
+  // esattamente il punto. Stessa correzione fatta in computeTrustScore: due
+  // stazioni della stessa città passano la prova "città su rotaia" senza
+  // essere un viaggio.
+  if (isSameCityRoute(listing?.origin, listing?.destination)) return false;
 
   const s = String(sentence || '');
   if (!ROUTE_DOUBT_RE.test(s)) return false;

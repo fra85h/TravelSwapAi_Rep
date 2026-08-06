@@ -4,7 +4,7 @@
 // HTTP (es. l'ingest da Facebook Feed in models/fbIngest.js) — prima quel
 // canale creava annunci attivi senza NESSUNA delle verifiche che l'app
 // impone invece a chi pubblica dall'app.
-import { computeHeuristicChecks, isKnownRailCity } from './heuristics.js';
+import { computeHeuristicChecks, isKnownRailCity, isSameCityRoute } from './heuristics.js';
 import { aiTrustReview } from './aiTrust.js';
 import { moderateListing } from './moderation.js';
 // Da falseClaims e non definita qui: la stessa prova serve anche per scartare
@@ -179,10 +179,16 @@ export async function computeFullTrustScore(inListing, locale = 'it') {
   // l'autorità sui casi davvero impossibili (isole minori, Sardegna↔continente).
   const heurFlagCodes = (heur?.flags ?? []).map((f) => String(f?.code || '').toUpperCase());
   const isTrainListing = ['train', 'treno'].includes(String(listing.type || '').toLowerCase());
+  // La soppressione pretende anche che le due città siano DIVERSE: prima
+  // bastava che entrambi i capi fossero riconosciuti, quindi "Roma Termini →
+  // Roma Tiburtina" faceva scartare come falso positivo un IMPLAUSIBLE_ROUTE
+  // che era invece corretto. L'allow-list dice "questa città ha una
+  // stazione", non "questo viaggio ha senso".
   if (
     isTrainListing &&
     isKnownRailCity(listing.origin) &&
     isKnownRailCity(listing.destination) &&
+    !isSameCityRoute(listing.origin, listing.destination) &&
     !heurFlagCodes.includes('IMPLAUSIBLE_ROUTE')
   ) {
     const before = (ai?.flags ?? []).length;
