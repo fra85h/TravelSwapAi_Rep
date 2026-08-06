@@ -9,6 +9,7 @@ import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import { resolveNameChange, nameChangeFromFare, NAME_CHANGE } from "../lib/fareRules";
 import { priceVerdict, percentAbove, PRICE_VERDICT } from "../lib/priceVerdict";
+import { publishReviewItems, REVIEW } from "../lib/publishReview.mjs";
 import { describeBackendError } from "../lib/backendError";
 import TrustScoreBadge from '../components/TrustScoreBadge';
 import { useTrustScore } from '../lib/useTrustScore';
@@ -1848,6 +1849,67 @@ const initialJsonRef = useRef(null);
   const [pricePeerHint, setPricePeerHint] = useState(null); // { pct, explanation } | null
   const lastCheckedPriceRef = useRef(null);
 
+  /* ---------- RIEPILOGO PRIMA DI PUBBLICARE ----------
+   *
+   * NON è un "sei sicuro?". Pubblicare è reversibile (si mette in pausa in
+   * due tocchi), e una conferma davanti a un'azione innocua si consuma da
+   * sola: chi la incontra ogni volta impara a premere OK senza leggere, e
+   * quando arriva quella che conta davvero — "elimina", che è terminale —
+   * la salta con lo stesso automatismo.
+   *
+   * Questo box compare SOLO se c'è qualcosa che l'utente potrebbe non
+   * sapere di stare per pubblicare. Se non c'è niente da dire non appare, e
+   * chi ha compilato bene non paga nessun tocco in più.
+   *
+   * Modale dell'app e non Alert.alert di proposito: su web quest'ultimo
+   * diventa window.alert, che il browser può zittire del tutto dopo qualche
+   * dialogo ("impedisci a questa pagina di creare altre finestre"). Un
+   * avviso che l'utente può perdere senza accorgersene è peggio che non
+   * averlo.
+   */
+  const [publishReview, setPublishReview] = useState(null); // { items:[{icon,text}], resolve } | null
+
+  const chiediConfermaPubblicazione = (items) =>
+    new Promise((resolve) => setPublishReview({ items, resolve }));
+
+  const chiudiRiepilogo = (procedi) => {
+    setPublishReview((r) => { r?.resolve?.(procedi); return null; });
+  };
+
+  /**
+   * Le voci del riepilogo, tradotte. La DECISIONE su cosa mostrare vive in
+   * lib/publishReview.mjs (pura, testata senza bundler): qui resta solo il
+   * testo, che è la parte che non può sbagliare in silenzio.
+   */
+  const raccogliAvvisiPubblicazione = (trustResult) => {
+    const items = publishReviewItems({
+      photoCount: pendingPhotos.length + existingPhotos.length,
+      trustScore: trustResult?.trustScore ?? null,
+      priceHint: pricePeerHint,
+      dynamicPricingEnabled: !!form.dynamicPricingEnabled,
+      priceFloor: parseLocalizedNumber(String(form.priceFloor || "").trim()),
+    });
+
+    const TESTI = {
+      [REVIEW.NO_PHOTOS]: () =>
+        t("createListing.review.noPhotos", "Nessuna foto: gli annunci con foto ricevono più proposte."),
+      [REVIEW.NO_TRUST]: () =>
+        t("createListing.review.noTrust", "Affidabilità non calcolata: l'annuncio esce senza il badge di verifica."),
+      [REVIEW.LOW_TRUST]: (p) =>
+        t("createListing.review.lowTrust", `Affidabilità ${p.score}%: è il numero che vedrà chi guarda l'annuncio.`, p),
+      [REVIEW.PRICE_HIGH]: (p) =>
+        p.pct != null
+          ? t("createListing.review.priceHighPct", `Prezzo circa il ${p.pct}% sopra la nostra stima: potrebbe ricevere poche offerte.`, p)
+          : t("createListing.review.priceHigh", "Prezzo sopra la nostra stima: potrebbe ricevere poche offerte."),
+      [REVIEW.DYNAMIC_PRICING]: (p) =>
+        p.floor != null
+          ? t("createListing.review.dynamicPricingFloor", `Prezzo dinamico attivo: scenderà da solo fino a ${p.floor}€ avvicinandosi alla data.`, p)
+          : t("createListing.review.dynamicPricing", "Prezzo dinamico attivo: scenderà da solo avvicinandosi alla data."),
+    };
+
+    return items.map((it) => ({ icon: it.icon, text: TESTI[it.code](it.params) }));
+  };
+
   const runAutoPriceCheck = async () => {
     if (isCerco) return;                  // un CERCO è un budget, non un prezzo di vendita
     const entered = parseLocalizedNumber(String(form.price || "").trim());
@@ -2355,6 +2417,15 @@ const initialJsonRef = useRef(null);
         // non ha chiesto (che occupa anche una delle 10 posizioni attive) è
         // un prezzo troppo alto per un falso positivo. Ora si pubblica sempre
         // e solo ciò che si vede nel form.
+        // Ultimo momento utile: il punteggio è appena stato calcolato, le
+        // foto sono quelle definitive, il prezzo è quello vero. Prima di
+        // qui mancherebbero i dati; dopo, l'annuncio sarebbe già online.
+        const avvisi = raccogliAvvisiPubblicazione(trustResult);
+        if (avvisi.length) {
+          const procedi = await chiediConfermaPubblicazione(avvisi);
+          if (!procedi) return; // "Rivedi": si resta sul form, niente è stato scritto
+        }
+
         const res = await insertListing(payload);
         await flushPendingPhotos(res?.id);
         await AsyncStorage.removeItem(DRAFT_KEY);
@@ -3823,6 +3894,47 @@ const initialJsonRef = useRef(null);
         </View>
       </Modal>
 
+      {/* -------- Riepilogo prima di pubblicare --------
+          Compare solo quando raccogliAvvisiPubblicazione trova qualcosa da
+          dire: se l'annuncio è a posto, l'utente non lo vede mai. Il
+          pulsante principale è "Pubblica" e non "Annulla" — il box informa,
+          non sconsiglia: chi ha letto e va avanti sta facendo una scelta
+          legittima, non un errore. */}
+      <Modal
+        visible={!!publishReview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => chiudiRiepilogo(false)}
+      >
+        <View style={styles.sheetBackdrop}>
+          <View style={[styles.sheetCard, { maxWidth: 520, alignSelf: "center" }]}>
+            <Text style={styles.sheetTitle}>{t("createListing.review.title", "Pubblico l'annuncio?")}</Text>
+            <Text style={styles.sheetText}>{t("createListing.review.subtitle", "Un'ultima occhiata a cosa sta per andare online:")}</Text>
+
+            <View style={styles.reviewList}>
+              {(publishReview?.items || []).map((it, idx) => (
+                <View key={idx} style={styles.reviewItem}>
+                  <MaterialCommunityIcons name={it.icon} size={18} color="#92400E" style={{ marginTop: 1 }} />
+                  <Text style={styles.reviewItemText}>{it.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.reviewFootnote}>
+              {t("createListing.review.footnote", "Puoi comunque pubblicare: l'annuncio si mette in pausa o si modifica in qualsiasi momento.")}
+            </Text>
+
+            <View style={{ height: 10 }} />
+            <TouchableOpacity onPress={() => chiudiRiepilogo(true)} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
+              <Text style={[styles.sheetBtnText, { color: "#fff" }]}>{t("createListing.review.publish", "Pubblica")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => chiudiRiepilogo(false)} style={[styles.sheetBtn, styles.sheetBtnGhost]}>
+              <Text style={styles.sheetBtnText}>{t("createListing.review.back", "Rivedi")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* -------- Modal Applica tutti i fix -------- */}
       <Modal visible={showFixesModal} transparent animationType="fade" onRequestClose={() => setShowFixesModal(false)}>
         <View style={styles.sheetBackdrop}>
@@ -3862,6 +3974,14 @@ const styles = StyleSheet.create({
     manualEntryLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 10, marginTop: 8 },
     manualEntryLinkText: { color: theme.colors.textMuted, fontWeight: "700", fontSize: 13, textDecorationLine: "underline" },
     checkAiRow: { marginTop: 4, marginBottom: 4, gap: 6, alignItems: "flex-start" },
+    reviewList: { marginTop: 12, gap: 10 },
+    reviewItem: {
+      flexDirection: "row", alignItems: "flex-start", gap: 8,
+      backgroundColor: "#FEF3C7", borderRadius: theme.radius.md || 10,
+      borderWidth: 1, borderColor: "#FCD34D", paddingHorizontal: 12, paddingVertical: 10,
+    },
+    reviewItemText: { flex: 1, color: "#7C4A03", fontSize: 13, lineHeight: 18 },
+    reviewFootnote: { color: theme.colors.textMuted, fontSize: 12, lineHeight: 17, marginTop: 12 },
     // Scheda del Check AI: prima era una pillola grigia in mezzo ai campi e
     // passava inosservata. Il bordo e il fondo la staccano dal form senza
     // urlare — è un invito, non un errore da correggere.
