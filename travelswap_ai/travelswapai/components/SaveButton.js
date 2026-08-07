@@ -21,12 +21,23 @@ export default function SaveButton({ listingId, size = 24, initialSaved, onChang
 
   useEffect(() => {
     let alive = true;
-    if (initialSaved === undefined && listingId) {
+    // Chi ci monta sapendo già lo stato (la lista Esplora, i Preferiti) non
+    // deve pagare una richiesta per riscoprirlo.
+    if (initialSaved !== undefined) {
+      setSaved(!!initialSaved);
+      return undefined;
+    }
+    if (listingId) {
       isSaved(listingId)
         .then((s) => { if (alive) setSaved(s); })
         .catch(() => {});
     }
     return () => { alive = false; };
+    // initialSaved fra le dipendenze non è solo per la prima volta:
+    // useState legge il valore iniziale al montaggio e basta, quindi un
+    // elemento riciclato da FlatList si sarebbe tenuto la stella di prima.
+    // Succedeva davvero tornando su Esplora dopo aver tolto la stellina dal
+    // dettaglio annuncio.
   }, [listingId, initialSaved]);
 
   const onPress = async () => {

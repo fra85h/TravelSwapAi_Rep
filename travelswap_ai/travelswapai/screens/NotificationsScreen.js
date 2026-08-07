@@ -30,6 +30,12 @@ const ICON = {
   offer_confirm_reminder: { name: "mail-unread-outline", color: theme.colors.accent },
   offer_rating_reminder: { name: "star-outline", color: theme.colors.accent },
   listing_price_dropped: { name: "trending-down-outline", color: theme.colors.accent },
+  // "Un annuncio che hai salvato è sceso": evento diverso da quello sopra e
+  // per una persona diversa (chi ha messo la stellina, non chi vende), per
+  // questo ha un tipo suo. La stella lo lega visivamente ai Preferiti, che
+  // è da dove arriva. Il tocco apre l'annuncio: ci pensa già il ramo
+  // generico su data.listingId, più sotto.
+  saved_listing_price_dropped: { name: "star", color: theme.colors.accent },
 };
 
 function timeAgo(iso, t) {

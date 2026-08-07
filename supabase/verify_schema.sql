@@ -17,7 +17,7 @@
 -- Le colonne di una tabella mancante non vengono elencate: si vedrebbe
 -- l'intera tabella riga per riga, e la riga 'tabella' dice già tutto.
 --
--- Oggetti attesi: 31 tabelle, 264 colonne, 78 funzioni, 20 trigger.
+-- Oggetti attesi: 31 tabelle, 265 colonne, 78 funzioni, 20 trigger.
 -- ============================================================
 
 WITH attesi(tipo, oggetto) AS (VALUES
@@ -168,6 +168,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('colonna',  'listings.purchase_price'),
 ('colonna',  'listings.route_from'),
 ('colonna',  'listings.route_to'),
+('colonna',  'listings.savers_notified_price'),
 ('colonna',  'listings.source'),
 ('colonna',  'listings.start_date'),
 ('colonna',  'listings.status'),

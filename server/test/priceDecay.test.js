@@ -43,12 +43,16 @@ function fakeRes() {
 
 test('POST /price-decay/recompute: aggiorna solo l\'annuncio che deve scendere, l\'altro (già al minimo) resta intatto', async () => {
   mock.module('../src/lib/push.js', {
-    namedExports: { sendExpoPush: async () => ({ sent: 0 }) },
+    namedExports: {
+      sendExpoPush: async (userIds, payload) => { pushInviati.push({ userIds, payload }); return { sent: 0 }; },
+    },
   });
 
   const now = Date.now();
   const updates = [];
   const notifications = [];
+  const savedQueries = [];
+  const pushInviati = [];
 
   mock.module('../src/db.js', {
     namedExports: {
@@ -106,6 +110,26 @@ test('POST /price-decay/recompute: aggiorna solo l\'annuncio che deve scendere, 
               }),
             };
           }
+          if (table === 'saved_listings') {
+            return {
+              select: () => ({
+                in: async (col, ids) => {
+                  savedQueries.push({ col, ids });
+                  return {
+                    data: [
+                      // Due persone diverse hanno salvato listing-1...
+                      { user_id: 'anna', listing_id: 'listing-1' },
+                      { user_id: 'bruno', listing_id: 'listing-1' },
+                      // ...e fra queste c'e anche il venditore, che NON deve
+                      // ricevere l'avviso: la sua notifica ce l'ha gia.
+                      { user_id: 'seller-1', listing_id: 'listing-1' },
+                    ],
+                    error: null,
+                  };
+                },
+              }),
+            };
+          }
           if (table === 'notifications') {
             return { insert: async (row) => { notifications.push(row); return { error: null }; } };
           }
@@ -128,10 +152,45 @@ test('POST /price-decay/recompute: aggiorna solo l\'annuncio che deve scendere, 
   assert.equal(updates.length, 1);
   assert.equal(updates[0].id, 'listing-1');
   assert.equal(updates[0].patch.price, 70); // metà finestra di 7gg: 100 - (100-40)*0.5 = 70
-  assert.equal(notifications.length, 1);
-  assert.equal(notifications[0].user_id, 'seller-1');
-  assert.equal(notifications[0].type, 'listing_price_dropped');
-  assert.equal(notifications[0].data.price, 70);
+  // --- notifica al venditore: invariata ---
+  const alVenditore = notifications.filter((n) => !Array.isArray(n));
+  assert.equal(alVenditore.length, 1);
+  assert.equal(alVenditore[0].user_id, 'seller-1');
+  assert.equal(alVenditore[0].type, 'listing_price_dropped');
+  assert.equal(alVenditore[0].data.price, 70);
+
+  // --- il prezzo e la memoria anti-spam vanno a DB nella STESSA update ---
+  // Se fossero due scritture separate esisterebbe un istante in cui il
+  // prezzo e sceso ma il riferimento e ancora quello vecchio: il giro
+  // successivo del cron rimanderebbe la stessa notifica.
+  assert.equal(updates[0].patch.savers_notified_price, 70);
+
+  // --- fan-out a chi ha salvato l'annuncio ---
+  // Una sola query per tutti gli annunci del giro, non una per annuncio.
+  assert.equal(savedQueries.length, 1);
+  assert.deepEqual(savedQueries[0].ids, ['listing-1']);
+
+  const aiSalvati = notifications.filter(Array.isArray).flat();
+  assert.equal(aiSalvati.length, 2, 'anna e bruno, non il venditore');
+  assert.deepEqual(aiSalvati.map((n) => n.user_id).sort(), ['anna', 'bruno']);
+  for (const n of aiSalvati) {
+    assert.equal(n.type, 'saved_listing_price_dropped');
+    assert.equal(n.data.price, 70);
+    assert.equal(n.data.previousPrice, 100);
+    // listingId porta il tocco sulla notifica dritto all'annuncio.
+    assert.equal(n.data.listingId, 'listing-1');
+  }
+
+  // Il venditore riceve UNA notifica sola, la sua: due avvisi per lo stesso
+  // evento sono il modo piu rapido per farle spegnere entrambe.
+  assert.equal(notifications.flat().filter((n) => n.user_id === 'seller-1').length, 1);
+
+  // Push: un solo invio per annuncio, con dentro tutti i destinatari.
+  const pushAiSalvati = pushInviati.filter((p) => Array.isArray(p.userIds));
+  assert.equal(pushAiSalvati.length, 1);
+  assert.deepEqual([...pushAiSalvati[0].userIds].sort(), ['anna', 'bruno']);
+
+  assert.equal(res.body.savedNotified, 2);
 
   mock.reset();
 });
@@ -196,4 +255,56 @@ test('computeTargetPrice: senza list_price o price_floor, ritorna null (nessun d
 test('computeTargetPrice: senza nessuna data evento, ritorna null', async () => {
   const { computeTargetPrice } = await import('../src/models/priceDecay.js');
   assert.equal(computeTargetPrice({ list_price: 100, price_floor: 40 }), null);
+});
+
+// ---- deveAvvisareChiHaSalvato: la regola anti-spam ----
+//
+// È la parte che decide se una persona riceve o no una notifica, quindi va
+// provata da sola. Il cron gira spesso e la curva scende a piccoli passi:
+// senza soglia si manderebbe un avviso per ogni centesimo, e il primo
+// effetto sarebbe che la gente le disattiva tutte.
+
+test('avviso ai preferiti: la prima volta il riferimento è il prezzo di partenza', async () => {
+  const { deveAvvisareChiHaSalvato } = await import('../src/models/priceDecay.js');
+  const listing = { list_price: 100, savers_notified_price: null, price: 100 };
+  assert.equal(deveAvvisareChiHaSalvato(listing, 96), false, '4% non basta');
+  assert.equal(deveAvvisareChiHaSalvato(listing, 95), true, '5% esatto basta');
+  assert.equal(deveAvvisareChiHaSalvato(listing, 70), true);
+});
+
+test('avviso ai preferiti: dopo il primo, il riferimento è quello già annunciato', async () => {
+  const { deveAvvisareChiHaSalvato } = await import('../src/models/priceDecay.js');
+  // Già detto "ora a 95". Un altro centesimo non è una notizia.
+  const listing = { list_price: 100, savers_notified_price: 95, price: 95 };
+  assert.equal(deveAvvisareChiHaSalvato(listing, 94.99), false);
+  assert.equal(deveAvvisareChiHaSalvato(listing, 91), false, '4,2% dall\'ultimo avviso');
+  assert.equal(deveAvvisareChiHaSalvato(listing, 90.25), true, '5% dall\'ultimo avviso');
+});
+
+test('avviso ai preferiti: se il venditore rialza il prezzo si riparte da capo', async () => {
+  const { deveAvvisareChiHaSalvato } = await import('../src/models/priceDecay.js');
+  // Avevamo annunciato 50; poi il venditore ha rialzato a 200 e ri-ancorato.
+  // Senza il ricalcolo del riferimento, la soglia resterebbe 47,50 — un
+  // valore che il prezzo non tocca più — e quelle notifiche non
+  // ripartirebbero mai.
+  const listing = { list_price: 200, savers_notified_price: 50, price: 200 };
+  assert.equal(deveAvvisareChiHaSalvato(listing, 190), true, '5% dai 200 nuovi');
+  assert.equal(deveAvvisareChiHaSalvato(listing, 196), false);
+});
+
+test('avviso ai preferiti: senza dati per decidere, non si avvisa', async () => {
+  const { deveAvvisareChiHaSalvato } = await import('../src/models/priceDecay.js');
+  // Tacere è il fallimento sicuro: una notifica sbagliata la si legge, una
+  // non mandata al massimo si recupera al giro dopo.
+  assert.equal(deveAvvisareChiHaSalvato({ list_price: null, savers_notified_price: null }, 50), false);
+  assert.equal(deveAvvisareChiHaSalvato({ list_price: 0, savers_notified_price: null }, 0), false);
+  assert.equal(deveAvvisareChiHaSalvato({ list_price: 100 }, NaN), false);
+  assert.equal(deveAvvisareChiHaSalvato(null, 50), false);
+});
+
+test('avviso ai preferiti: la soglia è configurabile', async () => {
+  const { deveAvvisareChiHaSalvato } = await import('../src/models/priceDecay.js');
+  const listing = { list_price: 100, savers_notified_price: null, price: 100 };
+  assert.equal(deveAvvisareChiHaSalvato(listing, 99, 0.10), false);
+  assert.equal(deveAvvisareChiHaSalvato(listing, 90, 0.10), true);
 });
