@@ -1,5 +1,6 @@
 // screens/EditProfileScreen.js
 import React, { useEffect, useState, useCallback } from "react";
+import { alertArgs } from "../lib/userError.mjs";
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../lib/supabase";
@@ -95,7 +96,7 @@ const navigation = useNavigation();
       if (e?.code === "23505") {
         Alert.alert(t("editProfileScreen.usernameTakenTitle", "Username già in uso"), t("editProfileScreen.usernameTakenMsg", "Questo username è già stato scelto da qualcun altro. Provane un altro."));
       } else {
-        Alert.alert(t("common.error", "Errore"), e.message || String(e));
+        Alert.alert(...alertArgs(e, { t, titolo: t("profile.saveFailedTitle", "Modifiche non salvate"), azione: t("profile.saveFailedAction", "I tuoi dati sono rimasti come prima. Riprova.") }));
       }
     } finally {
       setSaving(false);

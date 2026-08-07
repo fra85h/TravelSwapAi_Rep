@@ -4,6 +4,7 @@
 // apre (tutti e 3 hanno confermato, vedi confirm_chain_participant), quindi
 // niente da confermare/annullare/contestare — solo organizzare la consegna.
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { alertArgs } from "../lib/userError.mjs";
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet, Alert,
@@ -72,7 +73,7 @@ export default function ChainChatScreen() {
       await load();
       notifyActivityChanged();
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e?.message || String(e));
+      Alert.alert(...alertArgs(e, { t, titolo: t("chains.reportFailedTitle", "Segnalazione non inviata"), azione: t("chains.reportFailedAction", "Riprova: nessuno degli altri partecipanti è stato avvisato.") }));
     }
   }, [chainId, t]);
 

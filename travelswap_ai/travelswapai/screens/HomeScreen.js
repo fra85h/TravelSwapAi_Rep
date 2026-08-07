@@ -7,6 +7,7 @@ import { getUserSnapshot } from "../lib/backendApi";
 import { getMyPrefs } from "../lib/preferences";
 import { subscribeDataChanged } from "../lib/ActivityContext";
 import { useNotifications } from "../lib/NotificationsContext";
+import { useOnline } from "../components/OfflineBanner";
 import OfferCTAs from "../components/OfferCTA";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
@@ -119,6 +120,7 @@ export default function HomeScreen() {
   const isFocused = useIsFocused();
   const { t, locale } = useI18n();
   const { unreadCount } = useNotifications();
+  const online = useOnline();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -681,9 +683,23 @@ export default function HomeScreen() {
     );
   }
 
+  // Offline PRIMA di tutto il resto: senza rete l'elenco è vuoto perché non
+  // siamo riusciti a leggerlo, non perché non ci sia niente. Dire "Ancora
+  // nessun annuncio in giro" a chi è in galleria è un'informazione falsa, e
+  // per giunta scoraggiante su un marketplace che vive di sembrare pieno.
   const EmptyState = showSkeletons ? (
     <View>
       {[...Array(4)].map((_, i) => <View key={i} style={{ marginBottom: 10 }}><SkeletonCard /></View>)}
+    </View>
+  ) : !online ? (
+    <View style={styles.emptyWrap}>
+      <Text style={styles.emptyText}>{tt("common.offlineTitle", "Non riesco a caricare")}</Text>
+      <Text style={styles.emptySub}>
+        {tt("common.offlineListSub", "Sembra che tu sia offline. Gli annunci ci sono: appena torni in rete li rivedi.")}
+      </Text>
+      <TouchableOpacity style={styles.pillBtn} onPress={onRefresh} activeOpacity={0.85}>
+        <Text style={styles.pillBtnText}>{tt("common.retry", "Riprova")}</Text>
+      </TouchableOpacity>
     </View>
   ) : (
     <View style={styles.emptyWrap}>

@@ -8,6 +8,16 @@ export const translations = {
   it: {
     // --- Generici ---
     common: {
+      offlineBanner: "Sei offline: quello che vedi potrebbe non essere aggiornato.",
+      offlineTitle: "Non riesco a caricare",
+      offlineListSub: "Sembra che tu sia offline. Gli annunci ci sono: appena torni in rete li rivedi.",
+      offlineActivitySub: "Sembra che tu sia offline: quello che ti riguarda è ancora lì, lo rivedi appena torni in rete.",
+      retry: "Riprova",
+      errNetwork: "Sembra che tu sia offline. Controlla la connessione e riprova: non è andato perso nulla.",
+      errTimeout: "Nessuna risposta dopo {sec} secondi. Riprova fra poco: se era già partita, non verrà duplicata.",
+      errSlowTitle: "Ci sta mettendo troppo",
+      errRetry: "Riprova fra poco.",
+      errGenericTitle: "Non ha funzionato",
       yes: "Sì",
       no: "No",
       ok: "OK",
@@ -259,6 +269,9 @@ export const translations = {
 
     // --- Profilo ---
     profile: {
+      saveFailedTitle: "Modifiche non salvate",
+      saveFailedAction: "I tuoi dati sono rimasti come prima. Riprova.",
+      savedSearches: "I miei avvisi di ricerca",
       listTruncated: "Mostrati i {shown} annunci più recenti su {total}. I numeri qui sopra contano tutti i tuoi annunci.",
       title: "Profilo",
       editProfile: "Modifica profilo",
@@ -328,6 +341,8 @@ export const translations = {
     },
 
     chains: {
+      reportFailedTitle: "Segnalazione non inviata",
+      reportFailedAction: "Riprova: nessuno degli altri partecipanti è stato avvisato.",
       badge: "Scambio a 3",
       confirmedCount: "{count} di 3 hanno confermato",
       noExplanation: "Abbiamo trovato uno scambio a 3 che ti riguarda.",
@@ -407,6 +422,14 @@ export const translations = {
     },
 
     linkMessenger: {
+      copy: "Copia il codice",
+      copied: "Copiato ✓",
+      openMessenger: "Apri Messenger",
+      doneHint: "Quando il bot ti risponde \"collegato\", hai finito: puoi tornare indietro.",
+      errorTitle: "Codice non generato",
+      errorAction: "Riprova fra poco: il collegamento non è stato avviato.",
+      openFailedTitle: "Non riesco ad aprire Messenger",
+      openFailedAction: "Aprilo a mano e scrivi il codice alla Pagina TravelSwap.",
       title: "Collega Messenger",
       intro: "Scrivi al bot Messenger della nostra Pagina Facebook e pubblica un annuncio direttamente da lì. Collega prima il tuo account, una volta sola, così gli annunci finiscono nel tuo profilo.",
       generate: "Genera codice",
@@ -990,6 +1013,14 @@ export const translations = {
       },
     },
     chat: {
+      rateFailedTitle: "Voto non registrato",
+      rateFailedAction: "Riprova: il tuo voto non è ancora stato salvato.",
+      confirmFailedTitle: "Conferma non registrata",
+      confirmFailedAction: "Riprova fra poco: lo scambio resta com'era.",
+      reportFailedTitle: "Segnalazione non inviata",
+      reportFailedAction: "Riprova: nessuno è stato ancora avvisato.",
+      cancelFailedTitle: "Annullamento non riuscito",
+      cancelFailedAction: "Lo scambio è ancora attivo. Riprova fra poco.",
       title: "Chat",
       open: "Apri la chat",
       send: "Invia",
@@ -1066,6 +1097,14 @@ export const translations = {
     },
 
     offers: {
+      sendFailedTitle: "Proposta non inviata",
+      sendFailedAction: "Riprova: non è stata inviata a nessuno.",
+      withdrawFailedTitle: "Proposta non ritirata",
+      withdrawFailedAction: "È ancora in attesa di risposta. Riprova fra poco.",
+      acceptFailedTitle2: "Accettazione non riuscita",
+      acceptFailedAction: "La proposta è rimasta in attesa. Riprova fra poco.",
+      declineFailedTitle: "Rifiuto non registrato",
+      declineFailedAction: "La proposta è ancora in attesa. Riprova fra poco.",
       title: "Offerte",
       accept: "Accetta",
       decline: "Rifiuta",
@@ -1267,6 +1306,8 @@ export const translations = {
     },
 
     matching: {
+      recomputeFailedTitle: "Suggerimenti non aggiornati",
+      recomputeFailedAction: "I suggerimenti che vedi restano quelli di prima. Riprova fra poco.",
       title: "Suggeriti dall'AI",
       tabLabel: "Per te",
       new: "Nuovo",
@@ -1441,6 +1482,16 @@ export const translations = {
    * =========================== */
   en: {
     common: {
+      offlineBanner: "You're offline: what you see may not be up to date.",
+      offlineTitle: "Can't load this",
+      offlineListSub: "You seem to be offline. The listings are still there: you'll see them again as soon as you're back.",
+      offlineActivitySub: "You seem to be offline: everything about you is still there, you'll see it again once you're back online.",
+      retry: "Try again",
+      errNetwork: "You seem to be offline. Check your connection and try again: nothing was lost.",
+      errTimeout: "No answer after {sec} seconds. Try again shortly: if it already went through, it won't be duplicated.",
+      errSlowTitle: "This is taking too long",
+      errRetry: "Try again shortly.",
+      errGenericTitle: "That didn't work",
       yes: "Yes",
       no: "No",
       ok: "OK",
@@ -1688,6 +1739,9 @@ export const translations = {
     receivedOffers: "Received offers",
 
     profile: {
+      saveFailedTitle: "Changes not saved",
+      saveFailedAction: "Your details are unchanged. Try again.",
+      savedSearches: "My search alerts",
       listTruncated: "Showing the {shown} most recent listings out of {total}. The numbers above count all of your listings.",
       title: "Profile",
       editProfile: "Edit profile",
@@ -1757,6 +1811,8 @@ export const translations = {
     },
 
     chains: {
+      reportFailedTitle: "Report not sent",
+      reportFailedAction: "Try again: none of the other participants has been notified.",
       badge: "3-way swap",
       confirmedCount: "{count} of 3 confirmed",
       noExplanation: "We found a 3-way swap that involves you.",
@@ -1836,6 +1892,14 @@ export const translations = {
     },
 
     linkMessenger: {
+      copy: "Copy the code",
+      copied: "Copied ✓",
+      openMessenger: "Open Messenger",
+      doneHint: "When the bot replies \"linked\", you're done: you can go back.",
+      errorTitle: "Code not generated",
+      errorAction: "Try again shortly: the link hasn't started.",
+      openFailedTitle: "Can't open Messenger",
+      openFailedAction: "Open it yourself and send the code to the TravelSwap Page.",
       title: "Link Messenger",
       intro: "Message our Facebook Page's Messenger bot and post a listing straight from there. Link your account first, just once, so listings land in your profile.",
       generate: "Generate code",
@@ -2404,6 +2468,14 @@ export const translations = {
       },
     },
     chat: {
+      rateFailedTitle: "Rating not saved",
+      rateFailedAction: "Try again: your rating hasn't been saved yet.",
+      confirmFailedTitle: "Confirmation not saved",
+      confirmFailedAction: "Try again shortly: the swap is unchanged.",
+      reportFailedTitle: "Report not sent",
+      reportFailedAction: "Try again: nobody has been notified yet.",
+      cancelFailedTitle: "Couldn't cancel",
+      cancelFailedAction: "The swap is still active. Try again shortly.",
       title: "Chat",
       open: "Open chat",
       send: "Send",
@@ -2480,6 +2552,14 @@ export const translations = {
     },
 
     offers: {
+      sendFailedTitle: "Proposal not sent",
+      sendFailedAction: "Try again: it hasn't reached anyone.",
+      withdrawFailedTitle: "Proposal not withdrawn",
+      withdrawFailedAction: "It's still awaiting a reply. Try again shortly.",
+      acceptFailedTitle2: "Couldn't accept",
+      acceptFailedAction: "The proposal is still pending. Try again shortly.",
+      declineFailedTitle: "Decline not saved",
+      declineFailedAction: "The proposal is still pending. Try again shortly.",
       title: "Offers",
       accept: "Accept",
       decline: "Decline",
@@ -2679,6 +2759,8 @@ export const translations = {
     },
 
     matching: {
+      recomputeFailedTitle: "Suggestions not updated",
+      recomputeFailedAction: "You're still seeing the previous ones. Try again shortly.",
       title: "AI picks for you",
       tabLabel: "For you",
       new: "New",
@@ -2851,6 +2933,16 @@ export const translations = {
    * =========================== */
   es: {
     common: {
+      offlineBanner: "Estás sin conexión: lo que ves puede no estar actualizado.",
+      offlineTitle: "No consigo cargar",
+      offlineListSub: "Parece que estás sin conexión. Los anuncios siguen ahí: los verás en cuanto vuelvas a tener red.",
+      offlineActivitySub: "Parece que estás sin conexión: todo lo tuyo sigue ahí, lo verás en cuanto vuelvas a tener red.",
+      retry: "Reintentar",
+      errNetwork: "Parece que estás sin conexión. Comprueba la red y vuelve a intentarlo: no se ha perdido nada.",
+      errTimeout: "Sin respuesta tras {sec} segundos. Inténtalo dentro de un rato: si ya salió, no se duplicará.",
+      errSlowTitle: "Está tardando demasiado",
+      errRetry: "Inténtalo dentro de un rato.",
+      errGenericTitle: "No ha funcionado",
       yes: "Sí",
       no: "No",
       ok: "OK",
@@ -2968,6 +3060,9 @@ export const translations = {
     receivedOffers: "Ofertas recibidas",
 
     profile: {
+      saveFailedTitle: "Cambios no guardados",
+      saveFailedAction: "Tus datos siguen igual. Inténtalo de nuevo.",
+      savedSearches: "Mis avisos de búsqueda",
       listTruncated: "Se muestran los {shown} anuncios más recientes de {total}. Los números de arriba cuentan todos tus anuncios.",
       title: "Perfil",
       editProfile: "Editar perfil",
@@ -3037,6 +3132,8 @@ export const translations = {
     },
 
     chains: {
+      reportFailedTitle: "Denuncia no enviada",
+      reportFailedAction: "Inténtalo de nuevo: no se ha avisado a ningún otro participante.",
       badge: "Intercambio a 3",
       confirmedCount: "{count} de 3 han confirmado",
       noExplanation: "Hemos encontrado un intercambio a 3 que te involucra.",
@@ -3116,6 +3213,14 @@ export const translations = {
     },
 
     linkMessenger: {
+      copy: "Copiar el código",
+      copied: "Copiado ✓",
+      openMessenger: "Abrir Messenger",
+      doneHint: "Cuando el bot responda \"vinculado\", ya está: puedes volver atrás.",
+      errorTitle: "Código no generado",
+      errorAction: "Inténtalo dentro de un rato: la vinculación no ha empezado.",
+      openFailedTitle: "No consigo abrir Messenger",
+      openFailedAction: "Ábrelo tú y envía el código a la Página de TravelSwap.",
       title: "Conectar Messenger",
       intro: "Escribe al bot de Messenger de nuestra Página de Facebook y publica un anuncio directamente desde ahí. Conecta antes tu cuenta, una sola vez, para que los anuncios lleguen a tu perfil.",
       generate: "Generar código",
@@ -3693,6 +3798,14 @@ export const translations = {
       },
     },
     chat: {
+      rateFailedTitle: "Voto no guardado",
+      rateFailedAction: "Inténtalo de nuevo: tu voto aún no se ha guardado.",
+      confirmFailedTitle: "Confirmación no registrada",
+      confirmFailedAction: "Inténtalo dentro de un rato: el intercambio sigue igual.",
+      reportFailedTitle: "Denuncia no enviada",
+      reportFailedAction: "Inténtalo de nuevo: todavía no se ha avisado a nadie.",
+      cancelFailedTitle: "No se pudo anular",
+      cancelFailedAction: "El intercambio sigue activo. Inténtalo dentro de un rato.",
       title: "Chat",
       open: "Abrir chat",
       send: "Enviar",
@@ -3769,6 +3882,14 @@ export const translations = {
     },
 
     offers: {
+      sendFailedTitle: "Propuesta no enviada",
+      sendFailedAction: "Inténtalo de nuevo: no ha llegado a nadie.",
+      withdrawFailedTitle: "Propuesta no retirada",
+      withdrawFailedAction: "Sigue esperando respuesta. Inténtalo dentro de un rato.",
+      acceptFailedTitle2: "No se pudo aceptar",
+      acceptFailedAction: "La propuesta sigue pendiente. Inténtalo dentro de un rato.",
+      declineFailedTitle: "Rechazo no registrado",
+      declineFailedAction: "La propuesta sigue pendiente. Inténtalo dentro de un rato.",
       title: "Ofertas",
       accept: "Aceptar",
       decline: "Rechazar",
@@ -3968,6 +4089,8 @@ export const translations = {
     },
 
     matching: {
+      recomputeFailedTitle: "Sugerencias no actualizadas",
+      recomputeFailedAction: "Sigues viendo las anteriores. Inténtalo dentro de un rato.",
       title: "Sugerencias de la IA",
       tabLabel: "Para ti",
       new: "Nuevo",

@@ -9,6 +9,7 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import OfflineBanner from './components/OfflineBanner';
 import { theme } from './lib/theme';
 import { StatusBar } from 'expo-status-bar';
 import HeaderLogo from './components/HeaderLogo';
@@ -281,6 +282,11 @@ export default function App() {
           <I18nProvider>
             <NavigationContainer theme={navTheme} linking={linking}>
               <StatusBar style="dark" />
+              {/* Sopra il navigatore e non dentro una schermata: la rete non
+                  è un problema di UNA schermata, e ripetere la striscia in
+                  ognuna significherebbe dimenticarla in qualcuna. Occupa
+                  spazio solo quando serve — offline, ritorna null. */}
+              <OfflineBanner />
               <RootNavigator />
             </NavigationContainer>
           </I18nProvider>

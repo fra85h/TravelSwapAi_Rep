@@ -3,6 +3,7 @@
 // ricevute, catene da confermare), in attesa degli altri, annunci
 // trovati dai tuoi avvisi, e lo storico degli scambi.
 import React, { useCallback, useState } from "react";
+import { alertArgs } from "../lib/userError.mjs";
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
   StyleSheet, RefreshControl, Alert,
@@ -14,6 +15,7 @@ import { acceptOffer, declineOffer, cancelOffer, markMyResolvedOffersSeen, relea
 import { markMatchSeen } from "../lib/savedSearches";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
+import { useOnline } from "../components/OfflineBanner";
 import OfferExpiryBadge from "../components/OfferExpiryBadge";
 import { formatMoney } from "../lib/number";
 
@@ -88,6 +90,7 @@ function Section({ title, hint, count, urgent, children }) {
 export default function AttivitaScreen({ navigation }) {
   const { t, locale } = useI18n();
   const { summary, loading, refresh } = useActivity();
+  const online = useOnline();
   // Set, non un singolo id: con un solo busyId, avviare un'azione su una
   // SECONDA card (es. rifiuta offerta B) mentre la prima (accetta offerta
   // A) è ancora in volo faceva sì che i bottoni di A tornassero cliccabili
@@ -164,7 +167,7 @@ export default function AttivitaScreen({ navigation }) {
         ]
       );
     }
-    catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+    catch (e) { Alert.alert(...alertArgs(e, { t, titolo: t("offers.acceptFailedTitle2", "Accettazione non riuscita"), azione: t("offers.acceptFailedAction", "La proposta è rimasta in attesa. Riprova fra poco.") })); }
     finally { setBusy(offerId, false); }
   }, [setBusy, t, navigation]);
 
@@ -188,14 +191,14 @@ export default function AttivitaScreen({ navigation }) {
   const onDecline = useCallback(async (offerId) => {
     setBusy(offerId, true);
     try { await declineOffer(offerId); notifyActivityChanged(); }
-    catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+    catch (e) { Alert.alert(...alertArgs(e, { t, titolo: t("offers.declineFailedTitle", "Rifiuto non registrato"), azione: t("offers.declineFailedAction", "La proposta è ancora in attesa. Riprova fra poco.") })); }
     finally { setBusy(offerId, false); }
   }, [setBusy, t]);
 
   const onCancel = useCallback(async (offerId) => {
     setBusy(offerId, true);
     try { await cancelOffer(offerId); notifyActivityChanged(); }
-    catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+    catch (e) { Alert.alert(...alertArgs(e, { t, titolo: t("offers.withdrawFailedTitle", "Proposta non ritirata"), azione: t("offers.withdrawFailedAction", "È ancora in attesa di risposta. Riprova fra poco.") })); }
     finally { setBusy(offerId, false); }
   }, [setBusy, t]);
 
@@ -535,11 +538,25 @@ export default function AttivitaScreen({ navigation }) {
         contentContainerStyle={styles.emptyWrap}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} />}
       >
-        <Text style={{ fontSize: 44 }}>🔔</Text>
-        <Text style={styles.emptyTitle}>{t("activity.emptyTitle", "Ancora niente da mostrare")}</Text>
-        <Text style={styles.emptyText}>
-          {t("activity.empty", "Qui trovi tutto ciò che ti riguarda: proposte ricevute e inviate, scambi a 3 da confermare, annunci trovati dai tuoi avvisi e lo storico.")}
+        <Text style={{ fontSize: 44 }}>{online ? "🔔" : "📡"}</Text>
+        <Text style={styles.emptyTitle}>
+          {online
+            ? t("activity.emptyTitle", "Ancora niente da mostrare")
+            : t("common.offlineTitle", "Non riesco a caricare")}
         </Text>
+        {!online ? (
+          // "Ancora niente da mostrare" a chi ha una proposta in attesa di
+          // risposta non è solo impreciso: è la frase che gli fa chiudere
+          // l'app proprio quando doveva rispondere a qualcuno.
+          <Text style={styles.emptyText}>
+            {t("common.offlineActivitySub", "Sembra che tu sia offline: quello che ti riguarda è ancora lì, lo rivedi appena torni in rete.")}
+          </Text>
+        ) : null}
+        {online ? (
+          <Text style={styles.emptyText}>
+            {t("activity.empty", "Qui trovi tutto ciò che ti riguarda: proposte ricevute e inviate, scambi a 3 da confermare, annunci trovati dai tuoi avvisi e lo storico.")}
+          </Text>
+        ) : null}
       </ScrollView>
     );
   }

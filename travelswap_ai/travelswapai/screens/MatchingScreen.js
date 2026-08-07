@@ -31,6 +31,7 @@ import { recomputeAIAndSnapshot } from "../lib/backendApi";
 import { getCurrentUser } from "../lib/db";
 import { getUserSnapshot, recomputeUserSnapshot } from "../lib/backendApi";
 
+import { alertArgs } from "../lib/userError.mjs";
 /* ---------- UI di supporto ---------- */
 function EmptyState({ onRecompute, isLoading, hasError }) {
   const { t } = useI18n();
@@ -313,7 +314,7 @@ const onOpenDetails = useCallback((it) => {
   } catch (e) {
     console.error("[FAB] recompute error:", e);
     setStatus("error");
-    Alert.alert(t("common.error", "Errore"), e?.message || String(e));
+    Alert.alert(...alertArgs(e, { t, titolo: t("matching.recomputeFailedTitle", "Suggerimenti non aggiornati"), azione: t("matching.recomputeFailedAction", "I suggerimenti che vedi restano quelli di prima. Riprova fra poco.") }));
   } finally {
     setRecomputing(false);
   }
