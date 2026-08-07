@@ -755,7 +755,22 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{tt("esplora.title", "Esplora")}</Text>
+      {/* La stellina sta qui e non altrove perche' e' il punto in cui la si
+          cerca in qualunque marketplace, ed e' la schermata da cui si salva
+          di piu'. Prima i Preferiti si raggiungevano SOLO da Profilo → Le mie
+          liste: un contenitore che trovava solo chi sapeva gia' dov'era. */}
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>{tt("esplora.title", "Esplora")}</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Saved")}
+          style={styles.savedBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={tt("esplora.openSaved", "I miei preferiti")}
+        >
+          <Ionicons name="star-outline" size={22} color={theme.colors.accent} />
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.searchWrap}>
         <Ionicons name="search" size={18} color={theme.colors.textMuted} />
@@ -848,7 +863,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   bellBadge: { position: "absolute", top: -5, right: -7, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: theme.colors.danger, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
   bellBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingRight: 16 },
   title: { fontSize: 22, fontWeight: "800", color: theme.colors.text, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 },
+  savedBtn: { padding: 4 },
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, marginBottom: 12 },
   tab: { borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999 },
   tabActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.text },

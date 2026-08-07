@@ -291,6 +291,7 @@ export const translations = {
       credits: "TravelSwap v{version} · © {year} Francesco Giacalone",
       sectionAccount: "Account",
       sectionActivity: "Attività",
+      sectionLists: "Le mie liste",
       sectionSettings: "Impostazioni",
       deleteAccount: "Elimina account",
       deleteTitle: "Eliminare l'account?",
@@ -307,6 +308,11 @@ export const translations = {
       deleteError: "Non sono riuscito a eliminare l'account. Riprova.",
       logoutConfirmTitle: "Uscire dall'account?",
       logoutConfirmMsg: "Dovrai reinserire le credenziali al prossimo accesso.",
+    },
+
+    savedHint: {
+      text: "Salvato. Ritrovi i tuoi preferiti dalla stella qui in alto.",
+      cta: "Vedi",
     },
 
     savedScreen: {
@@ -1807,6 +1813,7 @@ export const translations = {
       credits: "TravelSwap v{version} · © {year} Francesco Giacalone",
       sectionAccount: "Account",
       sectionActivity: "Activity",
+      sectionLists: "My lists",
       sectionSettings: "Settings",
       deleteAccount: "Delete account",
       deleteTitle: "Delete your account?",
@@ -1823,6 +1830,11 @@ export const translations = {
       deleteError: "I couldn't delete the account. Please try again.",
       logoutConfirmTitle: "Log out?",
       logoutConfirmMsg: "You'll need to sign in again next time.",
+    },
+
+    savedHint: {
+      text: "Saved. You can find your favorites from the star up top.",
+      cta: "View",
     },
 
     savedScreen: {
@@ -3174,6 +3186,7 @@ export const translations = {
       credits: "TravelSwap v{version} · © {year} Francesco Giacalone",
       sectionAccount: "Cuenta",
       sectionActivity: "Actividad",
+      sectionLists: "Mis listas",
       sectionSettings: "Ajustes",
       deleteAccount: "Eliminar cuenta",
       deleteTitle: "¿Eliminar la cuenta?",
@@ -3190,6 +3203,11 @@ export const translations = {
       deleteError: "No he podido eliminar la cuenta. Inténtalo de nuevo.",
       logoutConfirmTitle: "¿Cerrar sesión?",
       logoutConfirmMsg: "Tendrás que iniciar sesión de nuevo la próxima vez.",
+    },
+
+    savedHint: {
+      text: "Guardado. Encuentras tus favoritos con la estrella de arriba.",
+      cta: "Ver",
     },
 
     savedScreen: {

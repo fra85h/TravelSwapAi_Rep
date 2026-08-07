@@ -10,6 +10,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import OfflineBanner from './components/OfflineBanner';
+import SavedHint from './components/SavedHint';
 import { theme } from './lib/theme';
 import { StatusBar } from 'expo-status-bar';
 import HeaderLogo from './components/HeaderLogo';
@@ -287,6 +288,11 @@ export default function App() {
                   ognuna significherebbe dimenticarla in qualcuna. Occupa
                   spazio solo quando serve — offline, ritorna null. */}
               <OfflineBanner />
+              {/* Stessa ragione della striscia qui sopra: salvare si può fare
+                  da Esplora e dal dettaglio annuncio, e ripeterla in ognuna
+                  vorrebbe dire dimenticarla in qualcuna. Compare una volta
+                  sola nella vita dell'utente, al primo salvataggio. */}
+              <SavedHint />
               <RootNavigator />
             </NavigationContainer>
           </I18nProvider>
