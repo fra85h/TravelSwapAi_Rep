@@ -22,6 +22,7 @@ export const translations = {
       no: "No",
       ok: "OK",
       cancel: "Annulla",
+      info: "Info",
       save: "Salva",
       edit: "Modifica",
       delete: "Elimina",
@@ -855,6 +856,13 @@ export const translations = {
       priceSuggestionMsg: "In base ai dati inseriti, potresti proporre circa {price}€.\nÈ solo un consiglio: sentiti libero di adattarlo.",
       priceSuggestionMsgAI: "Potresti proporre circa {price}€. {explanation}\nÈ solo un consiglio: sentiti libero di adattarlo.",
       priceEstimateErrorMsg: "Impossibile stimare il prezzo al momento.",
+      priceAnalyzeAI: "Stima il prezzo con l'AI",
+      priceInfoBody: "È solo un riferimento per decidere in autonomia: tiene conto di tratta, data e prezzi simili, non di quanto ti serve venderlo. Alza o abbassa liberamente.",
+      fixes: {
+        title: "Applico tutti i suggerimenti?",
+        body: "Titolo, località, date/orari, prezzo e immagine vengono riscritti con i valori suggeriti. Puoi correggerli dopo, prima di pubblicare.",
+        apply: "Applica",
+      },
 
       checkAiAutoFailedTitle: "Verifica non riuscita",
       checkAiAutoFailedMsg: "Non sono riuscito a completare automaticamente la verifica AI. Riprova tra qualche secondo.",
@@ -919,6 +927,22 @@ export const translations = {
       savedButUnverifiedMsg: "Le modifiche sono state salvate, ma non sono riuscito a rifare la verifica AI: l'annuncio resta senza affidabilità finché non rilanci il Check AI.",
       concludedTitle: "Annuncio non modificabile",
       concludedMsg: "Questo annuncio è già venduto o scambiato: la transazione è conclusa e non può più essere modificata.",
+    },
+
+    trustInfo: {
+      open: "Come si calcola l'affidabilità",
+      title: "Come calcoliamo l'affidabilità",
+      body: "Il punteggio va da 0 a 100 ed è una media pesata di tre cose:",
+      bullet1: "coerenza dei dati che hai inserito (date, prezzo, tratta)",
+      bullet2: "analisi del testo della descrizione",
+      bullet3: "analisi delle foto, quando ci sono",
+      footer: "Più è alto, più l'annuncio risulta attendibile a chi lo guarda. Non è una garanzia: riguarda l'annuncio, non la persona.",
+    },
+
+    match: {
+      reciprocal: "reciproco",
+      score: "Affinità {n}",
+      updatedAt: "Aggiornato il {date}",
     },
 
     // --- Offerte ---
@@ -1508,6 +1532,7 @@ export const translations = {
       no: "No",
       ok: "OK",
       cancel: "Cancel",
+      info: "Info",
       save: "Save",
       edit: "Edit",
       delete: "Delete",
@@ -2325,6 +2350,13 @@ export const translations = {
       priceSuggestionMsg: "Based on the entered data, you could ask around {price}€.\nIt's just a suggestion: feel free to adjust it.",
       priceSuggestionMsgAI: "You could ask around {price}€. {explanation}\nIt's just a suggestion: feel free to adjust it.",
       priceEstimateErrorMsg: "Couldn't estimate the price right now.",
+      priceAnalyzeAI: "Estimate the price with AI",
+      priceInfoBody: "It's only a reference to help you decide: it looks at the route, the date and similar prices, not at how badly you need to sell. Raise or lower it freely.",
+      fixes: {
+        title: "Apply every suggestion?",
+        body: "Title, location, dates/times, price and image are rewritten with the suggested values. You can correct them afterwards, before publishing.",
+        apply: "Apply",
+      },
 
       checkAiAutoFailedTitle: "Verification failed",
       checkAiAutoFailedMsg: "I couldn't automatically complete the AI check. Please try again in a few seconds.",
@@ -2387,6 +2419,22 @@ export const translations = {
       savedButUnverifiedMsg: "Your changes were saved, but the AI check could not be re-run: the listing stays without a reliability score until you run Check AI again.",
       concludedTitle: "Listing not editable",
       concludedMsg: "This listing has already been sold or swapped: the deal is closed and it can no longer be edited.",
+    },
+
+    trustInfo: {
+      open: "How the reliability score is worked out",
+      title: "How we work out reliability",
+      body: "The score runs from 0 to 100 and is a weighted average of three things:",
+      bullet1: "how consistent the details you entered are (dates, price, route)",
+      bullet2: "an analysis of the description text",
+      bullet3: "an analysis of the photos, when there are any",
+      footer: "The higher it is, the more trustworthy the listing looks to whoever reads it. It isn't a guarantee: it is about the listing, not the person.",
+    },
+
+    match: {
+      reciprocal: "mutual",
+      score: "Affinity {n}",
+      updatedAt: "Updated on {date}",
     },
 
     legal: {
@@ -2971,6 +3019,7 @@ export const translations = {
       no: "No",
       ok: "OK",
       cancel: "Cancelar",
+      info: "Info",
       save: "Guardar",
       edit: "Editar",
       delete: "Eliminar",
@@ -3661,6 +3710,13 @@ export const translations = {
       priceSuggestionMsg: "Según los datos introducidos, podrías pedir unos {price}€.\nEs solo un consejo: siéntete libre de ajustarlo.",
       priceSuggestionMsgAI: "Podrías pedir unos {price}€. {explanation}\nEs solo un consejo: siéntete libre de ajustarlo.",
       priceEstimateErrorMsg: "No se pudo estimar el precio en este momento.",
+      priceAnalyzeAI: "Estima el precio con la IA",
+      priceInfoBody: "Es solo una referencia para decidir por tu cuenta: tiene en cuenta el trayecto, la fecha y precios parecidos, no cuánto necesitas venderlo. Súbelo o bájalo libremente.",
+      fixes: {
+        title: "¿Aplico todas las sugerencias?",
+        body: "Título, localidad, fechas/horas, precio e imagen se reescriben con los valores sugeridos. Puedes corregirlos después, antes de publicar.",
+        apply: "Aplicar",
+      },
 
       checkAiAutoFailedTitle: "Verificación fallida",
       checkAiAutoFailedMsg: "No he podido completar automáticamente la verificación AI. Vuelve a intentarlo en unos segundos.",
@@ -3729,6 +3785,22 @@ export const translations = {
       savedButUnverifiedMsg: "Los cambios se han guardado, pero no he podido rehacer la verificación con IA: el anuncio se queda sin fiabilidad hasta que vuelvas a lanzar el Check AI.",
       concludedTitle: "Anuncio no editable",
       concludedMsg: "Este anuncio ya se ha vendido o intercambiado: la transacción está cerrada y ya no se puede modificar.",
+    },
+
+    trustInfo: {
+      open: "Cómo se calcula la fiabilidad",
+      title: "Cómo calculamos la fiabilidad",
+      body: "La puntuación va de 0 a 100 y es una media ponderada de tres cosas:",
+      bullet1: "la coherencia de los datos que has introducido (fechas, precio, trayecto)",
+      bullet2: "el análisis del texto de la descripción",
+      bullet3: "el análisis de las fotos, cuando las hay",
+      footer: "Cuanto más alta, más fiable parece el anuncio a quien lo mira. No es una garantía: se refiere al anuncio, no a la persona.",
+    },
+
+    match: {
+      reciprocal: "recíproco",
+      score: "Afinidad {n}",
+      updatedAt: "Actualizado el {date}",
     },
 
     legal: {

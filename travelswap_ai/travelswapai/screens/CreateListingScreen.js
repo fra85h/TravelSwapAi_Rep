@@ -3492,16 +3492,15 @@ const initialJsonRef = useRef(null);
                   <View style={styles.infoRow}>
                     <TouchableOpacity onPress={() => setPriceInfoOpen((v) => !v)} style={styles.infoButton}>
                       <AntDesign name="info-circle" size={16} color={theme.colors.boardingText} />
-                      <Text style={styles.infoLink}> Info</Text>
+                      <Text style={styles.infoLink}> {t("common.info", "Info")}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={analyzePriceAI} disabled={priceLoading} style={[styles.smallAIButton, priceLoading && {opacity:0.7}]}> 
-                      {priceLoading ? <ActivityIndicator color={theme.colors.accentOn} /> : <Text style={styles.smallAIButtonText}>Analisi prezzo con AI</Text>}
+                    <TouchableOpacity onPress={analyzePriceAI} disabled={priceLoading} style={[styles.smallAIButton, priceLoading && {opacity:0.7}]}>
+                      {priceLoading ? <ActivityIndicator color={theme.colors.accentOn} /> : <Text style={styles.smallAIButtonText}>{t("createListing.priceAnalyzeAI", "Stima il prezzo con l'AI")}</Text>}
                     </TouchableOpacity>
                   </View>
                   {priceInfoOpen && (
                     <Text style={[styles.note, { marginTop: 6 }]}>
-                      Questo suggerimento di prezzo è pensato per aiutarti a decidere in autonomia.
-                      Considera domanda, urgenza e qualità dell’offerta: sentiti libero di aumentare o ridurre il prezzo.
+                      {t("createListing.priceInfoBody", "È solo un riferimento per decidere in autonomia: tiene conto di tratta, data e prezzi simili, non di quanto ti serve venderlo. Alza o abbassa liberamente.")}
                     </Text>
                   )}
 
@@ -3954,14 +3953,14 @@ const initialJsonRef = useRef(null);
       <Modal visible={showFixesModal} transparent animationType="fade" onRequestClose={() => setShowFixesModal(false)}>
         <View style={styles.sheetBackdrop}>
           <View style={[styles.sheetCard, { maxWidth: 520, alignSelf: "center" }]}>
-            <Text style={styles.sheetTitle}>Applica tutti i fix AI?</Text>
-            <Text style={styles.sheetText}>Verranno aggiornati automaticamente i campi suggeriti (titolo, località, date/orari, prezzo, immagine…).</Text>
+            <Text style={styles.sheetTitle}>{t("createListing.fixes.title", "Applico tutti i suggerimenti?")}</Text>
+            <Text style={styles.sheetText}>{t("createListing.fixes.body", "Titolo, località, date/orari, prezzo e immagine vengono riscritti con i valori suggeriti. Puoi correggerli dopo, prima di pubblicare.")}</Text>
             <View style={{ height: 10 }} />
             <TouchableOpacity onPress={applyAllTrustFixes} style={[styles.sheetBtn, styles.sheetBtnPrimary]}>
-              <Text style={[styles.sheetBtnText, { color: "#fff" }]}>Applica adesso</Text>
+              <Text style={[styles.sheetBtnText, { color: "#fff" }]}>{t("createListing.fixes.apply", "Applica")}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setShowFixesModal(false)} style={[styles.sheetBtn, styles.sheetBtnGhost]}>
-              <Text style={styles.sheetBtnText}>Annulla</Text>
+              <Text style={styles.sheetBtnText}>{t("common.cancel", "Annulla")}</Text>
             </TouchableOpacity>
           </View>
         </View>
