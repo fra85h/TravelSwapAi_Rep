@@ -39,6 +39,12 @@ import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 import { parseLocalizedNumber } from "../lib/number";
 import { suggestListingPrice } from "../lib/priceSuggestion";
 import { isConcludedStatus } from "../lib/listingStatus";
+// Le regole di validazione vivono fuori di qui perché possano essere provate
+// senza montare la schermata: vedi __tests__/listingValidation.test.js.
+import {
+  computeListingErrors, CAMPI_STEP_1,
+  normalizeDateStr, parseISODate, parseISODateTime,
+} from "../lib/listingValidation.mjs";
 import StationAutocomplete from "../components/StationAutocomplete";
 // Regole testuali (CERCO/VENDO, tratte, date, PNR, "sembrano due biglietti"):
 // vivono in un modulo puro perché la CI possa testarle — vedi il commento in
@@ -191,27 +197,6 @@ const TYPES = [
 ];
 
 /* ---------- UTIL DATE/TIME ---------- */
-function normalizeDateStr(s) {
-  const v = String(s || "").trim();
-  if (!v) return "";
-  let m;
-  m = v.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/); // YYYY-M-D
-  if (m) {
-    const y = parseInt(m[1], 10);
-    const mo = pad2(parseInt(m[2], 10));
-    const d = pad2(parseInt(m[3], 10));
-    return `${y}-${mo}-${d}`;
-  }
-  m = v.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/); // D-M-YYYY
-  if (m) {
-    const d = pad2(parseInt(m[1], 10));
-    const mo = pad2(parseInt(m[2], 10));
-    const y = parseInt(m[3], 10);
-    return `${y}-${mo}-${d}`;
-  }
-  return v;
-}
-
 const pad2 = (n) => String(n).padStart(2, "0");
 const toISODate = (d) => {
   const dt = new Date(d);
@@ -231,23 +216,6 @@ const tsToWallInput = (ts) => {
   if (isNaN(dt.getTime())) return String(ts).replace(" ", "T").slice(0, 16);
   return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}T${pad2(dt.getUTCHours())}:${pad2(dt.getUTCMinutes())}`;
 };
-const parseISODate = (s) => {
-  const norm = normalizeDateStr(s);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(norm))) return null;
-  const [y, m, d] = norm.split("-").map((x) => parseInt(x, 10));
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
-  return dt;
-};
-const parseISODateTime = (s) => {
-  if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(String(s))) return null;
-  const [date, time] = s.replace("T", " ").split(" ");
-  const [y, m, d] = date.split("-").map((x) => parseInt(x, 10));
-  const [H, M] = time.split(":").map((x) => parseInt(x, 10));
-  const dt = new Date(y, m - 1, d, H, M, 0, 0);
-  return Number.isNaN(dt.getTime()) ? null : dt;
-};
-
 /* ---------- AI PARSER helpers (semplificati) ---------- */
 const IATA = { FCO:"Roma Fiumicino", CIA:"Roma Ciampino", MXP:"Milano Malpensa", LIN:"Milano Linate", BGY:"Bergamo Orio", VCE:"Venezia", BLQ:"Bologna", NAP:"Napoli", CTA:"Catania", PMO:"Palermo", CAG:"Cagliari", PSA:"Pisa", TRN:"Torino", VRN:"Verona", BRI:"Bari", OLB:"Olbia" };
 const MONTHS_IT = { GENNAIO:0, FEBBRAIO:1, MARZO:2, APRILE:3, MAGGIO:4, GIUGNO:5, LUGLIO:6, AGOSTO:7, SETTEMBRE:8, OTTOBRE:9, NOVEMBRE:10, DICEMBRE:11 };
@@ -1358,11 +1326,19 @@ const initialJsonRef = useRef(null);
   // azzerato lato DB), e chi aveva premuto "Check AI" a mano un attimo prima
   // si sarebbe ritrovato l'annuncio senza affidabilità proprio per questo.
   // Il tetto vero resta comunque quello del server (10 verifiche / 10 minuti).
+  // opts.auto: la verifica non è stata chiesta dall'utente col bottone, è il
+  // controllo obbligatorio che parte alla pubblicazione. In quel caso qui non
+  // si avvisa nessuno: se ne occupa chi ha chiamato, con UN solo messaggio
+  // che dice anche cosa è successo all'annuncio. Prima ne uscivano due in
+  // fila — "Attendi un attimo, puoi rilanciare fra 7s" seguito da "Verifica
+  // non riuscita, riprova tra qualche secondo" — e il secondo dava la colpa
+  // alla causa sbagliata.
   const onTrustCheck = useCallback(async (opts = {}) => {
+    const avvisa = (titolo, testo) => { if (!opts?.auto) Alert.alert(titolo, testo); };
     const now = Date.now();
     if (!opts?.skipThrottle && now - lastTrustRunAt < 10_000) {
       const secs = Math.ceil((10_000 - (now - lastTrustRunAt)) / 1000);
-      Alert.alert(t("createListing.trustCheckWaitTitle", "Attendi un attimo"), t("createListing.trustCheckWaitMsg", `Puoi rilanciare la verifica tra ~${secs}s.`, { secs }));
+      avvisa(t("createListing.trustCheckWaitTitle", "Attendi un attimo"), t("createListing.trustCheckWaitMsg", `Puoi rilanciare la verifica tra ~${secs}s.`, { secs }));
       return null;
     }
 
@@ -1462,7 +1438,7 @@ const initialJsonRef = useRef(null);
         // l'alert non compariva mai — la verifica falliva in perfetto
         // silenzio. Un fallback c'è comunque: meglio un messaggio generico
         // che nessun messaggio.
-        Alert.alert(
+        avvisa(
           t("createListing.trustScoreTitle", "AI TrustScore"),
           getTrustError() || trustError || t("createListing.trustScoreGenericError", "Qualcosa è andato storto durante la verifica."),
         );
@@ -1479,7 +1455,7 @@ const initialJsonRef = useRef(null);
     } catch (err) {
       logStep(t("createListing.checkAi.logError", "Errore durante il Check AI."), 100);
       clearLogSoon();
-      Alert.alert(t("createListing.trustScoreTitle", "AI TrustScore"), t("createListing.trustScoreGenericError", "Qualcosa è andato storto durante la verifica."));
+      avvisa(t("createListing.trustScoreTitle", "AI TrustScore"), t("createListing.trustScoreGenericError", "Qualcosa è andato storto durante la verifica."));
       return null;
     } finally {
       setLoadingAI(false);
@@ -1556,118 +1532,13 @@ const initialJsonRef = useRef(null);
     //const checkOutLocked = isFullDate(form?.checkOut) && !editableFields.checkOut;
    // const hotelLocLocked = form?.type === "hotel" && isFilledLocation(form?.location) && !editableFields.location;
 /* ---------- VALIDAZIONI ---------- */
-  const computeErrors = useCallback(() => {
-    const ciNorm = normalizeDateStr(form.checkIn);
-    const coNorm = normalizeDateStr(form.checkOut);
-    const e = {};
-
-    if (!form.title.trim()) e.title = t("createListing.errors.titleRequired", "Titolo obbligatorio.");
-    if (form?.type === "train") {
-      if (!String(form.routeFrom || "").trim()) e.routeFrom = t("createListing.errors.routeFromRequired", "Stazione di partenza obbligatoria.");
-      if (!String(form.routeTo || "").trim()) e.routeTo = t("createListing.errors.routeToRequired", "Stazione di arrivo obbligatoria.");
-    } else if (!form.location.trim()) {
-      e.location = t("createListing.errors.locationRequired", "Località obbligatoria.");
-    }
-
-    if (form?.type === "hotel") {
-      if (!ciNorm) e.checkIn = t("createListing.errors.checkInRequired", "Check-in obbligatorio.");
-      if (!coNorm) e.checkOut = t("createListing.errors.checkOutRequired", "Check-out obbligatorio.");
-      if (ciNorm && !parseISODate(ciNorm)) e.checkIn = t("createListing.errors.checkInInvalid", "Check-in non valido (YYYY-MM-DD).");
-      if (coNorm && !parseISODate(coNorm)) e.checkOut = t("createListing.errors.checkOutInvalid", "Check-out non valido (YYYY-MM-DD).");
-      if (ciNorm && coNorm) {
-        const a = parseISODate(ciNorm), b = parseISODate(coNorm);
-        // Confronto STRETTO: check-out uguale al check-in vuol dire zero
-        // notti, che non è una prenotazione. Prima passava di qui e veniva
-        // respinto più avanti dal vincolo chk_listings_hotel_dates_order con
-        // un errore di database grezzo invece che da questo messaggio.
-        if (a && b && b <= a) e.checkOut = t("createListing.errors.checkoutBeforeCheckin", "Il check-out deve essere successivo al check-in.");
-      }
-      // Data nel passato: bloccante SOLO in creazione. Un annuncio NUOVO con
-      // check-in già nel passato non ha senso; un annuncio ESISTENTE la cui
-      // data è nel frattempo trascorsa non deve invece impedire di
-      // correggere un campo non correlato (es. il prezzo) in "Modifica
-      // annuncio". Prima questo controllo esisteva solo come avviso
-      // informativo nel micro-log del Check AI, mai come validazione
-      // bloccante: un annuncio nuovo con data passata poteva comunque essere
-      // pubblicato.
-      if (mode !== "edit") {
-        const todayStart = new Date(new Date().toDateString());
-        if (!e.checkIn && ciNorm) {
-          const a = parseISODate(ciNorm);
-          if (a && a < todayStart) e.checkIn = t("createListing.checkAi.localCheckInPast", "Check-in nel passato.");
-        }
-        if (!e.checkOut && coNorm) {
-          const b = parseISODate(coNorm);
-          if (b && b < todayStart) e.checkOut = t("createListing.checkAi.localCheckOutPast", "Check-out nel passato.");
-        }
-      }
-    } else {
-      if (!form.departAt.trim()) e.departAt = t("createListing.errors.departRequired", "Data/ora partenza obbligatoria.");
-      if (!form.arriveAt.trim()) e.arriveAt = t("createListing.errors.arriveRequired", "Data/ora arrivo obbligatoria.");
-      if (form.departAt && !parseISODateTime(form.departAt)) e.departAt = t("createListing.errors.departInvalid", "Partenza non valida (YYYY-MM-DD HH:mm).");
-      if (form.arriveAt && !parseISODateTime(form.arriveAt)) e.arriveAt = t("createListing.errors.arriveInvalid", "Arrivo non valido (YYYY-MM-DD HH:mm).");
-      if (form.departAt && form.arriveAt) {
-        const a = parseISODateTime(form.departAt), b = parseISODateTime(form.arriveAt);
-        // Stesso confronto stretto del check-out: arrivo e partenza coincidenti
-        // sono il caso che passava con l'86% di affidabilità e nessuna
-        // segnalazione (vedi useTrustScore.js). Ora lo blocca anche il vincolo
-        // chk_listings_train_dates_order, e il messaggio deve arrivare da qui.
-        if (a && b && b <= a) e.arriveAt = t("createListing.errors.arriveBeforeDepart", "L’arrivo deve essere successivo alla partenza.");
-      }
-      if (mode !== "edit") {
-        const now = new Date();
-        if (!e.departAt && form.departAt) {
-          const a = parseISODateTime(form.departAt);
-          if (a && a < now) e.departAt = t("createListing.checkAi.localDepartPast", "Partenza nel passato.");
-        }
-        if (!e.arriveAt && form.arriveAt) {
-          const b = parseISODateTime(form.arriveAt);
-          if (b && b < now) e.arriveAt = t("createListing.checkAi.localArrivePast", "Arrivo nel passato.");
-        }
-      }
-      if (form.isNamedTicket && !/^(M|F)$/.test(form.gender)) {
-        e.gender = t("createListing.errors.genderRequired", "Seleziona M o F.");
-      }
-    }
-    const priceStr = String(form.price || "").trim();
-    let priceNum = NaN;
-    if (!priceStr) e.price = t("createListing.errors.priceRequired", "Prezzo obbligatorio.");
-    else {
-      priceNum = parseLocalizedNumber(priceStr) ?? NaN;
-      if (!Number.isFinite(priceNum)) e.price = t("createListing.errors.priceInvalid", "Prezzo non valido.");
-      else if (priceNum < 0) e.price = t("createListing.errors.priceNegative", "Il prezzo non può essere negativo.");
-    }
-
-    // Anti-bagarinaggio: il prezzo di vendita non può superare quello di
-    // acquisto (solo per un VENDO; per un CERCO il campo prezzo è il budget).
-    if (!isCerco) {
-      const purchStr = String(form.purchasePrice || "").trim();
-      if (purchStr) {
-        const purchNum = parseLocalizedNumber(purchStr) ?? NaN;
-        if (!Number.isFinite(purchNum)) e.purchasePrice = t("createListing.errors.purchaseInvalid", "Prezzo di acquisto non valido.");
-        else if (purchNum <= 0) e.purchasePrice = t("createListing.errors.purchaseNonPositive", "Il prezzo di acquisto deve essere maggiore di zero.");
-        else if (Number.isFinite(priceNum) && priceNum > purchNum) {
-          e.price = t("createListing.errors.priceAbovePurchase", "Il prezzo di vendita non può superare quello di acquisto ({purchase}€).", { purchase: purchNum });
-        }
-      }
-
-      // Prezzo dinamico: il minimo deve esistere, essere positivo e non
-      // superare il prezzo di vendita attuale (altrimenti la curva "salirebbe").
-      if (form.dynamicPricingEnabled) {
-        const floorStr = String(form.priceFloor || "").trim();
-        if (!floorStr) e.priceFloor = t("createListing.errors.priceFloorRequired", "Prezzo minimo obbligatorio se il prezzo dinamico è attivo.");
-        else {
-          const floorNum = parseLocalizedNumber(floorStr) ?? NaN;
-          if (!Number.isFinite(floorNum)) e.priceFloor = t("createListing.errors.priceFloorInvalid", "Prezzo minimo non valido.");
-          else if (floorNum <= 0) e.priceFloor = t("createListing.errors.priceFloorNonPositive", "Il prezzo minimo deve essere maggiore di zero.");
-          else if (Number.isFinite(priceNum) && floorNum > priceNum) {
-            e.priceFloor = t("createListing.errors.priceFloorAbovePrice", "Il prezzo minimo non può superare il prezzo di vendita.");
-          }
-        }
-      }
-    }
-    return e;
-  }, [form, t, mode]);
+  // Il corpo delle regole sta in lib/listingValidation.mjs: qui resta solo
+  // l'aggancio a React. `now` non viene passato, quindi usa l'ora corrente —
+  // nei test viene iniettata per provare le date nel passato senza aspettare.
+  const computeErrors = useCallback(
+    () => computeListingErrors({ form, mode, t }),
+    [form, t, mode],
+  );
   useEffect(() => { setErrors(computeErrors()); }, [computeErrors]);
   const validate = () => { const e = computeErrors(); setErrors(e); return Object.keys(e).length === 0; };
 
@@ -1872,8 +1743,14 @@ const initialJsonRef = useRef(null);
   const chiediConfermaPubblicazione = (items) =>
     new Promise((resolve) => setPublishReview({ items, resolve }));
 
+  // La Promise si risolve QUI e non dentro l'updater di setState: React può
+  // rieseguire un updater (in sviluppo lo fa apposta), e sciogliere una
+  // Promise è un effetto collaterale, non un calcolo di stato. Con questa
+  // forma la risoluzione avviene una volta sola, e resta comunque sicura al
+  // doppio tocco perché al secondo giro `publishReview` è già null.
   const chiudiRiepilogo = (procedi) => {
-    setPublishReview((r) => { r?.resolve?.(procedi); return null; });
+    publishReview?.resolve?.(procedi);
+    setPublishReview(null);
   };
 
   /**
@@ -2011,11 +1888,18 @@ const initialJsonRef = useRef(null);
           JSON.stringify(buildContentSnapshot()) !== initialContentRef.current));
 
     // Invece di bloccare con un Alert che rimanda a un bottone "Check AI" a
-    // parte (due bottoni, non ovvio quale premere prima prima di pubblicare),
-    // lo eseguiamo qui in automatico e in modo trasparente: stesso micro-log
-    // di un check manuale. Se fallisce (rete, o rate limit di 10s tra due
-    // check) blocchiamo comunque la pubblicazione: mai un annuncio mai
-    // verificato.
+    // parte (due bottoni, non ovvio quale premere prima di pubblicare), lo
+    // eseguiamo qui in automatico e in modo trasparente: stesso micro-log di
+    // un check manuale. Se fallisce blocchiamo comunque la pubblicazione: mai
+    // un annuncio mai verificato.
+    //
+    // POSIZIONE — è l'ULTIMA cosa prima di scrivere, e viene dopo TUTTI i
+    // controlli che non costano niente (campi, tetto annunci, PNR,
+    // duplicati). Prima stava per primo, e si pagava il modello per poi
+    // scoprire un campo vuoto, un PNR già in vendita o un duplicato. Il caso
+    // peggiore era la data: un biglietto in partenza fra pochi minuti passava
+    // la verifica e veniva bocciato subito dopo da "Partenza nel passato",
+    // perché nel frattempo la verifica stessa aveva consumato quei minuti.
     // L'esito del check va tenuto in una variabile locale, NON riletto da
     // trustData più sotto: onTrustCheck aggiorna lo stato del componente con
     // setData, e in React lo stato non cambia dentro il gestore che lo ha
@@ -2041,32 +1925,6 @@ const initialJsonRef = useRef(null);
     // descrittivo cancellava l'affidabilità appena calcolata. Verificando
     // DOPO il salvataggio il punteggio è l'ultima scrittura e descrive per
     // costruzione il contenuto effettivamente pubblicato.
-    let trustResult = trustData;
-    if (mode !== "edit" && needsCheckAI) {
-      // Il caso "manca la descrizione" si intercetta PRIMA di provarci: la
-      // verifica fallirebbe comunque, e il messaggio generico ("riprova fra
-      // qualche secondo") manderebbe l'utente a ritentare all'infinito una
-      // cosa che non dipende dal tempo. Qui si dice cosa manca e si porta il
-      // cursore dove scriverlo.
-      if (descriptionMissing) {
-        descriptionRef.current?.focus?.();
-        Alert.alert(
-          t("createListing.trustScoreTitle", "AI TrustScore"),
-          t("createListing.checkAiNeedsDescAlert", "Per verificare l'annuncio serve una descrizione di almeno 10 caratteri. È l'unica parte che il documento non può scrivere al posto tuo: bastano due righe su cosa stai vendendo."),
-        );
-        return;
-      }
-      const checkRes = await onTrustCheck();
-      if (!checkRes) {
-        Alert.alert(
-          t("createListing.checkAiAutoFailedTitle", "Verifica non riuscita"),
-          getTrustError() || t("createListing.checkAiAutoFailedMsg", "Non sono riuscito a completare automaticamente la verifica AI. Riprova tra qualche secondo.")
-        );
-        return;
-      }
-      trustResult = checkRes;
-    }
-
     const validationErrors = computeErrors();
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) {
@@ -2081,11 +1939,29 @@ const initialJsonRef = useRef(null);
       // mancante, ed era facile scambiarlo per "non succede niente".
       // Portare alla Slide 1 rende visibile SUBITO l'errore inline sotto il
       // campo (fieldError già lo mostra, ora che submitAttempted è true).
-      const slide1Fields = ["title", "routeFrom", "routeTo", "location", "checkIn", "checkOut", "departAt", "arriveAt", "gender"];
-      if (slide1Fields.some((k) => validationErrors[k])) goToSlide(0);
+      // L'elenco vive in lib/listingValidation.mjs perché un campo che si
+      // sposta di step senza aggiornarlo produce di nuovo lo stesso difetto:
+      // "gender" era in questa lista pur stando sullo step 2, quindi un
+      // genere mancante spediva l'utente sullo step 1, dove quel campo non
+      // c'è — l'esatto contrario di ciò che il salto serviva a fare.
+      if (CAMPI_STEP_1.some((k) => validationErrors[k])) goToSlide(0);
       Alert.alert(
         t("createListing.errors.cannotSaveTitle", "Impossibile salvare"),
         Object.values(validationErrors).join("\n")
+      );
+      return;
+    }
+
+    // "Manca la descrizione" sta qui, insieme agli altri controlli che non
+    // costano niente: la verifica fallirebbe comunque, e il messaggio
+    // generico ("riprova fra qualche secondo") manderebbe l'utente a
+    // ritentare all'infinito una cosa che non dipende dal tempo. Si dice cosa
+    // manca e si porta il cursore dove scriverlo.
+    if (mode !== "edit" && needsCheckAI && descriptionMissing) {
+      descriptionRef.current?.focus?.();
+      Alert.alert(
+        t("createListing.trustScoreTitle", "AI TrustScore"),
+        t("createListing.checkAiNeedsDescAlert", "Per verificare l'annuncio serve una descrizione di almeno 10 caratteri. È l'unica parte che il documento non può scrivere al posto tuo: bastano due righe su cosa stai vendendo."),
       );
       return;
     }
@@ -2207,11 +2083,40 @@ const initialJsonRef = useRef(null);
             [
               { text: t("common.cancel", "Annulla"), style: "cancel", onPress: () => resolve(false) },
               { text: t("createListing.dupPublishAnyway", "Pubblica comunque"), onPress: () => resolve(true) },
-            ]
+            ],
+            // Senza questo, su Android chiudere l'avviso col tasto Indietro (o
+            // toccando fuori) non chiamava nessuno dei due gestori: la Promise
+            // restava appesa per sempre, `publishing` non tornava mai false e
+            // il pulsante Pubblica restava morto fino a riaprire la schermata.
+            // L'avviso sul cambio nominativo qui sopra ce l'aveva già.
+            { cancelable: true, onDismiss: () => resolve(false) },
           );
         });
         if (!proceed) return;
       }
+    }
+
+    let trustResult = trustData;
+    if (mode !== "edit" && needsCheckAI) {
+      // skipThrottle: l'antirimbalzo di 10s difende il BOTTONE dal doppio
+      // tocco impaziente. Questa verifica non è un secondo tocco: è il
+      // controllo obbligatorio senza il quale non si pubblica, e farlo
+      // aspettare significava bloccare la pubblicazione per dieci secondi a
+      // chi aveva appena premuto "Check AI" o "applica i suggerimenti" —
+      // cioè proprio a chi aveva fatto la cosa giusta. Il tetto vero resta
+      // quello del server (10 verifiche / 10 minuti).
+      const checkRes = await onTrustCheck({ skipThrottle: true, auto: true });
+      if (!checkRes) {
+        Alert.alert(
+          // Titolo diverso da quello della MODIFICA: lì le modifiche sono
+          // state salvate e manca solo il punteggio, qui non è stato scritto
+          // niente. Due esiti diversi non possono avere lo stesso titolo.
+          t("createListing.publishBlockedTitle", "Annuncio non pubblicato"),
+          getTrustError() || t("createListing.checkAiAutoFailedMsg", "Non sono riuscito a verificare l'annuncio, e senza verifica non lo pubblico. Riprova fra qualche secondo: quello che hai scritto resta qui.")
+        );
+        return;
+      }
+      trustResult = checkRes;
     }
 
     try {
@@ -2387,7 +2292,7 @@ const initialJsonRef = useRef(null);
         // lo azzera. Si rilancia ogni volta che questo salvataggio ha
         // invalidato il punteggio lato DB, non solo per foto e campi critici.
         if (invalidatesTrustOnSave) {
-          const checkRes = await onTrustCheck({ skipThrottle: true });
+          const checkRes = await onTrustCheck({ skipThrottle: true, auto: true });
           if (!checkRes) {
             // Verifica non riuscita: le modifiche restano salvate (non ha senso
             // annullarle per un guasto dell'AI), ma l'annuncio è rimasto senza
