@@ -1,14 +1,22 @@
+// components/MatchCard.js — un suggerimento nel dettaglio annuncio.
+//
+// Due cose stavano scritte qui a mano: l'etichetta "reciproco" e il punteggio,
+// in italiano per chiunque; e una riga "model: gpt-4o-mini", che nominava un
+// pezzo del sistema a chi voleva solo sapere perché quell'annuncio gli veniva
+// proposto. Il nome del modello serve a noi nei log, non a chi legge.
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { theme } from "../lib/theme";
+import { useI18n } from "../lib/i18n";
 
 export default function MatchCard({ item, onPress }) {
+  const { t, locale } = useI18n();
   return (
     <TouchableOpacity onPress={onPress} style={s.card}>
       <View style={s.topRow}>
         <Text style={s.title} numberOfLines={1}>{item.title}</Text>
         {item.bidirectional ? (
-          <View style={s.badge}><Text style={s.badgeTxt}>💫 reciproco</Text></View>
+          <View style={s.badge}><Text style={s.badgeTxt}>💫 {t("match.reciprocal", "reciproco")}</Text></View>
         ) : null}
       </View>
 
@@ -17,15 +25,18 @@ export default function MatchCard({ item, onPress }) {
       </Text>
 
       <Text style={s.meta}>
-        {(item.price != null ? `€${item.price}` : "—") + " · " + `Score ${item.score}`}
+        {(item.price != null ? `€${item.price}` : "—") + " · " + t("match.score", "Affinità {n}", { n: item.score })}
       </Text>
 
       {item.explanation ? <Text style={s.expl} numberOfLines={2}>{item.explanation}</Text> : null}
 
-      <View style={s.bottomRow}>
-        {item.model ? <Text style={s.small}>model: {item.model}</Text> : <View />}
-        {item.updatedAt ? <Text style={s.small}>upd: {new Date(item.updatedAt).toLocaleDateString()}</Text> : null}
-      </View>
+      {item.updatedAt ? (
+        <View style={s.bottomRow}>
+          <Text style={s.small}>
+            {t("match.updatedAt", "Aggiornato il {date}", { date: new Date(item.updatedAt).toLocaleDateString(locale || undefined) })}
+          </Text>
+        </View>
+      ) : null}
     </TouchableOpacity>
   );
 }

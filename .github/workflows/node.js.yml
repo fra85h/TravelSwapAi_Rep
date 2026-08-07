@@ -78,3 +78,27 @@ jobs:
         run: node tools/apply_migrations.mjs
       - name: Test contro il database vero
         run: npm test
+
+  # L'app non veniva provata da nessuno: la CI conosceva solo il server,
+  # quindi i 167 test di travelswap_ai/travelswapai giravano soltanto se
+  # qualcuno si ricordava di lanciarli a mano. Fra questi c'è il controllo
+  # che nessuna frase dell'interfaccia sia scritta a mano nel codice invece
+  # che nel dizionario — un difetto che rientra da solo, e che senza CI si
+  # scopre solo quando lo segnala qualcuno che l'app la usa in inglese.
+  test-app:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: travelswap_ai/travelswapai
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+          cache-dependency-path: travelswap_ai/travelswapai/package-lock.json
+      - run: npm ci
+      - name: Test dell'app (Jest)
+        run: npx jest --ci

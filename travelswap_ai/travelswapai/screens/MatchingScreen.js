@@ -165,7 +165,7 @@ function StatusBanner({
 /* ---------- Riga Match ---------- */
 
 function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, onPressChevron }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const fallbackExpl = [
     item.bidirectional ? "Match reciproco (💫)" : null,
     `Match ${Math.round(Number(item.score) || 0)}%`,
@@ -197,12 +197,16 @@ function MatchRow({ item, onPress, isNew, expanded, onToggleInfo, generatedAt, o
         {expanded ? (
           <View style={styles.explBox}>
             <Text style={styles.explText} numberOfLines={4}>{explText}</Text>
-            <View style={styles.explFooter}>
-          {/*     {model ? <Text style={styles.explSmall}>model: {model}</Text> : <View />}*/}
-              {upd ? <Text style={styles.explSmall}>upd: {new Date(upd).toLocaleDateString()}</Text> : null}
-            </View>
-
-
+            {/* "upd:" non è una parola: era un'abbreviazione da log, in
+                italiano per chiunque. Qui serve a dire da quando questo
+                suggerimento è fermo, quindi lo dice per esteso. */}
+            {upd ? (
+              <View style={styles.explFooter}>
+                <Text style={styles.explSmall}>
+                  {t("match.updatedAt", "Aggiornato il {date}", { date: new Date(upd).toLocaleDateString(locale || undefined) })}
+                </Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
       </View>
