@@ -12,21 +12,26 @@
 // parte dell'accordo, l'annuncio viene analizzato in automatico. Sono i punti
 // che un utente scoprirebbe altrimenti quando è troppo tardi.
 import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Linking, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import { useAuth } from "../lib/auth";
 import { acceptTerms, LEGAL_URLS } from "../lib/legal";
+import { alertArgs } from "../lib/userError.mjs";
 
 export default function LegalConsentScreen({ onAccepted }) {
   const { t } = useI18n();
   const { signOut } = useAuth();
   const [busy, setBusy] = useState(false);
 
-  const open = (url) => Linking.openURL(url).catch(() => {
-    Alert.alert(t("common.error", "Errore"), t("legal.openError", "Non riesco ad aprire il documento."));
+  const open = (url) => Linking.openURL(url).catch((e) => {
+    Alert.alert(...alertArgs(e, {
+      t,
+      titolo: t("legal.openErrorTitle", "Documento non aperto"),
+      azione: t("legal.openError", "Puoi leggerlo dal browser: l'indirizzo è lo stesso del sito TravelSwap."),
+    }));
   });
 
   const onAccept = async () => {
@@ -35,7 +40,11 @@ export default function LegalConsentScreen({ onAccepted }) {
       await acceptTerms();
       onAccepted?.();
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e?.message || t("legal.acceptError", "Non sono riuscito a registrare l'accettazione. Riprova."));
+      Alert.alert(...alertArgs(e, {
+        t,
+        titolo: t("legal.acceptErrorTitle", "Accettazione non registrata"),
+        azione: t("legal.acceptError", "Riprova fra poco: nulla è stato salvato, i documenti restano da accettare."),
+      }));
     } finally {
       setBusy(false);
     }
@@ -84,21 +93,30 @@ export default function LegalConsentScreen({ onAccepted }) {
           </TouchableOpacity>
         </View>
 
+        {/* L'accettazione va scritta sul server, e in rete lenta ci mette
+            qualche secondo: prima il pulsante mostrava "…", che si legge come
+            un pulsante rotto e invita a premere di nuovo. Un indicatore che
+            gira e una frase che dice cosa sta succedendo dicono la stessa cosa
+            senza far dubitare che il tocco sia arrivato. */}
         <TouchableOpacity
           style={[s.btn, busy && s.btnDisabled]}
           onPress={onAccept}
           disabled={busy}
           accessibilityRole="button"
+          accessibilityState={{ disabled: busy, busy }}
         >
+          {busy ? <ActivityIndicator size="small" color={theme.colors.accentOn} /> : null}
           <Text style={s.btnTxt}>
-            {busy ? "…" : t("legal.accept", "Ho letto e accetto")}
+            {busy
+              ? t("legal.accepting", "Registro l'accettazione…")
+              : t("legal.accept", "Ho letto e accetto")}
           </Text>
         </TouchableOpacity>
 
         {/* Rifiutare deve restare possibile, altrimenti non è un'accettazione:
             chi non accetta esce, e il suo account resta dov'è. */}
-        <TouchableOpacity onPress={() => signOut?.()} accessibilityRole="button">
-          <Text style={s.decline}>{t("legal.decline", "Non accetto — esci")}</Text>
+        <TouchableOpacity onPress={() => signOut?.()} disabled={busy} accessibilityRole="button">
+          <Text style={[s.decline, busy && s.declineDisabled]}>{t("legal.decline", "Non accetto — esci")}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -121,11 +139,12 @@ const s = StyleSheet.create({
   links: { gap: theme.spacing.xs, marginTop: theme.spacing.sm },
   link: { ...theme.typography.body, color: theme.colors.accent, fontWeight: "700", textDecorationLine: "underline" },
   btn: {
-    alignItems: "center", justifyContent: "center",
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: theme.spacing.sm,
     backgroundColor: theme.colors.accent, borderRadius: theme.radius.pill,
     paddingVertical: 14, marginTop: theme.spacing.lg,
   },
-  btnDisabled: { opacity: 0.5 },
+  btnDisabled: { opacity: 0.6 },
   btnTxt: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 16 },
   decline: { ...theme.typography.small, textAlign: "center", marginTop: theme.spacing.md, textDecorationLine: "underline" },
+  declineDisabled: { opacity: 0.4 },
 });

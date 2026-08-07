@@ -12,7 +12,7 @@
 // schermata sa solo disegnare un passaggio e collegarlo alla sua azione.
 import React, { useCallback, useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
   ActivityIndicator, Linking, Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -55,6 +55,7 @@ export default function TransactionStepsScreen({ route, navigation }) {
   const [alreadyRated, setAlreadyRated] = useState(false);
   const [decl, setDecl] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!offerId) { setError("missing"); setLoading(false); return; }
@@ -87,6 +88,14 @@ export default function TransactionStepsScreen({ route, navigation }) {
   // tappa che dall'altro lato è già stata superata.
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  // I passaggi che restano avvengono fuori dall'app: nessun realtime li
+  // annuncia. Il gesto di tirare giù è l'unico modo che l'utente ha per
+  // chiedere "e adesso?" senza uscire e rientrare dalla schermata.
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }, [load]);
+
   const onConfirm = async () => {
     try {
       setBusy(true);
@@ -115,28 +124,49 @@ export default function TransactionStepsScreen({ route, navigation }) {
     );
   }
 
-  const { steps, remaining } = buildTransactionSteps(handshake, {
+  const { steps, remaining, activeIndex } = buildTransactionSteps(handshake, {
     role: decl?.myRole || null,
     otherName,
     alreadyRated,
   });
   const isBuy = handshake.type === "buy";
 
+  // Chi stiamo aspettando. I passaggi che restano avvengono fuori dall'app e
+  // non si spuntano da soli (scelta voluta: non sono osservabili), quindi
+  // senza questa riga la schermata resta ferma e non si capisce se la palla
+  // sia tua o dell'altro. Il dato c'era già — l'attribuzione del turno è in
+  // lib/transactionSteps.js — semplicemente non veniva mostrato come attesa.
+  const attivo = activeIndex >= 0 ? steps[activeIndex] : null;
+  const attesa = !attivo || remaining === 0 ? null
+    : attivo.owner === STEP_OWNER.OTHER
+      ? t("transactionSteps.waitingOther", "Stai aspettando {name}: la schermata si aggiorna tirando giù.", { name: otherName || t("transactionSteps.otherParty", "l'altra parte") })
+      : attivo.owner === STEP_OWNER.ME
+      ? t("transactionSteps.waitingMe", "Tocca a te: il passaggio qui sotto aspetta una tua mossa.")
+      : attivo.owner === STEP_OWNER.BOTH
+      ? t("transactionSteps.waitingBoth", "Serve un gesto da entrambi: finché manca una delle due parti si resta qui.")
+      : null;
+
   return (
-    <ScrollView style={s.container} contentContainerStyle={s.content}>
+    <ScrollView
+      style={s.container}
+      contentContainerStyle={s.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <Text style={s.title}>
         {isBuy
           ? t("transactionSteps.titleBuy", "Acquisto confermato")
           : t("transactionSteps.titleSwap", "Scambio confermato")}
       </Text>
       {/* Un percorso di lunghezza nota non spaventa; uno di lunghezza ignota sì. */}
-      <Text style={s.subtitle}>
+      <Text style={[s.subtitle, !attesa && s.subtitleAlone]}>
         {remaining === 0
           ? t("transactionSteps.allDone", "Non manca più niente.")
           : remaining === 1
           ? t("transactionSteps.remainingOne", "Manca 1 passaggio.")
           : t("transactionSteps.remaining", "Mancano {n} passaggi.", { n: remaining })}
       </Text>
+
+      {attesa ? <Text style={s.waiting}>{attesa}</Text> : null}
 
       <View style={s.timeline}>
         {steps.map((st, i) => (
@@ -371,7 +401,14 @@ const s = StyleSheet.create({
   errText: { ...theme.typography.body, textAlign: "center" },
 
   title: { ...theme.typography.title, color: theme.colors.text },
-  subtitle: { ...theme.typography.subtitle, marginTop: 2, marginBottom: theme.spacing.xl },
+  subtitle: { ...theme.typography.subtitle, marginTop: 2, marginBottom: theme.spacing.md },
+  subtitleAlone: { marginBottom: theme.spacing.xl },
+  waiting: {
+    ...theme.typography.small, lineHeight: 18, color: theme.colors.text,
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: theme.radius.md, padding: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
+  },
 
   timeline: { gap: 0 },
   stepRow: { flexDirection: "row", gap: theme.spacing.md },

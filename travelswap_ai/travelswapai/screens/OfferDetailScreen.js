@@ -6,7 +6,7 @@ import React, {
   useLayoutEffect,
   useMemo, // 👈 necessario per visibleOffers
 } from "react";
-import { View, Text, ActivityIndicator, ScrollView, StyleSheet, Alert, TouchableOpacity } from "react-native";
+import { View, Text, ActivityIndicator, ScrollView, StyleSheet, Alert, TouchableOpacity, RefreshControl } from "react-native";
 import { useRoute, useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { getListingById, listOffersForListing, getCurrentUser } from "../lib/db";
@@ -44,6 +44,7 @@ export default function OfferDetailScreen() {
   // qui si vede lo stesso stato "chi ha confermato", coerente con l'altro
   // punto d'ingresso alla chat, senza dover andare su Attività per saperlo.
   const [handshakes, setHandshakes] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
   const reqSeq = useRef(0);
 
   useLayoutEffect(() => {
@@ -66,10 +67,14 @@ export default function OfferDetailScreen() {
     );
   }
 
-  const load = useCallback(async () => {
+  // `silenzioso`: ricarica senza spegnere la schermata. Serve al gesto di
+  // tirare giù, che ha già il suo indicatore in cima: sostituire il contenuto
+  // con lo spinner a tutto schermo farebbe perdere il punto in cui si stava
+  // leggendo per un aggiornamento che spesso non cambia niente.
+  const load = useCallback(async (silenzioso = false) => {
     const reqId = ++reqSeq.current;
     setError(null);
-    setLoading(true);
+    if (!silenzioso) setLoading(true);
     try {
       const u = await getCurrentUser();
       const l = await getListingById(effectiveId);
@@ -127,6 +132,14 @@ export default function OfferDetailScreen() {
       };
     }, [load])
   );
+
+  // Una proposta cambia stato per mano di qualcun altro e qui non arriva
+  // nessun aggiornamento in tempo reale: senza il gesto di tirare giù,
+  // l'unico modo per rileggere era uscire dalla schermata e rientrare.
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(true); } finally { setRefreshing(false); }
+  }, [load]);
 
   const isOwner = me?.id && listing?.user_id === me.id;
   // Si può proporre SOLO verso un annuncio attivo (stesso vincolo lato DB,
@@ -230,7 +243,7 @@ export default function OfferDetailScreen() {
     return (
       <View style={s.center}>
         <Text style={{ color: theme.colors.danger, marginBottom: 8 }}>{error}</Text>
-        <TouchableOpacity style={s.btn} onPress={load}>
+        <TouchableOpacity style={s.btn} onPress={() => load()}>
           <Text style={s.btnTxt}>{t("common.retry", "Riprova")}</Text>
         </TouchableOpacity>
       </View>
@@ -238,7 +251,11 @@ export default function OfferDetailScreen() {
   }
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView
+      style={s.container}
+      contentContainerStyle={{ padding: 16 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    >
       <Text style={s.title}>{t("offerDetail.proposals", "Dettaglio proposte")}</Text>
 
       {listing && (

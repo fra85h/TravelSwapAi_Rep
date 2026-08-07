@@ -3799,9 +3799,14 @@ const initialJsonRef = useRef(null);
               <TouchableOpacity onPress={onBackPress} style={[styles.footerBtn, styles.footerGhost]}>
                 <Text style={[styles.footerText, { color: theme.colors.text }]}>{t("common.back", "Indietro")}</Text>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity onPress={onSaveDraft} disabled={saving || mode === "edit"} style={[styles.footerBtn, styles.footerGhost, (saving || mode === "edit") && { opacity: 0.6 }]}>
-                {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: theme.colors.text }]}>{mode === "edit" ? t("editListing.draftDisabled","Bozza disattivata") : t("createListing.saveDraft","Salva bozza")}</Text>}
+            ) : mode === "edit" ? null : (
+              /* In modifica non c'è nessuna bozza da salvare: l'annuncio
+                 esiste già. Prima al suo posto restava un pulsante spento con
+                 scritto "Bozza disattivata" — occupava metà del piede della
+                 schermata per annunciare una funzione che lì non serve, e non
+                 faceva niente se premuto. Meglio non mostrarlo. */
+              <TouchableOpacity onPress={onSaveDraft} disabled={saving} style={[styles.footerBtn, styles.footerGhost, saving && { opacity: 0.6 }]}>
+                {saving ? <ActivityIndicator /> : <Text style={[styles.footerText, { color: theme.colors.text }]}>{t("createListing.saveDraft","Salva bozza")}</Text>}
               </TouchableOpacity>
             )}
 
@@ -3811,7 +3816,7 @@ const initialJsonRef = useRef(null);
               </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={onPublishOrSave} disabled={publishing} style={[styles.footerBtn, styles.footerPrimary]}>
-                {publishing ? <ActivityIndicator color={theme.colors.accentOn} /> : <Text style={[styles.footerText, { color: theme.colors.accentOn }]}>{mode === "edit" ? "Modifica" : t("createListing.publish", "Pubblica")}</Text>}
+                {publishing ? <ActivityIndicator color={theme.colors.accentOn} /> : <Text style={[styles.footerText, { color: theme.colors.accentOn }]}>{mode === "edit" ? t("createListing.saveChanges", "Salva modifiche") : t("createListing.publish", "Pubblica")}</Text>}
               </TouchableOpacity>
             )}
           </View>
