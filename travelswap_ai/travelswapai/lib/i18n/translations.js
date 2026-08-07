@@ -865,7 +865,8 @@ export const translations = {
       },
 
       checkAiAutoFailedTitle: "Verifica non riuscita",
-      checkAiAutoFailedMsg: "Non sono riuscito a completare automaticamente la verifica AI. Riprova tra qualche secondo.",
+      checkAiAutoFailedMsg: "Non sono riuscito a verificare l'annuncio, e senza verifica non lo pubblico. Riprova fra qualche secondo: quello che hai scritto resta qui.",
+      publishBlockedTitle: "Annuncio non pubblicato",
       draftUnavailableTitle: "Bozza non disponibile",
       draftUnavailableMsg: "In modifica non esiste una bozza: usa “Salva modifiche” per registrarle subito.",
 
@@ -880,8 +881,9 @@ export const translations = {
       draftSavedTitle: "Bozza salvata",
       draftSavedMsg:
         "Puoi riprenderla in qualsiasi momento.",
+      draftSaveErrorTitle: "Bozza non salvata",
       draftSaveError:
-        "Non sono riuscito a salvare la bozza.",
+        "Non sono riuscito a salvare la bozza. Quello che hai scritto è ancora qui: puoi pubblicare subito o riprovare.",
 
       pickTime: "Scegli ora",
 
@@ -909,6 +911,8 @@ export const translations = {
         priceRequired: "Prezzo obbligatorio.",
         priceInvalid: "Prezzo non valido.",
         priceNegative: "Il prezzo non può essere negativo.",
+        priceZero: "Il prezzo deve essere maggiore di zero. Se lo regali, scrivi 1.",
+        priceTooHigh: "Prezzo troppo alto: il massimo è {max}€.",
         purchaseInvalid: "Prezzo di acquisto non valido.",
         purchaseNonPositive: "Il prezzo di acquisto deve essere maggiore di zero.",
         priceAbovePurchase: "Il prezzo di vendita non può superare quello di acquisto ({purchase}€).",
@@ -2359,7 +2363,8 @@ export const translations = {
       },
 
       checkAiAutoFailedTitle: "Verification failed",
-      checkAiAutoFailedMsg: "I couldn't automatically complete the AI check. Please try again in a few seconds.",
+      checkAiAutoFailedMsg: "I couldn't verify the listing, and without a check I won't publish it. Try again in a few seconds: what you wrote stays here.",
+      publishBlockedTitle: "Listing not published",
       draftUnavailableTitle: "Draft unavailable",
       draftUnavailableMsg: "There is no draft when editing: use “Save changes” to record them right away.",
 
@@ -2373,7 +2378,8 @@ export const translations = {
         "Unable to publish the listing.",
       draftSavedTitle: "Draft saved",
       draftSavedMsg: "You can resume it anytime.",
-      draftSaveError: "Couldn't save the draft.",
+      draftSaveErrorTitle: "Draft not saved",
+      draftSaveError: "I couldn't save the draft. What you wrote is still here: you can publish now or try again.",
 
       pickTime: "Pick time",
 
@@ -2401,6 +2407,8 @@ export const translations = {
         priceRequired: "Price is required.",
         priceInvalid: "Invalid price.",
         priceNegative: "The price cannot be negative.",
+        priceZero: "The price must be higher than zero. If you are giving it away, put 1.",
+        priceTooHigh: "Price too high: the maximum is {max}€.",
         purchaseInvalid: "Invalid purchase price.",
         purchaseNonPositive: "The purchase price must be greater than zero.",
         priceAbovePurchase: "The sale price cannot exceed the purchase price ({purchase}€).",
@@ -3719,7 +3727,8 @@ export const translations = {
       },
 
       checkAiAutoFailedTitle: "Verificación fallida",
-      checkAiAutoFailedMsg: "No he podido completar automáticamente la verificación AI. Vuelve a intentarlo en unos segundos.",
+      checkAiAutoFailedMsg: "No he podido verificar el anuncio, y sin verificación no lo publico. Inténtalo dentro de unos segundos: lo que has escrito se queda aquí.",
+      publishBlockedTitle: "Anuncio no publicado",
       draftUnavailableTitle: "Borrador no disponible",
       draftUnavailableMsg: "Al editar no existe un borrador: usa «Guardar cambios» para registrarlos enseguida.",
 
@@ -3734,8 +3743,9 @@ export const translations = {
       draftSavedTitle: "Borrador guardado",
       draftSavedMsg:
         "Puedes retomarlo en cualquier momento.",
+      draftSaveErrorTitle: "Borrador no guardado",
       draftSaveError:
-        "No he podido guardar el borrador.",
+        "No he podido guardar el borrador. Lo que has escrito sigue aquí: puedes publicar ahora o volver a intentarlo.",
 
       pickTime: "Elegir hora",
 
@@ -3767,6 +3777,8 @@ export const translations = {
         priceRequired: "Precio obligatorio.",
         priceInvalid: "Precio no válido.",
         priceNegative: "El precio no puede ser negativo.",
+        priceZero: "El precio debe ser mayor que cero. Si lo regalas, pon 1.",
+        priceTooHigh: "Precio demasiado alto: el máximo es {max}€.",
         purchaseInvalid: "Precio de compra no válido.",
         purchaseNonPositive: "El precio de compra debe ser mayor que cero.",
         priceAbovePurchase: "El precio de venta no puede superar el de compra ({purchase}€).",
