@@ -44,7 +44,7 @@ function EmptyState({ onRecompute, isLoading, hasError }) {
       />
       <Text style={{ marginTop: 10, fontWeight: "800" , color:theme.colors.boardingText}}>
         {hasError
-          ? t("matchingScreen.backendUnreachable", "Backend non raggiungibile")
+          ? t("matchingScreen.backendUnreachable", "Suggerimenti non disponibili")
           : t("matchingScreen.noMatchesComputed", "Nessun match calcolato")}
       </Text>
     { /* {!hasError && (
@@ -111,7 +111,10 @@ function StatusBanner({
   const base = {
     queued: { text: t("matching.status.queued", "Ricalcolo AI in coda…"), bg:"#FFF7ED", border:"#FED7AA", color:"#9A3412", icon:"time-outline" },
     running:{ text: t("matching.status.running","Ricalcolo AI in corso…"), bg:"#EEF2FF", border:"#C7D2FE", color:"#1E3A8A", icon:"sparkles-outline" },
-    error:  { text: t("matching.status.error", "Backend offline o non raggiungibile"), bg:"#FEF2F2", border:"#FECACA", color:"#991B1B", icon:"alert-circle-outline" },
+    // "Backend offline o non raggiungibile" era una frase per chi legge i
+    // log: nomina un componente che l'utente non sa di avere e non dice né
+    // cosa è successo ai suoi suggerimenti né cosa può fare.
+    error:  { text: t("matching.status.error", "Non riesco ad aggiornare i suggerimenti. Riprova fra poco: quelli che vedi restano validi."), bg:"#FEF2F2", border:"#FECACA", color:"#991B1B", icon:"alert-circle-outline" },
   };
 
   // modalità “done”: messaggio con conteggi + CTA
@@ -493,10 +496,18 @@ const coerceSnapshot = (snap) => {
     } catch (e) {
       console.error("[MatchingScreen] recompute error:", e);
       setStatus("error");
+      // Stesso trattamento del resto dell'app: cosa non è riuscito e cosa
+      // fare, non il nome di un componente ("Errore backend") che l'utente
+      // non sa di avere.
+      const [titolo, messaggio] = alertArgs(e, {
+        t,
+        titolo: t("matching.recomputeFailedTitle", "Suggerimenti non aggiornati"),
+        azione: t("matching.recomputeFailedAction", "I suggerimenti che vedi restano quelli di prima. Riprova fra poco."),
+      });
       if (Platform.OS === "android") {
-        ToastAndroid.show(String(e?.message || t("matchingScreen.backendErrorTitle", "Errore backend")), ToastAndroid.SHORT);
+        ToastAndroid.show(messaggio, ToastAndroid.SHORT);
       } else {
-        Alert.alert(t("matchingScreen.backendErrorTitle", "Errore backend"), String(e?.message || t("matchingScreen.backendErrorMsg", "Impossibile contattare il server")));
+        Alert.alert(titolo, messaggio);
       }
     } finally {
       setRecomputing(false);

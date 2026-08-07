@@ -165,6 +165,20 @@ export default function NotificationsScreen({ navigation }) {
             <Text style={styles.emptySub}>
               {t("notifications.emptySub", "Ti avviseremo qui quando ricevi una proposta, quando la tua viene accettata o quando arrivano nuovi annunci per te.")}
             </Text>
+            {/* Notifiche e Attività portano quasi sempre nelle stesse
+                destinazioni, e finora niente diceva quale aprire. Questa
+                riga lo dice: qui è il registro di ciò che è successo, di là
+                c'è quello che aspetta te. */}
+            <Text style={styles.emptyHint}>
+              {t("notifications.vsActivity", "Qui trovi gli avvisi già arrivati. Le cose che aspettano una tua risposta stanno in Attività.")}
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyCta}
+              onPress={() => navigation.navigate("MainTabs", { screen: "Attivita" })}
+              accessibilityRole="button"
+            >
+              <Text style={styles.emptyCtaText}>{t("notifications.goToActivity", "Vai ad Attività")}</Text>
+            </TouchableOpacity>
           </View>
         }
       />
@@ -191,4 +205,13 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 10 },
   emptyTitle: { color: theme.colors.boardingText, fontWeight: "800", fontSize: 17, marginTop: 6 },
   emptySub: { color: theme.colors.textMuted, fontSize: 14, textAlign: "center", lineHeight: 20 },
+  emptyHint: { color: theme.colors.textMuted, fontSize: 12.5, textAlign: "center", marginTop: 14, lineHeight: 17, paddingHorizontal: 8 },
+  emptyCta: {
+    marginTop: 14,
+    backgroundColor: theme.colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  emptyCtaText: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
 });

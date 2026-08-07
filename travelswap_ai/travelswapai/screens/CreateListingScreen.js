@@ -2488,7 +2488,7 @@ const initialJsonRef = useRef(null);
   /* ---------- DRAFT ---------- */
   const onSaveDraft = async () => {
     if (mode === "edit") {
-      Alert.alert(t("createListing.draftUnavailableTitle", "Bozza non disponibile"), t("createListing.draftUnavailableMsg", "Salva direttamente le modifiche."));
+      Alert.alert(t("createListing.draftUnavailableTitle", "Bozza non disponibile"), t("createListing.draftUnavailableMsg", "In modifica non esiste una bozza: usa \"Salva modifiche\" per registrarle subito."));
       return;
     }
     try {
@@ -2801,7 +2801,14 @@ const initialJsonRef = useRef(null);
       /* ===== SCHERMATA 1: Tipo/Titolo + import/AI (favorisce l'automatico) ===== */
       <View style={styles.topPanel}>
         <View style={styles.topHeaderRow}>
-          <Text style={styles.topTitle}>{t("createListing.step1", "Dati principali")}</Text>
+          <View style={{ flex: 1 }}>
+            {/* "Passo 1 di 2" davanti al titolo: la validazione può
+                rimandare qui dallo step successivo, e senza sapere che i
+                passi sono due quel salto all'indietro sembra un errore
+                dell'app invece che un campo da completare. */}
+            <Text style={styles.stepCounter}>{t("createListing.stepOf", "Passo 1 di 2")}</Text>
+            <Text style={styles.topTitle}>{t("createListing.step1", "Dati principali")}</Text>
+          </View>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TrustScoreBadge score={trustData?.trustScore} pending={trustData?.verificationPending === true} />
             <TrustInfo />
@@ -2983,7 +2990,10 @@ const initialJsonRef = useRef(null);
           >
             <AntDesign name="left" size={18} color={theme.colors.boardingText} />
           </TouchableOpacity>
-          <Text style={[styles.topTitle, { flex: 1 }]}>{t("createListing.step2", "Dettagli & pubblicazione")}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.stepCounter}>{t("createListing.stepOf2", "Passo 2 di 2")}</Text>
+            <Text style={styles.topTitle}>{t("createListing.step2", "Dettagli & pubblicazione")}</Text>
+          </View>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <TrustScoreBadge score={trustData?.trustScore} pending={trustData?.verificationPending === true} />
             <TrustInfo />
@@ -4023,6 +4033,14 @@ const styles = StyleSheet.create({
   topPanel: { backgroundColor: theme.colors.surfaceMuted, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
   topHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   topTitle: { fontFamily: theme.fonts.headingExtraBold, fontSize: 20, color: theme.colors.boardingText },
+  stepCounter: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
 
   pill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, borderWidth: 1 },
   pillLight: { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border },

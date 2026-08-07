@@ -187,6 +187,34 @@ nome file (`YYYYMMDDHHMMSS_descrizione.sql`).
   intera. Regola: dopo il recupero, riapplica in coda la versione **più
   recente** di ogni funzione/vincolo toccato.
 
+## Copy: come si scrivono i testi dell'interfaccia
+
+- **Il pulsante dice l'effetto, non l'intenzione.** "Pubblica", "Invia
+  proposta", "Salva modifiche": chi legge deve sapere cosa succede se lo
+  preme. Quattro verbi diversi vanno benissimo se ognuno descrive un effetto
+  diverso; quello che non va bene è sceglierli a caso.
+- **Un messaggio di errore dice due cose: cosa NON è riuscito e cosa fare
+  adesso.** "Errore" non è un titolo — è un'etichetta, e lascia l'utente
+  esattamente dov'era. Usa `lib/userError.mjs`: traduce qualunque errore in
+  quelle due frasi e mette il dettaglio tecnico in coda fra parentesi, dove
+  serve a chi ce lo segnala e non disturba chi voleva solo sapere se
+  riprovare. Il modello giusto è "Proposta non inviata / Riprova: non è
+  stata inviata a nessuno", mai "Errore / Network request failed".
+- **Mai nominare i pezzi del sistema.** "Backend offline o non
+  raggiungibile" parla di un componente che l'utente non sa di avere. Si
+  scrive cosa è successo alle SUE cose: "Non riesco ad aggiornare i
+  suggerimenti; quelli che vedi restano validi".
+- **Un elenco vuoto deve dire perché è vuoto.** "Nessun annuncio salvato"
+  quando siamo offline è falso: gli annunci ci sono, non li abbiamo letti.
+  `useOnline()` (in `components/OfflineBanner.js`) distingue i due casi.
+- **Un vuoto senza azione è un vicolo cieco.** Se una schermata può restare
+  senza contenuto, quel vuoto deve portare da qualche parte.
+- **Le conferme si consumano.** Un "sei sicuro?" davanti a un'azione
+  reversibile insegna a premere OK senza leggere, e quando arriva la
+  conferma che conta (eliminare, che è terminale) viene saltata con lo
+  stesso automatismo. Si interrompe l'utente solo per dirgli qualcosa che
+  non sa già (vedi `lib/publishReview.mjs`).
+
 ## Workflow di sviluppo
 
 - Commit in italiano, PR con corpo che spiega causa/fix/verifiche.
