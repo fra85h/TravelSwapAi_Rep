@@ -881,8 +881,9 @@ export const translations = {
       draftSavedTitle: "Bozza salvata",
       draftSavedMsg:
         "Puoi riprenderla in qualsiasi momento.",
+      draftSaveErrorTitle: "Bozza non salvata",
       draftSaveError:
-        "Non sono riuscito a salvare la bozza.",
+        "Non sono riuscito a salvare la bozza. Quello che hai scritto è ancora qui: puoi pubblicare subito o riprovare.",
 
       pickTime: "Scegli ora",
 
@@ -2377,7 +2378,8 @@ export const translations = {
         "Unable to publish the listing.",
       draftSavedTitle: "Draft saved",
       draftSavedMsg: "You can resume it anytime.",
-      draftSaveError: "Couldn't save the draft.",
+      draftSaveErrorTitle: "Draft not saved",
+      draftSaveError: "I couldn't save the draft. What you wrote is still here: you can publish now or try again.",
 
       pickTime: "Pick time",
 
@@ -3741,8 +3743,9 @@ export const translations = {
       draftSavedTitle: "Borrador guardado",
       draftSavedMsg:
         "Puedes retomarlo en cualquier momento.",
+      draftSaveErrorTitle: "Borrador no guardado",
       draftSaveError:
-        "No he podido guardar el borrador.",
+        "No he podido guardar el borrador. Lo que has escrito sigue aquí: puedes publicar ahora o volver a intentarlo.",
 
       pickTime: "Elegir hora",
 

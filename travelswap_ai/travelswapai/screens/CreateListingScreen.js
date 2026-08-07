@@ -39,6 +39,8 @@ import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
 import { parseLocalizedNumber } from "../lib/number";
 import { suggestListingPrice } from "../lib/priceSuggestion";
 import { isConcludedStatus } from "../lib/listingStatus";
+import { useAuth } from "../lib/auth";
+import { readDraft, writeDraft, clearDraft, dropLegacyDraft } from "../lib/listingDraft.mjs";
 // Le regole di validazione vivono fuori di qui perché possano essere provate
 // senza montare la schermata: vedi __tests__/listingValidation.test.js.
 import {
@@ -68,7 +70,6 @@ import {
 
 /* ---------- CONST ---------- */
 const FOOTER_H = 96; // usato per dare spazio sotto alle slide
-const DRAFT_KEY = "@tsai:create_listing_draft";
 const AUTO_HIDE_MS = 4500;   // tempo dopo cui spariscono micro log e barra
 const MAX_PHOTOS = 2; // un biglietto/una stanza non ha bisogno di una galleria
 
@@ -396,6 +397,21 @@ export default function CreateListingScreen({
   const listingId = p.listingId ?? passedListing?.id ?? passedListing?._id ?? null;
   const mode = (p.mode === "edit" || listingId != null || passedListing != null) ? "edit" : "create";
 
+  // Chi sta scrivendo: la bozza è intestata a lui (vedi lib/listingDraft.mjs).
+  // Viene dal contesto di autenticazione, quindi è già in memoria — nessuna
+  // chiamata da aspettare. Il ref serve al salvataggio automatico, che gira
+  // dentro un timer e leggerebbe un valore vecchio.
+  const { session } = useAuth();
+  const userId = session?.user?.id || null;
+  const userIdRef = useRef(userId);
+  useEffect(() => { userIdRef.current = userId; }, [userId]);
+
+  // La bozza vecchia, quella comune a tutto il dispositivo, si butta una volta
+  // sola all'avvio della schermata: non si può sapere di chi fosse, e
+  // assegnarla a chi apre l'app per primo dopo l'aggiornamento sarebbe
+  // esattamente il problema che stiamo chiudendo.
+  useEffect(() => { dropLegacyDraft(AsyncStorage); }, []);
+
   // TrustScore hook + UI state
   const { loading: trustLoading, data: trustData, error: trustError, evaluate, reset: resetTrust, getLastError: getTrustError } = useTrustScore();
   const { suggestPriceAI } = usePriceSuggestAI();
@@ -712,6 +728,10 @@ const initialJsonRef = useRef(null);
   // ---------- EDIT MODE: prefill ----------
   useEffect(() => {
     let cancelled = false;
+    // In creazione si aspetta di sapere CHI sta scrivendo prima di leggere la
+    // bozza: senza, si leggerebbe una chiave non intestata a nessuno. In
+    // modifica non c'è nessuna bozza di mezzo, quindi non si aspetta niente.
+    if (mode !== "edit" && !userId && !route?.params?.prefill && !route?.params?.draftFromId) return;
     (async () => {
       try {
         // A-2: "Ho questo biglietto" da un annuncio CERCO → precompila un VENDO
@@ -816,20 +836,17 @@ const initialJsonRef = useRef(null);
             }));
           }
         } else {
-          const raw = await AsyncStorage.getItem(DRAFT_KEY);
-          if (raw && mode !== "edit") {
-            const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === "object") {
-              // bozze salvate prima dei campi routeFrom/routeTo: ricava la
-              // tratta dalla vecchia location "A → B"
-              if (parsed.location && !parsed.routeFrom && !parsed.routeTo) {
-                const [a, b] = splitRoute(parsed.location);
-                if (a || b) { parsed.routeFrom = a; parsed.routeTo = b; }
-              }
-              // Stessa guardia degli altri tre rami: senza, una bozza letta da
-              // AsyncStorage può atterrare su uno schermo già cambiato.
-              if (!cancelled) setForm((p) => ({ ...p, ...parsed }));
+          const parsed = await readDraft(AsyncStorage, userId);
+          if (parsed && mode !== "edit") {
+            // bozze salvate prima dei campi routeFrom/routeTo: ricava la
+            // tratta dalla vecchia location "A → B"
+            if (parsed.location && !parsed.routeFrom && !parsed.routeTo) {
+              const [a, b] = splitRoute(parsed.location);
+              if (a || b) { parsed.routeFrom = a; parsed.routeTo = b; }
             }
+            // Stessa guardia degli altri tre rami: senza, una bozza letta da
+            // AsyncStorage può atterrare su uno schermo già cambiato.
+            if (!cancelled) setForm((p) => ({ ...p, ...parsed }));
           }
         }
       } catch {
@@ -843,7 +860,11 @@ const initialJsonRef = useRef(null);
       }
     })();
     return () => { cancelled = true; };
-  }, [mode, route?.params?.listingId, route?.params?.draftFromId]);
+    // userId fra le dipendenze: la sessione si risolve subito dopo il primo
+    // render, e senza di essa l'effetto uscirebbe dal ramo di guardia qui
+    // sopra senza leggere mai la bozza. Passa da null a un valore una volta
+    // sola, quindi l'effetto utile gira comunque una volta.
+  }, [mode, userId, route?.params?.listingId, route?.params?.draftFromId]);
 
   // Fotografia dello stato iniziale, una sola volta e SOLO a prefill concluso.
   // Prima veniva scattata unicamente dopo una pubblicazione riuscita: fino ad
@@ -871,7 +892,7 @@ const initialJsonRef = useRef(null);
     if (mode === "edit") return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
-      try { await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(next)); } catch {}
+      await writeDraft(AsyncStorage, userIdRef.current, next);
     }, 350);
   }, [mode]);
 
@@ -2333,7 +2354,7 @@ const initialJsonRef = useRef(null);
 
         const res = await insertListing(payload);
         await flushPendingPhotos(res?.id);
-        await AsyncStorage.removeItem(DRAFT_KEY);
+        await clearDraft(AsyncStorage, userIdRef.current);
         publishedIds = [res?.id];
         Alert.alert(t("createListing.publishedTitle", "Pubblicato!"), t("createListing.publishedMsg", "Il tuo annuncio è stato pubblicato con successo."));
       }
@@ -2398,11 +2419,25 @@ const initialJsonRef = useRef(null);
     }
     try {
       setSaving(true);
-      await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(form));
+      // writeDraft non lancia: se non ha potuto scrivere (spazio finito, o
+      // sessione non ancora risolta) torna false. Senza questo controllo
+      // avremmo detto "Bozza salvata" a chi non ha salvato niente — e se ne
+      // sarebbe accorto solo riaprendo la schermata e trovandola vuota.
+      const salvata = await writeDraft(AsyncStorage, userIdRef.current, form);
       await new Promise((r) => setTimeout(r, 350));
+      if (!salvata) {
+        Alert.alert(
+          t("createListing.draftSaveErrorTitle", "Bozza non salvata"),
+          t("createListing.draftSaveError", "Non sono riuscito a salvare la bozza. Quello che hai scritto è ancora qui: puoi pubblicare subito o riprovare.")
+        );
+        return;
+      }
       Alert.alert(t("createListing.draftSavedTitle", "Bozza salvata"), t("createListing.draftSavedMsg", "Puoi riprenderla in qualsiasi momento."));
     } catch {
-      Alert.alert(t("common.error", "Errore"), t("createListing.draftSaveError", "Non sono riuscito a salvare la bozza."));
+      Alert.alert(
+        t("createListing.draftSaveErrorTitle", "Bozza non salvata"),
+        t("createListing.draftSaveError", "Non sono riuscito a salvare la bozza. Quello che hai scritto è ancora qui: puoi pubblicare subito o riprovare.")
+      );
     } finally {
       setSaving(false);
     }
