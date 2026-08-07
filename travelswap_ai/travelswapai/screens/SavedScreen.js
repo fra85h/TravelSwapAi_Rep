@@ -22,16 +22,35 @@ function subtitle(item) {
 // listSavedListings() non filtra per status: un annuncio salvato resta nei
 // Preferiti anche dopo essere stato venduto/scambiato/messo in pausa, dove
 // altrimenti sarebbe indistinguibile da uno ancora attivo e acquistabile.
-function statusLabel(status, t) {
+//
+// L'elenco copriva 4 stati sugli 11 dell'enum listing_status, e i sette che
+// mancavano finivano tutti in un "Non disponibile" identico. Fra quelli
+// c'erano proprio i tre che una persona ha bisogno di distinguere: scaduto
+// (il viaggio è passato), eliminato (non torna più) e riservato (c'è una
+// proposta in corso, ma se salta l'annuncio torna disponibile — vale la pena
+// tenerlo d'occhio, gli altri due no).
+const ETICHETTE = {
+  sold: ["savedScreen.statusSold", "Venduto"],
+  swapped: ["savedScreen.statusExchanged", "Scambiato"],
+  exchanged: ["savedScreen.statusExchanged", "Scambiato"],
+  paused: ["savedScreen.statusPaused", "In pausa"],
+  archived: ["savedScreen.statusArchived", "Archiviato"],
+  expired: ["savedScreen.statusExpired", "Scaduto: la data è passata"],
+  deleted: ["savedScreen.statusDeleted", "Eliminato da chi l'ha pubblicato"],
+  reserved: ["savedScreen.statusReserved", "Riservato: c'è una proposta in corso"],
+  pending: ["savedScreen.statusPending", "In attesa di conferma"],
+  draft: ["savedScreen.statusDraft", "Bozza: non ancora pubblicato"],
+};
+
+export function statusLabel(status, t) {
   if (!status || status === "active") return null;
-  const labels = {
-    sold: t("savedScreen.statusSold", "Venduto"),
-    exchanged: t("savedScreen.statusExchanged", "Scambiato"),
-    paused: t("savedScreen.statusPaused", "In pausa"),
-    archived: t("savedScreen.statusArchived", "Archiviato"),
-  };
-  return labels[status] || t("savedScreen.statusUnavailable", "Non disponibile");
+  const voce = ETICHETTE[status];
+  return voce ? t(voce[0], voce[1]) : t("savedScreen.statusUnavailable", "Non disponibile");
 }
+
+// Uno stato che può tornare attivo non merita lo stesso rosso di uno
+// terminale: "in pausa" e "riservato" possono sbloccarsi, "venduto" no.
+const TERMINALI = new Set(["sold", "swapped", "exchanged", "deleted", "expired", "archived"]);
 
 export default function SavedScreen() {
   const { t } = useI18n();
@@ -105,7 +124,11 @@ export default function SavedScreen() {
                 {item.title || t("savedScreen.untitledListing", "Annuncio")}
               </Text>
               <Text style={styles.sub}>{subtitle(item)}</Text>
-              {badge ? <Text style={styles.statusBadge}>{badge}</Text> : null}
+              {badge ? (
+                <Text style={[styles.statusBadge, !TERMINALI.has(item.status) && styles.statusBadgeSoft]}>
+                  {badge}
+                </Text>
+              ) : null}
               {item.price != null ? (
                 <Text style={styles.price}>
                   {item.price} {item.currency || "€"}
@@ -159,5 +182,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: "700", color: theme.colors.text },
   sub: { marginTop: 4, color: theme.colors.textMuted },
   statusBadge: { marginTop: 4, color: theme.colors.danger, fontSize: 12, fontWeight: "700" },
+  statusBadgeSoft: { color: theme.colors.textMuted },
   price: { marginTop: 6, fontWeight: "800", color: theme.colors.accent },
 });

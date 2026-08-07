@@ -2,16 +2,20 @@
 // Parte 8 "Funzionalità collaterali", step 36 "Preferiti"): salva un
 // annuncio, verifica che compaia nella lista Preferiti.
 //
-// Chiama saveListing()/listSavedListings() reali in lib/savedListings.js —
-// saveListing() ha logica applicativa vera (idempotente: controlla prima
-// con isSaved() per evitare un duplicato anche senza vincolo unico a DB);
+// Chiama saveListing()/listSavedListings() reali in lib/savedListings.js.
+// saveListing() e idempotente per costruzione: la chiave primaria di
+// saved_listings e la coppia (user_id, listing_id), quindi un upsert con
+// ignoreDuplicates basta. Prima c'era una isSaved() prima dell'insert, con
+// sopra scritto "evita duplicati anche senza vincolo unico": il vincolo pero
+// c'e da sempre, ed era un viaggio in piu a ogni stellina.
 // listSavedListings() appiattisce il join nidificato listing:listing_id e
 // scarta annunci cancellati (join nullo). Mock completo del client
 // Supabase, stesso approccio dei test precedenti.
 const ME = "99999999-9999-4999-8999-999999999999";
 const LISTING_ID = "bbbbbbbb-2222-4222-8222-222222222222";
 
-const mockInsert = jest.fn(async () => ({ error: null }));
+const mockUpsert = jest.fn(async () => ({ error: null }));
+const mockMaybeSingle = jest.fn(async () => ({ data: null, error: null }));
 
 jest.mock("../lib/supabase", () => ({
   supabase: {
@@ -27,7 +31,7 @@ jest.mock("../lib/supabase", () => ({
             return {
               eq: () => ({
                 eq: () => ({
-                  maybeSingle: async () => ({ data: null, error: null }),
+                  maybeSingle: mockMaybeSingle,
                 }),
               }),
             };
@@ -45,7 +49,7 @@ jest.mock("../lib/supabase", () => ({
             }),
           };
         },
-        insert: (payload) => mockInsert(payload),
+        upsert: (payload, opts) => mockUpsert(payload, opts),
       };
     },
   },
@@ -56,10 +60,17 @@ import { saveListing, listSavedListings } from "../lib/savedListings";
 test("Preferiti: salva un annuncio e lo ritrova nella lista Preferiti", async () => {
   await saveListing(LISTING_ID);
 
-  // Stesso "atteso" della checklist manuale, step 36: l'insert avviene con
-  // l'utente e l'annuncio corretti (idempotente: prima ha controllato che
-  // non fosse già salvato).
-  expect(mockInsert).toHaveBeenCalledWith({ user_id: ME, listing_id: LISTING_ID });
+  // Stesso "atteso" della checklist manuale, step 36: la riga viene scritta
+  // con l'utente e l'annuncio corretti.
+  expect(mockUpsert).toHaveBeenCalledWith(
+    { user_id: ME, listing_id: LISTING_ID },
+    { onConflict: "user_id,listing_id", ignoreDuplicates: true },
+  );
+
+  // ...e senza una lettura preliminare: il doppio salvataggio lo impedisce
+  // gia la chiave primaria, quindi quel viaggio in piu era solo ritardo fra
+  // il tocco e la stella piena.
+  expect(mockMaybeSingle).not.toHaveBeenCalled();
 
   const saved = await listSavedListings();
   expect(saved).toHaveLength(1);

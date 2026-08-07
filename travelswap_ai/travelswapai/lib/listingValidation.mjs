@@ -56,6 +56,29 @@ export function parseISODateTime(s) {
 export const MAX_PRICE = 99999999.99;
 
 /**
+ * Il prezzo ha più di due decimali?
+ *
+ * Un euro ha due decimali, e la colonna li rispecchia: numeric(10,2) tiene i
+ * primi due e arrotonda il resto in silenzio (verificato: 1.234 → 1.23,
+ * 1.235 → 1.24). Chi scrive "1,234" pensando a milleduecentotrentaquattro
+ * euro vedeva quel numero nel campo e pubblicava un annuncio da 1,23 €,
+ * senza che niente glielo dicesse.
+ *
+ * Si guarda il TESTO scritto e non il numero convertito: 1.234 in virgola
+ * mobile è già indistinguibile da qualunque altro valore vicino, mentre le
+ * cifre battute dicono esattamente quante ne sono state scritte.
+ */
+export function hasTooManyDecimals(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return false;
+  // Ultimo separatore: è quello decimale, qualunque simbolo sia.
+  const i = Math.max(s.lastIndexOf(","), s.lastIndexOf("."));
+  if (i < 0) return false;
+  const decimali = s.slice(i + 1).replace(/[^\d]/g, "");
+  return decimali.length > 2;
+}
+
+/**
  * @param {object} opts
  * @param {object} opts.form   lo stato del modulo
  * @param {string} opts.mode   "create" | "edit"
@@ -144,6 +167,7 @@ export function computeListingErrors({ form, mode, t, now = new Date() }) {
     // per farsi rifiutare da Postgres con un messaggio che non nomina il campo.
     else if (priceNum === 0) e.price = t("createListing.errors.priceZero", "Il prezzo deve essere maggiore di zero. Se lo regali, scrivi 1.");
     else if (priceNum > MAX_PRICE) e.price = t("createListing.errors.priceTooHigh", "Prezzo troppo alto: il massimo è {max}€.", { max: MAX_PRICE });
+    else if (hasTooManyDecimals(priceStr)) e.price = t("createListing.errors.priceDecimals", "Il prezzo può avere al massimo due decimali. Per milleduecento euro scrivi 1200, non 1.200.");
   }
 
   // Anti-bagarinaggio: il prezzo di vendita non può superare quello di
@@ -155,6 +179,8 @@ export function computeListingErrors({ form, mode, t, now = new Date() }) {
       if (!Number.isFinite(purchNum)) e.purchasePrice = t("createListing.errors.purchaseInvalid", "Prezzo di acquisto non valido.");
       else if (purchNum <= 0) e.purchasePrice = t("createListing.errors.purchaseNonPositive", "Il prezzo di acquisto deve essere maggiore di zero.");
       else if (purchNum > MAX_PRICE) e.purchasePrice = t("createListing.errors.priceTooHigh", "Prezzo troppo alto: il massimo è {max}€.", { max: MAX_PRICE });
+      // purchase_price è numeric(10,2) come price: stesso arrotondamento muto.
+      else if (hasTooManyDecimals(purchStr)) e.purchasePrice = t("createListing.errors.priceDecimals", "Il prezzo può avere al massimo due decimali. Per milleduecento euro scrivi 1200, non 1.200.");
       else if (Number.isFinite(priceNum) && priceNum > purchNum) {
         e.price = t("createListing.errors.priceAbovePurchase", "Il prezzo di vendita non può superare quello di acquisto ({purchase}€).", { purchase: purchNum });
       }
@@ -169,6 +195,8 @@ export function computeListingErrors({ form, mode, t, now = new Date() }) {
         const floorNum = parseLocalizedNumber(floorStr) ?? NaN;
         if (!Number.isFinite(floorNum)) e.priceFloor = t("createListing.errors.priceFloorInvalid", "Prezzo minimo non valido.");
         else if (floorNum <= 0) e.priceFloor = t("createListing.errors.priceFloorNonPositive", "Il prezzo minimo deve essere maggiore di zero.");
+        // price_floor è numeric(10,2) come gli altri due.
+        else if (hasTooManyDecimals(floorStr)) e.priceFloor = t("createListing.errors.priceDecimals", "Il prezzo può avere al massimo due decimali. Per milleduecento euro scrivi 1200, non 1.200.");
         else if (Number.isFinite(priceNum) && floorNum > priceNum) {
           e.priceFloor = t("createListing.errors.priceFloorAbovePrice", "Il prezzo minimo non può superare il prezzo di vendita.");
         }

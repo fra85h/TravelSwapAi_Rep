@@ -8,7 +8,7 @@
 // Il criterio di ogni caso è lo stesso: se questo controllo non c'è, che cosa
 // vede l'utente? Se la risposta è "un errore di database", il controllo va
 // qui.
-import { computeListingErrors, CAMPI_STEP_1, MAX_PRICE } from "../lib/listingValidation.mjs";
+import { computeListingErrors, CAMPI_STEP_1, MAX_PRICE, hasTooManyDecimals } from "../lib/listingValidation.mjs";
 
 // Il traduttore vero non serve: interessa QUALE campo è in errore, non come
 // è scritto il messaggio. Restituendo la chiave si legge meglio nei fallimenti.
@@ -77,6 +77,43 @@ describe("prezzo", () => {
     expect(err(TRENO, { price: "-10" }).price).toBe("createListing.errors.priceNegative");
     expect(err(TRENO, { price: "" }).price).toBe("createListing.errors.priceRequired");
     expect(err(TRENO, { price: "abc" }).price).toBe("createListing.errors.priceInvalid");
+  });
+
+  it("più di due decimali è rifiutato: l'euro ne ha due", () => {
+    // Il separatore delle migliaia NON esiste in questo campo: "1,234" e
+    // "1.234" valgono un euro e 234 millesimi. Il problema è che
+    // listings.price è numeric(10,2), quindi il terzo decimale sparisce
+    // arrotondando — verificato su Postgres: 1.234 → 1.23, 1.235 → 1.24.
+    // Chi scriveva "1,234" pensando a milleduecentotrentaquattro euro vedeva
+    // quel numero nel campo e pubblicava un annuncio da 1,23 €.
+    expect(err(TRENO, { price: "1,234" }).price).toBe("createListing.errors.priceDecimals");
+    expect(err(TRENO, { price: "1.234" }).price).toBe("createListing.errors.priceDecimals");
+    // Vale per tutti e tre i campi in euro: stessa colonna, stesso taglio.
+    expect(err(TRENO, { price: "40", purchasePrice: "50,123" }).purchasePrice)
+      .toBe("createListing.errors.priceDecimals");
+    expect(err(TRENO, { dynamicPricingEnabled: true, price: "40", priceFloor: "20,123" }).priceFloor)
+      .toBe("createListing.errors.priceDecimals");
+  });
+
+  it("il numero attaccato resta il modo di scrivere le migliaia", () => {
+    // La regola decisa: 1234 euro si scrive tutto attaccato.
+    expect(err(TRENO, { price: "1234" })).toEqual({});
+    expect(err(TRENO, { price: "1234,50" })).toEqual({});
+  });
+
+  it("hasTooManyDecimals guarda le cifre scritte, non il numero", () => {
+    // Sul numero convertito non si può contare: 1.234 in virgola mobile è
+    // indistinguibile da tanti valori vicini. Il testo battuto invece dice
+    // esattamente quante cifre sono state scritte.
+    expect(hasTooManyDecimals("1,234")).toBe(true);
+    expect(hasTooManyDecimals("1.234")).toBe(true);
+    expect(hasTooManyDecimals("49,90")).toBe(false);
+    expect(hasTooManyDecimals("1234")).toBe(false);
+    expect(hasTooManyDecimals("1.234,56")).toBe(false); // due decimali dopo l'ultimo separatore
+    expect(hasTooManyDecimals("50")).toBe(false);
+    expect(hasTooManyDecimals("")).toBe(false);
+    expect(hasTooManyDecimals(null)).toBe(false);
+    expect(hasTooManyDecimals("49,90 €")).toBe(false);
   });
 
   it("i formati che una persona scrive davvero passano", () => {

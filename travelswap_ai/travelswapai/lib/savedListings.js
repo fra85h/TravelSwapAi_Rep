@@ -32,14 +32,25 @@ export async function isSaved(listingId) {
   return !!data;
 }
 
-/** Aggiunge ai preferiti (idempotente: evita duplicati anche senza vincolo unico) */
+/**
+ * Aggiunge ai preferiti.
+ *
+ * Idempotente per costruzione: la chiave primaria di saved_listings è la
+ * coppia (user_id, listing_id), quindi un doppio salvataggio non può creare
+ * un duplicato — al massimo lo rifiuta il database. `upsert` con
+ * ignoreDuplicates gli dice di non rifiutarlo e di non fare niente.
+ *
+ * Prima c'era una isSaved() prima dell'insert, con sopra scritto "evita
+ * duplicati anche senza vincolo unico": il vincolo però c'è da sempre, ed
+ * era un viaggio in più a ogni stellina — su una connessione lenta, il
+ * ritardo fra il tocco e la stella piena.
+ */
 export async function saveListing(listingId) {
   const uid = await currentUserId();
   if (!uid) throw new Error("Non autenticato");
-  if (await isSaved(listingId)) return;
   const { error } = await supabase
     .from("saved_listings")
-    .insert({ user_id: uid, listing_id: listingId });
+    .upsert({ user_id: uid, listing_id: listingId }, { onConflict: "user_id,listing_id", ignoreDuplicates: true });
   if (error) throw error;
 }
 

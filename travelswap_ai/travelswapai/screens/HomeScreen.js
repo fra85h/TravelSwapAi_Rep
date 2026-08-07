@@ -13,6 +13,7 @@ import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import TrustScoreBadge from "../components/TrustScoreBadge";
 import SaveButton from "../components/SaveButton";
+import { getSavedIds } from "../lib/savedListings";
 import { Ionicons } from "@expo/vector-icons";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { formatMoney } from "../lib/number";
@@ -128,6 +129,8 @@ export default function HomeScreen() {
   const [error, setError] = useState(null);
   const [tab, setTab] = useState("all"); // "all" | "hotel" | "train"
   const [me, setMe] = useState(null);
+  // Gli id salvati, letti una volta sola per tutta la lista (vedi load()).
+  const [savedIds, setSavedIds] = useState(() => new Set());
   const [query, setQuery] = useState("");
   // Ricerca in linguaggio naturale: l'interpretazione dell'AI (tratta, date,
   // prezzo…) applicata SOPRA al filtro testuale. null = nessuna ricerca AI
@@ -186,10 +189,18 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       setError(null);
-      const [u, data] = await Promise.all([
+      // I preferiti si leggono UNA volta per tutta la lista. Prima ogni
+      // scheda montava la sua stellina senza `initialSaved`, quindi ognuna
+      // faceva per conto suo getUser() piu una select: con PAGE_SIZE a 30,
+      // una sessantina di richieste solo per sapere quali stelle accendere.
+      // getSavedIds() esisteva gia esattamente per questo e non la chiamava
+      // nessuno.
+      const [u, data, salvati] = await Promise.all([
         getCurrentUser().catch(() => null),
         listPublicListings({ limit: PAGE_SIZE, excludeMine: false }),
+        getSavedIds().catch(() => new Set()),
       ]);
+      setSavedIds(salvati);
       setMe(u);
       const rows = Array.isArray(data) ? data : [];
       setItems(rows);
@@ -491,7 +502,16 @@ export default function HomeScreen() {
                 <Text style={styles.mineBadgeText} numberOfLines={1}>{tt("listing.yourListingBadge", "È un tuo annuncio")}</Text>
               </View>
             ) : null}
-            <SaveButton listingId={item.id} size={22} />
+            <SaveButton
+              listingId={item.id}
+              size={22}
+              initialSaved={savedIds.has(item.id)}
+              onChange={(saved) => setSavedIds((prev) => {
+                const next = new Set(prev);
+                if (saved) next.add(item.id); else next.delete(item.id);
+                return next;
+              })}
+            />
           </View>
         </View>
 
