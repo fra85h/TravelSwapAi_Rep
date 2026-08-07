@@ -523,6 +523,11 @@ export default function ProfileScreen() {
       items: [
         { icon: "sparkles-outline", label: t("profile.aiSuggestions", "Suggeriti dall'AI"), route: "Matching" },
         { icon: "star-outline", label: t("profile.savedListings", "I miei preferiti"), route: "Saved" },
+        // Gli avvisi si creano da Esplora e finora si ritrovavano SOLO da lì:
+        // chi ne aveva impostato uno la settimana prima non aveva modo di
+        // rivederlo se non ripetendo la ricerca. Qui stanno accanto alle
+        // altre cose che ti riguardano.
+        { icon: "notifications-outline", label: t("profile.savedSearches", "I miei avvisi di ricerca"), route: "SavedSearches" },
         { icon: "git-network-outline", label: t("profile.chainProposals", "Scambi a 3"), route: "ChainProposals" },
       ],
     },

@@ -4,6 +4,7 @@
 // apertura e a ogni messaggio ricevuto i non-letti vengono azzerati (e il
 // numeretto sul tab Attività si aggiorna via notifyActivityChanged).
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { alertArgs } from "../lib/userError.mjs";
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet, Alert,
@@ -95,7 +96,7 @@ export default function ChatScreen() {
       await rateTransaction(offerId, n);
       setMyStars(n);
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e?.message || String(e));
+      Alert.alert(...alertArgs(e, { t, titolo: t("chat.rateFailedTitle", "Voto non registrato"), azione: t("chat.rateFailedAction", "Riprova: il tuo voto non è ancora stato salvato.") }));
     } finally {
       setStarsBusy(false);
     }
@@ -160,7 +161,7 @@ export default function ChatScreen() {
                 );
               }
             }
-            catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+            catch (e) { Alert.alert(...alertArgs(e, { t, titolo: t("chat.confirmFailedTitle", "Conferma non registrata"), azione: t("chat.confirmFailedAction", "Riprova fra poco: lo scambio resta com'era.") })); }
             finally { setHsBusy(false); }
           },
         },
@@ -174,7 +175,7 @@ export default function ChatScreen() {
       await reportExchangeProblem(offerId, reason);
       await Promise.all([refreshHandshake(), load()]);
       notifyActivityChanged();
-    } catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+    } catch (e) { Alert.alert(...alertArgs(e, { t, titolo: t("chat.reportFailedTitle", "Segnalazione non inviata"), azione: t("chat.reportFailedAction", "Riprova: nessuno è stato ancora avvisato.") })); }
     finally { setHsBusy(false); }
   }, [offerId, t, refreshHandshake, load]);
 
@@ -206,7 +207,7 @@ export default function ChatScreen() {
           onPress: async () => {
             setHsBusy(true);
             try { await cancelAcceptedOffer(offerId); notifyActivityChanged(); navigation.goBack(); }
-            catch (e) { Alert.alert(t("common.error", "Errore"), e?.message || String(e)); }
+            catch (e) { Alert.alert(...alertArgs(e, { t, titolo: t("chat.cancelFailedTitle", "Annullamento non riuscito"), azione: t("chat.cancelFailedAction", "Lo scambio è ancora attivo. Riprova fra poco.") })); }
             finally { setHsBusy(false); }
           },
         },

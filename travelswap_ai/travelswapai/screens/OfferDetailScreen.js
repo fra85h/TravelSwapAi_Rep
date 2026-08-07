@@ -16,6 +16,7 @@ import OfferExpiryBadge from "../components/OfferExpiryBadge";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import { normStatusKey } from "../lib/listingStatus";
+import { alertArgs } from "../lib/userError.mjs";
 export default function OfferDetailScreen() {
   const route = useRoute();
   const { t, locale } = useI18n();
@@ -154,7 +155,7 @@ export default function OfferDetailScreen() {
       }
       Alert.alert(t("common.ok", "OK"), t("offers.accepted", "Proposta accettata"));
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e.message || String(e));
+      Alert.alert(...alertArgs(e, { t, titolo: t("offers.acceptFailedTitle2", "Accettazione non riuscita"), azione: t("offers.acceptFailedAction", "La proposta è rimasta in attesa. Riprova fra poco.") }));
     } finally {
       setBusyId(null);
     }
@@ -211,7 +212,7 @@ export default function OfferDetailScreen() {
       await load();
       Alert.alert(t("common.ok", "OK"), t("offers.declined", "Proposta rifiutata"));
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e.message || String(e));
+      Alert.alert(...alertArgs(e, { t, titolo: t("offers.declineFailedTitle", "Rifiuto non registrato"), azione: t("offers.declineFailedAction", "La proposta è ancora in attesa. Riprova fra poco.") }));
     } finally {
       setBusyId(null);
     }

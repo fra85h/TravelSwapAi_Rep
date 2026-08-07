@@ -1,5 +1,6 @@
 // screens/OfferFlow.js — flussi completi Proponi acquisto / Proponi scambio
 import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { alertArgs } from "../lib/userError.mjs";
 import { View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -162,7 +163,7 @@ export default function OfferFlow() {
       Alert.alert(t("offerFlow.sentTitle", "Proposta inviata"), t("offerFlow.sentMsg", "Il proprietario riceverà subito la tua proposta."));
       navigation.goBack();
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e.message || String(e));
+      Alert.alert(...alertArgs(e, { t, titolo: t("offers.sendFailedTitle", "Proposta non inviata"), azione: t("offers.sendFailedAction", "Riprova: non è stata inviata a nessuno.") }));
     }
   };
 
@@ -174,7 +175,7 @@ export default function OfferFlow() {
       notifyActivityChanged();
       Alert.alert(t("common.ok", "OK"), t("offerFlow.canceled", "Proposta cancellata"));
     } catch (e) {
-      Alert.alert(t("common.error", "Errore"), e.message || String(e));
+      Alert.alert(...alertArgs(e, { t, titolo: t("offers.withdrawFailedTitle", "Proposta non ritirata"), azione: t("offers.withdrawFailedAction", "È ancora in attesa di risposta. Riprova fra poco.") }));
     }
   };
 

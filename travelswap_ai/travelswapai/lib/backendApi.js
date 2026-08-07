@@ -1,5 +1,6 @@
 // lib/backendApi.js
 import { supabase } from "./supabase";
+import { reportNetworkFailure, reportNetworkSuccess, isNetworkError } from "./connectivity";
 
 const API_BASE = (process.env.EXPO_PUBLIC_API_BASE || "").replace(/\/+$/, "");
 
@@ -86,6 +87,10 @@ export async function fetchJson(path, opts = {}) {
     } catch (e) {
       if (attempts >= maxAttempts) {
         clearTimeout(timer);
+        // Qui si decide se l'app è "offline": non lo si chiede a nessuno, lo
+        // si deduce dal fatto che la richiesta non è nemmeno partita. Un
+        // timeout NON conta — la rete c'era, era il server a essere lento.
+        if (isNetworkError(e)) reportNetworkFailure();
         if (e?.name === "AbortError") throw new Error(`Timeout dopo ${timeoutMs}ms: ${url}`);
         throw e;
       }
@@ -94,6 +99,8 @@ export async function fetchJson(path, opts = {}) {
   }
 
   clearTimeout(timer);
+  // Una risposta, anche un 500, dimostra che la rete c'è.
+  reportNetworkSuccess();
 
   const ct = (res.headers.get("content-type") || "").toLowerCase();
   const isJson = ct.includes("application/json");
