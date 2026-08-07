@@ -72,6 +72,16 @@ export default function SavedScreen() {
         <Text style={styles.emptyText}>
           {t("savedScreen.emptyText", "Nessun annuncio salvato.\nTocca la stella su un annuncio per aggiungerlo qui.")}
         </Text>
+        {/* Un vuoto che spiega come riempirlo ma non ci porta lascia
+            all'utente il compito di ricordarsi dov'era la vetrina. Il tab
+            Esplora è a un tocco, ma solo se sai di doverlo cercare. */}
+        <TouchableOpacity
+          style={styles.emptyCta}
+          onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
+          accessibilityRole="button"
+        >
+          <Text style={styles.emptyCtaText}>{t("savedScreen.emptyCta", "Esplora gli annunci")}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -122,6 +132,14 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     padding: 24,
   },
+  emptyCta: {
+    marginTop: 18,
+    backgroundColor: theme.colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+  },
+  emptyCtaText: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
   emptyText: {
     color: theme.colors.textMuted,
     marginTop: 10,

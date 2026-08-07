@@ -314,9 +314,24 @@ export default function SavedSearchesScreen({ navigation }) {
             <MatchCard key={m.id} match={m} onPress={handleMatchPress} t={t} locale={locale} />
           ))
         ) : (
-          <Text style={styles.emptyText}>
-            {t("savedSearches.emptyMatches", "Nessun annuncio trovato ancora per i tuoi avvisi.")}
-          </Text>
+          <>
+            <Text style={styles.emptyText}>
+              {t("savedSearches.emptyMatches", "Nessun annuncio trovato ancora per i tuoi avvisi.")}
+            </Text>
+            {/* Con avvisi attivi e zero risultati questa schermata non
+                portava da nessuna parte: l'unico sbocco erano i risultati,
+                cioè proprio quello che manca. */}
+            <Text style={styles.emptyHint}>
+              {t("savedSearches.emptyMatchesHint", "Appena ne compare uno che corrisponde, lo trovi qui e ti avvisiamo. Intanto puoi dare un'occhiata a cosa c'è già.")}
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyCta}
+              onPress={() => navigation.navigate("MainTabs", { screen: "Home" })}
+              accessibilityRole="button"
+            >
+              <Text style={styles.emptyCtaText}>{t("savedSearches.emptyCta", "Esplora gli annunci")}</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
     </ScrollView>
@@ -381,4 +396,14 @@ const styles = StyleSheet.create({
   matchListing: { color: theme.colors.text, fontWeight: "700" },
   matchPrice: { color: theme.colors.textMuted, fontSize: 12, marginTop: 2 },
   emptyText: { color: theme.colors.textMuted, lineHeight: 20 },
+  emptyHint: { color: theme.colors.textMuted, fontSize: 12.5, lineHeight: 17, marginTop: 8 },
+  emptyCta: {
+    alignSelf: "flex-start",
+    marginTop: 14,
+    backgroundColor: theme.colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  emptyCtaText: { color: theme.colors.accentOn, fontWeight: "800", fontSize: 14 },
 });

@@ -205,6 +205,8 @@ export const translations = {
     },
 
     notifications: {
+      vsActivity: "Qui trovi gli avvisi già arrivati. Le cose che aspettano una tua risposta stanno in Attività.",
+      goToActivity: "Vai ad Attività",
       a11y: "Notifiche",
       now: "ora",
       markAll: "Segna tutte come lette",
@@ -307,6 +309,7 @@ export const translations = {
     },
 
     savedScreen: {
+      emptyCta: "Esplora gli annunci",
       emptyText: "Nessun annuncio salvato.\nTocca la stella su un annuncio per aggiungerlo qui.",
       untitledListing: "Annuncio",
       statusSold: "Venduto",
@@ -321,7 +324,7 @@ export const translations = {
       permissionDeniedMsg: "Consenti l'accesso alle foto per aggiungere immagini.",
       uploadErrorTitle: "Errore caricamento",
       uploadErrorGeneric: "Impossibile caricare una foto.",
-      genericErrorTitle: "Errore",
+      genericErrorTitle: "Foto non caricata",
       genericErrorMsg: "Operazione non riuscita.",
       removePhotoTitle: "Rimuovi foto",
       removePhotoConfirm: "Vuoi eliminare questa foto?",
@@ -394,6 +397,8 @@ export const translations = {
     },
 
     savedSearches: {
+      emptyMatchesHint: "Appena ne compare uno che corrisponde, lo trovi qui e ti avvisiamo. Intanto puoi dare un'occhiata a cosa c'è già.",
+      emptyCta: "Esplora gli annunci",
       intro: "Crea un avviso e ti mostreremo qui i nuovi annunci che lo soddisfano — niente più ricerche ripetute a mano.",
       newAlert: "+ Nuovo avviso",
       myAlerts: "I tuoi avvisi",
@@ -483,9 +488,7 @@ export const translations = {
     },
 
     matchingScreen: {
-      backendErrorTitle: "Errore backend",
-      backendErrorMsg: "Impossibile contattare il server",
-      backendUnreachable: "Backend non raggiungibile",
+      backendUnreachable: "Suggerimenti non disponibili",
       noMatchesComputed: "Nessun match calcolato",
     },
 
@@ -540,6 +543,8 @@ export const translations = {
 
     // --- Create Listing ---
     createListing: {
+      stepOf: "Passo 1 di 2",
+      stepOf2: "Passo 2 di 2",
       title: "Nuovo annuncio",
       step1: "Dati principali",
       step2: "Dettagli & pubblicazione",
@@ -1334,7 +1339,7 @@ export const translations = {
         queued: "Aggiornamento in coda…",
         running: "L'AI sta cercando i migliori scambi…",
         done: "Aggiornato ✓",
-        error: "Server non raggiungibile",
+        error: "Non riesco ad aggiornare i suggerimenti. Riprova fra poco: quelli che vedi restano validi.",
         summary: "✨ {perfect} migliori, {compatible} in linea con te. ",
         tip: "Suggerimento: invia una proposta ai migliori.",
       },
@@ -1678,6 +1683,8 @@ export const translations = {
     },
 
     notifications: {
+      vsActivity: "Here you'll find alerts that already arrived. Things waiting for your reply are in Activity.",
+      goToActivity: "Go to Activity",
       a11y: "Notifications",
       now: "now",
       markAll: "Mark all as read",
@@ -1777,6 +1784,7 @@ export const translations = {
     },
 
     savedScreen: {
+      emptyCta: "Browse listings",
       emptyText: "No saved listings yet.\nTap the star on a listing to add it here.",
       untitledListing: "Listing",
       statusSold: "Sold",
@@ -1791,7 +1799,7 @@ export const translations = {
       permissionDeniedMsg: "Allow photo access to add images.",
       uploadErrorTitle: "Upload error",
       uploadErrorGeneric: "Couldn't upload a photo.",
-      genericErrorTitle: "Error",
+      genericErrorTitle: "Photo not uploaded",
       genericErrorMsg: "Something went wrong.",
       removePhotoTitle: "Remove photo",
       removePhotoConfirm: "Delete this photo?",
@@ -1864,6 +1872,8 @@ export const translations = {
     },
 
     savedSearches: {
+      emptyMatchesHint: "As soon as one matches, you'll find it here and we'll let you know. Meanwhile, take a look at what's already there.",
+      emptyCta: "Browse listings",
       intro: "Create an alert and we'll show new listings that match it here — no more repeating the same search by hand.",
       newAlert: "+ New alert",
       myAlerts: "Your alerts",
@@ -1953,9 +1963,7 @@ export const translations = {
     },
 
     matchingScreen: {
-      backendErrorTitle: "Backend error",
-      backendErrorMsg: "Unable to reach the server",
-      backendUnreachable: "Backend unreachable",
+      backendUnreachable: "Suggestions unavailable",
       noMatchesComputed: "No matches computed yet",
     },
 
@@ -2005,6 +2013,8 @@ export const translations = {
     },
 
     createListing: {
+      stepOf: "Step 1 of 2",
+      stepOf2: "Step 2 of 2",
       title: "New listing",
       step1: "Main info",
       step2: "Details & publish",
@@ -2787,7 +2797,7 @@ export const translations = {
         queued: "Refresh queued…",
         running: "The AI is looking for your best swaps…",
         done: "Updated ✓",
-        error: "Server unreachable",
+        error: "I can't refresh your suggestions. Try again shortly: the ones you see are still valid.",
         summary: "✨ {perfect} best, {compatible} in line with you. ",
         tip: "Tip: send a proposal to your best matches.",
       },
@@ -2999,6 +3009,8 @@ export const translations = {
     },
 
     notifications: {
+      vsActivity: "Aquí están los avisos que ya han llegado. Lo que espera tu respuesta está en Actividad.",
+      goToActivity: "Ir a Actividad",
       a11y: "Notificaciones",
       now: "ahora",
       markAll: "Marcar todas como leídas",
@@ -3098,6 +3110,7 @@ export const translations = {
     },
 
     savedScreen: {
+      emptyCta: "Explorar anuncios",
       emptyText: "Aún no tienes anuncios guardados.\nToca la estrella en un anuncio para añadirlo aquí.",
       untitledListing: "Anuncio",
       statusSold: "Vendido",
@@ -3112,7 +3125,7 @@ export const translations = {
       permissionDeniedMsg: "Permite el acceso a las fotos para añadir imágenes.",
       uploadErrorTitle: "Error al subir",
       uploadErrorGeneric: "No se pudo subir una foto.",
-      genericErrorTitle: "Error",
+      genericErrorTitle: "Foto no subida",
       genericErrorMsg: "Algo salió mal.",
       removePhotoTitle: "Eliminar foto",
       removePhotoConfirm: "¿Eliminar esta foto?",
@@ -3185,6 +3198,8 @@ export const translations = {
     },
 
     savedSearches: {
+      emptyMatchesHint: "En cuanto aparezca uno que coincida, lo verás aquí y te avisamos. Mientras tanto, echa un vistazo a lo que ya hay.",
+      emptyCta: "Explorar anuncios",
       intro: "Crea un aviso y te mostraremos aquí los nuevos anuncios que lo cumplan — se acabó repetir la misma búsqueda a mano.",
       newAlert: "+ Nuevo aviso",
       myAlerts: "Tus avisos",
@@ -3274,9 +3289,7 @@ export const translations = {
     },
 
     matchingScreen: {
-      backendErrorTitle: "Error del servidor",
-      backendErrorMsg: "No se pudo contactar con el servidor",
-      backendUnreachable: "Servidor no disponible",
+      backendUnreachable: "Sugerencias no disponibles",
       noMatchesComputed: "Todavía no se ha calculado ningún match",
     },
 
@@ -3326,6 +3339,8 @@ export const translations = {
     },
 
     createListing: {
+      stepOf: "Paso 1 de 2",
+      stepOf2: "Paso 2 de 2",
       title: "Nuevo anuncio",
       step1: "Datos principales",
       step2: "Detalles y publicación",
@@ -4117,7 +4132,7 @@ export const translations = {
         queued: "Actualización en cola…",
         running: "La IA está buscando tus mejores intercambios…",
         done: "Actualizado ✓",
-        error: "Servidor no disponible",
+        error: "No consigo actualizar las sugerencias. Inténtalo dentro de un rato: las que ves siguen siendo válidas.",
         summary: "✨ {perfect} mejores, {compatible} en línea contigo. ",
         tip: "Consejo: envía una propuesta a los mejores.",
       },
