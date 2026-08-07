@@ -2,7 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { TouchableOpacity, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isSaved, toggleSaved } from "../lib/savedListings";
+import { primoSalvataggio, segnaHintMostrato, mostraHintPreferiti } from "../lib/savedHint.mjs";
+import { supabase } from "../lib/supabase";
 import { theme } from "../lib/theme";
 
 const SAVED_COLOR = theme.colors.accent;
@@ -49,6 +52,20 @@ export default function SaveButton({ listingId, size = 24, initialSaved, onChang
       const now = await toggleSaved(listingId, prev);
       setSaved(now);
       onChange?.(now);
+      // Solo al PRIMO salvataggio in assoluto: chi salva per la prima volta
+      // non sa che esiste una lista dei preferiti, quindi non la cerca. Dalla
+      // seconda in poi lo sa, e ripeterlo insegnerebbe solo a ignorare gli
+      // avvisi. Non blocca il toggle se fallisce: e' un di piu'.
+      if (now) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          const uid = user?.id ?? null;
+          if (await primoSalvataggio(AsyncStorage, uid)) {
+            await segnaHintMostrato(AsyncStorage, uid);
+            mostraHintPreferiti();
+          }
+        } catch { /* il preferito e' salvato: il suggerimento e' secondario */ }
+      }
     } catch (e) {
       setSaved(prev); // rollback in caso di errore
     } finally {

@@ -11,7 +11,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Platform,
   Image,
   Linking,
 } from "react-native";
@@ -519,7 +518,12 @@ export default function ProfileScreen() {
       ],
     },
     {
-      title: t("profile.sectionActivity", "Attività"),
+      // "Attività" era anche il nome del tab in fondo, con dentro
+      // tutt'altro: offerte, chat, transazioni in corso. Qui invece non
+      // succede niente — sono quattro elenchi fermi che aspettano di essere
+      // guardati. Due parole uguali per due cose diverse nella stessa
+      // schermata costringono a impararsi quale sia quale.
+      title: t("profile.sectionLists", "Le mie liste"),
       items: [
         { icon: "sparkles-outline", label: t("profile.aiSuggestions", "Suggeriti dall'AI"), route: "Matching" },
         { icon: "star-outline", label: t("profile.savedListings", "I miei preferiti"), route: "Saved" },
@@ -789,29 +793,16 @@ export default function ProfileScreen() {
           paddingTop: 0,
           // Lo spazio per la barra dei tab lo mette già il Navigator
           // (sceneStyle in MainTabs, necessario da quando la barra galleggia
-          // sopra il contenuto): qui resta solo quello per il FAB, altrimenti
-          // si sommavano due volte e la lista finiva con un buco enorme.
-          paddingBottom: theme.tabBar.fadeHeight + 24 + 72,
+          // sopra il contenuto). Il "+72" che c'era qui teneva il posto a un
+          // FAB che non c'è più: era un secondo pulsante identico a quello
+          // già presente nella barra dei tab, e per giunta copriva la riga
+          // "Scambi a 3". Quando è nato, il tab centrale "Vendi" non
+          // esisteva ancora.
+          paddingBottom: theme.tabBar.fadeHeight + 24,
           paddingHorizontal: 16,
         }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
-
-      {/* FAB “+” */}
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => navigation.push("CreateListing")}
-        style={[
-          styles.fabWrap,
-          // Sopra la sfumatura che precede la barra dei tab: restando più in
-          // basso il FAB ci finirebbe dentro e apparirebbe slavato a metà.
-          { bottom: theme.tabBar.fadeHeight + 8 },
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel={t("profile.publishListing", "Pubblica annuncio")}
-      >
-        <View style={styles.fab}><Text style={styles.fabPlus}>+</Text></View>
-      </TouchableOpacity>
 
       <ActionSheet
         visible={!!actionSheetItem}
@@ -956,13 +947,6 @@ const styles = StyleSheet.create({
   emptyWrap: { alignItems: "center", justifyContent: "center", paddingVertical: 24 },
   emptyTitle: { fontWeight: "800", color: theme.colors.text, marginBottom: 6 },
   emptyText: { color: theme.colors.textMuted, textAlign: "center" },
-
-  fabWrap: { position: "absolute", right: 16 },
-  fab: {
-    width: 62, height: 62, borderRadius: 31, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center",
-    ...Platform.select({ ios: { shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, android: { elevation: 8 } }),
-  },
-  fabPlus: { color: theme.colors.boardingText, fontSize: 28, fontWeight: "900", marginTop: -2 },
 
   skel: { backgroundColor: theme.colors.border },
 
