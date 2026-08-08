@@ -25,7 +25,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useI18n } from "../lib/i18n";
-import { CameraView, useCameraPermissions } from "expo-camera";
+// Sul web CameraView scaricherebbe la libreria di decodifica da un CDN
+// esterno dentro un Worker: QrScanner sceglie da solo l'implementazione
+// giusta per la piattaforma (vedi components/QrScanner.web.js).
+import QrScanner, { useQrPermission } from "../components/QrScanner";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 // API legacy: readAsStringAsync per la lettura base64 su nativo (la nuova
@@ -953,7 +956,15 @@ const initialJsonRef = useRef(null);
   const [confirmationText, setConfirmationText] = useState("");
   const [importBusy, setImportBusy] = useState(false);
   const [qrVisible, setQrVisible] = useState(false);
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  // Lo scanner puo' non leggere per tanti motivi: luce scarsa, QR rovinato,
+  // e sul web anche perche' expo-camera scarica la libreria di decodifica da
+  // un CDN esterno (jsdelivr) dentro un Worker. Se quel download fallisce la
+  // promise di decodifica non si risolve NE' si rifiuta: la fotocamera resta
+  // aperta e non leggera' mai niente, per sempre, senza un messaggio.
+  // Invece di indovinare la causa, dopo qualche secondo si offre la strada
+  // che funziona comunque: scrivere il codice a mano.
+  const [qrLento, setQrLento] = useState(false);
+  const [cameraPermission, requestCameraPermission] = useQrPermission();
 
   /* ---------- FOTO ANNUNCIO ---------- */
   // in creazione: foto scelte ma non ancora caricate (nessun listing su cui appoggiarle)
@@ -2489,6 +2500,12 @@ const initialJsonRef = useRef(null);
     }
   };
 
+  useEffect(() => {
+    if (!qrVisible) { setQrLento(false); return undefined; }
+    const t = setTimeout(() => setQrLento(true), 8000);
+    return () => clearTimeout(t);
+  }, [qrVisible]);
+
   const onQrScanned = async ({ data }) => {
     try {
       setImportBusy(true);
@@ -3831,18 +3848,32 @@ const initialJsonRef = useRef(null);
           <View style={styles.qrFrame}>
             <Text style={styles.qrTitle}>{t("createListing.qrPromptTitle", "Inquadra il QR del biglietto")}</Text>
             <View style={styles.qrCameraWrap}>
-              <CameraView
-                style={{ flex: 1 }}
-                facing="back"
-                barcodeScannerSettings={{ barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39", "pdf417", "upc_a", "upc_e"] }}
-                onBarcodeScanned={importBusy ? undefined : onQrScanned}
+              <QrScanner
+                paused={importBusy}
+                onScanned={(data) => onQrScanned({ data })}
               />
             </View>
+
+            {qrLento ? (
+              <Text style={styles.qrHint}>
+                {t("createListing.qrSlowHint", "Non lo legge? Puoi scrivere il codice di prenotazione a mano.")}
+              </Text>
+            ) : null}
 
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity onPress={() => setQrVisible(false)} style={[styles.footerBtn, styles.footerGhost, { flex: 1 }]}>
                 <Text style={[styles.footerText, { color: theme.colors.text }]}>{t("common.cancel", "Annulla")}</Text>
               </TouchableOpacity>
+              {qrLento ? (
+                <TouchableOpacity
+                  onPress={() => { setQrVisible(false); setImportSheet(true); }}
+                  style={[styles.footerBtn, styles.footerPrimary, { flex: 1 }]}
+                >
+                  <Text style={[styles.footerText, { color: theme.colors.accentOn }]}>
+                    {t("createListing.qrTypeInstead", "Scrivi il codice")}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         </View>
@@ -4158,6 +4189,7 @@ const styles = StyleSheet.create({
   qrOverlay: { flex: 1, backgroundColor: "#000000CC", alignItems: "center", justifyContent: "center", padding: 16 },
   qrFrame: { width: "100%", maxWidth: 480, backgroundColor: theme.colors.primary, borderRadius: 16, padding: 12, gap: 12 },
   qrTitle: { fontWeight: "800", color: theme.colors.boardingText, alignSelf: "center" },
+  qrHint: { color: "#fff", fontSize: 13, lineHeight: 18, textAlign: "center", marginBottom: 10, opacity: 0.9 },
   qrCameraWrap: { height: 300, borderRadius: 12, overflow: "hidden", borderWidth: 1, borderColor: theme.colors.border },
 
   // --- new for price info + AI button
