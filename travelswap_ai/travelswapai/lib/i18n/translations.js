@@ -310,6 +310,12 @@ export const translations = {
       logoutConfirmMsg: "Dovrai reinserire le credenziali al prossimo accesso.",
     },
 
+    qrScanner: {
+      denied: "Non ho accesso alla fotocamera. Puoi consentirlo dalle impostazioni del browser, oppure scrivere il codice a mano.",
+      unsupported: "Questo browser non permette di usare la fotocamera. Scrivi il codice a mano.",
+      generic: "Non riesco ad aprire la fotocamera. Scrivi il codice a mano.",
+    },
+
     savedHint: {
       text: "Salvato. Ritrovi i tuoi preferiti dalla stella qui in alto.",
       cta: "Vedi",
@@ -812,6 +818,8 @@ export const translations = {
       scanQr: "Scansiona QR",
       scanQrUnavailable: "Scansiona QR (non disponibile)",
       qrPromptTitle: "Inquadra il QR del biglietto",
+      qrSlowHint: "Non lo legge? Puoi scrivere il codice di prenotazione a mano.",
+      qrTypeInstead: "Scrivi il codice",
       scannerUnavailable: "Scanner non disponibile",
       scannerUnavailableTitle: "Scanner non disponibile",
       scannerUnavailableMsg:
@@ -1832,6 +1840,12 @@ export const translations = {
       logoutConfirmMsg: "You'll need to sign in again next time.",
     },
 
+    qrScanner: {
+      denied: "I don't have access to the camera. You can allow it from your browser settings, or type the code by hand.",
+      unsupported: "This browser doesn't allow camera access. Type the code by hand.",
+      generic: "I can't open the camera. Type the code by hand.",
+    },
+
     savedHint: {
       text: "Saved. You can find your favorites from the star up top.",
       cta: "View",
@@ -2322,6 +2336,8 @@ export const translations = {
       scanQr: "Scan QR",
       scanQrUnavailable: "Scan QR (unavailable)",
       qrPromptTitle: "Frame the ticket QR",
+      qrSlowHint: "Not reading it? You can type the booking code by hand.",
+      qrTypeInstead: "Type the code",
       scannerUnavailable: "Scanner unavailable",
       scannerUnavailableTitle: "Scanner unavailable",
       scannerUnavailableMsg:
@@ -3205,6 +3221,12 @@ export const translations = {
       logoutConfirmMsg: "Tendrás que iniciar sesión de nuevo la próxima vez.",
     },
 
+    qrScanner: {
+      denied: "No tengo acceso a la cámara. Puedes permitirlo desde los ajustes del navegador, o escribir el código a mano.",
+      unsupported: "Este navegador no permite usar la cámara. Escribe el código a mano.",
+      generic: "No consigo abrir la cámara. Escribe el código a mano.",
+    },
+
     savedHint: {
       text: "Guardado. Encuentras tus favoritos con la estrella de arriba.",
       cta: "Ver",
@@ -3697,6 +3719,8 @@ export const translations = {
       scanQr: "Escanear QR",
       scanQrUnavailable: "Escanear QR (no disponible)",
       qrPromptTitle: "Enfoca el QR del billete",
+      qrSlowHint: "¿No lo lee? Puedes escribir el código de reserva a mano.",
+      qrTypeInstead: "Escribe el código",
       scannerUnavailable: "Escáner no disponible",
       scannerUnavailableTitle: "Escáner no disponible",
       scannerUnavailableMsg:
