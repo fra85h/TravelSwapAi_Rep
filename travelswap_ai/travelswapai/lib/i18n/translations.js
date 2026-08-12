@@ -316,6 +316,15 @@ export const translations = {
       generic: "Non riesco ad aprire la fotocamera. Scrivi il codice a mano.",
     },
 
+    market: {
+      similar: "In questi giorni, sulla stessa tratta, ci sono altri {n} annunci.",
+      similarOne: "In questi giorni, sulla stessa tratta, c'è un altro annuncio.",
+      cheaper: "Di questi, {n} costano meno del tuo.",
+      cheaperOne: "Costa meno del tuo.",
+      watchers: "{n} persone hanno un avviso attivo su questa tratta.",
+      watchersOne: "Una persona ha un avviso attivo su questa tratta.",
+    },
+
     savedHint: {
       text: "Salvato. Ritrovi i tuoi preferiti dalla stella qui in alto.",
       cta: "Vedi",
@@ -1846,6 +1855,15 @@ export const translations = {
       generic: "I can't open the camera. Type the code by hand.",
     },
 
+    market: {
+      similar: "Around these dates, on the same route, there are {n} other listings.",
+      similarOne: "Around these dates, on the same route, there is one other listing.",
+      cheaper: "Of those, {n} cost less than yours.",
+      cheaperOne: "It costs less than yours.",
+      watchers: "{n} people have an active alert on this route.",
+      watchersOne: "One person has an active alert on this route.",
+    },
+
     savedHint: {
       text: "Saved. You can find your favorites from the star up top.",
       cta: "View",
@@ -3225,6 +3243,15 @@ export const translations = {
       denied: "No tengo acceso a la cámara. Puedes permitirlo desde los ajustes del navegador, o escribir el código a mano.",
       unsupported: "Este navegador no permite usar la cámara. Escribe el código a mano.",
       generic: "No consigo abrir la cámara. Escribe el código a mano.",
+    },
+
+    market: {
+      similar: "En estos días, en el mismo trayecto, hay otros {n} anuncios.",
+      similarOne: "En estos días, en el mismo trayecto, hay otro anuncio.",
+      cheaper: "De estos, {n} cuestan menos que el tuyo.",
+      cheaperOne: "Cuesta menos que el tuyo.",
+      watchers: "{n} personas tienen un aviso activo en este trayecto.",
+      watchersOne: "Una persona tiene un aviso activo en este trayecto.",
     },
 
     savedHint: {
