@@ -17,7 +17,7 @@
 -- Le colonne di una tabella mancante non vengono elencate: si vedrebbe
 -- l'intera tabella riga per riga, e la riga 'tabella' dice già tutto.
 --
--- Oggetti attesi: 31 tabelle, 265 colonne, 78 funzioni, 20 trigger.
+-- Oggetti attesi: 32 tabelle, 272 colonne, 79 funzioni, 21 trigger.
 -- ============================================================
 
 WITH attesi(tipo, oggetto) AS (VALUES
@@ -31,6 +31,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('tabella',  'fb_link_codes'),
 ('tabella',  'fb_sessions'),
 ('tabella',  'listing_ai_scores'),
+('tabella',  'listing_events'),
 ('tabella',  'listing_images'),
 ('tabella',  'listing_pings'),
 ('tabella',  'listing_questions'),
@@ -112,6 +113,13 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('colonna',  'listing_ai_scores.listing_id'),
 ('colonna',  'listing_ai_scores.payload'),
 ('colonna',  'listing_ai_scores.reliability'),
+('colonna',  'listing_events.at'),
+('colonna',  'listing_events.dynamic'),
+('colonna',  'listing_events.id'),
+('colonna',  'listing_events.kind'),
+('colonna',  'listing_events.listing_id'),
+('colonna',  'listing_events.price'),
+('colonna',  'listing_events.status'),
 ('colonna',  'listing_images.id'),
 ('colonna',  'listing_images.listing_id'),
 ('colonna',  'listing_images.position'),
@@ -325,6 +333,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('funzione', 'accept_terms'),
 ('funzione', 'account_deletion_blockers'),
 ('funzione', 'after_insert_offers_update_listing'),
+('funzione', 'after_listing_write_record_event'),
 ('funzione', 'after_update_listings_invalidate_translations'),
 ('funzione', 'after_update_offers_propagate'),
 ('funzione', 'anonymize_account'),
@@ -396,6 +405,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('funzione', 'sync_pnr_fingerprint'),
 ('funzione', 'update_listing_trust_score'),
 ('trigger',  'after_chain_proposal_canceled'),
+('trigger',  'after_listing_write_record_event'),
 ('trigger',  'after_offer_notify'),
 ('trigger',  'on_auth_user_created'),
 ('trigger',  'on_auth_user_email_confirmed'),
