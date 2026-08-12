@@ -39,9 +39,11 @@ import DateTimeField from "../components/DateTimeField";
 import { parseListingFromTextAI, parseListingFromPdfAI } from "../lib/descriptionParser"; // OpenAI parser (server-side)
 import { Image } from "react-native";
 import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
+import { getMarketContext } from "../lib/db";
 import { parseLocalizedNumber } from "../lib/number";
 import { suggestListingPrice } from "../lib/priceSuggestion";
 import { isConcludedStatus } from "../lib/listingStatus";
+import { marketContextItems, filtraComparabili, MERCATO } from "../lib/marketContext.mjs";
 import { useAuth } from "../lib/auth";
 import { readDraft, writeDraft, clearDraft, dropLegacyDraft } from "../lib/listingDraft.mjs";
 // Le regole di validazione vivono fuori di qui perché possano essere provate
@@ -1750,6 +1752,14 @@ const initialJsonRef = useRef(null);
    *    un'azione che non ha avviato è solo rumore.
    */
   const [pricePeerHint, setPricePeerHint] = useState(null); // { pct, explanation } | null
+
+  // Il contesto di mercato: quanti annunci confrontabili esistono e quante
+  // persone seguono questa tratta. Si legge UNA volta, quando tratta e data
+  // sono note: l'insieme non dipende dal prezzo, solo il conteggio "quanti
+  // costano meno del tuo" dipende — e quello si ricalcola qui in locale
+  // mentre si digita, senza una richiesta per tasto.
+  const [mercato, setMercato] = useState(null); // { comparabili, inAttesa } | null
+  const chiaveMercatoRef = useRef(null);
   const lastCheckedPriceRef = useRef(null);
 
   /* ---------- RIEPILOGO PRIMA DI PUBBLICARE ----------
@@ -1818,6 +1828,54 @@ const initialJsonRef = useRef(null);
 
     return items.map((it) => ({ icon: it.icon, text: TESTI[it.code](it.params) }));
   };
+
+  // Chiave dei dati che definiscono il mercato di questo annuncio. Cambia
+  // solo quando cambia davvero il mercato (tipo, direzione, tratta, data):
+  // scrivere il prezzo non la tocca, quindi non fa ripartire nessuna lettura.
+  const chiaveMercato = useMemo(() => {
+    const luogo = form?.type === "hotel"
+      ? String(form.location || "").trim().toLowerCase()
+      : `${String(form.routeFrom || "").trim().toLowerCase()}|${String(form.routeTo || "").trim().toLowerCase()}`;
+    const quando = (form?.type === "hotel" ? form.checkIn : form.departAt) || "";
+    if (!luogo.replace("|", "")) return null;
+    const direzione = String(form.cercoVendo || "").toUpperCase() === "CERCO" ? "CERCO" : "VENDO";
+    return `${form?.type}|${direzione}|${luogo}|${String(quando).slice(0, 10)}`;
+  }, [form?.type, form?.location, form?.routeFrom, form?.routeTo, form?.checkIn, form?.departAt, form?.cercoVendo]);
+
+  useEffect(() => {
+    if (!chiaveMercato || chiaveMercatoRef.current === chiaveMercato) return;
+    chiaveMercatoRef.current = chiaveMercato;
+    let vivo = true;
+    (async () => {
+      // Non blocca e non avvisa: è un di più informativo, non un dato
+      // necessario a pubblicare. Se non arriva, la riga semplicemente non
+      // compare — è la stessa scelta dello stato vuoto: meglio niente che
+      // uno zero che sembra un fatto.
+      const ctx = await getMarketContext({
+        type: form?.type,
+        cercoVendo: String(form.cercoVendo || "").toUpperCase() === "CERCO" ? "CERCO" : "VENDO",
+        routeFrom: form.routeFrom,
+        routeTo: form.routeTo,
+        location: form.location,
+      }).catch(() => null);
+      if (vivo) setMercato(ctx);
+    })();
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chiaveMercato]);
+
+  // Le voci da mostrare, ricalcolate a ogni battuta sul prezzo — in locale,
+  // senza toccare la rete.
+  const vociMercato = useMemo(() => {
+    if (!mercato) return [];
+    const dataEvento = (form?.type === "hotel" ? form.checkIn : form.departAt) || null;
+    const comparabili = filtraComparabili(mercato.comparabili, {
+      tipo: form?.type,
+      dataEvento,
+      escludiId: listingId || passedListing?.id || null,
+    });
+    return marketContextItems({ comparabili, prezzo: parseLocalizedNumber(form.price), inAttesa: mercato.inAttesa });
+  }, [mercato, form?.type, form?.checkIn, form?.departAt, form.price, listingId, passedListing?.id]);
 
   const runAutoPriceCheck = async () => {
     if (isCerco) return;                  // un CERCO è un budget, non un prezzo di vendita
@@ -3394,6 +3452,37 @@ const initialJsonRef = useRef(null);
                   )}
                   {!!fieldError("price") && <Text style={styles.errorText}>{fieldError("price")}</Text>}
 
+                  {/* Il mercato attorno a questo annuncio: solo fatti
+                      contati, nessuna probabilità — quella la inventeremmo,
+                      e chi legge abbasserebbe il prezzo per davvero sulla
+                      base di un numero uscito dal nulla. Se non c'è niente
+                      da dire non compare: con la vetrina vuota, che oggi è
+                      il caso normale, "0 annunci simili" sarebbe vero e
+                      inutile insieme. */}
+                  {vociMercato.length ? (
+                    <View style={styles.mercatoBox}>
+                      {vociMercato.map((v) => (
+                        <Text key={v.code} style={styles.mercatoText}>
+                          {/* Singolare e plurale sono chiavi separate, come
+                              già per "manca 1 passaggio": il dizionario non
+                              declina, e "1 persone hanno" si legge come un
+                              errore dell'app. */}
+                          {v.code === MERCATO.SIMILI
+                            ? (v.params.n === 1
+                                ? t("market.similarOne", "In questi giorni, sulla stessa tratta, c'è un altro annuncio.")
+                                : t("market.similar", "In questi giorni, sulla stessa tratta, ci sono altri {n} annunci.", v.params))
+                            : v.code === MERCATO.PIU_ECONOMICI
+                            ? (v.params.n === 1
+                                ? t("market.cheaperOne", "Costa meno del tuo.")
+                                : t("market.cheaper", "Di questi, {n} costano meno del tuo.", v.params))
+                            : (v.params.n === 1
+                                ? t("market.watchersOne", "Una persona ha un avviso attivo su questa tratta.")
+                                : t("market.watchers", "{n} persone hanno un avviso attivo su questa tratta.", v.params))}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
+
                   {/* Avviso "sopra mercato": informativo, mai bloccante, e
                       volutamente senza un bottone per correggere il prezzo —
                       il numero lo decide chi vende. */}
@@ -4112,6 +4201,13 @@ const styles = StyleSheet.create({
   note: { fontSize: 12, lineHeight: 16, color: theme.colors.textMuted, marginTop: 6 },
   // Ambra e non rosso: non è un errore da correggere, è un'informazione su
   // una scelta che resta di chi vende.
+  mercatoBox: {
+    marginTop: 8, padding: 10, borderRadius: 10,
+    backgroundColor: theme.colors.surfaceMuted,
+    borderWidth: 1, borderColor: theme.colors.border,
+    gap: 3,
+  },
+  mercatoText: { color: theme.colors.textMuted, fontSize: 12.5, lineHeight: 17 },
   priceHintBox: {
     marginTop: 8, padding: 10, borderRadius: 12,
     backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FCD34D",

@@ -411,6 +411,59 @@ export async function listPublicListings({ limit = 50, excludeMine = true, befor
   return data || [];
 }
 
+/**
+ * Il contesto di mercato per chi sta scrivendo il prezzo: gli annunci
+ * confrontabili e quante persone seguono questa tratta.
+ *
+ * Due letture, e una sola volta: l'insieme dei confrontabili non dipende dal
+ * prezzo — solo il conteggio "quanti costano meno del tuo" dipende, e quello
+ * si ricalcola in locale mentre si digita (vedi lib/marketContext.mjs). Una
+ * richiesta per tasto sarebbe stata inutile e costosa.
+ *
+ * Il conteggio di chi segue la tratta passa da una funzione del database e
+ * non da una query: saved_searches è leggibile solo dal proprietario, e chi
+ * ne vedesse le righe saprebbe chi cerca cosa e a quale prezzo massimo. La
+ * funzione restituisce solo un numero.
+ */
+export async function getMarketContext({ type, cercoVendo = "VENDO", routeFrom, routeTo, location, excludeId = null } = {}) {
+  const me = await getCurrentUser().catch(() => null);
+
+  let q = supabase
+    .from("listings")
+    .select("id, type, price, depart_at, check_in")
+    .eq("status", "active")
+    .eq("type", type)
+    .eq("cerco_vendo", cercoVendo)
+    .limit(60);
+  if (type === "hotel") {
+    q = q.ilike("location", `%${String(location || "").trim()}%`);
+  } else {
+    q = q.ilike("route_from", `%${String(routeFrom || "").trim()}%`)
+         .ilike("route_to", `%${String(routeTo || "").trim()}%`);
+  }
+  // I propri annunci non sono concorrenza di se stessi.
+  if (me?.id) q = q.neq("user_id", me.id);
+
+  // Le due letture in parallelo, e nessuna delle due può far fallire la
+  // schermata: è un di più informativo, non un dato necessario a pubblicare.
+  const [comparabili, inAttesa] = await Promise.all([
+    q.then(({ data, error }) => (error ? [] : data || [])).catch(() => []),
+    supabase
+      .rpc("count_route_watchers", {
+        p_type: type,
+        p_cerco_vendo: cercoVendo,
+        p_route_from: type === "hotel" ? null : routeFrom || null,
+        p_route_to: type === "hotel" ? null : routeTo || null,
+        p_location: type === "hotel" ? location || null : null,
+      })
+      // null e non 0: "non lo sappiamo" non deve diventare "nessuno".
+      .then(({ data, error }) => (error ? null : data))
+      .catch(() => null),
+  ]);
+
+  return { comparabili, inAttesa, excludeId };
+}
+
 /** Lista dei miei annunci */
 /** Quanti annunci carica al massimo listMyListings in una volta. Esportata
  *  perché il Profilo deve poter dire "ne sto mostrando solo una parte". */
