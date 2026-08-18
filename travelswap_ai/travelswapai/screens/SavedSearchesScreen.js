@@ -17,15 +17,13 @@ import { theme } from "../lib/theme";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import StationAutocomplete from "../components/StationAutocomplete";
+import { formatWallShortDate } from "../lib/wallClock.mjs";
 
-function formatDate(iso, locale) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString(locale || undefined, { day: "2-digit", month: "short" });
-  } catch {
-    return "";
-  }
-}
+// Le date qui sono sempre quelle dell'annuncio (check_in, depart_at): orari
+// "da parete" salvati naive, che vanno letti in UTC. toLocaleDateString ci
+// applicava il fuso del telefono e per i viaggi serali mostrava il giorno
+// dopo — diverso da quello scritto nella scheda annuncio.
+const formatDate = formatWallShortDate;
 
 function describeSearch(s, t) {
   if (s.type === "hotel") {

@@ -21,17 +21,12 @@ import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import Button from "../components/ui/Button";
+import { formatWallShortDate } from "../lib/wallClock.mjs";
 
-function formatDate(iso, locale) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString(locale || undefined, {
-      day: "2-digit", month: "short",
-    });
-  } catch {
-    return "";
-  }
-}
+// Date dell'annuncio: orari "da parete" salvati naive, da leggere in UTC.
+// Col fuso del telefono un treno serale compariva col giorno dopo, e la
+// stessa catena mostrava date diverse da quelle della scheda annuncio.
+const formatDate = formatWallShortDate;
 
 function describeListing(listing, t, locale) {
   if (!listing) return t("chains.unknownListing", "Annuncio non disponibile");

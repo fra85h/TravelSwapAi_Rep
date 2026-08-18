@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { stripPriceFromTitle } from "../lib/listingTitle";
 import { formatMoney } from "../lib/number";
 import { parseSearchQueryAI, hasAnyFilter } from "../lib/searchParser";
+import { formatWallShortDate } from "../lib/wallClock.mjs";
 
 function SkeletonCard() {
   return (
@@ -57,14 +58,10 @@ function isTopPick(p) {
 }
 
 // Data breve per la card ("24 lug"), senza dover aprire il dettaglio.
-function formatShortDate(iso, locale) {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString(locale || undefined, { day: "2-digit", month: "short" });
-  } catch {
-    return "";
-  }
-}
+// Date dell'annuncio nella vetrina: orari "da parete" salvati naive, da
+// leggere in UTC. Col fuso del telefono un treno serale compariva nel feed
+// col giorno dopo rispetto alla scheda annuncio che apriva.
+const formatShortDate = formatWallShortDate;
 
 // Estrae i migliori suggerimenti AI dallo snapshot backend, in modo
 // tollerante alla forma della risposta (come fa MatchingScreen). Best

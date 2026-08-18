@@ -18,6 +18,7 @@ import { theme } from "../lib/theme";
 import { useOnline } from "../components/OfflineBanner";
 import OfferExpiryBadge from "../components/OfferExpiryBadge";
 import { formatMoney } from "../lib/number";
+import { formatWallShortDate } from "../lib/wallClock.mjs";
 
 // Quante card mostrare, prima di "Mostra tutti", nelle sezioni che crescono
 // nel tempo (storico, scadute).
@@ -46,6 +47,11 @@ function SkeletonCard() {
   );
 }
 
+// Qui convivono due date di natura diversa, e vanno lette in due modi.
+// `created_at` è un istante vero (lo scrive il database): si mostra nel fuso
+// di chi legge, ed è questa formatDate. Le date dell'annuncio (check_in,
+// depart_at) sono orari "da parete" salvati naive: vanno lette in UTC, o in
+// Italia scivolano di un giorno per i viaggi serali (vedi lib/wallClock.mjs).
 function formatDate(iso, locale) {
   if (!iso) return "";
   try {
@@ -59,12 +65,12 @@ function describeListing(listing, t, locale) {
   if (!listing) return t("chains.unknownListing", "Annuncio non disponibile");
   if (listing.type === "hotel") {
     const city = listing.location || t("chains.unknownCity", "città sconosciuta");
-    const d = formatDate(listing.check_in, locale);
+    const d = formatWallShortDate(listing.check_in, locale);
     return d ? `${city} · ${d}` : city;
   }
   const from = listing.route_from || "?";
   const to = listing.route_to || "?";
-  const d = formatDate(listing.depart_at, locale);
+  const d = formatWallShortDate(listing.depart_at, locale);
   return d ? `${from} → ${to} · ${d}` : `${from} → ${to}`;
 }
 
