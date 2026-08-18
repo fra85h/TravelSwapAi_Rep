@@ -122,13 +122,37 @@ export async function recomputeDynamicPrices() {
     // quello vecchio.
     const avvisaSalvati = deveAvvisareChiHaSalvato(listing, next);
 
-    const { error: updErr } = await supabase
+    let scrittura = supabase
       .from("listings")
       .update(avvisaSalvati ? { price: next, savers_notified_price: next } : { price: next })
       .eq("id", listing.id)
       .eq("status", "active"); // ricontrollo: salta se nel frattempo non è più active
+
+    // Compare-and-set sul riferimento anti-spam: la scrittura passa solo se
+    // savers_notified_price è ancora quello che abbiamo letto poco fa. Il
+    // turno in withCronLease dovrebbe già impedire due giri insieme, ma un
+    // turno ha una scadenza e questo controllo no: se per qualunque motivo
+    // due esecuzioni si accavallano, la seconda non trova più il valore che
+    // si aspettava, non scrive, e nessuno riceve due volte la stessa
+    // notifica di calo prezzo.
+    if (avvisaSalvati) {
+      scrittura = listing.savers_notified_price == null
+        ? scrittura.is("savers_notified_price", null)
+        : scrittura.eq("savers_notified_price", listing.savers_notified_price);
+    }
+
+    // `.select()` non serve per leggere: serve per SAPERE se la riga è stata
+    // toccata. Senza, un update che non trova nulla è indistinguibile da uno
+    // riuscito, e il fan-out partirebbe lo stesso.
+    const { data: righeToccate, error: updErr } = await scrittura.select("id");
     if (updErr) {
       console.error("[priceDecay] update fallito per", listing.id, updErr.message);
+      continue;
+    }
+    if (!Array.isArray(righeToccate) || righeToccate.length === 0) {
+      // Nessuna riga: l'annuncio non è più attivo, oppure un altro giro ha
+      // già fatto questo lavoro. In entrambi i casi qui non c'è niente da
+      // annunciare.
       continue;
     }
     updated++;

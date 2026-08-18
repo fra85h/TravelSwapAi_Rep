@@ -297,9 +297,21 @@ export async function insertListing(payload) {
   }
   return pubblicato;
 }
-export async function updateListing(id, patch) {
+/** L'annuncio è cambiato fra il momento in cui l'hai aperto e il salvataggio. */
+export const CONFLITTO_VERSIONE = "CONFLITTO_VERSIONE";
+
+/**
+ * @param {string} id
+ * @param {object} patch
+ * @param {object} [opts]
+ * @param {string} [opts.attesoUpdatedAt] com'era `updated_at` quando la
+ *   schermata ha caricato l'annuncio. Se lo passi, la scrittura avviene solo
+ *   se nel frattempo non l'ha toccato nessun altro.
+ */
+export async function updateListing(id, patch, opts = {}) {
   // Il PNR non è una colonna di listings: va estratto e salvato in listing_secrets
   const { pnr, ...rest } = patch || {};
+  const atteso = opts.attesoUpdatedAt ?? null;
 
   // Il PNR si scrive PRIMA degli altri campi, ed è voluto. È l'unica delle
   // due scritture che una regola di business può rifiutare: se il biglietto
@@ -318,10 +330,17 @@ export async function updateListing(id, patch) {
     }
   }
 
-  const { data, error } = await supabase
-    .from('listings')
-    .update(rest)
-    .eq('id', id)
+  // Controllo di versione (facoltativo, lo attiva chi passa attesoUpdatedAt).
+  // Il salvataggio manda TUTTI i campi del modulo, non solo quelli toccati:
+  // senza questo confronto, correggere una virgola nella descrizione
+  // riscriveva anche il prezzo com'era all'apertura della schermata,
+  // annullando in silenzio il ribasso che il decadimento automatico aveva
+  // applicato nel frattempo — e chi aveva salvato l'annuncio aveva già
+  // ricevuto la notifica di quel ribasso.
+  let scrittura = supabase.from('listings').update(rest).eq('id', id);
+  if (atteso) scrittura = scrittura.eq('updated_at', atteso);
+
+  const { data, error } = await scrittura
     .select('*')       // <-- fa fare "return=representation"
     .maybeSingle();    // <-- non lancia se 0 righe
 
@@ -330,7 +349,20 @@ export async function updateListing(id, patch) {
     return { error };
   }
   if (!data) {
-    // 0 righe toccate: id sbagliato o RLS
+    // Zero righe. Con un controllo di versione attivo le ragioni diventano
+    // due, e vanno distinte: "non è tuo / non esiste" si racconta in un
+    // modo, "qualcuno l'ha cambiato mentre lo modificavi" in un altro — la
+    // seconda ha un seguito sensato da proporre, la prima no.
+    if (atteso) {
+      const { data: corrente } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      if (corrente) {
+        return { error: { code: CONFLITTO_VERSIONE, message: 'Listing changed since it was loaded', corrente } };
+      }
+    }
     return { error: { message: 'No rows updated (check ID or RLS policy)' } };
   }
   return data;

@@ -56,35 +56,65 @@ export async function uploadImage(listingId, asset, position = 0) {
   const rand = Math.random().toString(36).slice(2, 8);
   const path = `${user.id}/${listingId}/${Date.now()}-${rand}.${ext}`;
 
-  const { error: upErr } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, decode(asset.base64), { contentType, upsert: false });
-  if (upErr) throw upErr;
-
   const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
   const url = pub?.publicUrl;
 
+  // PRIMA la riga, POI il file. L'ordine era inverso, e il bucket è
+  // pubblico: quando l'insert veniva rifiutato — succede davvero, il
+  // trigger a DB non ne accetta più di due per annuncio — il file restava
+  // caricato e raggiungibile per URL senza appartenere a nessun annuncio.
+  // Una foto di biglietto che nessuna schermata mostra più ma che chiunque
+  // abbia l'indirizzo può ancora aprire.
+  //
+  // Così invece il rifiuto arriva prima che un solo byte parta: niente file
+  // orfano, e neanche la banda sprecata a caricare una foto che verrà
+  // scartata. Se a fallire è il caricamento, resta al più una riga senza
+  // file — un'immagine rotta, che si vede e si corregge, non un documento
+  // che continua a circolare.
   const { data, error } = await supabase
     .from("listing_images")
     .insert({ listing_id: listingId, url, position })
     .select("id, url, position")
     .single();
   if (error) throw error;
+
+  const { error: upErr } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, decode(asset.base64), { contentType, upsert: false });
+  if (upErr) {
+    const { error: errPulizia } = await supabase.from("listing_images").delete().eq("id", data.id);
+    if (errPulizia) console.log("[uploadImage] riga da ripulire:", errPulizia.message);
+    throw upErr;
+  }
+
   return data;
 }
 
-/** Rimuove una foto: riga in DB + file su Storage (best-effort) */
+/**
+ * Rimuove una foto: PRIMA il file su Storage, POI la riga.
+ *
+ * L'ordine era inverso e la rimozione del file era best-effort dentro un
+ * try/catch: se falliva, l'utente vedeva la foto sparire dall'annuncio
+ * mentre il file restava pubblico e raggiungibile da chiunque avesse
+ * l'indirizzo. Su una foto di biglietto — con nome, tratta e a volte il
+ * codice di prenotazione sopra — "cancellata" deve voler dire cancellata.
+ *
+ * Così, se il file non si riesce a togliere, non si toglie neanche la riga:
+ * la foto resta visibile nell'annuncio e l'errore arriva a chi ha premuto,
+ * che può riprovare. Sgradevole, ma vero — al contrario del silenzio di
+ * prima, che diceva "fatto" a cose non fatte.
+ */
 export async function deleteImage(imageId, url) {
+  const marker = `/${BUCKET}/`;
+  const idx = typeof url === "string" ? url.indexOf(marker) : -1;
+  if (idx >= 0) {
+    const objPath = url.slice(idx + marker.length);
+    const { error: errFile } = await supabase.storage.from(BUCKET).remove([objPath]);
+    if (errFile) throw errFile;
+  }
+  // Nessun indirizzo riconoscibile: non c'è un file da togliere (o non
+  // sappiamo quale). La riga si rimuove comunque, altrimenti resterebbe
+  // impossibile liberarsene.
   const { error } = await supabase.from("listing_images").delete().eq("id", imageId);
   if (error) throw error;
-  try {
-    const marker = `/${BUCKET}/`;
-    const idx = typeof url === "string" ? url.indexOf(marker) : -1;
-    if (idx >= 0) {
-      const objPath = url.slice(idx + marker.length);
-      await supabase.storage.from(BUCKET).remove([objPath]);
-    }
-  } catch (e) {
-    console.log("[deleteImage] storage cleanup skip:", e?.message || e);
-  }
 }

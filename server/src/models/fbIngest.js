@@ -86,6 +86,23 @@ function normType(raw) {
  * e per TRAIN: from_location + to_location
  * per HOTEL: hotel_city (oppure location generica -> city)
  */
+/**
+ * L'errore è "questa riga esiste già" (indice ux_listings_external), oppure
+ * qualcos'altro?
+ *
+ * Il codice 23505 da solo non basta a distinguerlo: lo solleva ANCHE
+ * before_insert_listings_block_duplicate, che parla di tutt'altro (due
+ * annunci identici dello stesso utente). Scambiare quello per "la riga c'è
+ * già" porterebbe a proseguire su una riga che non esiste. Si guarda quindi
+ * il nome dell'indice, che PostgREST mette in `message` o in `details`.
+ */
+function isExternalIdConflict(err) {
+  if (!err) return false;
+  const codice = String(err.code || "");
+  const testo = `${err.message || ""} ${err.details || ""}`.toLowerCase();
+  return codice === "23505" && testo.includes("ux_listings_external");
+}
+
 function buildPresentation(parsed) {
   const az = (parsed?.cerco_vendo || '').toUpperCase(); // CERCO | VENDO
 
@@ -272,31 +289,56 @@ export async function upsertListingFromFacebook({ channel, externalId, contactUr
   // del webhook: se l'annuncio c'è già (stesso source+external_id) è già
   // completo e coerente, e va aggiornato com'era prima — metterlo in pausa
   // per poi riattivarlo lo farebbe sparire e riapparire senza motivo.
+  //
+  // `isNew` si ricava dalla SCRITTURA, non da una SELECT che la precede, e la
+  // differenza conta perché più sotto decide chi ha il diritto di CANCELLARE
+  // la riga. Con la lettura prima, due consegne concorrenti dello stesso
+  // webhook — Facebook li ripete — leggevano entrambe "non c'è", si
+  // dichiaravano entrambe padrone della bozza, e se la seconda inciampava
+  // sul segreto il suo rollback portava via l'annuncio che la prima aveva
+  // appena pubblicato. Provando a inserire, invece, la riga la possiede solo
+  // chi ha vinto l'insert: l'altro riceve un 23505 dall'indice
+  // ux_listings_external e sa di essere il secondo.
+  //
   // Senza source+external_id non c'è nessuna riga da ritrovare: in un indice
-  // unico i NULL sono distinti fra loro, quindi l'upsert inserisce comunque
-  // una riga nuova e la ricerca sarebbe solo una chiamata sprecata.
+  // unico i NULL sono distinti fra loro, quindi l'insert passa comunque.
   let isNew = true;
-  if (baseRow.source != null && baseRow.external_id != null) {
-    const { data: existing, error: errLookup } = await supabase
-      .from('listings')
-      .select('id')
-      .eq('source', baseRow.source)
-      .eq('external_id', baseRow.external_id)
-      .maybeSingle();
-    if (errLookup) throw errLookup;
-    isNew = !existing?.id;
-  }
+  let listingId = null;
 
-  const { data, error } = await supabase
+  const { data: inserito, error: errInsert } = await supabase
     .from('listings')
-    .upsert(isNew ? { ...baseRow, status: 'paused' } : baseRow, { onConflict: 'source,external_id' })
+    .insert({ ...baseRow, status: 'paused' })
     .select('id')
     .single();
 
-  if (error) throw error;
+  if (!errInsert) {
+    listingId = inserito.id;
+  } else if (isExternalIdConflict(errInsert)) {
+    // Qualcun altro ce l'ha già messa: la riga è sua, noi la aggiorniamo e
+    // basta. Il controllo è sul NOME dell'indice, non sul solo codice 23505:
+    // con quello scatterebbe anche before_insert_listings_block_duplicate,
+    // che è un'altra cosa (annuncio doppio dello stesso utente) e non va
+    // scambiata per "questa riga esiste già".
+    isNew = false;
+    const { data: aggiornato, error: errUpdate } = await supabase
+      .from('listings')
+      .update(baseRow)
+      .eq('source', baseRow.source)
+      .eq('external_id', baseRow.external_id)
+      .select('id')
+      .single();
+    if (errUpdate) throw errUpdate;
+    listingId = aggiornato.id;
+  } else {
+    throw errInsert;
+  }
+
+  const data = { id: listingId };
 
   // Da qui in poi, su un annuncio appena creato, ogni errore va ripulito:
   // la bozza in pausa non deve restare come residuo di un tentativo fallito.
+  // Su una riga che NON abbiamo creato noi non si tocca niente: è di un'altra
+  // consegna, che magari l'ha già pubblicata.
   const rollbackIfNew = async () => {
     if (!isNew) return;
     const { error: errDel } = await supabase.from('listings').delete().eq('id', data.id);

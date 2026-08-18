@@ -17,7 +17,7 @@
 -- Le colonne di una tabella mancante non vengono elencate: si vedrebbe
 -- l'intera tabella riga per riga, e la riga 'tabella' dice già tutto.
 --
--- Oggetti attesi: 32 tabelle, 272 colonne, 82 funzioni, 21 trigger.
+-- Oggetti attesi: 33 tabelle, 276 colonne, 85 funzioni, 21 trigger.
 -- ============================================================
 
 WITH attesi(tipo, oggetto) AS (VALUES
@@ -27,6 +27,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('tabella',  'chain_participants'),
 ('tabella',  'chain_proposals'),
 ('tabella',  'chat_messages'),
+('tabella',  'cron_leases'),
 ('tabella',  'fb_account_links'),
 ('tabella',  'fb_link_codes'),
 ('tabella',  'fb_sessions'),
@@ -97,6 +98,10 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('colonna',  'chat_messages.offer_id'),
 ('colonna',  'chat_messages.read_at'),
 ('colonna',  'chat_messages.sender_id'),
+('colonna',  'cron_leases.claimed_at'),
+('colonna',  'cron_leases.expires_at'),
+('colonna',  'cron_leases.holder'),
+('colonna',  'cron_leases.name'),
 ('colonna',  'fb_account_links.linked_at'),
 ('colonna',  'fb_account_links.sender_id'),
 ('colonna',  'fb_account_links.user_id'),
@@ -327,6 +332,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('colonna',  'trust_audit.user_id'),
 ('funzione', '_chain_participant_exists'),
 ('funzione', '_city_overlap'),
+('funzione', '_city_words'),
 ('funzione', '_norm'),
 ('funzione', '_test_dollar'),
 ('funzione', '_wall_now'),
@@ -347,6 +353,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('funzione', 'before_update_listings_lock_columns'),
 ('funzione', 'before_update_listings_lock_terminal'),
 ('funzione', 'cancel_accepted_offer_any'),
+('funzione', 'claim_cron_lease'),
 ('funzione', 'confirm_chain_participant'),
 ('funzione', 'confirm_exchange_any'),
 ('funzione', 'count_route_watchers'),
@@ -394,6 +401,7 @@ WITH attesi(tipo, oggetto) AS (VALUES
 ('funzione', 'recompute_listing_pending_state'),
 ('funzione', 'refresh_profile_counters'),
 ('funzione', 'release_all_stale_reservations'),
+('funzione', 'release_cron_lease'),
 ('funzione', 'release_my_stale_reservations'),
 ('funzione', 'remind_pending_confirmations'),
 ('funzione', 'remind_pending_ratings'),
