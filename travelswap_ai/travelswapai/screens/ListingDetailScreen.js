@@ -26,45 +26,14 @@ import { stripPriceFromTitle } from "../lib/listingTitle";
 import { normStatusKey, isConcludedStatus } from "../lib/listingStatus";
 import TrustBadges from "../components/TrustBadges";
 import UserRating from "../components/UserRating";
+import { formatWallClock } from "../lib/wallClock.mjs";
 
 /* ========= Utils ========= */
 
-const pad2 = (n) => String(n).padStart(2, "0");
-
-// Nomi brevi localizzati (costruiti a mano perché la data va letta in UTC,
-// vedi sotto: toLocale* userebbe il fuso di chi guarda e sposterebbe l'ora).
-const WD_SHORT = {
-  it: ["dom", "lun", "mar", "mer", "gio", "ven", "sab"],
-  en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-  es: ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"],
-};
-const MON_SHORT = {
-  it: ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"],
-  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-  es: ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"],
-};
-
-// Formato leggibile per chi consulta l'annuncio, es. "sab 18 lug 2026 · 07:31".
-// Orari "da parete": partenza/arrivo indicano l'ora ALLA STAZIONE e vanno
-// mostrati identici a come li ha inseriti chi pubblica, per qualunque fuso di
-// chi guarda. Il valore è salvato naive (interpretato come UTC), quindi si
-// legge in UTC — altrimenti in Italia comparivano +2 ore. Per le date "secche"
-// (check-in/out) withTime=false: mostra solo giorno/mese/anno, senza orario.
-function formatWallClock(input, locale = "it", withTime = true) {
-  if (!input) return "—";
-  const d = new Date(String(input));
-  if (isNaN(d.getTime())) return String(input);
-  const lang = ["it", "en", "es"].includes(locale) ? locale : "it";
-  const wd = WD_SHORT[lang][d.getUTCDay()];
-  const day = d.getUTCDate();
-  const mon = MON_SHORT[lang][d.getUTCMonth()];
-  const Y = d.getUTCFullYear();
-  const datePart = `${wd} ${day} ${mon} ${Y}`;
-  if (!withTime) return datePart;
-  const h = pad2(d.getUTCHours());
-  const m = pad2(d.getUTCMinutes());
-  return `${datePart} · ${h}:${m}`;
-}
+// formatWallClock viveva qui. Ora sta in lib/wallClock.mjs perché la stessa
+// regola serve agli elenchi (Home, Attività, Ricerche salvate, Scambi a 3),
+// che invece leggevano le stesse colonne con toLocaleDateString: lo stesso
+// treno compariva con due giorni diversi a seconda della schermata.
 
 function timeAgoLocalized(input, locale = "it") {
   if (!input) return null;

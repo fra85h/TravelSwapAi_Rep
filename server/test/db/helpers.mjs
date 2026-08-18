@@ -46,6 +46,10 @@ export async function creaUtente(c, email) {
   return rows[0].id;
 }
 
+const giorniDaOra = (n) => new Date(Date.now() + n * 24 * 3600 * 1000).toISOString().slice(0, 19);
+const FRA_UN_ANNO = giorniDaOra(365);
+const FRA_UN_ANNO_PIU_UNO = giorniDaOra(366);
+
 /**
  * Un annuncio valido.
  *
@@ -53,6 +57,14 @@ export async function creaUtente(c, email) {
  * annunci attivi dello stesso utente con stesso tipo, stessa tratta e
  * stesso prezzo. Con un prezzo fisso, il secondo annuncio di ogni test
  * fallirebbe per un motivo che col test non c'entra niente.
+ *
+ * I campi predefiniti dipendono dal tipo perché ora lo pretende il database
+ * (chk_listings_* in 20260818093000): un treno vivo ha tratta e partenza e
+ * NON ha date d'albergo, un hotel ha check-in/check-out e NON ha tratta né
+ * orari di partenza. Prima il fixture creava treni attivi senza depart_at —
+ * righe che nessuna schermata dell'app sa produrre, e che quindi rendevano i
+ * test più permissivi della realtà. Una data futura come predefinito evita
+ * anche che gli annunci di prova risultino scaduti a metà test.
  */
 export async function creaAnnuncio(c, opts = {}) {
   const {
@@ -61,22 +73,28 @@ export async function creaAnnuncio(c, opts = {}) {
     type = "train",
     status = "active",
     title = "Annuncio di prova",
-    location = "Roma-->Milano",
-    routeFrom = "Roma",
-    routeTo = "Milano",
-    departAt = null,
     price = Math.round(Math.random() * 100000) / 100,
     acceptsSwap = true,
+  } = opts;
+
+  const treno = type === "train";
+  const {
+    location = treno ? "Roma-->Milano" : "Roma",
+    routeFrom = treno ? "Roma" : null,
+    routeTo = treno ? "Milano" : null,
+    departAt = treno ? FRA_UN_ANNO : null,
+    checkIn = treno ? null : FRA_UN_ANNO.slice(0, 10),
+    checkOut = treno ? null : FRA_UN_ANNO_PIU_UNO.slice(0, 10),
   } = opts;
 
   const { rows } = await c.query(
     `insert into public.listings
        (user_id, type, title, location, price, status, cerco_vendo,
-        route_from, route_to, depart_at, accepts_swap)
-     values ($1, $2::listing_type, $3, $4, $5, $6::listing_status, $7, $8, $9, $10, $11)
+        route_from, route_to, depart_at, check_in, check_out, accepts_swap)
+     values ($1, $2::listing_type, $3, $4, $5, $6::listing_status, $7, $8, $9, $10, $11, $12, $13)
      returning id`,
     [userId, type, title, location, price, status, cercoVendo,
-      routeFrom, routeTo, departAt, acceptsSwap],
+      routeFrom, routeTo, departAt, checkIn, checkOut, acceptsSwap],
   );
   return rows[0].id;
 }
@@ -108,6 +126,29 @@ export async function comeUtente(c, userId, fn) {
   } finally {
     await c.query("RESET ROLE").catch(() => {});
     await c.query(`SELECT set_config('request.jwt.claims', '', true)`).catch(() => {});
+  }
+}
+
+/**
+ * Come erroreDi, ma la transazione resta usabile anche dopo il rifiuto.
+ *
+ * Dopo un errore Postgres aborta la transazione e rifiuta ogni comando
+ * successivo ("current transaction is aborted"): senza savepoint, un test che
+ * vuole provare due rifiuti di fila raccoglie quel messaggio invece del
+ * secondo errore vero, e passerebbe o fallirebbe per la ragione sbagliata.
+ * Prende una funzione, non una promessa: deve poter aprire il savepoint
+ * PRIMA che l'operazione parta.
+ */
+export async function erroreDiIsolato(c, fn) {
+  const nome = `prova_${Math.random().toString(36).slice(2, 8)}`;
+  await c.query(`SAVEPOINT ${nome}`);
+  try {
+    await fn();
+    await c.query(`RELEASE SAVEPOINT ${nome}`);
+    return null;
+  } catch (e) {
+    await c.query(`ROLLBACK TO SAVEPOINT ${nome}`);
+    return e.message;
   }
 }
 

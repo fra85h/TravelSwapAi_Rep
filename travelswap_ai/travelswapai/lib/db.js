@@ -41,22 +41,38 @@ const key = (id) => String(id);
 /**
  * Salva/aggiorna il PNR (dato riservato) in listing_secrets — mai in listings.
  * La policy RLS "own secrets" consente la scrittura solo all'owner del listing.
- * Non blocca il flusso principale in caso di errore.
+ *
+ * LANCIA in caso di errore, e deve farlo. Prima l'errore veniva solo scritto
+ * in console: sembrava prudenza ("non bloccare il flusso principale"), ma il
+ * rifiuto che arriva più spesso da qui è quello dell'indice
+ * ux_listings_live_pnr, cioè "questo biglietto è già in vendita da qualcun
+ * altro". Inghiottirlo voleva dire pubblicare comunque l'annuncio, senza PNR
+ * e quindi senza impronta: fuori dall'indice anti-duplicato, invisibile al
+ * controllo, con due persone che rivendono lo stesso posto e l'app che a
+ * entrambe diceva "pubblicato".
  */
 async function savePnrSecret(listingId, pnr) {
-  try {
-    const clean = pnr == null ? null : String(pnr).trim();
-    if (!clean) {
-      await supabase.from("listing_secrets").delete().eq("listing_id", listingId);
-      return;
-    }
-    const { error } = await supabase
-      .from("listing_secrets")
-      .upsert({ listing_id: listingId, pnr: clean });
-    if (error) console.log("[savePnrSecret] error:", error.message);
-  } catch (e) {
-    console.log("[savePnrSecret] exception:", e?.message || e);
+  const clean = pnr == null ? null : String(pnr).trim();
+  if (!clean) {
+    const { error } = await supabase.from("listing_secrets").delete().eq("listing_id", listingId);
+    if (error) throw error;
+    return;
   }
+  const { error } = await supabase
+    .from("listing_secrets")
+    .upsert({ listing_id: listingId, pnr: clean });
+  if (error) throw error;
+}
+
+/**
+ * Cancella una bozza rimasta a metà. L'esito non cambia la storia: quello che
+ * conta è l'errore originale, che il chiamante sta per rilanciare. Se anche
+ * la cancellazione fallisce resta un annuncio in pausa — non pubblico, non
+ * pericoloso, e ritrovabile dal proprietario.
+ */
+async function eliminaBozza(listingId) {
+  const { error } = await supabase.from("listings").delete().eq("id", listingId);
+  if (error) console.log("[insertListing] pulizia della bozza non riuscita:", error.message);
 }
 
 /** Legge il PNR del proprio annuncio (solo owner, via RLS). Ritorna stringa o null. */
@@ -236,22 +252,71 @@ export async function insertListing(payload) {
     list_price: payload.cerco_vendo === "CERCO" ? null : (payload.list_price ?? null),
   };
 
+  // Un annuncio con PNR nasce in PAUSA e diventa pubblico solo a segreto
+  // scritto. Non è prudenza generica: senza PNR l'annuncio non ha impronta,
+  // quindi sfugge all'indice ux_listings_live_pnr che impedisce a due persone
+  // di rivendere lo stesso biglietto. Nascendo attivo, un rifiuto del segreto
+  // lasciava online proprio l'annuncio che quell'indice doveva fermare.
+  // Stessa disciplina del percorso Messenger (server/src/models/fbIngest.js):
+  // mai un annuncio pubblico e incompleto, nemmeno per un istante.
+  //
+  // I trigger che contano davvero — tetto agli annunci attivi e
+  // anti-duplicato — coprono esplicitamente la transizione paused -> active
+  // (vedi 20260726120000), quindi passare da qui non salta nessun controllo.
+  const statoVoluto = body.status;
+  const nasceInPausa = !!payload.pnr && statoVoluto === "active";
+
   const { data, error } = await supabase
     .from("listings")
-    .insert([body])
+    .insert([nasceInPausa ? { ...body, status: "paused" } : body])
     .select()
     .single();
   if (error) throw error;
 
   // PNR: dato riservato, salvato separatamente in listing_secrets (mai in listings)
   if (payload.pnr) {
-    await savePnrSecret(data.id, payload.pnr);
+    try {
+      await savePnrSecret(data.id, payload.pnr);
+    } catch (e) {
+      await eliminaBozza(data.id);
+      throw e;
+    }
   }
-  return data;
+
+  if (!nasceInPausa) return data;
+
+  const { data: pubblicato, error: errPubblica } = await supabase
+    .from("listings")
+    .update({ status: statoVoluto })
+    .eq("id", data.id)
+    .select()
+    .single();
+  if (errPubblica) {
+    await eliminaBozza(data.id);
+    throw errPubblica;
+  }
+  return pubblicato;
 }
 export async function updateListing(id, patch) {
   // Il PNR non è una colonna di listings: va estratto e salvato in listing_secrets
   const { pnr, ...rest } = patch || {};
+
+  // Il PNR si scrive PRIMA degli altri campi, ed è voluto. È l'unica delle
+  // due scritture che una regola di business può rifiutare: se il biglietto
+  // che stai dichiarando è già in vendita da qualcun altro, l'indice
+  // ux_listings_live_pnr la respinge. Facendola per prima, un rifiuto lascia
+  // l'annuncio esattamente com'era, invece di aver già salvato prezzo, date e
+  // descrizione e dover poi spiegare che una parte è passata e una no.
+  if (pnr !== undefined) {
+    try {
+      await savePnrSecret(id, pnr);
+    } catch (e) {
+      // Il chiamante controlla `upd?.error` e non si aspetta un throw
+      // (CreateListingScreen fa `if (upd?.error) throw upd.error`), quindi
+      // l'errore torna nella forma che già sa gestire.
+      return { error: e };
+    }
+  }
 
   const { data, error } = await supabase
     .from('listings')
@@ -267,9 +332,6 @@ export async function updateListing(id, patch) {
   if (!data) {
     // 0 righe toccate: id sbagliato o RLS
     return { error: { message: 'No rows updated (check ID or RLS policy)' } };
-  }
-  if (pnr !== undefined) {
-    await savePnrSecret(id, pnr);
   }
   return data;
 }

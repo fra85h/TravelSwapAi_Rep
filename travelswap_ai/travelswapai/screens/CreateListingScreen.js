@@ -2449,8 +2449,23 @@ const initialJsonRef = useRef(null);
       // Backstop DB: duplicato (errcode 23505 dal trigger) o tetto prezzo
       // (chk_price_le_purchase) — messaggi dedicati invece del generico.
       const emsg = String(e?.message || "").toLowerCase();
+      const edet = String(e?.details || "").toLowerCase();
       const ecode = e?.code || e?.details || "";
-      if (emsg.includes("duplicate active listing") || ecode === "23505") {
+      // Il PNR è già in vendita altrove: anche questo è un 23505, ma NON è
+      // "hai già un annuncio identico" — l'annuncio che collide può essere di
+      // chiunque, e il messaggio generico manderebbe a cercare fra i propri
+      // annunci una cosa che lì non c'è. Va prima del ramo generico.
+      if (emsg.includes("ux_listings_live_pnr") || edet.includes("ux_listings_live_pnr")) {
+        Alert.alert(
+          t("createListing.pnrTakenTitle", "Biglietto già in vendita"),
+          t("createListing.pnrTakenMsg", "Il codice di prenotazione che hai inserito risulta già su un altro annuncio online. Controlla di averlo copiato bene: se è giusto, quel biglietto è già in vendita e questo annuncio non è stato pubblicato.")
+        );
+      } else if (emsg.includes("chk_pnr_plausible") || emsg.includes("pnr_is_plausible")) {
+        Alert.alert(
+          t("createListing.pnrInvalidTitle", "Codice di prenotazione non valido"),
+          t("createListing.pnrInvalidMsg", "Ricontrolla il codice di prenotazione sul biglietto: è la sigla di lettere e numeri che identifica la prenotazione. L'annuncio non è stato pubblicato.")
+        );
+      } else if (emsg.includes("duplicate active listing") || ecode === "23505") {
         Alert.alert(
           t("createListing.dupExactTitle", "Annuncio già pubblicato"),
           t("createListing.dupExactMsg", "Hai già un annuncio attivo identico. Modifica o rimuovi quello esistente invece di pubblicarne un altro uguale.")
