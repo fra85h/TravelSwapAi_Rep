@@ -2,6 +2,7 @@
 import express from "express";
 import { recomputeDynamicPrices } from "../models/priceDecay.js";
 import { requireCronSecret } from "../middleware/requireCronSecret.js";
+import { withCronLease } from "../middleware/withCronLease.js";
 import { rateLimitPriceDecay } from "../middleware/rateLimit.js";
 
 export const priceDecayRouter = express.Router();
@@ -10,7 +11,7 @@ export const priceDecayRouter = express.Router();
 // scansiona gli annunci di TUTTI gli utenti (serve il client service-role),
 // stesso schema di chains.js/savedSearches.js/offers.js — pensato per un
 // job periodico, non per essere chiamato dal client mobile.
-priceDecayRouter.post("/recompute", rateLimitPriceDecay, requireCronSecret, async (req, res) => {
+priceDecayRouter.post("/recompute", rateLimitPriceDecay, requireCronSecret, withCronLease("price-decay", { ttlSeconds: 600 }), async (req, res) => {
   try {
     const out = await recomputeDynamicPrices();
     return res.status(200).json(out);

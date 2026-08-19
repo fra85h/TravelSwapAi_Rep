@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AntDesign, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse, isPlausiblePnr, countMyActiveListings, ACTIVE_LISTING_CAP } from "../lib/db";
+import { insertListing, updateListing, getListingById, getListingSecret, findMyDuplicateActiveListing, isPnrInUse, isPlausiblePnr, countMyActiveListings, ACTIVE_LISTING_CAP, CONFLITTO_VERSIONE } from "../lib/db";
 import { recomputeAIAndSnapshot, propagateListing } from "../lib/backendApi";
 import { theme } from "../lib/theme";
 import { resolveNameChange, nameChangeFromFare, NAME_CHANGE } from "../lib/fareRules";
@@ -39,6 +39,7 @@ import DateTimeField from "../components/DateTimeField";
 import { parseListingFromTextAI, parseListingFromPdfAI } from "../lib/descriptionParser"; // OpenAI parser (server-side)
 import { Image } from "react-native";
 import { listImages, uploadImage, deleteImage } from "../lib/listingImages";
+import { alertArgs } from "../lib/userError.mjs";
 import { getMarketContext } from "../lib/db";
 import { parseLocalizedNumber } from "../lib/number";
 import { suggestListingPrice } from "../lib/priceSuggestion";
@@ -774,6 +775,10 @@ const initialJsonRef = useRef(null);
           const secretPnr = await getListingSecret(route.params.listingId).catch(() => null);
           if (!cancelled && l) {
             originalStatusRef.current = l.status || null;
+            // La versione con cui stiamo lavorando: serve a scoprire se
+            // qualcun altro tocca l'annuncio mentre lo si modifica (vedi
+            // CONFLITTO_VERSIONE in lib/db.js).
+            versioneCaricataRef.current = l.updated_at || null;
             // Ancora dello sconto dinamico già in corso (vedi originalListPriceRef).
             originalListPriceRef.current = l.list_price != null ? Number(l.list_price) : null;
             const [locFrom, locTo] = splitRoute(l.location);
@@ -1010,6 +1015,13 @@ const initialJsonRef = useRef(null);
   // salvataggio lo rimette 'active' in automatico (vedi onPublishOrSave).
   const originalStatusRef = useRef(passedListing?.status || null);
 
+  // updated_at dell'annuncio come l'abbiamo letto. Il salvataggio manda
+  // tutti i campi del modulo, non solo quelli toccati: senza confrontare la
+  // versione, correggere una virgola nella descrizione riscriverebbe anche
+  // il prezzo com'era all'apertura, annullando il ribasso che il decadimento
+  // automatico può aver applicato nel frattempo.
+  const versioneCaricataRef = useRef(passedListing?.updated_at || null);
+
   const editListingId = mode === "edit" ? (passedListing?.id || listingId) : null;
   const totalPhotoCount = existingPhotos.length + pendingPhotos.length;
 
@@ -1099,7 +1111,16 @@ const initialJsonRef = useRef(null);
             setExistingPhotos((prev) => prev.filter((p) => p.id !== img.id));
             setPhotosDirtySinceCheck(true);
           } catch (e) {
-            Alert.alert(t("common.error", "Errore"), e?.message || t("createListing.photoDeleteErrorMsg", "Impossibile eliminare."));
+            // Ora deleteImage lancia anche quando è il FILE a non essere
+            // stato rimosso, e in quel caso la foto è ancora lì per davvero:
+            // il messaggio deve dirlo, perché prima l'errore veniva
+            // inghiottito e la foto spariva dalla schermata restando
+            // pubblica sul suo indirizzo.
+            Alert.alert(...alertArgs(e, {
+              t,
+              titolo: t("createListing.photoDeleteFailedTitle", "Foto non eliminata"),
+              azione: t("createListing.photoDeleteFailedAction", "La foto è ancora sull'annuncio. Riprova fra poco."),
+            }));
           } finally {
             setPhotoBusy(false);
           }
@@ -2372,8 +2393,53 @@ const initialJsonRef = useRef(null);
         // "Modifiche salvate" e chiudeva la schermata, perdendo le modifiche
         // in silenzio. Il throw le fa arrivare al catch più sotto, che ha già
         // i messaggi dedicati per duplicato e tetto prezzo.
-        const upd = await updateListing(idForUpdate, payload);
+        let upd = await updateListing(idForUpdate, payload, {
+          attesoUpdatedAt: versioneCaricataRef.current,
+        });
+
+        // Qualcuno ha toccato l'annuncio mentre lo modificavi. Nella pratica
+        // è quasi sempre il decadimento automatico del prezzo, e il tuo
+        // modulo ha ancora quello vecchio: salvare senza dire niente lo
+        // rialzerebbe, dopo che a chi aveva salvato l'annuncio è già
+        // arrivata la notifica del ribasso.
+        //
+        // Si interrompe perché è un'informazione che chi legge NON ha (vedi
+        // le regole sul copy): non è un "sei sicuro?" davanti a un'azione
+        // reversibile, è una notizia. E si lascia decidere, invece di
+        // buttare via il lavoro appena fatto ricaricando la schermata.
+        if (upd?.error?.code === CONFLITTO_VERSIONE) {
+          const prezzoOra = upd.error.corrente?.price;
+          const prezzoTuo = payload.price;
+          const cambiatoIlPrezzo = prezzoOra != null && Number(prezzoOra) !== Number(prezzoTuo);
+
+          const procedi = await new Promise((resolve) => {
+            Alert.alert(
+              t("editListing.changedTitle", "L'annuncio è cambiato nel frattempo"),
+              cambiatoIlPrezzo
+                ? t(
+                    "editListing.changedPriceMsg",
+                    "Il prezzo è sceso automaticamente a {ora}€ mentre modificavi. Se salvi, torna a {tuo}€.",
+                    { ora: Number(prezzoOra).toFixed(2), tuo: Number(prezzoTuo).toFixed(2) }
+                  )
+                : t(
+                    "editListing.changedGenericMsg",
+                    "Qualcosa è stato aggiornato dopo che hai aperto la schermata. Se salvi, le tue modifiche prendono il posto di quelle."
+                  ),
+              [
+                { text: t("common.cancel", "Annulla"), style: "cancel", onPress: () => resolve(false) },
+                { text: t("editListing.changedSaveAnyway", "Salva le mie"), onPress: () => resolve(true) },
+              ]
+            );
+          });
+          if (!procedi) return;
+
+          // Scelta consapevole: si riscrive senza controllo di versione.
+          upd = await updateListing(idForUpdate, payload);
+        }
+
         if (upd?.error) throw upd.error;
+        // La riga è cambiata: la prossima modifica parte da questa versione.
+        versioneCaricataRef.current = upd?.updated_at || null;
         publishedIds = [idForUpdate];
 
         // Check AI DOPO il salvataggio (vedi la nota sull'ORDINE più sopra):

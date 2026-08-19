@@ -100,14 +100,25 @@ test('POST /price-decay/recompute: aggiorna solo l\'annuncio che deve scendere, 
                   }),
                 }),
               }),
-              update: (patch) => ({
-                eq: (col1, id) => ({
-                  eq: () => {
-                    updates.push({ id, patch });
-                    return { then: (resolve) => resolve({ error: null }) };
+              // Catena di filtri aperta: la update ne monta un numero
+              // variabile (id, status, e il compare-and-set su
+              // savers_notified_price solo quando c'e' da avvisare) e chiude
+              // con .select(), che serve a sapere se la riga e' stata
+              // toccata davvero. Il mock registra i filtri, cosi' il test
+              // puo' verificare CHE COSA la scrittura pretendeva di trovare.
+              update: (patch) => {
+                const filtri = [];
+                const catena = {
+                  eq: (col, val) => { filtri.push({ op: 'eq', col, val }); return catena; },
+                  is: (col, val) => { filtri.push({ op: 'is', col, val }); return catena; },
+                  select: async () => {
+                    const id = filtri.find((f) => f.col === 'id')?.val;
+                    updates.push({ id, patch, filtri });
+                    return { data: [{ id }], error: null };
                   },
-                }),
-              }),
+                };
+                return catena;
+              },
             };
           }
           if (table === 'saved_listings') {

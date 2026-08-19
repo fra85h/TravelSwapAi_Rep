@@ -35,7 +35,14 @@ function cityOnly(s) {
   return idx >= 0 ? str.slice(0, idx) : str;
 }
 
-function cityMatches(wanted, actual) {
+// Esportata perché è la definizione ORIGINALE di "queste due città sono la
+// stessa": è lei a decidere chi riceve davvero l'avviso. Nel database ne
+// vive una gemella (_city_overlap, vedi 20260818143000) che alimenta il
+// conteggio "N persone seguono questa tratta" mostrato a chi pubblica, e le
+// due devono dire la stessa cosa — prima non lo facevano, e il numero
+// mostrato contava persone diverse da quelle poi avvisate. Un test su
+// Postgres vero le confronta su un elenco di coppie.
+export function cityMatches(wanted, actual) {
   const w = normCity(cityOnly(wanted));
   if (!w) return true;
   const a = normCity(cityOnly(actual));

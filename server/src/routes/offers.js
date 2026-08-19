@@ -2,6 +2,7 @@
 import express from "express";
 import { supabase } from "../db.js";
 import { requireCronSecret } from "../middleware/requireCronSecret.js";
+import { withCronLease } from "../middleware/withCronLease.js";
 import { rateLimitOffers } from "../middleware/rateLimit.js";
 
 export const offersRouter = express.Router();
@@ -24,7 +25,7 @@ export const offersRouter = express.Router();
 // nessuno spingeva l'utente a confermare uno scambio accettato o a
 // valutare una transazione finalizzata, si contava solo sull'iniziativa
 // spontanea di riaprire l'app.
-offersRouter.post("/recompute", rateLimitOffers, requireCronSecret, async (req, res) => {
+offersRouter.post("/recompute", rateLimitOffers, requireCronSecret, withCronLease("offers", { ttlSeconds: 600 }), async (req, res) => {
   try {
     if (!supabase) throw new Error("Supabase client not configured");
     const { data: expired, error: e1 } = await supabase.rpc("expire_old_offers");
