@@ -1062,7 +1062,21 @@ const initialJsonRef = useRef(null);
       if (editListingId) {
         // annuncio già esistente: carica subito
         setPhotoBusy(true);
-        let pos = existingPhotos.length;
+        // Il posto successivo si ricava dalle posizioni VERE, non dal
+        // conteggio delle foto. Con due foto (0 e 1), cancellando la prima ne
+        // resta una in posizione 1 mentre il conteggio dice "1": si sarebbe
+        // caricata la nuova foto sopra un posto già occupato. Prima l'effetto
+        // era una copertina ambigua, che cambiava da una lettura all'altra;
+        // da quando (listing_id, position) è unico il caricamento verrebbe
+        // proprio rifiutato.
+        //
+        // Number(null) fa 0, quindi una posizione illeggibile passerebbe per
+        // la prima: si scartano invece di farle vincere il confronto.
+        const posizioneMax = existingPhotos.reduce((max, p) => {
+          const n = Number(p?.position);
+          return Number.isFinite(n) && n > max ? n : max;
+        }, -1);
+        let pos = posizioneMax + 1;
         for (const a of assets) {
           try {
             const row = await uploadImage(editListingId, a, pos++);
