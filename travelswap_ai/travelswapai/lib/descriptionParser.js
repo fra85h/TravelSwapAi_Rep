@@ -1,5 +1,6 @@
 // travelswapai/lib/ai/descriptionParser.js
 import { fetchJson } from "./backendApi";
+import { SEPARATORE_TRATTA, normalizzaSeparatoreTratta } from "./listingTitle";
 
 function makeRoute(origin, destination) {
   const a = normStr(origin);
@@ -7,7 +8,9 @@ function makeRoute(origin, destination) {
   if (!a && !b) return null;
   if (!b) return a;
   if (!a) return b;
-  return `${a}-->${b}`;
+  // Il separatore che si vede a schermo, non quello di trasporto: questa
+  // stringa finisce in listings.location, che la vetrina mostra così com'è.
+  return `${a}${SEPARATORE_TRATTA}${b}`;
 }
 
 function makeTitle(cercoVendo, type, route) {
@@ -126,10 +129,12 @@ function normalizeParsedPayload(res) {
     const payload = res?.data ?? res ?? {};
 
     const type = normStr(pick(payload, "type"));
-let title = normStr(pick(payload, "title"));
+// Il titolo arriva dal server già composto, e il prompt gli fa usare
+// l'ASCII "-->": va convertito qui, o compare così in vetrina.
+let title = normalizzaSeparatoreTratta(normStr(pick(payload, "title")));
 const origin = normStr(pick(payload, "origin"));
 const destination = normStr(pick(payload, "destination"));
-let location = makeRoute(origin, destination) || normStr(pick(payload, "location"));
+let location = makeRoute(origin, destination) || normalizzaSeparatoreTratta(normStr(pick(payload, "location")));
 
     const checkIn  = toIsoDate(pick(payload, "checkIn", "check_in"));
     const checkOut = toIsoDate(pick(payload, "checkOut", "check_out"));
