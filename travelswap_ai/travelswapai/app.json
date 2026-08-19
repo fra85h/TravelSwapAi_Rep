@@ -15,7 +15,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "bundleIdentifier": "com.travelswap.app"
+      "bundleIdentifier": "com.travelswap.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "TravelSwap usa la fotocamera per inquadrare il QR del biglietto e per fotografarlo da allegare all'annuncio.",
+        "NSPhotoLibraryUsageDescription": "TravelSwap accede alle tue foto per allegare all'annuncio l'immagine del biglietto o della prenotazione.",
+        "NSPhotoLibraryAddUsageDescription": "TravelSwap salva nelle tue foto solo le immagini che scegli di scaricare."
+      }
     },
     "android": {
       "package": "com.travelswap.app",
