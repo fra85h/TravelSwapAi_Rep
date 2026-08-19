@@ -16,6 +16,7 @@ import OfferCTAs from "../components/OfferCTA";
 import SaveButton from "../components/SaveButton";
 import ImageCarousel from "../components/ImageCarousel";
 import ActionSheet from "../components/ui/ActionSheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { submitReport } from "../lib/reports";
 import { getCurrentUser } from "../lib/db.js";
 import { listImages } from "../lib/listingImages";
@@ -72,6 +73,13 @@ const fmtMoney = (v, c) => (v == null || isNaN(Number(v)) ? "—" : `${Number(v)
 export default function ListingDetailScreen() {
   const route = useRoute();
   const navigation = useNavigation();
+  // Il footer con le azioni è ancorato a bottom: 0, e sotto quel bordo c'è
+  // roba di sistema: l'home indicator su iPhone, la barra dei gesti su
+  // Android — che con edgeToEdgeEnabled (vedi app.json) disegna SOPRA
+  // l'applicazione invece che accanto. Senza questo margine, il pulsante più
+  // importante dell'app finisce mezzo sotto quella barra: si vede, si preme,
+  // e il tocco lo intercetta il sistema.
+  const insets = useSafeAreaInsets();
   const listingId = route.params?.listingId ?? route.params?.id;
 
   const { t, locale } = (typeof useI18n === "function" ? useI18n() : { t: (s)=>s, locale: "it" });
@@ -340,7 +348,7 @@ useEffect(() => {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 140 + insets.bottom }}
         refreshControl={<RefreshControl refreshing={recomputing} onRefresh={() => setRecomputing(false)} />}>
         {images.length > 0 ? (
           <View style={{ marginHorizontal: -16, marginBottom: 12, borderRadius: 0, overflow: "hidden" }}>
@@ -671,7 +679,7 @@ useEffect(() => {
 
       {/* CTA footer (già localizzate dentro OfferCTAs) */}
       {!isMine ? (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: 12 + insets.bottom }]}>
           <OfferCTAs listing={listing} me={{ id: meId }} />
         </View>
       ) : null}

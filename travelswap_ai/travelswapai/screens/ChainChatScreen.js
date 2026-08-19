@@ -3,7 +3,7 @@
 // handshake da gestire: la catena è già 'completed' quando questa chat si
 // apre (tutti e 3 hanno confermato, vedi confirm_chain_participant), quindi
 // niente da confermare/annullare/contestare — solo organizzare la consegna.
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { alertArgs } from "../lib/userError.mjs";
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
@@ -21,6 +21,7 @@ import { notifyActivityChanged } from "../lib/ActivityContext";
 import { useI18n } from "../lib/i18n";
 import { theme } from "../lib/theme";
 import HelpModal from "../components/HelpModal";
+import ActionSheet from "../components/ui/ActionSheet";
 
 function formatTime(iso, locale) {
   try {
@@ -77,18 +78,48 @@ export default function ChainChatScreen() {
     }
   }, [chainId, t]);
 
-  const pickReportReason = useCallback((participant) => {
-    Alert.alert(
-      t("chains.reportTitle", "Segnala un problema"),
-      t("chains.reportMsg", "Segnala solo se qualcosa non va con questa persona."),
-      [
-        { text: t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto"), onPress: () => doReportChain(participant, t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto")) },
-        { text: t("chat.reportReasonInvalid", "Biglietto non valido/già usato"), onPress: () => doReportChain(participant, t("chat.reportReasonInvalid", "Biglietto non valido/già usato")) },
-        { text: t("chat.reportReasonOther", "Altro problema"), onPress: () => doReportChain(participant, t("chat.reportReasonOther", "Altro problema")) },
-        { text: t("common.cancel", "Annulla"), style: "cancel" },
-      ]
-    );
-  }, [t, doReportChain]);
+  // Segnalare un problema in una catena richiede DUE scelte: contro chi, e
+  // per cosa. Erano due Alert in fila, e sul web nessuno dei due funzionava:
+  // lo shim di lib/webAlert.js può solo mappare Alert.alert su
+  // window.confirm, che di scelte ne ha due. Con tre pulsanti o più mostrava
+  // "OK/Annulla" e sceglieva sempre il primo — quindi in una catena a 3 la
+  // segnalazione partiva contro il primo partecipante dell'elenco e col
+  // primo motivo, indipendentemente da cosa fosse successo davvero. Due dati
+  // sbagliati su due, in una contestazione che blocca lo scambio di tre
+  // persone.
+  //
+  // Ora è un ActionSheet — un modale con un pulsante per opzione, identico
+  // su web, iOS e Android — con un passo per volta: null, poi "chi", poi
+  // "motivo" con la persona già scelta in mano.
+  const [passoSegnalazione, setPassoSegnalazione] = useState(null);
+
+  const opzioniSegnalazione = useMemo(() => {
+    if (!passoSegnalazione) return { titolo: "", messaggio: "", opzioni: [] };
+    if (passoSegnalazione.tipo === "chi") {
+      return {
+        titolo: t("chains.reportWhoTitle", "Contro chi vuoi segnalare il problema?"),
+        messaggio: t("chains.reportWhoMsg", "Scegli la persona coinvolta."),
+        opzioni: otherParticipants.map((p) => ({
+          label: p.displayName || t("chains.otherUser", "Un altro utente"),
+          onPress: () => setPassoSegnalazione({ tipo: "motivo", participant: p }),
+        })),
+      };
+    }
+    const persona = passoSegnalazione.participant;
+    const motivo = (chiave, testo) => ({
+      label: t(chiave, testo),
+      onPress: () => doReportChain(persona, t(chiave, testo)),
+    });
+    return {
+      titolo: t("chains.reportTitle", "Segnala un problema"),
+      messaggio: t("chains.reportMsg", "Segnala solo se qualcosa non va con questa persona."),
+      opzioni: [
+        motivo("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto"),
+        motivo("chat.reportReasonInvalid", "Biglietto non valido/già usato"),
+        motivo("chat.reportReasonOther", "Altro problema"),
+      ],
+    };
+  }, [passoSegnalazione, otherParticipants, t, doReportChain]);
 
   const onReportChain = useCallback(() => {
     setHelpOpen(false);
@@ -96,22 +127,14 @@ export default function ChainChatScreen() {
       Alert.alert(t("common.error", "Errore"), t("chains.reportNoParticipants", "Impossibile identificare gli altri partecipanti in questo momento. Riprova tra poco."));
       return;
     }
-    if (otherParticipants.length === 1) {
-      pickReportReason(otherParticipants[0]);
-      return;
-    }
-    Alert.alert(
-      t("chains.reportWhoTitle", "Contro chi vuoi segnalare il problema?"),
-      t("chains.reportWhoMsg", "Scegli la persona coinvolta."),
-      [
-        ...otherParticipants.map((p) => ({
-          text: p.displayName || t("chains.otherUser", "Un altro utente"),
-          onPress: () => pickReportReason(p),
-        })),
-        { text: t("common.cancel", "Annulla"), style: "cancel" },
-      ]
+    // Con un solo altro partecipante la domanda "contro chi" non ha senso:
+    // si salta direttamente al motivo, come faceva prima.
+    setPassoSegnalazione(
+      otherParticipants.length === 1
+        ? { tipo: "motivo", participant: otherParticipants[0] }
+        : { tipo: "chi" },
     );
-  }, [otherParticipants, t, pickReportReason]);
+  }, [otherParticipants, t]);
 
   useEffect(() => {
     navigation.setOptions?.({
@@ -261,6 +284,15 @@ export default function ChainChatScreen() {
         closeLabel={t("chat.help.close", "Ho capito")}
         actionLabel={t("chains.reportCta", "Segnala un problema")}
         onAction={onReportChain}
+      />
+
+      <ActionSheet
+        visible={!!passoSegnalazione}
+        title={opzioniSegnalazione.titolo}
+        message={opzioniSegnalazione.messaggio}
+        cancelLabel={t("common.cancel", "Annulla")}
+        onClose={() => setPassoSegnalazione(null)}
+        options={opzioniSegnalazione.opzioni}
       />
     </SafeAreaView>
   );

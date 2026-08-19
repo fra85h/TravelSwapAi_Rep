@@ -3,13 +3,14 @@
 // Realtime: i messaggi dell'altra parte arrivano senza ricaricare; in
 // apertura e a ogni messaggio ricevuto i non-letti vengono azzerati (e il
 // numeretto sul tab Attività si aggiorna via notifyActivityChanged).
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { alertArgs } from "../lib/userError.mjs";
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet, Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ActionSheet from "../components/ui/ActionSheet";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { listChatMessages, sendChatMessage, markChatRead, subscribeToChat, getOfferHandshake } from "../lib/chat";
@@ -179,19 +180,24 @@ export default function ChatScreen() {
     finally { setHsBusy(false); }
   }, [offerId, t, refreshHandshake, load]);
 
-  // Motivi preimpostati (cross-platform: Alert.prompt è solo iOS).
-  const onReport = useCallback(() => {
-    Alert.alert(
-      t("chat.reportTitle", "Segnala un problema"),
-      t("chat.reportMsg", "Segnala solo se qualcosa non va: la conferma resta bloccata per entrambi finché non risolvete."),
-      [
-        { text: t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto"), onPress: () => doReport(t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto")) },
-        { text: t("chat.reportReasonInvalid", "Biglietto non valido/già usato"), onPress: () => doReport(t("chat.reportReasonInvalid", "Biglietto non valido/già usato")) },
-        { text: t("chat.reportReasonOther", "Altro problema"), onPress: () => doReport(t("chat.reportReasonOther", "Altro problema")) },
-        { text: t("common.cancel", "Annulla"), style: "cancel" },
-      ]
-    );
-  }, [t, doReport]);
+  // Motivi preimpostati. Erano tre pulsanti dentro un Alert, e sul web non
+  // funzionava: lo shim di lib/webAlert.js può solo mappare Alert.alert su
+  // window.confirm, che di scelte ne ha due — quindi mostrava "OK/Annulla" e
+  // faceva partire SEMPRE il primo motivo. Chi segnalava "biglietto già
+  // usato" apriva una contestazione che diceva "non ho ricevuto il
+  // biglietto", e la controparte si difendeva dall'accusa sbagliata.
+  //
+  // ActionSheet è un modale vero, con un pulsante per opzione, e si comporta
+  // uguale su web, iOS e Android. È lo stesso componente che ListingDetail e
+  // OfferCTA usano già per lo stesso motivo.
+  const [reportOpen, setReportOpen] = useState(false);
+  const motiviSegnalazione = useMemo(() => ([
+    { label: t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto"), onPress: () => doReport(t("chat.reportReasonNotReceived", "Non ho ricevuto il biglietto")) },
+    { label: t("chat.reportReasonInvalid", "Biglietto non valido/già usato"), onPress: () => doReport(t("chat.reportReasonInvalid", "Biglietto non valido/già usato")) },
+    { label: t("chat.reportReasonOther", "Altro problema"), onPress: () => doReport(t("chat.reportReasonOther", "Altro problema")) },
+  ]), [t, doReport]);
+
+  const onReport = useCallback(() => setReportOpen(true), []);
 
   const onCancelExchange = useCallback(() => {
     Alert.alert(
@@ -520,6 +526,15 @@ export default function ChatScreen() {
         title={t("chat.help.title", "❓ Cosa fare se...")}
         items={helpItems}
         closeLabel={t("chat.help.close", "Ho capito")}
+      />
+
+      <ActionSheet
+        visible={reportOpen}
+        title={t("chat.reportTitle", "Segnala un problema")}
+        message={t("chat.reportMsg", "Segnala solo se qualcosa non va: la conferma resta bloccata per entrambi finché non risolvete.")}
+        cancelLabel={t("common.cancel", "Annulla")}
+        onClose={() => setReportOpen(false)}
+        options={motiviSegnalazione}
       />
     </SafeAreaView>
   );
