@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { View, Text, Alert } from "react-native";
 import { theme } from "../lib/theme";
+import FormScreen from "../components/ui/FormScreen";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase";
@@ -38,7 +39,7 @@ export default function ForgotPasswordScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1, padding: 20, backgroundColor: theme.colors.background }}>
+    <FormScreen>
       <Text style={{ fontFamily: theme.fonts.headingExtraBold, fontSize: 22, color: theme.colors.text, marginBottom: 16 }}>
         {t("auth.forgot", "Password dimenticata")}
       </Text>
@@ -51,6 +52,6 @@ export default function ForgotPasswordScreen({ navigation }) {
         onChangeText={setEmail}
       />
       <Button title={t("auth.sendResetLink", "Invia link di reset")} onPress={sendReset} loading={loading} />
-    </View>
+    </FormScreen>
   );
 }

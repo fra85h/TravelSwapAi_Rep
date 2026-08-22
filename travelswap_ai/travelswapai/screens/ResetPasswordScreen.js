@@ -6,6 +6,7 @@ import { View, Text, ActivityIndicator, Alert } from "react-native";
 import * as Linking from "expo-linking";
 import { useIsFocused } from "@react-navigation/native";
 import { theme } from "../lib/theme";
+import FormScreen from "../components/ui/FormScreen";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase";
@@ -239,7 +240,7 @@ export default function ResetPasswordScreen({ navigation }) {
   }
 
   return (
-    <View style={{ flex: 1, padding: 20, backgroundColor: theme.colors.background }}>
+    <FormScreen>
       <Text style={{ fontFamily: theme.fonts.headingExtraBold, fontSize: 22, color: theme.colors.text, marginBottom: 16 }}>
         {t("auth.resetTitle", "Nuova password")}
       </Text>
@@ -258,6 +259,6 @@ export default function ResetPasswordScreen({ navigation }) {
         onChangeText={setConfirmPassword}
       />
       <Button title={t("auth.resetSave", "Salva password")} onPress={save} loading={saving} />
-    </View>
+    </FormScreen>
   );
 }

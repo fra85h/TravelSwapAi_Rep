@@ -48,7 +48,6 @@
       "baseUrl": "/app"
     },
     "plugins": [
-      "expo-barcode-scanner",
       "expo-web-browser"
     ]
   }

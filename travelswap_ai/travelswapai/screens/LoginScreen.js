@@ -6,6 +6,7 @@ import * as Linking from "expo-linking";
 import { AntDesign, FontAwesome } from "@expo/vector-icons";
 
 import { theme } from "../lib/theme";
+import FormScreen from "../components/ui/FormScreen";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import { supabase } from "../lib/supabase.js"; // <-- usa il client unico
@@ -177,7 +178,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1, padding: 20, backgroundColor: theme.colors.background }}>
+    <FormScreen>
       <View style={{ alignItems: "center", marginTop: 40, marginBottom: 24 }}>
         <Text style={{ fontFamily: theme.fonts.headingExtraBold, fontSize: 28, color: theme.colors.text }}>
           {mode === "signup"
@@ -251,6 +252,6 @@ export default function LoginScreen({ navigation }) {
           loading={loading}
         />
       </View>
-    </View>
+    </FormScreen>
   );
 }
