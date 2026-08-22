@@ -203,6 +203,10 @@ export const translations = {
       emptyForType: "Nessun annuncio di questo tipo al momento.",
       emptyAll: "Ancora nessun annuncio in giro.",
       emptyAllSub: "Torna a trovarci tra poco — o pubblica tu il primo dal tab Vendi.",
+      emptyRoute: "Ancora nessun biglietto su {tratta}",
+      emptyAllAlertSub: "Ti avvisiamo appena qualcuno mette in vendita il suo: non devi tornare a controllare.",
+      emptyAlertCta: "Avvisami quando arriva",
+      emptyPublishSecondary: "Oppure pubblica tu il primo",
     },
 
     notifications: {
@@ -479,8 +483,12 @@ export const translations = {
     },
 
     prefsOnboarding: {
-      title: "Le tue preferenze di viaggio",
-      subtitle: "Aiutaci a trovarti gli scambi giusti — puoi cambiarle quando vuoi dal profilo.",
+      title: "Che viaggi fai?",
+      subtitle: "Un biglietto costa meno se lo compri da chi non parte più. Dicci dove viaggi e ti mettiamo davanti i tuoi.",
+      routeLabel: "Fra quali città viaggi?",
+      homeCityPlaceholder: "Da dove vieni — es. Napoli",
+      studyCityPlaceholder: "Dove studi o lavori — es. Milano",
+      routeHint: "Ti mettiamo in cima i biglietti su questa tratta, in tutti e due i versi. Puoi lasciarne vuota una.",
       editSubtitle: "Aggiorna i tuoi gusti di viaggio: li usiamo per suggerirti scambi migliori.",
       typeLabel: "Cosa ti interessa di più?",
       typeTrain: "Treno",
@@ -1761,6 +1769,10 @@ export const translations = {
       emptyForType: "No listings of this type right now.",
       emptyAll: "No listings around yet.",
       emptyAllSub: "Check back soon — or be the first to post one from the Sell tab.",
+      emptyRoute: "No tickets on {tratta} yet",
+      emptyAllAlertSub: "We will let you know as soon as someone puts theirs up for sale: no need to keep checking back.",
+      emptyAlertCta: "Let me know when one shows up",
+      emptyPublishSecondary: "Or be the first to post one",
     },
 
     notifications: {
@@ -2034,8 +2046,12 @@ export const translations = {
     },
 
     prefsOnboarding: {
-      title: "Your travel preferences",
-      subtitle: "Help us find the right swaps for you — you can change these anytime from your profile.",
+      title: "What trips do you take?",
+      subtitle: "A ticket costs less when you buy it from someone who is no longer travelling. Tell us where you travel and we will put yours up front.",
+      routeLabel: "Between which cities do you travel?",
+      homeCityPlaceholder: "Where you are from — e.g. Naples",
+      studyCityPlaceholder: "Where you study or work — e.g. Milan",
+      routeHint: "We put tickets on this route at the top, in both directions. You can leave one empty.",
       editSubtitle: "Update your travel taste: we use it to suggest better swaps.",
       typeLabel: "What are you most interested in?",
       typeTrain: "Train",
@@ -3167,6 +3183,10 @@ export const translations = {
       emptyForType: "No hay anuncios de este tipo por ahora.",
       emptyAll: "Todavía no hay anuncios por aquí.",
       emptyAllSub: "Vuelve pronto — o sé el primero en publicar uno desde la pestaña Vender.",
+      emptyRoute: "Todavía no hay billetes en {tratta}",
+      emptyAllAlertSub: "Te avisamos en cuanto alguien ponga el suyo a la venta: no hace falta que vuelvas a mirar.",
+      emptyAlertCta: "Avísame cuando llegue",
+      emptyPublishSecondary: "O publica tú el primero",
     },
 
     notifications: {
@@ -3440,8 +3460,12 @@ export const translations = {
     },
 
     prefsOnboarding: {
-      title: "Tus preferencias de viaje",
-      subtitle: "Ayúdanos a encontrarte los intercambios adecuados — puedes cambiarlas cuando quieras desde el perfil.",
+      title: "¿Qué viajes haces?",
+      subtitle: "Un billete cuesta menos si lo compras a quien ya no viaja. Dinos por dónde viajas y te ponemos los tuyos delante.",
+      routeLabel: "¿Entre qué ciudades viajas?",
+      homeCityPlaceholder: "De dónde vienes — p. ej. Nápoles",
+      studyCityPlaceholder: "Dónde estudias o trabajas — p. ej. Milán",
+      routeHint: "Ponemos arriba los billetes de esta ruta, en los dos sentidos. Puedes dejar una vacía.",
       editSubtitle: "Actualiza tus gustos de viaje: los usamos para sugerirte mejores intercambios.",
       typeLabel: "¿Qué te interesa más?",
       typeTrain: "Tren",

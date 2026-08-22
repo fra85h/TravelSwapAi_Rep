@@ -51,11 +51,15 @@ function describeListing(listing, t, locale) {
   return date ? `${from} → ${to} · ${date}` : `${from} → ${to}`;
 }
 
-function NewSearchForm({ onCreated, t }) {
-  const [type, setType] = useState("train");
-  const [routeFrom, setRouteFrom] = useState("");
-  const [routeTo, setRouteTo] = useState("");
-  const [location, setLocation] = useState("");
+// `precompila` arriva dalla vetrina vuota: chi ci finisce non ha trovato
+// niente e sta chiedendo di essere avvisato, quindi la tratta la sappiamo
+// già dalle sue preferenze. Farla riscrivere sarebbe chiedere due volte la
+// stessa cosa, ed è il punto in cui la gente rinuncia.
+function NewSearchForm({ onCreated, t, precompila }) {
+  const [type, setType] = useState(precompila?.type || "train");
+  const [routeFrom, setRouteFrom] = useState(precompila?.routeFrom || "");
+  const [routeTo, setRouteTo] = useState(precompila?.routeTo || "");
+  const [location, setLocation] = useState(precompila?.location || "");
   const [maxPrice, setMaxPrice] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -204,7 +208,7 @@ function MatchCard({ match, onPress, t, locale }) {
   );
 }
 
-export default function SavedSearchesScreen({ navigation }) {
+export default function SavedSearchesScreen({ navigation, route }) {
   const { t, locale } = useI18n();
   const [searches, setSearches] = useState([]);
   const [matches, setMatches] = useState([]);
@@ -293,7 +297,7 @@ export default function SavedSearchesScreen({ navigation }) {
           style={{ marginBottom: 16 }}
         />
       ) : (
-        <NewSearchForm onCreated={handleCreated} t={t} />
+        <NewSearchForm onCreated={handleCreated} t={t} precompila={route?.params?.precompila} />
       )}
 
       {searches.length ? (
