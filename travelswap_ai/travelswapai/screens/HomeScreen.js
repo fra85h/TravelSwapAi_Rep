@@ -5,6 +5,7 @@ import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { listPublicListings, listMyListings, getCurrentUser } from "../lib/db";
 import { getUserSnapshot } from "../lib/backendApi";
 import { getMyPrefs } from "../lib/preferences";
+import { corridoio } from "../lib/corridoio.mjs";
 import { subscribeDataChanged } from "../lib/ActivityContext";
 import { useNotifications } from "../lib/NotificationsContext";
 import { useOnline } from "../components/OfflineBanner";
@@ -418,6 +419,12 @@ export default function HomeScreen() {
     });
   }, [items, tab, query, aiFilters, prefs, scoreMap]);
 
+  // Le due città dichiarate nell'onboarding, se ci sono. Servono a dire
+  // "Ancora nessun biglietto su Napoli ↔ Milano" invece di "Ancora nessun
+  // annuncio in giro": la prima frase parla a una persona, la seconda a
+  // nessuno. E servono a precompilare l'avviso, così crearlo costa un tocco.
+  const mioCorridoio = useMemo(() => corridoio(prefs), [prefs]);
+
   const renderTabs = () => (
     <View style={styles.tabs}>
       {["all", "hotel", "train"].map((tKey) => {
@@ -725,6 +732,8 @@ export default function HomeScreen() {
           ? tt("esplora.noResults", "Nessun risultato per “{query}”", { query: query.trim() })
           : tab !== "all"
           ? tt("esplora.emptyForType", "Nessun annuncio di questo tipo al momento.")
+          : mioCorridoio
+          ? tt("esplora.emptyRoute", "Ancora nessun biglietto su {tratta}", { tratta: mioCorridoio.etichetta })
           : tt("esplora.emptyAll", "Ancora nessun annuncio in giro.")}
       </Text>
       <Text style={styles.emptySub}>
@@ -732,7 +741,7 @@ export default function HomeScreen() {
           ? tt("esplora.tryOther", "Prova con un'altra città o tratta — o crea un avviso con la campanella in alto: ti avvisiamo noi quando compare.")
           : tab !== "all"
           ? tt("listing.tryChangeFilter", "Prova a cambiare filtro.")
-          : tt("esplora.emptyAllSub", "Torna a trovarci tra poco — o pubblica tu il primo dal tab Vendi.")}
+          : tt("esplora.emptyAllAlertSub", "Ti avvisiamo appena qualcuno mette in vendita il suo: non devi tornare a controllare.")}
       </Text>
       {query.trim() ? (
         <TouchableOpacity
@@ -746,7 +755,31 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.pillBtn} onPress={() => setTab("all")} activeOpacity={0.85}>
           <Text style={styles.pillBtnText}>{tt("listing.showAll", "Mostra tutti")}</Text>
         </TouchableOpacity>
-      ) : null}
+      ) : (
+        // Vetrina davvero vuota: è il caso in cui un marketplace sembra morto
+        // e chi arriva non torna. Prima qui non c'era NESSUNA azione — solo
+        // "torna a trovarci tra poco", che è un vicolo cieco travestito da
+        // consiglio. L'avviso è l'unica cosa che l'app può fare per te quando
+        // non ha niente da mostrarti, e ogni avviso raccolto oggi diventa il
+        // "N persone seguono questa tratta" che convince un venditore domani.
+        // Per questo è l'azione PRINCIPALE, non un ripiego.
+        <>
+          <TouchableOpacity
+            style={styles.pillBtn}
+            onPress={() => navigation.navigate("SavedSearches", mioCorridoio
+              ? { precompila: { type: "train", routeFrom: mioCorridoio.casa, routeTo: mioCorridoio.studio } }
+              : undefined)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.pillBtnText}>{tt("esplora.emptyAlertCta", "Avvisami quando arriva")}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.push("CreateListing")} activeOpacity={0.7} style={{ marginTop: 12 }}>
+            <Text style={styles.emptySecondary}>
+              {tt("esplora.emptyPublishSecondary", "Oppure pubblica tu il primo")}
+            </Text>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 
@@ -913,6 +946,7 @@ const styles = StyleSheet.create({
   emptyWrap: { paddingVertical: 32, alignItems: "center", paddingHorizontal: 16 },
   emptyText: { color: theme.colors.textMuted, textAlign: "center", fontWeight: "700" },
   emptySub: { color: theme.colors.textMuted, textAlign: "center", marginTop: 6 },
+  emptySecondary: { color: theme.colors.accent, textAlign: "center", fontWeight: "600" },
   pillBtn: { marginTop: 14, backgroundColor: theme.colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999 },
   pillBtnText: { color: theme.colors.boardingText, fontWeight: "800" },
 

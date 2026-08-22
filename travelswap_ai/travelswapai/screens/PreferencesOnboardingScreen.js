@@ -12,6 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { theme } from "../lib/theme";
 import { useI18n } from "../lib/i18n";
 import { getMyPrefs, saveMyPrefs, skipPrefsOnboarding } from "../lib/preferences";
+import { cittaDaPrefs, prefsConCorridoio } from "../lib/corridoio.mjs";
+import StationAutocomplete from "../components/StationAutocomplete";
 import { parseLocalizedNumber } from "../lib/number";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
@@ -31,6 +33,12 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
   const [types, setTypes] = useState([]);
   const [maxPrice, setMaxPrice] = useState("");
   const [location, setLocation] = useState("");
+  // Le due città di chi è fuorisede. Chiederle separate invece di una
+  // "tratta preferita" a campo libero rende la domanda più facile (due nomi,
+  // non una sintassi) e la risposta utilizzabile: da due città la vetrina sa
+  // già cosa mettere in cima, in ENTRAMBI i versi del viaggio.
+  const [casa, setCasa] = useState("");
+  const [studio, setStudio] = useState("");
   const [saving, setSaving] = useState(false);
   const [skipping, setSkipping] = useState(false);
   const [loadingPrefs, setLoadingPrefs] = useState(isEdit);
@@ -44,6 +52,9 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
         setTypes(Array.isArray(prefs.types) ? prefs.types : []);
         setMaxPrice(prefs.maxPrice != null ? String(prefs.maxPrice) : "");
         // Supporta più zone (locations[]) con fallback al vecchio singolo.
+        const due = cittaDaPrefs(prefs);
+        setCasa(due.casa);
+        setStudio(due.studio);
         setLocation(
           Array.isArray(prefs.locations) && prefs.locations.length
             ? prefs.locations.join(", ")
@@ -69,12 +80,21 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-      await saveMyPrefs({
+      const base = {
         types,
         maxPrice: Number.isFinite(priceNum) && priceNum > 0 ? priceNum : undefined,
-        location: locations[0] || undefined,
-        locations: locations.length ? locations : undefined,
-      });
+      };
+      // Col treno fra i tipi le due città sono la risposta buona; senza,
+      // resta il campo libero di prima, che per gli hotel va benissimo.
+      await saveMyPrefs(
+        types.includes("train")
+          ? prefsConCorridoio(base, { casa, studio })
+          : {
+              ...base,
+              location: locations[0] || undefined,
+              locations: locations.length ? locations : undefined,
+            },
+      );
       if (isEdit) {
         Alert.alert(t("prefsOnboarding.savedTitle", "Salvato"), t("prefsOnboarding.savedMsg", "Preferenze aggiornate."));
       }
@@ -159,23 +179,44 @@ export default function PreferencesOnboardingScreen({ onDone, mode = "onboarding
           keyboardType="numeric"
         />
 
-        <Input
-          label={
-            types.includes("train")
-              ? t("prefsOnboarding.locationLabelTrain", "Tratta preferita")
-              : t("prefsOnboarding.locationLabel", "Città o zona preferita")
-          }
-          value={location}
-          onChangeText={setLocation}
-          placeholder={
-            types.includes("train")
-              ? t("prefsOnboarding.locationPlaceholderTrain", "Es. Milano → Roma, Torino → Genova")
-              : t("prefsOnboarding.locationPlaceholder", "Es. Milano, Firenze")
-          }
-        />
-        <Text style={styles.fieldHint}>
-          {t("prefsOnboarding.locationsHint", "Puoi indicarne più di una separandole con la virgola: Esplora darà priorità a queste zone/tratte.")}
-        </Text>
+        {types.includes("train") ? (
+          <>
+            {/* Due città invece di una "tratta": chi è fuorisede non ha una
+                località preferita, ha due posti e li fa avanti e indietro.
+                Chiederglieli così è più facile da rispondere e molto più
+                utile da usare — la vetrina sa cosa mettere in cima in
+                entrambi i versi del viaggio. */}
+            <Text style={styles.sectionLabel}>
+              {t("prefsOnboarding.routeLabel", "Fra quali città viaggi?")}
+            </Text>
+            <StationAutocomplete
+              value={casa}
+              onChangeText={setCasa}
+              placeholder={t("prefsOnboarding.homeCityPlaceholder", "Da dove vieni — es. Napoli")}
+            />
+            <View style={{ height: 10 }} />
+            <StationAutocomplete
+              value={studio}
+              onChangeText={setStudio}
+              placeholder={t("prefsOnboarding.studyCityPlaceholder", "Dove studi o lavori — es. Milano")}
+            />
+            <Text style={styles.fieldHint}>
+              {t("prefsOnboarding.routeHint", "Ti mettiamo in cima i biglietti su questa tratta, in tutti e due i versi. Puoi lasciarne vuota una.")}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Input
+              label={t("prefsOnboarding.locationLabel", "Città o zona preferita")}
+              value={location}
+              onChangeText={setLocation}
+              placeholder={t("prefsOnboarding.locationPlaceholder", "Es. Milano, Firenze")}
+            />
+            <Text style={styles.fieldHint}>
+              {t("prefsOnboarding.locationsHint", "Puoi indicarne più di una separandole con la virgola: Esplora darà priorità a queste zone/tratte.")}
+            </Text>
+          </>
+        )}
 
         <Button
           title={t("prefsOnboarding.save", "Salva preferenze")}
