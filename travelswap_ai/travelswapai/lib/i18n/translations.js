@@ -310,8 +310,14 @@ export const translations = {
       logoutConfirmMsg: "Dovrai reinserire le credenziali al prossimo accesso.",
     },
 
+    appVersion: {
+      title: "Questa versione non è più aggiornata",
+      body: "Alcune cose sono cambiate e questa versione dell'app non riesce più a starci dietro: continuare porterebbe solo a errori difficili da capire. Aggiornala dallo store e ritrovi tutto dov'era.",
+      current: "Versione installata: {v}",
+    },
     qrScanner: {
       denied: "Non ho accesso alla fotocamera. Puoi consentirlo dalle impostazioni del browser, oppure scrivere il codice a mano.",
+      insecure: "Da questo indirizzo la fotocamera non è disponibile: serve una connessione sicura (https). Scrivi il codice a mano.",
       unsupported: "Questo browser non permette di usare la fotocamera. Scrivi il codice a mano.",
       generic: "Non riesco ad aprire la fotocamera. Scrivi il codice a mano.",
     },
@@ -1859,8 +1865,14 @@ export const translations = {
       logoutConfirmMsg: "You'll need to sign in again next time.",
     },
 
+    appVersion: {
+      title: "This version is out of date",
+      body: "Some things have changed and this version of the app can no longer keep up: carrying on would only lead to errors that are hard to make sense of. Update it from the store and you will find everything where you left it.",
+      current: "Installed version: {v}",
+    },
     qrScanner: {
       denied: "I don't have access to the camera. You can allow it from your browser settings, or type the code by hand.",
+      insecure: "The camera is not available from this address: it needs a secure connection (https). Type the code by hand.",
       unsupported: "This browser doesn't allow camera access. Type the code by hand.",
       generic: "I can't open the camera. Type the code by hand.",
     },
@@ -3259,8 +3271,14 @@ export const translations = {
       logoutConfirmMsg: "Tendrás que iniciar sesión de nuevo la próxima vez.",
     },
 
+    appVersion: {
+      title: "Esta versión ya no está actualizada",
+      body: "Algunas cosas han cambiado y esta versión de la app ya no puede seguirles el ritmo: continuar solo llevaría a errores difíciles de entender. Actualízala desde la tienda y encontrarás todo donde estaba.",
+      current: "Versión instalada: {v}",
+    },
     qrScanner: {
       denied: "No tengo acceso a la cámara. Puedes permitirlo desde los ajustes del navegador, o escribir el código a mano.",
+      insecure: "Desde esta dirección la cámara no está disponible: hace falta una conexión segura (https). Escribe el código a mano.",
       unsupported: "Este navegador no permite usar la cámara. Escribe el código a mano.",
       generic: "No consigo abrir la cámara. Escribe el código a mano.",
     },

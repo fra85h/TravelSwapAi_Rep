@@ -89,7 +89,18 @@ export default function QrScanner({ onScanned, paused = false, style }) {
     (async () => {
       const media = globalThis?.navigator?.mediaDevices;
       if (!media?.getUserMedia) {
-        setErrore("unsupported");
+        // Due cause diverse che si presentano identiche: getUserMedia manca
+        // sia sui browser troppo vecchi sia — molto più spesso — quando la
+        // pagina non è servita in HTTPS, perché la fotocamera esiste solo in
+        // un contesto sicuro. Dirle allo stesso modo significa accusare il
+        // browser di chi legge di essere vecchio quando il browser va
+        // benissimo ed è il nostro indirizzo a non avere il lucchetto: uno se
+        // ne va a cercare un aggiornamento che non gli serve.
+        //
+        // isSecureContext è vero su https e su localhost, falso su http: è
+        // esattamente la condizione che decide se la fotocamera esisterà.
+        const sicuro = globalThis?.isSecureContext !== false;
+        setErrore(sicuro ? "unsupported" : "insecure");
         return;
       }
       try {
@@ -137,6 +148,8 @@ export default function QrScanner({ onScanned, paused = false, style }) {
         <Text style={s.testoErrore}>
           {errore === "denied"
             ? t("qrScanner.denied", "Non ho accesso alla fotocamera. Puoi consentirlo dalle impostazioni del browser, oppure scrivere il codice a mano.")
+            : errore === "insecure"
+            ? t("qrScanner.insecure", "Da questo indirizzo la fotocamera non è disponibile: serve una connessione sicura (https). Scrivi il codice a mano.")
             : errore === "unsupported"
             ? t("qrScanner.unsupported", "Questo browser non permette di usare la fotocamera. Scrivi il codice a mano.")
             : t("qrScanner.generic", "Non riesco ad aprire la fotocamera. Scrivi il codice a mano.")}
