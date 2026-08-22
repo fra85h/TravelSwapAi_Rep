@@ -11,6 +11,7 @@ import { View, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import OfflineBanner from './components/OfflineBanner';
 import SavedHint from './components/SavedHint';
+import VersioneTroppoVecchia from './components/VersioneTroppoVecchia';
 import { theme } from './lib/theme';
 import { StatusBar } from 'expo-status-bar';
 import HeaderLogo from './components/HeaderLogo';
@@ -294,6 +295,11 @@ export default function App() {
                   sola nella vita dell'utente, al primo salvataggio. */}
               <SavedHint />
               <RootNavigator />
+              {/* Ultimo perché copre tutto: quando questa versione non è più
+                  servita, dentro l'app non c'è niente di utile da fare e
+                  lasciar navigare vorrebbe dire far incontrare rifiuti
+                  inspiegabili. Nella vita normale non disegna niente. */}
+              <VersioneTroppoVecchia />
             </NavigationContainer>
           </I18nProvider>
         </AuthProvider>

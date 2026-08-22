@@ -266,6 +266,29 @@ if (process.env.ALLOW_UNVERIFIED_WEBHOOK === 'true' && !isDev) {
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+// Versione minima dell'app che questo server sa ancora servire.
+//
+// Non esiste un canale di aggiornamento OTA: ogni correzione passa dallo
+// store, e una versione gia' installata resta installata finche' chi ce l'ha
+// non decide di aggiornarla. Intanto il database va avanti — negli ultimi
+// giorni si e' irrigidito parecchio — e un'app vecchia continua a parlarci
+// raccogliendo errori grezzi che non sa spiegare. Questa soglia le permette
+// di accorgersene e di dirlo, invece di far sbattere l'utente contro rifiuti
+// incomprensibili.
+//
+// Senza MIN_APP_VERSION impostata risponde null e nessuno viene bloccato: il
+// meccanismo resta inerte finche' qualcuno non decide una soglia. È voluto —
+// una soglia sbagliata chiude fuori TUTTI, e senza OTA non si corregge fino
+// alla prossima release. Deve essere impossibile attivarla per distrazione.
+//
+// Pubblico e senza autenticazione di proposito: serve PRIMA del login, ed e'
+// l'unica informazione che contiene.
+app.get('/api/app-version', (_req, res) => {
+  const minima = String(process.env.MIN_APP_VERSION || '').trim();
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json({ minVersion: minima || null });
+});
+
 // Endpoint di debug: SOLO in dev (rivelano stato di configurazione/ambiente)
 if (isDev) {
 app.get('/debug/env', (_req, res) => {
